@@ -15,7 +15,7 @@ export const Route = createFileRoute("/funnels")({
 });
 
 function Funnels() {
-  const max = FUNNEL_STAGES[0].count;
+  const max = FUNNEL_STAGES[0]?.count ?? 1;
   return (
     <>
       <PageHeader title="Funnels" description="How value moves through the pipeline, stage by stage." />
