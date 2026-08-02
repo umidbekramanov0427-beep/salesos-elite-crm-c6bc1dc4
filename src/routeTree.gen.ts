@@ -10,33 +10,167 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
+import { Route as CrmStagesRouteImport } from './routes/crm-stages'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FunnelsRouteImport } from './routes/funnels'
+import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TasksRouteImport } from './routes/tasks'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AudioAnalyticsRoute = AudioAnalyticsRouteImport.update({
+  id: '/audio-analytics',
+  path: '/audio-analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmStagesRoute = CrmStagesRouteImport.update({
+  id: '/crm-stages',
+  path: '/crm-stages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FunnelsRoute = FunnelsRouteImport.update({
+  id: '/funnels',
+  path: '/funnels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadTasksRoute = LeadTasksRouteImport.update({
+  id: '/lead-tasks',
+  path: '/lead-tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
+  '/audio-analytics': typeof AudioAnalyticsRoute
+  '/crm-stages': typeof CrmStagesRoute
+  '/dashboard': typeof DashboardRoute
+  '/funnels': typeof FunnelsRoute
+  '/inbox': typeof InboxRoute
+  '/lead-tasks': typeof LeadTasksRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
+  '/audio-analytics': typeof AudioAnalyticsRoute
+  '/crm-stages': typeof CrmStagesRoute
+  '/dashboard': typeof DashboardRoute
+  '/funnels': typeof FunnelsRoute
+  '/inbox': typeof InboxRoute
+  '/lead-tasks': typeof LeadTasksRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
+  '/audio-analytics': typeof AudioAnalyticsRoute
+  '/crm-stages': typeof CrmStagesRoute
+  '/dashboard': typeof DashboardRoute
+  '/funnels': typeof FunnelsRoute
+  '/inbox': typeof InboxRoute
+  '/lead-tasks': typeof LeadTasksRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/analytics'
+    | '/audio-analytics'
+    | '/crm-stages'
+    | '/dashboard'
+    | '/funnels'
+    | '/inbox'
+    | '/lead-tasks'
+    | '/settings'
+    | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/analytics'
+    | '/audio-analytics'
+    | '/crm-stages'
+    | '/dashboard'
+    | '/funnels'
+    | '/inbox'
+    | '/lead-tasks'
+    | '/settings'
+    | '/tasks'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/analytics'
+    | '/audio-analytics'
+    | '/crm-stages'
+    | '/dashboard'
+    | '/funnels'
+    | '/inbox'
+    | '/lead-tasks'
+    | '/settings'
+    | '/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AnalyticsRoute: typeof AnalyticsRoute
+  AudioAnalyticsRoute: typeof AudioAnalyticsRoute
+  CrmStagesRoute: typeof CrmStagesRoute
+  DashboardRoute: typeof DashboardRoute
+  FunnelsRoute: typeof FunnelsRoute
+  InboxRoute: typeof InboxRoute
+  LeadTasksRoute: typeof LeadTasksRoute
+  SettingsRoute: typeof SettingsRoute
+  TasksRoute: typeof TasksRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +182,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audio-analytics': {
+      id: '/audio-analytics'
+      path: '/audio-analytics'
+      fullPath: '/audio-analytics'
+      preLoaderRoute: typeof AudioAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm-stages': {
+      id: '/crm-stages'
+      path: '/crm-stages'
+      fullPath: '/crm-stages'
+      preLoaderRoute: typeof CrmStagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/funnels': {
+      id: '/funnels'
+      path: '/funnels'
+      fullPath: '/funnels'
+      preLoaderRoute: typeof FunnelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lead-tasks': {
+      id: '/lead-tasks'
+      path: '/lead-tasks'
+      fullPath: '/lead-tasks'
+      preLoaderRoute: typeof LeadTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AnalyticsRoute: AnalyticsRoute,
+  AudioAnalyticsRoute: AudioAnalyticsRoute,
+  CrmStagesRoute: CrmStagesRoute,
+  DashboardRoute: DashboardRoute,
+  FunnelsRoute: FunnelsRoute,
+  InboxRoute: InboxRoute,
+  LeadTasksRoute: LeadTasksRoute,
+  SettingsRoute: SettingsRoute,
+  TasksRoute: TasksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
