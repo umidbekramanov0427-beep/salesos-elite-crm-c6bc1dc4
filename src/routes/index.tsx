@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
       { title: "Leaderboard — SalesOS Elite" },
       { name: "description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
       { property: "og:title", content: "Leaderboard — SalesOS Elite" },
-      { property: "og:description", content: "Real-time sales rep ranking, targets and bonus tracking." },
+      { property: "og:description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
     ],
   }),
   component: Leaderboard,
