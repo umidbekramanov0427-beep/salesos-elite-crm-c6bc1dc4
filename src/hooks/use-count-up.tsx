@@ -25,11 +25,11 @@ export function useCountUp(value: number, duration = 900) {
 /** Splits "$48,200" / "34.8%" / "87 / 100" into prefix + number + suffix. */
 export function AnimatedValue({ value, className }: { value: string; className?: string }) {
   const match = value.match(/^([^\d-]*)([\d.,]+)(.*)$/);
-  const numeric = match ? Number(match[2].replace(/,/g, "")) : 0;
+  const numeric = match ? Number((match[2] ?? "0").replace(/,/g, "")) : 0;
   const animated = useCountUp(numeric);
   if (!match) return <span className={className}>{value}</span>;
 
-  const decimals = match[2].includes(".") ? 1 : 0;
+  const decimals = (match[2] ?? "").includes(".") ? 1 : 0;
   const formatted = animated.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
