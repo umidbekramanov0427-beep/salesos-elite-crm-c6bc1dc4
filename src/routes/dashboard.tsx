@@ -1,98 +1,129 @@
+import { lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Sparkles } from "lucide-react";
-import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
-import { REVENUE_SERIES, TASKS, currency } from "@/lib/mock-data";
+import { PageHeader } from "@/components/layout/Primitives";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import {
+  LeaderboardWidget,
+  ImportantTasksWidget,
+  LeadTasksWidget,
+  InboxWidget,
+  ActivityWidget,
+  AudioPreviewWidget,
+  AiInsightsWidget,
+} from "@/components/dashboard/Widgets";
+import { KPIS } from "@/lib/dashboard-data";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const RevenueChart = lazy(() => import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })));
+const PipelineChart = lazy(() => import("@/components/dashboard/Charts").then((m) => ({ default: m.PipelineChart })));
+const SalesFunnel = lazy(() => import("@/components/dashboard/Charts").then((m) => ({ default: m.SalesFunnel })));
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — SalesOS Elite" },
-      { name: "description", content: "Revenue, MRR, pipeline and today's sales metrics in one premium command center." },
+      {
+        name: "description",
+        content: "Revenue, pipeline, leaderboard, tasks and AI insights — the operating center of your sales team.",
+      },
       { property: "og:title", content: "Dashboard — SalesOS Elite" },
-      { property: "og:description", content: "Revenue, MRR, pipeline and today's sales metrics." },
+      { property: "og:description", content: "Revenue, pipeline, leaderboard, tasks and AI insights in one command center." },
     ],
   }),
   component: Dashboard,
 });
 
+function ChartSkeleton({ height = 300, className }: { height?: number; className?: string }) {
+  return (
+    <div className={`surface-card p-6 ${className ?? ""}`}>
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="mt-2 h-3 w-56" />
+      <Skeleton className="mt-6 w-full rounded-xl" style={{ height }} />
+    </div>
+  );
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 function Dashboard() {
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <>
-      <PageHeader title="Dashboard" description="Everything happening across revenue today, in one calm surface." />
+      <PageHeader title="Dashboard" description="The operating center of your revenue team." />
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Revenue (MTD)" value={currency(768050)} delta={9.3} hint="vs July" tone="mint" />
-        <StatCard label="MRR" value={currency(214300)} delta={4.1} hint="net of churn" />
-        <StatCard label="Open pipeline" value={currency(1042000)} delta={7.6} hint="128 active deals" />
-        <StatCard label="Tasks due today" value="14" delta={-12} hint="3 overdue" />
-      </div>
-
-      <div className="mt-8 grid gap-6 xl:grid-cols-3">
-        <SectionCard title="Revenue vs pipeline" description="Last 8 months" className="xl:col-span-2">
-          <div className="h-[320px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={REVENUE_SERIES} margin={{ left: -18, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.22} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="pipe" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-success)" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="var(--color-success)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-subtle)" />
-                <YAxis tickFormatter={(v) => `${v / 1000}k`} tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-subtle)" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid var(--color-border)",
-                    boxShadow: "var(--shadow-elevated)",
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => currency(v)}
-                />
-                <Area type="monotone" dataKey="pipeline" stroke="var(--color-success)" strokeWidth={2} fill="url(#pipe)" />
-                <Area type="monotone" dataKey="revenue" stroke="var(--color-primary)" strokeWidth={2} fill="url(#rev)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-
-        <div className="space-y-6">
-          <div className="mint-card p-6">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-mint-foreground" />
-              <p className="text-sm font-semibold">AI summary</p>
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Pipeline coverage is 3.1x against the August target — healthy. Two enterprise deals worth{" "}
-              {currency(146500)} have been stuck in Negotiation for 9+ days. Pricing objections rose 18% this week,
-              concentrated in the SMB team.
-            </p>
-            <p className="mt-4 text-xs font-medium text-mint-foreground">Recommended: run an objection-handling review with SMB.</p>
-          </div>
-
-          <SectionCard title="Today's focus">
-            <ul className="space-y-4">
-              {TASKS.slice(0, 4).map((t) => (
-                <li key={t.id} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{t.title}</p>
-                    <p className="mt-1 text-xs text-subtle">{t.assignee} · {t.due}</p>
-                  </div>
-                  <Pill tone={t.priority === "Urgent" ? "danger" : t.priority === "High" ? "warning" : "neutral"}>
-                    {t.priority}
-                  </Pill>
-                </li>
-              ))}
-            </ul>
-          </SectionCard>
+      <section className="mint-card grid gap-4 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{greeting()}, Aizhan 👋</h2>
+          <p className="mt-1 text-xs text-subtle">{today}</p>
+          <p className="mt-3 flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-mint-foreground" />
+            Today you closed 4 deals. Revenue is up 12.4% versus yesterday. Three important follow-ups require attention,
+            and the Proposal stage is slowing down.
+          </p>
         </div>
+        <div className="grid grid-cols-2 gap-3 md:w-[280px]">
+          <div className="rounded-xl bg-background p-3">
+            <p className="text-[11px] text-subtle">Today's revenue</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">$48,200</p>
+          </div>
+          <div className="rounded-xl bg-background p-3">
+            <p className="text-[11px] text-subtle">Today's goal</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">$60,000</p>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-success transition-[width] duration-700" style={{ width: "80%" }} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {KPIS.map((kpi) => (
+          <KpiCard key={kpi.id} kpi={kpi} />
+        ))}
       </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-4">
+        <Suspense fallback={<ChartSkeleton className="xl:col-span-2" />}>
+          <RevenueChart />
+        </Suspense>
+        <Suspense fallback={<ChartSkeleton height={180} />}>
+          <PipelineChart />
+        </Suspense>
+        <Suspense fallback={<ChartSkeleton height={220} />}>
+          <SalesFunnel />
+        </Suspense>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <LeaderboardWidget />
+        <ImportantTasksWidget />
+        <LeadTasksWidget />
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <InboxWidget />
+        <ActivityWidget />
+        <AudioPreviewWidget />
+      </div>
+
+      <div className="mt-6">
+        <AiInsightsWidget />
+      </div>
+
+      <QuickActions />
     </>
   );
 }

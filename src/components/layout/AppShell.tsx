@@ -1,17 +1,39 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, Menu, Search, X } from "lucide-react";
+import { Bell, ChevronDown, Globe, Menu, Moon, Search, Sparkles, Sun, X } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { CommandPalette } from "@/components/CommandPalette";
+import { AiCopilot } from "@/components/AiCopilot";
+import { Toaster } from "@/components/ui/sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const LANGUAGES = ["EN", "RU", "KZ"] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [dark, setDark] = useState(false);
+  const [lang, setLang] = useState<(typeof LANGUAGES)[number]>("EN");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = true;
+  const current = NAV_ITEMS.find((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)));
 
   useEffect(() => setMobileOpen(false), [pathname]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,10 +53,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-[264px] border-r border-sidebar-border bg-sidebar p-3">
+          <div className="absolute left-0 top-0 h-full w-[264px] overflow-y-auto border-r border-sidebar-border bg-sidebar p-3">
             <div className="flex items-center justify-between px-2 pb-4 pt-2">
               <p className="text-sm font-semibold">SalesOS Elite</p>
-              <button onClick={() => setMobileOpen(false)} className="rounded-lg p-1 hover:bg-accent">
+              <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="rounded-lg p-1 hover:bg-accent">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -61,46 +83,134 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-xl md:px-8">
+        <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-xl md:px-8">
           <button
+            aria-label="Open menu"
             className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="relative hidden max-w-md flex-1 md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-            <input
-              placeholder="Search leads, tasks, people…"
-              className="h-10 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-subtle focus:border-primary/40 focus:bg-background"
-            />
+          <div className="hidden min-w-0 lg:block">
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-subtle">
+              <span>SalesOS Elite</span>
+              <span>/</span>
+              <span className="text-muted-foreground">{current?.label ?? "Workspace"}</span>
+            </nav>
+            <p className="truncate text-sm font-semibold text-foreground">{current?.label ?? "Workspace"}</p>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="hidden items-center gap-2 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground xl:flex">
+              <span className="h-2 w-2 rounded-full bg-success" /> Almaty HQ
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+              <DropdownMenuItem>Almaty HQ</DropdownMenuItem>
+              <DropdownMenuItem>Astana Branch</DropdownMenuItem>
+              <DropdownMenuItem>Tashkent Branch</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <button
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Global search"
+            className="relative ml-auto hidden h-10 w-full max-w-sm items-center gap-2 rounded-xl border border-border bg-surface px-3 text-sm text-subtle transition-colors hover:border-primary/40 md:flex"
+          >
+            <Search className="h-4 w-4" />
+            Search everything…
+            <kbd className="ml-auto rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              ⌘K
+            </kbd>
+          </button>
+
+          <div className="ml-auto flex items-center gap-1.5 md:ml-0">
+            <button
+              aria-label="Search"
+              onClick={() => setPaletteOpen(true)}
+              className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+            >
+              <Search className="h-[18px] w-[18px]" />
+            </button>
+
+            <button
+              onClick={() => setCopilotOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-mint px-2.5 py-2 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">AI</span>
+            </button>
+
             <Link
               to="/inbox"
+              aria-label="Notifications"
               className="relative rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Bell className="h-[18px] w-[18px]" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
             </Link>
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-background py-1.5 pl-1.5 pr-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
-                AS
-              </span>
-              <div className="hidden leading-tight sm:block">
-                <p className="text-[13px] font-medium">Aizhan S.</p>
-                <p className="text-[11px] text-subtle">Admin</p>
-              </div>
-            </div>
+
+            <button
+              aria-label="Toggle theme"
+              onClick={() => setDark((d) => !d)}
+              className="hidden rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:block"
+            >
+              {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Language"
+                className="hidden items-center gap-1 rounded-xl p-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
+              >
+                <Globe className="h-[18px] w-[18px]" />
+                {lang}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {LANGUAGES.map((l) => (
+                  <DropdownMenuItem key={l} onClick={() => setLang(l)}>
+                    {l}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-border bg-background py-1.5 pl-1.5 pr-3 transition-colors hover:bg-accent">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
+                  AS
+                </span>
+                <span className="hidden leading-tight sm:block">
+                  <span className="block text-[13px] font-medium">Aizhan S.</span>
+                  <span className="block text-[11px] text-subtle">Admin</span>
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Aizhan Serikova</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">Profile & settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin">Admin panel</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
         <main className="flex-1 px-4 py-8 md:px-8">
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <AiCopilot open={copilotOpen} onOpenChange={setCopilotOpen} />
+      <Toaster />
     </div>
   );
 }
