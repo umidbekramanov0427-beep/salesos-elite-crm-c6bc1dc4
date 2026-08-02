@@ -12,7 +12,7 @@ export const Route = createFileRoute("/analytics")({
       { property: "og:description", content: "Sales reports, trends and revenue forecasting." },
     ],
   }),
-  component: Analytics;
+  component: Analytics,
 });
 
 function Analytics() {
