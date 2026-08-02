@@ -14,11 +14,6 @@ function Sparkline({ points, positive }: { points: number[]; positive: boolean }
 
   return (
     <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="h-8 w-full" aria-hidden="true">
-      <polyline
-        points=""
-        className={positive ? "text-success" : "text-destructive"}
-        fill="none"
-      />
       <path
         d={`M ${d}`}
         fill="none"
