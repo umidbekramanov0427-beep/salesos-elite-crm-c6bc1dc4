@@ -10,6 +10,11 @@ import {
   AudioLines,
   Settings,
   ShieldCheck,
+  UserSearch,
+  Users,
+  Building2,
+  Handshake,
+  KanbanSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,4 +38,12 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Audio Analytics", to: "/audio-analytics", icon: AudioLines },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Admin Panel", to: "/admin", icon: ShieldCheck, adminOnly: true },
+];
+
+export const CRM_NAV_ITEMS: NavItem[] = [
+  { label: "Leads", to: "/crm/leads", icon: UserSearch },
+  { label: "Contacts", to: "/crm/contacts", icon: Users },
+  { label: "Companies", to: "/crm/companies", icon: Building2 },
+  { label: "Deals", to: "/crm/deals", icon: Handshake },
+  { label: "Pipeline", to: "/crm/pipeline", icon: KanbanSquare },
 ];
