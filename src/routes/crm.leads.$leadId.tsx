@@ -115,7 +115,7 @@ function LeadWorkspace() {
 
           <SectionCard title="Tags & custom fields">
             <div className="flex flex-wrap gap-2">
-              {lead.tags.map((t) => <Pill key={t}>{t}</Pill>)}
+              {lead.tags.map((t: string) => <Pill key={t}>{t}</Pill>)}
             </div>
             <div className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-subtle">UTM</span><span className="max-w-[160px] truncate font-medium">{lead.utm}</span></div>

@@ -21,6 +21,7 @@ import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
+import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +83,11 @@ const CrmLeadsIndexRoute = CrmLeadsIndexRouteImport.update({
   path: '/crm/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmLeadsLeadIdRoute = CrmLeadsLeadIdRouteImport.update({
+  id: '/crm/leads/$leadId',
+  path: '/crm/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/crm/leads': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesById {
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRouteTypes {
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/settings'
     | '/tasks'
+    | '/crm/leads/$leadId'
     | '/crm/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/settings'
     | '/tasks'
+    | '/crm/leads/$leadId'
     | '/crm/leads'
   id:
     | '__root__'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/settings'
     | '/tasks'
+    | '/crm/leads/$leadId'
     | '/crm/leads/'
   fileRoutesById: FileRoutesById
 }
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
+  CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
   CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
 }
 
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmLeadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/leads/$leadId': {
+      id: '/crm/leads/$leadId'
+      path: '/crm/leads/$leadId'
+      fullPath: '/crm/leads/$leadId'
+      preLoaderRoute: typeof CrmLeadsLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -287,6 +307,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
+  CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
   CrmLeadsIndexRoute: CrmLeadsIndexRoute,
 }
 export const routeTree = rootRouteImport
