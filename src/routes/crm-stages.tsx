@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Filter, Search } from "lucide-react";
+import { Filter, GripVertical, Search } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { LEADS, currency } from "@/lib/mock-data";
+import { PIPELINE_STAGES, LEAD_PERMISSIONS } from "@/lib/crm-data";
 
 export const Route = createFileRoute("/crm-stages")({
   head: () => ({
@@ -73,6 +74,65 @@ function CrmStages() {
                     <td className="px-6 py-4 text-muted-foreground">{l.owner}</td>
                     <td className="px-6 py-4 font-medium">{currency(l.value)}</td>
                     <td className="px-6 py-4 text-subtle">{l.updated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="mt-8 grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title="Stage configuration"
+          description="Create, rename, reorder, color and automate every stage"
+          actions={
+            <button className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Add stage</button>
+          }
+        >
+          <ul className="space-y-2">
+            {PIPELINE_STAGES.map((s, i) => (
+              <li key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <GripVertical className="h-4 w-4 text-subtle" />
+                  <span className={`h-2.5 w-2.5 rounded-full ${s.color}`} />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{s.name}</p>
+                    <p className="text-xs text-subtle">
+                      Position {i + 1} · probability {s.probability}% · {s.limit ? `limit ${s.limit}` : "no limit"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <button className="rounded-lg border border-border px-2.5 py-1 font-medium text-muted-foreground hover:bg-accent">Rules</button>
+                  <button className="rounded-lg border border-border px-2.5 py-1 font-medium text-muted-foreground hover:bg-accent">Rename</button>
+                  <button className="rounded-lg border border-border px-2.5 py-1 font-medium text-destructive hover:bg-accent">Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+
+        <SectionCard title="Lead permissions" description="Every action respects role permissions">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
+                  <th className="py-3 font-medium">Action</th>
+                  <th className="py-3 font-medium">Admin</th>
+                  <th className="py-3 font-medium">Manager</th>
+                  <th className="py-3 font-medium">Sales rep</th>
+                </tr>
+              </thead>
+              <tbody>
+                {LEAD_PERMISSIONS.map((p) => (
+                  <tr key={p.action} className="border-b border-border last:border-0">
+                    <td className="py-3 font-medium text-foreground">{p.action}</td>
+                    {[p.admin, p.manager, p.rep].map((v, i) => (
+                      <td key={i} className="py-3">
+                        <Pill tone={v ? "success" : "neutral"}>{v ? "Allowed" : "Denied"}</Pill>
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

@@ -20,6 +20,12 @@ import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
+import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
+import { Route as CrmDealsRouteImport } from './routes/crm.deals'
+import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
+import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +82,36 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmCompaniesRoute = CrmCompaniesRouteImport.update({
+  id: '/crm/companies',
+  path: '/crm/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmContactsRoute = CrmContactsRouteImport.update({
+  id: '/crm/contacts',
+  path: '/crm/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmDealsRoute = CrmDealsRouteImport.update({
+  id: '/crm/deals',
+  path: '/crm/deals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmPipelineRoute = CrmPipelineRouteImport.update({
+  id: '/crm/pipeline',
+  path: '/crm/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmLeadsIndexRoute = CrmLeadsIndexRouteImport.update({
+  id: '/crm/leads/',
+  path: '/crm/leads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmLeadsLeadIdRoute = CrmLeadsLeadIdRouteImport.update({
+  id: '/crm/leads/$leadId',
+  path: '/crm/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +125,12 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/crm/companies': typeof CrmCompaniesRoute
+  '/crm/contacts': typeof CrmContactsRoute
+  '/crm/deals': typeof CrmDealsRoute
+  '/crm/pipeline': typeof CrmPipelineRoute
+  '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+  '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +144,12 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/crm/companies': typeof CrmCompaniesRoute
+  '/crm/contacts': typeof CrmContactsRoute
+  '/crm/deals': typeof CrmDealsRoute
+  '/crm/pipeline': typeof CrmPipelineRoute
+  '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+  '/crm/leads': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +164,12 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/crm/companies': typeof CrmCompaniesRoute
+  '/crm/contacts': typeof CrmContactsRoute
+  '/crm/deals': typeof CrmDealsRoute
+  '/crm/pipeline': typeof CrmPipelineRoute
+  '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+  '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +185,12 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/settings'
     | '/tasks'
+    | '/crm/companies'
+    | '/crm/contacts'
+    | '/crm/deals'
+    | '/crm/pipeline'
+    | '/crm/leads/$leadId'
+    | '/crm/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +204,12 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/settings'
     | '/tasks'
+    | '/crm/companies'
+    | '/crm/contacts'
+    | '/crm/deals'
+    | '/crm/pipeline'
+    | '/crm/leads/$leadId'
+    | '/crm/leads'
   id:
     | '__root__'
     | '/'
@@ -157,6 +223,12 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/settings'
     | '/tasks'
+    | '/crm/companies'
+    | '/crm/contacts'
+    | '/crm/deals'
+    | '/crm/pipeline'
+    | '/crm/leads/$leadId'
+    | '/crm/leads/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +243,12 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
+  CrmCompaniesRoute: typeof CrmCompaniesRoute
+  CrmContactsRoute: typeof CrmContactsRoute
+  CrmDealsRoute: typeof CrmDealsRoute
+  CrmPipelineRoute: typeof CrmPipelineRoute
+  CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
+  CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +330,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/companies': {
+      id: '/crm/companies'
+      path: '/crm/companies'
+      fullPath: '/crm/companies'
+      preLoaderRoute: typeof CrmCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/contacts': {
+      id: '/crm/contacts'
+      path: '/crm/contacts'
+      fullPath: '/crm/contacts'
+      preLoaderRoute: typeof CrmContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/deals': {
+      id: '/crm/deals'
+      path: '/crm/deals'
+      fullPath: '/crm/deals'
+      preLoaderRoute: typeof CrmDealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/pipeline': {
+      id: '/crm/pipeline'
+      path: '/crm/pipeline'
+      fullPath: '/crm/pipeline'
+      preLoaderRoute: typeof CrmPipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/leads/': {
+      id: '/crm/leads/'
+      path: '/crm/leads'
+      fullPath: '/crm/leads/'
+      preLoaderRoute: typeof CrmLeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/leads/$leadId': {
+      id: '/crm/leads/$leadId'
+      path: '/crm/leads/$leadId'
+      fullPath: '/crm/leads/$leadId'
+      preLoaderRoute: typeof CrmLeadsLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +387,12 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
+  CrmCompaniesRoute: CrmCompaniesRoute,
+  CrmContactsRoute: CrmContactsRoute,
+  CrmDealsRoute: CrmDealsRoute,
+  CrmPipelineRoute: CrmPipelineRoute,
+  CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
+  CrmLeadsIndexRoute: CrmLeadsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

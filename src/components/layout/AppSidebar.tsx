@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronsLeft, Command, Sparkles } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, CRM_NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -67,6 +67,39 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
             </Link>
           );
         })}
+
+        <div className="pt-4">
+          {!collapsed && (
+            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">CRM Core</p>
+          )}
+          <div className="space-y-1">
+            {CRM_NAV_ITEMS.map((item) => {
+              const active = pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
+                    active
+                      ? "bg-sidebar-active text-sidebar-active-foreground"
+                      : "text-sidebar-foreground hover:bg-accent",
+                    collapsed && "justify-center px-0",
+                  )}
+                >
+                  <item.icon
+                    className={cn(
+                      "h-[18px] w-[18px] shrink-0 transition-colors",
+                      active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-foreground",
+                    )}
+                  />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
