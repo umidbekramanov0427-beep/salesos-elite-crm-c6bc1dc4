@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Filter, Search } from "lucide-react";
+import { Filter, GripVertical, Search } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { LEADS, currency } from "@/lib/mock-data";
+import { PIPELINE_STAGES, LEAD_PERMISSIONS } from "@/lib/crm-data";
 
 export const Route = createFileRoute("/crm-stages")({
   head: () => ({
