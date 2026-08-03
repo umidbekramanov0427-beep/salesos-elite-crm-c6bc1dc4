@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronsLeft, Command, Sparkles } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, CRM_NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 type Props = {
