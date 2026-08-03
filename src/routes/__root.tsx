@@ -79,15 +79,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Leaderboard — SalesOS Elite" },
+      { title: "SalesOS Elite CRM" },
       {
         name: "description",
         content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:title", content: "Leaderboard — SalesOS Elite" },
-      { name: "twitter:title", content: "Leaderboard — SalesOS Elite" },
+      { property: "og:title", content: "SalesOS Elite CRM" },
+      { name: "twitter:title", content: "SalesOS Elite CRM" },
       { property: "og:description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
       { name: "twitter:description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e92766a1-8f45-40ca-9851-bf7db5a8df65" },

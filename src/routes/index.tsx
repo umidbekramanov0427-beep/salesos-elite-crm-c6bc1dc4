@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Leaderboard — SalesOS Elite" },
+      { title: "SalesOS Elite CRM" },
       { name: "description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
-      { property: "og:title", content: "Leaderboard — SalesOS Elite" },
+      { property: "og:title", content: "SalesOS Elite CRM" },
       { property: "og:description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
     ],
   }),
