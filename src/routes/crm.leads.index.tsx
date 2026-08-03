@@ -20,11 +20,12 @@ export const Route = createFileRoute("/crm/leads/")({
   component: LeadsPage,
 });
 
-const tempTone = (t: string) => (t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info") as const;
+const tempTone = (t: string): "danger" | "warning" | "info" =>
+  t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info";
 
 function LeadsPage() {
   const [query, setQuery] = useState("");
-  const [view, setView] = useState(SAVED_VIEWS[0]);
+  const [view, setView] = useState<string>(SAVED_VIEWS[0] ?? "All leads");
   const [selected, setSelected] = useState<string[]>([]);
   const [sortDesc, setSortDesc] = useState(true);
 
