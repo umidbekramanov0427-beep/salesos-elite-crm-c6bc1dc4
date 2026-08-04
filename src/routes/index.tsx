@@ -275,7 +275,7 @@ function Leaderboard() {
         <SectionCard
           title="Executive view"
           description="Department and branch ranking, company KPI"
-          action={
+          actions={
             <button
               type="button"
               onClick={() => setShowExec((v) => !v)}
