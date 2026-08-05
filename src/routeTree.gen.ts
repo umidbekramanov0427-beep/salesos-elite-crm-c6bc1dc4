@@ -18,6 +18,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FunnelsRouteImport } from './routes/funnels'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
@@ -72,6 +73,11 @@ const LeadTasksRoute = LeadTasksRouteImport.update({
   path: '/lead-tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/lead-tasks': typeof LeadTasksRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/lead-tasks': typeof LeadTasksRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/lead-tasks': typeof LeadTasksRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/funnels'
     | '/inbox'
     | '/lead-tasks'
+    | '/login'
     | '/settings'
     | '/tasks'
     | '/crm/companies'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/funnels'
     | '/inbox'
     | '/lead-tasks'
+    | '/login'
     | '/settings'
     | '/tasks'
     | '/crm/companies'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/funnels'
     | '/inbox'
     | '/lead-tasks'
+    | '/login'
     | '/settings'
     | '/tasks'
     | '/crm/companies'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
   LeadTasksRoute: typeof LeadTasksRoute
+  LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
   CrmCompaniesRoute: typeof CrmCompaniesRoute
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeadTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -385,6 +405,7 @@ const rootRouteChildren: RootRouteChildren = {
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,
   LeadTasksRoute: LeadTasksRoute,
+  LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
   CrmCompaniesRoute: CrmCompaniesRoute,
@@ -397,13 +418,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
