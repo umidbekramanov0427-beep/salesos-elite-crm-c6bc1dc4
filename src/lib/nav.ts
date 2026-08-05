@@ -9,6 +9,8 @@ import {
   Layers,
   AudioLines,
   Settings,
+  Plug,
+
   ShieldCheck,
   UserSearch,
   Users,
