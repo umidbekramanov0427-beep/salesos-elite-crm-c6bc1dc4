@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Activity, Building2, Radio, Sparkles, Users } from "lucide-react";
+import { Activity, Building2, Download, Radio, RefreshCw, Sparkles, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import {
   BRANCHES,
   DEPARTMENTS,
@@ -12,12 +14,14 @@ import {
   TEAMS,
   type Filters,
   type LeaderboardMetricKey,
+  type LeaderboardRow,
   type Period,
   rollup,
 } from "@/lib/leaderboard-engine";
 import { REFRESH_MS, useLeaderboard } from "@/hooks/use-leaderboard";
 import { PodiumCard } from "@/components/leaderboard/LeaderboardParts";
 import { RankingBoard } from "@/components/leaderboard/RankingBoard";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,11 +60,13 @@ function Select({
   onChange,
   options,
   label,
+  render,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: readonly string[];
   label: string;
+  render?: (v: string) => string;
 }) {
   return (
     <label className="flex flex-col gap-1">
@@ -73,7 +79,7 @@ function Select({
       >
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {render ? render(o) : o}
           </option>
         ))}
       </select>
@@ -81,12 +87,71 @@ function Select({
   );
 }
 
+function toCsv(rows: LeaderboardRow[]): string {
+  const header = [
+    "Rank",
+    "Employee",
+    "Position",
+    "Department",
+    "Team",
+    "Branch",
+    "Metric value",
+    "Revenue",
+    "Deals closed",
+    "Calls",
+    "Meetings",
+    "Conversion %",
+    "Daily KPI %",
+    "Monthly KPI %",
+    "Bonus %",
+    "Target completion %",
+  ];
+  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const lines = rows.map((r) =>
+    [
+      r.rank,
+      r.employee.name,
+      r.employee.position,
+      r.employee.department,
+      r.employee.team,
+      r.employee.branch,
+      r.metricLabel,
+      Math.round(r.revenue),
+      r.employee.dealsClosed,
+      r.employee.calls,
+      r.employee.meetings,
+      r.employee.conversion.toFixed(1),
+      r.dailyKpi.toFixed(1),
+      r.monthlyKpi.toFixed(1),
+      r.bonus,
+      r.targetCompletion.toFixed(1),
+    ]
+      .map(esc)
+      .join(","),
+  );
+  return [header.map(esc).join(","), ...lines].join("\n");
+}
+
 function Leaderboard() {
-  const { rows, insights, filters, patchFilters, moves, live, setLive, bonusConfig, setBonusConfig } =
+  const { t, lang } = useI18n();
+  const { rows, insights, filters, patchFilters, moves, live, setLive, bonusConfig, setBonusConfig, refresh } =
     useLeaderboard(INITIAL);
   const [showExec, setShowExec] = useState(true);
+  const [selected, setSelected] = useState<LeaderboardRow | null>(null);
+  const [aiSnapshot, setAiSnapshot] = useState<{ items: typeof insights; at: number } | null>(null);
 
   const metric = METRICS.find((m) => m.key === filters.metric) ?? METRICS[0]!;
+  const metricLabel = t(`metric.${metric.key}`);
+
+  useEffect(() => {
+    if (!aiSnapshot) setAiSnapshot({ items: insights, at: Date.now() });
+  }, [insights, aiSnapshot]);
+
+  const regenerate = useCallback(() => {
+    setAiSnapshot({ items: insights, at: Date.now() });
+    toast.success(t("lb.aiRegenerated"));
+  }, [insights, t]);
+
   const totals = useMemo(() => {
     const revenue = rows.reduce((s, r) => s + r.revenue, 0);
     const atTarget = rows.filter((r) => r.monthlyKpi >= 100).length;
@@ -99,13 +164,43 @@ function Leaderboard() {
   const branches = useMemo(() => rollup(rows, "branch"), [rows]);
   const bottom = useMemo(() => rows.slice(-5).reverse(), [rows]);
 
+  const bonusHint = useCallback(
+    (r: LeaderboardRow) =>
+      t("bonus.tooltip", {
+        attain: `${r.monthlyKpi.toFixed(1)}%`,
+        perPoint: bonusConfig.perPointAboveTop,
+        cap: bonusConfig.cap,
+        bonus: r.bonus,
+      }),
+    [t, bonusConfig],
+  );
+
+  function exportCsv() {
+    const blob = new Blob([`\uFEFF${toCsv(rows)}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `salesos-leaderboard-${filters.metric}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(t("lb.exported", { count: rows.length }));
+  }
+
+  function manualRefresh() {
+    refresh();
+    setAiSnapshot({ items: insights, at: Date.now() });
+    toast.success(t("lb.refreshed"));
+  }
+
   return (
     <>
       <PageHeader
-        title="Leaderboard"
-        description={`Live ranking across ${rows.length} employees. Rankings, KPI and bonuses recalculate every ${REFRESH_MS / 1000} seconds.`}
+        title={t("lb.title")}
+        description={t("lb.description", { count: rows.length, sec: REFRESH_MS / 1000 })}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setLive((v) => !v)}
@@ -115,78 +210,125 @@ function Leaderboard() {
               )}
             >
               <Radio className={cn("h-3.5 w-3.5", live && "animate-pulse")} />
-              {live ? "Live · 3s" : "Paused"}
+              {live ? t("lb.live") : t("lb.paused")}
             </button>
-            <Pill tone="info">{filters.scope === "company" ? "Company view" : `Team ${filters.scopeTeam}`}</Pill>
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {t("common.refresh")}
+            </button>
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {t("common.export")}
+            </button>
+            <Pill tone="info">
+              {filters.scope === "company" ? t("lb.companyView") : t("lb.teamView", { team: filters.scopeTeam })}
+            </Pill>
           </div>
         }
       />
 
       {/* Filters */}
-      <SectionCard title="Filters" description="Period, leaderboard type and org scope">
+      <SectionCard title={t("lb.filters")} description={t("lb.filtersDesc")}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Select label="Period" value={filters.period} options={PERIODS} onChange={(v) => patchFilters({ period: v as Period })} />
           <Select
-            label="Leaderboard type"
-            value={metric.label}
-            options={METRICS.map((m) => m.label)}
-            onChange={(v) => {
-              const found = METRICS.find((m) => m.label === v);
-              if (found) patchFilters({ metric: found.key as LeaderboardMetricKey });
-            }}
+            label={t("lb.period")}
+            value={filters.period}
+            options={PERIODS}
+            render={(p) => t(`period.${p}`)}
+            onChange={(v) => patchFilters({ period: v as Period })}
           />
-          <Select label="Department" value={filters.department} options={["All", ...DEPARTMENTS]} onChange={(v) => patchFilters({ department: v })} />
-          <Select label="Team" value={filters.team} options={["All", ...TEAMS]} onChange={(v) => patchFilters({ team: v })} />
-          <Select label="Branch" value={filters.branch} options={["All", ...BRANCHES]} onChange={(v) => patchFilters({ branch: v })} />
+          <Select
+            label={t("lb.type")}
+            value={metric.key}
+            options={METRICS.map((m) => m.key)}
+            render={(k) => t(`metric.${k}`)}
+            onChange={(v) => patchFilters({ metric: v as LeaderboardMetricKey })}
+          />
+          <Select
+            label={t("lb.department")}
+            value={filters.department}
+            options={["All", ...DEPARTMENTS]}
+            render={(v) => (v === "All" ? t("common.all") : v)}
+            onChange={(v) => patchFilters({ department: v })}
+          />
+          <Select
+            label={t("lb.team")}
+            value={filters.team}
+            options={["All", ...TEAMS]}
+            render={(v) => (v === "All" ? t("common.all") : v)}
+            onChange={(v) => patchFilters({ team: v })}
+          />
+          <Select
+            label={t("lb.branch")}
+            value={filters.branch}
+            options={["All", ...BRANCHES]}
+            render={(v) => (v === "All" ? t("common.all") : v)}
+            onChange={(v) => patchFilters({ branch: v })}
+          />
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-subtle">Search</span>
+            <span className="text-[11px] uppercase tracking-wide text-subtle">{t("common.search")}</span>
             <input
               value={filters.search}
               onChange={(e) => patchFilters({ search: e.target.value })}
-              placeholder="Employee or department"
+              placeholder={t("lb.searchPlaceholder")}
               className="h-9 rounded-xl border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             />
           </label>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
-          <span className="text-[11px] uppercase tracking-wide text-subtle">View as</span>
+          <span className="text-[11px] uppercase tracking-wide text-subtle">{t("lb.viewAs")}</span>
           {(["company", "team"] as const).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => patchFilters({ scope: s })}
               className={cn(
-                "rounded-xl border border-border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                "rounded-xl border border-border px-3 py-1.5 text-xs font-medium transition-colors",
                 filters.scope === s ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground",
               )}
             >
-              {s === "company" ? "Admin · whole company" : "Manager · my team"}
+              {s === "company" ? t("lb.scopeCompany") : t("lb.scopeTeam")}
             </button>
           ))}
           {filters.scope === "team" && (
-            <Select label="Team scope" value={filters.scopeTeam} options={TEAMS} onChange={(v) => patchFilters({ scopeTeam: v })} />
+            <Select
+              label={t("lb.teamScope")}
+              value={filters.scopeTeam}
+              options={TEAMS}
+              onChange={(v) => patchFilters({ scopeTeam: v })}
+            />
           )}
-          <div className="ml-auto flex items-end gap-3">
+          <div className="ml-auto flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-subtle">Bonus at 100% target</span>
+              <span className="text-[11px] uppercase tracking-wide text-subtle">{t("lb.bonusAt100")}</span>
               <input
                 type="number"
                 min={0}
                 max={30}
                 step={0.5}
-                value={bonusConfig.tiers.find((t) => t.atPercent === 100)?.bonusPercent ?? 5}
+                value={bonusConfig.tiers.find((t2) => t2.atPercent === 100)?.bonusPercent ?? 5}
                 onChange={(e) =>
                   setBonusConfig((c) => ({
                     ...c,
-                    tiers: c.tiers.map((t) => (t.atPercent === 100 ? { ...t, bonusPercent: Number(e.target.value) } : t)),
+                    tiers: c.tiers.map((t2) =>
+                      t2.atPercent === 100 ? { ...t2, bonusPercent: Number(e.target.value) } : t2,
+                    ),
                   }))
                 }
                 className="h-9 w-28 rounded-xl border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-subtle">Per point above 120%</span>
+              <span className="text-[11px] uppercase tracking-wide text-subtle">{t("lb.perPoint")}</span>
               <input
                 type="number"
                 min={0}
@@ -203,10 +345,19 @@ function Leaderboard() {
 
       {/* Totals */}
       <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={`${filters.period} revenue`} value={currency(totals.revenue)} hint={`${rows.length} employees in view`} tone="mint" />
-        <StatCard label="Average monthly KPI" value={`${totals.avgKpi.toFixed(1)}%`} hint="target attainment" />
-        <StatCard label="Bonus qualified" value={`${totals.atTarget} of ${rows.length}`} hint="reached 100% of target" />
-        <StatCard label="Projected bonus pool" value={currency(totals.bonusPool)} hint="auto-calculated from formula" />
+        <StatCard
+          label={t("lb.revenueOfPeriod", { period: t(`period.${filters.period}`) })}
+          value={currency(totals.revenue)}
+          hint={t("lb.employeesInView", { count: rows.length })}
+          tone="mint"
+        />
+        <StatCard label={t("lb.avgKpi")} value={`${totals.avgKpi.toFixed(1)}%`} hint={t("lb.avgKpiHint")} />
+        <StatCard
+          label={t("lb.bonusQualified")}
+          value={`${totals.atTarget} / ${rows.length}`}
+          hint={t("lb.bonusQualifiedHint")}
+        />
+        <StatCard label={t("lb.bonusPool")} value={currency(totals.bonusPool)} hint={t("lb.bonusPoolHint")} />
       </div>
 
       {/* Podium */}
@@ -224,19 +375,40 @@ function Leaderboard() {
 
       {/* Ranking */}
       <div className="mt-6">
-        <SectionCard
-          title={`Live ranking — ${metric.label}`}
-          description="Positions animate as employees move up or down. Virtualized for 1000+ employees."
-        >
-          <RankingBoard rows={rows} moves={moves} metric={metric} />
+        <SectionCard title={t("lb.liveRanking", { metric: metricLabel })} description={t("lb.liveRankingDesc")}>
+          <RankingBoard
+            rows={rows}
+            moves={moves}
+            metric={{ ...metric, label: metricLabel }}
+            onSelect={setSelected}
+            bonusHint={bonusHint}
+          />
         </SectionCard>
       </div>
 
       {/* AI insights */}
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <SectionCard title="AI insights" description="Generated from the live leaderboard" className="xl:col-span-2">
+        <SectionCard
+          title={t("lb.aiInsights")}
+          description={
+            aiSnapshot
+              ? t("lb.aiUpdated", { time: new Date(aiSnapshot.at).toLocaleTimeString(lang) })
+              : t("lb.aiInsightsDesc")
+          }
+          className="xl:col-span-2"
+          actions={
+            <button
+              type="button"
+              onClick={regenerate}
+              className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("common.generate")}
+            </button>
+          }
+        >
           <ul className="grid gap-3 sm:grid-cols-2">
-            {insights.map((i) => (
+            {(aiSnapshot?.items ?? insights).map((i) => (
               <li key={i.id} className="rounded-xl border border-border bg-surface p-4">
                 <div className="flex items-start gap-2">
                   <Sparkles
@@ -255,14 +427,18 @@ function Leaderboard() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="Lowest performers" description="Needs coaching attention">
+        <SectionCard title={t("lb.lowest")} description={t("lb.lowestDesc")}>
           <ul className="space-y-3">
             {bottom.map((r) => (
               <li key={r.employee.id} className="flex items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{r.employee.name}</p>
-                  <p className="truncate text-[11px] text-subtle">{r.employee.department} · #{r.rank}</p>
-                </div>
+                <button type="button" onClick={() => setSelected(r)} className="min-w-0 text-left">
+                  <p className="truncate font-medium text-foreground hover:text-primary hover:underline">
+                    {r.employee.name}
+                  </p>
+                  <p className="truncate text-[11px] text-subtle">
+                    {r.employee.department} · #{r.rank}
+                  </p>
+                </button>
                 <span className="shrink-0 text-xs text-destructive">{r.monthlyKpi.toFixed(0)}% KPI</span>
               </li>
             ))}
@@ -273,15 +449,15 @@ function Leaderboard() {
       {/* Executive view */}
       <div className="mt-6">
         <SectionCard
-          title="Executive view"
-          description="Department and branch ranking, company KPI"
+          title={t("lb.exec")}
+          description={t("lb.execDesc")}
           actions={
             <button
               type="button"
               onClick={() => setShowExec((v) => !v)}
               className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground"
             >
-              {showExec ? "Hide" : "Show"}
+              {showExec ? t("common.hide") : t("common.show")}
             </button>
           }
         >
@@ -289,7 +465,7 @@ function Leaderboard() {
             <div className="grid gap-6 lg:grid-cols-2">
               <div>
                 <p className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-subtle">
-                  <Users className="h-3.5 w-3.5" /> Department ranking
+                  <Users className="h-3.5 w-3.5" /> {t("lb.deptRanking")}
                 </p>
                 <ul className="space-y-3">
                   {depts.map((d, i) => (
@@ -309,7 +485,7 @@ function Leaderboard() {
               </div>
               <div>
                 <p className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-subtle">
-                  <Building2 className="h-3.5 w-3.5" /> Branch ranking
+                  <Building2 className="h-3.5 w-3.5" /> {t("lb.branchRanking")}
                 </p>
                 <ul className="space-y-3">
                   {branches.map((b, i) => (
@@ -327,15 +503,56 @@ function Leaderboard() {
                   ))}
                 </ul>
               </div>
-              <div className="lg:col-span-2 flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-sm">
-                <Activity className="h-4 w-4 text-primary" />
-                Company KPI is <strong className="mx-1">{totals.avgKpi.toFixed(1)}%</strong> of target with a projected
-                bonus pool of <strong className="mx-1">{currency(totals.bonusPool)}</strong>.
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-sm lg:col-span-2">
+                <Activity className="h-4 w-4 shrink-0 text-primary" />
+                {t("lb.companyKpi", { kpi: `${totals.avgKpi.toFixed(1)}%`, pool: currency(totals.bonusPool) })}
               </div>
             </div>
           )}
         </SectionCard>
       </div>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selected.employee.name}</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-subtle">
+                {t("emp.title")} · {selected.employee.department} · {selected.employee.branch} ·{" "}
+                {selected.employee.team}
+              </p>
+              <dl className="mt-4 grid grid-cols-2 gap-3">
+                {[
+                  [t("emp.position"), selected.employee.position],
+                  [t("emp.rankNow"), `#${selected.rank}`],
+                  [metricLabel, selected.metricLabel],
+                  [t("col.revenue"), currency(selected.revenue)],
+                  [t("emp.monthRevenue"), currency(selected.employee.monthlyRevenue)],
+                  [t("emp.monthTarget"), currency(selected.employee.monthlyTarget)],
+                  [t("col.deals"), String(selected.employee.dealsClosed)],
+                  [t("col.calls"), String(selected.employee.calls)],
+                  [t("col.meetings"), String(selected.employee.meetings)],
+                  [t("col.conversion"), `${selected.employee.conversion.toFixed(1)}%`],
+                  [t("col.dailyKpi"), `${selected.dailyKpi.toFixed(0)}%`],
+                  [t("col.monthlyKpi"), `${selected.monthlyKpi.toFixed(0)}%`],
+                  [t("col.rating"), selected.employee.rating.toFixed(2)],
+                  [t("emp.responseTime"), `${selected.employee.responseTime.toFixed(0)} min`],
+                  [t("emp.attendance"), `${selected.employee.attendance.toFixed(0)}%`],
+                  [t("emp.leadScore"), String(selected.employee.leadScore)],
+                ].map(([k, v]) => (
+                  <div key={k} className="rounded-xl border border-border bg-surface p-3">
+                    <dt className="text-[11px] text-subtle">{k}</dt>
+                    <dd className="mt-1 text-sm font-semibold text-foreground">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-4 rounded-xl bg-mint p-3 text-xs text-mint-foreground">{bonusHint(selected)}</p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
