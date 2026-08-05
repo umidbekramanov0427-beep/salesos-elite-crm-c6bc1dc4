@@ -4,6 +4,7 @@ import { currency } from "@/lib/mock-data";
 import type { LeaderboardRow, MetricDef } from "@/lib/leaderboard-engine";
 import type { RankMove } from "@/hooks/use-leaderboard";
 import { AnimatedNumber, Avatar, Progress, RankDelta } from "./LeaderboardParts";
+import { useI18n } from "@/lib/i18n";
 
 const ROW_H = 68;
 const OVERSCAN = 6;
@@ -19,12 +20,17 @@ export function RankingBoard({
   moves,
   metric,
   height = 620,
+  onSelect,
+  bonusHint,
 }: {
   rows: LeaderboardRow[];
   moves: Record<string, RankMove>;
   metric: MetricDef;
   height?: number;
+  onSelect?: (row: LeaderboardRow) => void;
+  bonusHint?: (row: LeaderboardRow) => string;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
 
@@ -43,8 +49,8 @@ export function RankingBoard({
   if (rows.length === 0) {
     return (
       <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">No employees match these filters</p>
-        <p className="text-xs text-subtle">Try widening the department, team or branch filter.</p>
+        <p className="font-medium text-foreground">{t("lb.noMatch")}</p>
+        <p className="text-xs text-subtle">{t("lb.noMatchHint")}</p>
       </div>
     );
   }
@@ -52,14 +58,14 @@ export function RankingBoard({
   return (
     <div>
       <div className="grid grid-cols-[52px_minmax(0,2.2fr)_minmax(0,1.1fr)_repeat(4,minmax(0,0.85fr))_minmax(0,1.2fr)] gap-3 border-b border-border px-4 pb-2 text-[11px] uppercase tracking-wide text-subtle">
-        <span>Rank</span>
-        <span>Employee</span>
+        <span>{t("col.rank")}</span>
+        <span>{t("col.employee")}</span>
         <span>{metric.label}</span>
-        <span className="text-right">Revenue</span>
-        <span className="text-right">Deals</span>
-        <span className="text-right">Daily KPI</span>
-        <span className="text-right">Bonus</span>
-        <span>Target completion</span>
+        <span className="text-right">{t("col.revenue")}</span>
+        <span className="text-right">{t("col.deals")}</span>
+        <span className="text-right">{t("col.dailyKpi")}</span>
+        <span className="text-right">{t("col.bonus")}</span>
+        <span>{t("col.target")}</span>
       </div>
 
       <div ref={ref} className="relative overflow-y-auto" style={{ height }}>
@@ -86,15 +92,21 @@ export function RankingBoard({
                   </span>
                 </div>
 
-                <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(row)}
+                  className="flex min-w-0 items-center gap-3 text-left"
+                >
                   <Avatar row={row} size={34} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{row.employee.name}</p>
+                    <p className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline">
+                      {row.employee.name}
+                    </p>
                     <p className="truncate text-[11px] text-subtle">
                       {row.employee.position} · {row.employee.department} · {row.employee.branch}
                     </p>
                   </div>
-                </div>
+                </button>
 
                 <span className="truncate text-sm font-semibold tabular-nums">{row.metricLabel}</span>
 
@@ -114,8 +126,9 @@ export function RankingBoard({
                   format={(n) => `${n.toFixed(0)}%`}
                 />
                 <span
+                  title={bonusHint?.(row)}
                   className={cn(
-                    "text-right text-sm font-medium tabular-nums",
+                    "cursor-help text-right text-sm font-medium tabular-nums",
                     row.bonus > 0 ? "text-success" : "text-subtle",
                   )}
                 >

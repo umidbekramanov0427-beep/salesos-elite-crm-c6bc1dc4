@@ -89,7 +89,28 @@ export function useLeaderboard(initialFilters: Filters) {
 
   const patchFilters = useCallback((patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch })), []);
 
-  return { rows, insights, filters, patchFilters, bonusConfig, setBonusConfig, moves, live, setLive, lastTick };
+  /** Manual refresh — pulls the latest tick immediately without a page reload. */
+  const refresh = useCallback(() => {
+    setRoster((cur) => tickRoster(cur).next);
+    setLastTick(Date.now());
+  }, []);
+
+  const resetFilters = useCallback(() => setFilters(initialFilters), [initialFilters]);
+
+  return {
+    rows,
+    insights,
+    filters,
+    patchFilters,
+    resetFilters,
+    bonusConfig,
+    setBonusConfig,
+    moves,
+    live,
+    setLive,
+    lastTick,
+    refresh,
+  };
 }
 
 function notifyOnce(seen: React.RefObject<Set<string>>, key: string, title: string, description: string) {
