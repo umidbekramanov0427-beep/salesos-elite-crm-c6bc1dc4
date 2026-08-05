@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Bell, ChevronDown, Globe, Menu, Moon, Search, Sparkles, Sun, X } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { NAV_ITEMS } from "@/lib/nav";
+import { useI18n, LANGS, LANG_SHORT, LANG_LABELS } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
 import { AiCopilot } from "@/components/AiCopilot";
-import { Toaster } from "@/components/ui/sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +17,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const LANGUAGES = ["EN", "RU", "KZ"] as const;
-
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [dark, setDark] = useState(false);
-  const [lang, setLang] = useState<(typeof LANGUAGES)[number]>("EN");
+  const { t, lang, setLang } = useI18n();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = true;
   const current = NAV_ITEMS.find((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)));
@@ -55,8 +56,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileOpen(false)} />
           <div className="absolute left-0 top-0 h-full w-[264px] overflow-y-auto border-r border-sidebar-border bg-sidebar p-3">
             <div className="flex items-center justify-between px-2 pb-4 pt-2">
-              <p className="text-sm font-semibold">SalesOS Elite</p>
-              <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="rounded-lg p-1 hover:bg-accent">
+              <p className="text-sm font-semibold">{t("app.name")}</p>
+              <button aria-label={t("shell.closeMenu")} onClick={() => setMobileOpen(false)} className="rounded-lg p-1 hover:bg-accent">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -73,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     )}
                   >
                     <item.icon className="h-[18px] w-[18px]" />
-                    {item.label}
+                    {t(`nav.${item.to}`)}
                   </Link>
                 );
               })}
@@ -85,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-xl md:px-8">
           <button
-            aria-label="Open menu"
+            aria-label={t("shell.openMenu")}
             className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
@@ -94,11 +95,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="hidden min-w-0 lg:block">
             <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-subtle">
-              <span>SalesOS Elite</span>
+              <span>{t("app.name")}</span>
               <span>/</span>
-              <span className="text-muted-foreground">{current?.label ?? "Workspace"}</span>
+              <span className="text-muted-foreground">{current ? t(`nav.${current.to}`) : t("shell.workspace")}</span>
             </nav>
-            <p className="truncate text-sm font-semibold text-foreground">{current?.label ?? "Workspace"}</p>
+            <p className="truncate text-sm font-semibold text-foreground">{current ? t(`nav.${current.to}`) : t("shell.workspace")}</p>
           </div>
 
           <DropdownMenu>
@@ -107,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("shell.workspace")}</DropdownMenuLabel>
               <DropdownMenuItem>Almaty HQ</DropdownMenuItem>
               <DropdownMenuItem>Astana Branch</DropdownMenuItem>
               <DropdownMenuItem>Tashkent Branch</DropdownMenuItem>
@@ -120,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="relative ml-auto hidden h-10 w-full max-w-sm items-center gap-2 rounded-xl border border-border bg-surface px-3 text-sm text-subtle transition-colors hover:border-primary/40 md:flex"
           >
             <Search className="h-4 w-4" />
-            Search everything…
+            {t("shell.search")}
             <kbd className="ml-auto rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               ⌘K
             </kbd>
@@ -145,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <Link
               to="/inbox"
-              aria-label="Notifications"
+              aria-label={t("shell.notifications")}
               className="relative rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Bell className="h-[18px] w-[18px]" />
@@ -153,7 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
 
             <button
-              aria-label="Toggle theme"
+              aria-label={t("shell.theme")}
               onClick={() => setDark((d) => !d)}
               className="hidden rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:block"
             >
@@ -162,16 +163,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <DropdownMenu>
               <DropdownMenuTrigger
-                aria-label="Language"
+                aria-label={t("shell.language")}
                 className="hidden items-center gap-1 rounded-xl p-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
               >
                 <Globe className="h-[18px] w-[18px]" />
-                {lang}
+                {LANG_SHORT[lang]}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {LANGUAGES.map((l) => (
+                {LANGS.map((l) => (
                   <DropdownMenuItem key={l} onClick={() => setLang(l)}>
-                    {l}
+                    {LANG_LABELS[l]}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -180,24 +181,31 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-border bg-background py-1.5 pl-1.5 pr-3 transition-colors hover:bg-accent">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
-                  AS
+                  {user?.initials ?? "AS"}
                 </span>
                 <span className="hidden leading-tight sm:block">
-                  <span className="block text-[13px] font-medium">Aizhan S.</span>
+                  <span className="block text-[13px] font-medium">{user?.name ?? "Aizhan S."}</span>
                   <span className="block text-[11px] text-subtle">Admin</span>
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Aizhan Serikova</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.name ?? "Aizhan Serikova"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/settings">Profile & settings</Link>
+                  <Link to="/settings">{t("shell.profile")}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/admin">Admin panel</Link>
+                  <Link to="/admin">{t("shell.admin")}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Sign out</DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    signOut();
+                    void navigate({ to: "/login", replace: true });
+                  }}
+                >
+                  {t("shell.signOut")}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -210,7 +218,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <AiCopilot open={copilotOpen} onOpenChange={setCopilotOpen} />
-      <Toaster />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronsLeft, Command, Sparkles } from "lucide-react";
 import { NAV_ITEMS, CRM_NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type Props = {
   collapsed: boolean;
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
+  const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
 
@@ -26,8 +28,8 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">SalesOS Elite</p>
-            <p className="truncate text-xs text-sidebar-muted">Sales Operating System</p>
+            <p className="truncate text-sm font-semibold text-foreground">{t("app.name")}</p>
+            <p className="truncate text-xs text-sidebar-muted">{t("app.tagline")}</p>
           </div>
         )}
       </div>
@@ -39,7 +41,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
             <Link
               key={item.to}
               to={item.to}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? t(`nav.${item.to}`) : undefined}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
                 active
@@ -56,7 +58,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
               />
               {!collapsed && (
                 <>
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate">{t(`nav.${item.to}`)}</span>
                   {item.badge && (
                     <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
                       {item.badge}
@@ -70,7 +72,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
 
         <div className="pt-4">
           {!collapsed && (
-            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">CRM Core</p>
+            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">{t("nav.crmCore")}</p>
           )}
           <div className="space-y-1">
             {CRM_NAV_ITEMS.map((item) => {
@@ -79,7 +81,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
                 <Link
                   key={item.to}
                   to={item.to}
-                  title={collapsed ? item.label : undefined}
+                  title={collapsed ? t(`nav.${item.to}`) : undefined}
                   className={cn(
                     "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
                     active
@@ -94,7 +96,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
                       active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-foreground",
                     )}
                   />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {!collapsed && <span className="truncate">{t(`nav.${item.to}`)}</span>}
                 </Link>
               );
             })}
@@ -105,8 +107,8 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
       <div className="border-t border-sidebar-border p-3">
         {!collapsed && (
           <div className="mb-3 rounded-xl bg-mint p-3">
-            <p className="text-xs font-semibold text-foreground">Monthly target</p>
-            <p className="mt-1 text-xs text-muted-foreground">82% reached · 5% bonus unlocked at 100%</p>
+            <p className="text-xs font-semibold text-foreground">{t("nav.monthlyTarget")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("nav.monthlyTargetHint")}</p>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-mint-border">
               <div className="h-full rounded-full bg-success" style={{ width: "82%" }} />
             </div>
@@ -120,7 +122,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
           )}
         >
           <ChevronsLeft className={cn("h-4 w-4 transition-transform duration-300", collapsed && "rotate-180")} />
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span>{t("nav.collapse")}</span>}
           {!collapsed && (
             <span className="ml-auto flex items-center gap-0.5 text-[11px] text-subtle">
               <Command className="h-3 w-3" />B

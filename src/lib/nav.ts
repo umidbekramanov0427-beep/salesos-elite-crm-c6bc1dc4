@@ -9,6 +9,8 @@ import {
   Layers,
   AudioLines,
   Settings,
+  Plug,
+
   ShieldCheck,
   UserSearch,
   Users,
@@ -36,7 +38,9 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Inbox", to: "/inbox", icon: Inbox, badge: "3" },
   { label: "CRM Stages", to: "/crm-stages", icon: Layers },
   { label: "Audio Analytics", to: "/audio-analytics", icon: AudioLines },
+  { label: "Integrations", to: "/integrations", icon: Plug },
   { label: "Settings", to: "/settings", icon: Settings },
+
   { label: "Admin Panel", to: "/admin", icon: ShieldCheck, adminOnly: true },
 ];
 
