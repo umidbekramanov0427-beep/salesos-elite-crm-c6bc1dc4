@@ -125,16 +125,47 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AuthGate() {
+  const { user, ready } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLogin = pathname === "/login";
+
+  useEffect(() => {
+    if (ready && !user && !isLogin) void navigate({ to: "/login", replace: true });
+  }, [ready, user, isLogin, navigate]);
+
+  if (isLogin) return <Outlet />;
+
+  if (!ready || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <AppShell>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+    </AppShell>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-      </AppShell>
+      <I18nProvider>
+        <AuthProvider>
+          <AuthGate />
+          <Toaster />
+        </AuthProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
+
 
