@@ -134,8 +134,18 @@ function toCsv(rows: LeaderboardRow[]): string {
 
 function Leaderboard() {
   const { t, lang } = useI18n();
-  const { rows, insights, filters, patchFilters, moves, live, setLive, bonusConfig, setBonusConfig, refresh } =
-    useLeaderboard(INITIAL);
+  const {
+    rows,
+    insights,
+    filters,
+    patchFilters,
+    moves,
+    live,
+    setLive,
+    bonusConfig,
+    setBonusConfig,
+    refresh,
+  } = useLeaderboard(INITIAL);
   const [showExec, setShowExec] = useState(true);
   const [selected, setSelected] = useState<LeaderboardRow | null>(null);
   const [aiSnapshot, setAiSnapshot] = useState<{ items: typeof insights; at: number } | null>(null);
@@ -196,6 +206,12 @@ function Leaderboard() {
 
   return (
     <>
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-4 py-2.5 text-xs text-subtle">
+        <Sparkles className="h-3.5 w-3.5 shrink-0" />
+        Showing simulated roster data for demonstration. Call, meeting and rating tracking aren't
+        wired to the database yet — every other page (CRM, Dashboard, Tasks, Inbox, Admin) uses your
+        real workspace data.
+      </div>
       <PageHeader
         title={t("lb.title")}
         description={t("lb.description", { count: rows.length, sec: REFRESH_MS / 1000 })}
@@ -229,7 +245,9 @@ function Leaderboard() {
               {t("common.export")}
             </button>
             <Pill tone="info">
-              {filters.scope === "company" ? t("lb.companyView") : t("lb.teamView", { team: filters.scopeTeam })}
+              {filters.scope === "company"
+                ? t("lb.companyView")
+                : t("lb.teamView", { team: filters.scopeTeam })}
             </Pill>
           </div>
         }
@@ -274,7 +292,9 @@ function Leaderboard() {
             onChange={(v) => patchFilters({ branch: v })}
           />
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-subtle">{t("common.search")}</span>
+            <span className="text-[11px] uppercase tracking-wide text-subtle">
+              {t("common.search")}
+            </span>
             <input
               value={filters.search}
               onChange={(e) => patchFilters({ search: e.target.value })}
@@ -293,7 +313,9 @@ function Leaderboard() {
               onClick={() => patchFilters({ scope: s })}
               className={cn(
                 "rounded-xl border border-border px-3 py-1.5 text-xs font-medium transition-colors",
-                filters.scope === s ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground",
+                filters.scope === s
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface text-muted-foreground",
               )}
             >
               {s === "company" ? t("lb.scopeCompany") : t("lb.scopeTeam")}
@@ -309,7 +331,9 @@ function Leaderboard() {
           )}
           <div className="ml-auto flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-subtle">{t("lb.bonusAt100")}</span>
+              <span className="text-[11px] uppercase tracking-wide text-subtle">
+                {t("lb.bonusAt100")}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -328,14 +352,18 @@ function Leaderboard() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-subtle">{t("lb.perPoint")}</span>
+              <span className="text-[11px] uppercase tracking-wide text-subtle">
+                {t("lb.perPoint")}
+              </span>
               <input
                 type="number"
                 min={0}
                 max={2}
                 step={0.05}
                 value={bonusConfig.perPointAboveTop}
-                onChange={(e) => setBonusConfig((c) => ({ ...c, perPointAboveTop: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setBonusConfig((c) => ({ ...c, perPointAboveTop: Number(e.target.value) }))
+                }
                 className="h-9 w-28 rounded-xl border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </label>
@@ -351,13 +379,21 @@ function Leaderboard() {
           hint={t("lb.employeesInView", { count: rows.length })}
           tone="mint"
         />
-        <StatCard label={t("lb.avgKpi")} value={`${totals.avgKpi.toFixed(1)}%`} hint={t("lb.avgKpiHint")} />
+        <StatCard
+          label={t("lb.avgKpi")}
+          value={`${totals.avgKpi.toFixed(1)}%`}
+          hint={t("lb.avgKpiHint")}
+        />
         <StatCard
           label={t("lb.bonusQualified")}
           value={`${totals.atTarget} / ${rows.length}`}
           hint={t("lb.bonusQualifiedHint")}
         />
-        <StatCard label={t("lb.bonusPool")} value={currency(totals.bonusPool)} hint={t("lb.bonusPoolHint")} />
+        <StatCard
+          label={t("lb.bonusPool")}
+          value={currency(totals.bonusPool)}
+          hint={t("lb.bonusPoolHint")}
+        />
       </div>
 
       {/* Podium */}
@@ -375,7 +411,10 @@ function Leaderboard() {
 
       {/* Ranking */}
       <div className="mt-6">
-        <SectionCard title={t("lb.liveRanking", { metric: metricLabel })} description={t("lb.liveRankingDesc")}>
+        <SectionCard
+          title={t("lb.liveRanking", { metric: metricLabel })}
+          description={t("lb.liveRankingDesc")}
+        >
           <RankingBoard
             rows={rows}
             moves={moves}
@@ -439,7 +478,9 @@ function Leaderboard() {
                     {r.employee.department} · #{r.rank}
                   </p>
                 </button>
-                <span className="shrink-0 text-xs text-destructive">{r.monthlyKpi.toFixed(0)}% KPI</span>
+                <span className="shrink-0 text-xs text-destructive">
+                  {r.monthlyKpi.toFixed(0)}% KPI
+                </span>
               </li>
             ))}
           </ul>
@@ -475,10 +516,14 @@ function Leaderboard() {
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
                         <div
                           className="h-full rounded-full bg-primary transition-[width] duration-700"
-                          style={{ width: `${(d.revenue / Math.max(1, depts[0]!.revenue)) * 100}%` }}
+                          style={{
+                            width: `${(d.revenue / Math.max(1, depts[0]!.revenue)) * 100}%`,
+                          }}
                         />
                       </div>
-                      <span className="w-24 text-right tabular-nums text-muted-foreground">{currency(d.revenue)}</span>
+                      <span className="w-24 text-right tabular-nums text-muted-foreground">
+                        {currency(d.revenue)}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -495,17 +540,24 @@ function Leaderboard() {
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
                         <div
                           className="h-full rounded-full bg-success transition-[width] duration-700"
-                          style={{ width: `${(b.revenue / Math.max(1, branches[0]!.revenue)) * 100}%` }}
+                          style={{
+                            width: `${(b.revenue / Math.max(1, branches[0]!.revenue)) * 100}%`,
+                          }}
                         />
                       </div>
-                      <span className="w-16 text-right tabular-nums text-muted-foreground">{b.kpi.toFixed(0)}%</span>
+                      <span className="w-16 text-right tabular-nums text-muted-foreground">
+                        {b.kpi.toFixed(0)}%
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
               <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-sm lg:col-span-2">
                 <Activity className="h-4 w-4 shrink-0 text-primary" />
-                {t("lb.companyKpi", { kpi: `${totals.avgKpi.toFixed(1)}%`, pool: currency(totals.bonusPool) })}
+                {t("lb.companyKpi", {
+                  kpi: `${totals.avgKpi.toFixed(1)}%`,
+                  pool: currency(totals.bonusPool),
+                })}
               </div>
             </div>
           )}
@@ -548,7 +600,9 @@ function Leaderboard() {
                   </div>
                 ))}
               </dl>
-              <p className="mt-4 rounded-xl bg-mint p-3 text-xs text-mint-foreground">{bonusHint(selected)}</p>
+              <p className="mt-4 rounded-xl bg-mint p-3 text-xs text-mint-foreground">
+                {bonusHint(selected)}
+              </p>
             </>
           )}
         </DialogContent>

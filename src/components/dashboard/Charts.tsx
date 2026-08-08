@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -14,11 +13,9 @@ import {
 import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/layout/Primitives";
-import { REVENUE_RANGES, PIPELINE_STAGES, FUNNEL_FLOW, type RevenueRange } from "@/lib/dashboard-data";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-
-const RANGES: RevenueRange[] = ["Daily", "Weekly", "Monthly", "Yearly"];
+import { useFunnelFlow, usePipelineStageStats, useRevenueSeries } from "@/hooks/use-crm-data";
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -29,32 +26,15 @@ const tooltipStyle = {
 };
 
 export function RevenueChart() {
-  const [range, setRange] = useState<RevenueRange>("Monthly");
-  const data = useMemo(() => REVENUE_RANGES[range], [range]);
+  const data = useRevenueSeries();
 
   return (
     <SectionCard
       title="Revenue"
-      description={`${range} revenue against pipeline`}
+      description="Monthly won revenue against open pipeline"
       className="xl:col-span-2"
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Revenue range" className="flex rounded-xl bg-muted p-1">
-            {RANGES.map((r) => (
-              <button
-                key={r}
-                role="tab"
-                aria-selected={range === r}
-                onClick={() => setRange(r)}
-                className={cn(
-                  "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors duration-150",
-                  range === r ? "bg-background text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
           <button
             onClick={() => toast.success("Revenue report queued as PDF")}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -84,7 +64,13 @@ export function RevenueChart() {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-subtle)" />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
             <YAxis
               tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
               tickLine={false}
@@ -93,8 +79,22 @@ export function RevenueChart() {
               stroke="var(--color-subtle)"
             />
             <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => currency(v)} />
-            <Area type="monotone" dataKey="pipeline" stroke="var(--color-success)" strokeWidth={2} fill="url(#dash-pipe)" animationDuration={700} />
-            <Area type="monotone" dataKey="revenue" stroke="var(--color-primary)" strokeWidth={2} fill="url(#dash-rev)" animationDuration={700} />
+            <Area
+              type="monotone"
+              dataKey="pipeline"
+              stroke="var(--color-success)"
+              strokeWidth={2}
+              fill="url(#dash-pipe)"
+              animationDuration={700}
+            />
+            <Area
+              type="monotone"
+              dataKey="revenue"
+              stroke="var(--color-primary)"
+              strokeWidth={2}
+              fill="url(#dash-rev)"
+              animationDuration={700}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -103,20 +103,44 @@ export function RevenueChart() {
 }
 
 export function PipelineChart() {
+  const stats = usePipelineStageStats();
   return (
-    <SectionCard title="Pipeline" description="Value and average time per stage">
+    <SectionCard title="Pipeline" description="Deal value per stage">
       <div className="h-[180px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={PIPELINE_STAGES} margin={{ left: -18, right: 8, top: 4 }}>
+          <BarChart data={stats} margin={{ left: -18, right: 8, top: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis dataKey="stage" tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" interval={0} />
-            <YAxis tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => currency(v)} cursor={{ fill: "var(--color-accent)" }} />
+            <XAxis
+              dataKey="stage"
+              tickLine={false}
+              axisLine={false}
+              fontSize={11}
+              stroke="var(--color-subtle)"
+              interval={0}
+            />
+            <YAxis
+              tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
+              tickLine={false}
+              axisLine={false}
+              fontSize={11}
+              stroke="var(--color-subtle)"
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(v: number) => currency(v)}
+              cursor={{ fill: "var(--color-accent)" }}
+            />
             <Bar dataKey="value" radius={[8, 8, 4, 4]} animationDuration={700}>
-              {PIPELINE_STAGES.map((s) => (
+              {stats.map((s) => (
                 <Cell
                   key={s.stage}
-                  fill={s.stage === "Lost" ? "var(--color-destructive)" : s.stage === "Won" ? "var(--color-success)" : "var(--color-primary)"}
+                  fill={
+                    s.stage === "Lost"
+                      ? "var(--color-destructive)"
+                      : s.stage === "Won"
+                        ? "var(--color-success)"
+                        : "var(--color-primary)"
+                  }
                   fillOpacity={s.stage === "Won" || s.stage === "Lost" ? 0.85 : 0.75}
                 />
               ))}
@@ -126,10 +150,10 @@ export function PipelineChart() {
       </div>
 
       <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-center">
-        {PIPELINE_STAGES.slice(0, 3).map((s) => (
+        {stats.slice(0, 3).map((s) => (
           <div key={s.stage}>
-            <dt className="text-[11px] text-subtle">{s.stage} avg time</dt>
-            <dd className="mt-1 text-sm font-semibold text-foreground">{s.avgDays}d</dd>
+            <dt className="text-[11px] text-subtle">{s.stage}</dt>
+            <dd className="mt-1 text-sm font-semibold text-foreground">{s.deals} deals</dd>
           </div>
         ))}
       </dl>
@@ -138,11 +162,12 @@ export function PipelineChart() {
 }
 
 export function SalesFunnel() {
-  const max = FUNNEL_FLOW[0]?.count ?? 1;
+  const flow = useFunnelFlow();
+  const max = flow[0]?.count ?? 1;
   return (
     <SectionCard title="Sales funnel" description="Lead to won conversion">
       <ol className="space-y-3">
-        {FUNNEL_FLOW.map((s) => (
+        {flow.map((s) => (
           <li key={s.stage}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="font-medium text-foreground">{s.stage}</span>
@@ -154,7 +179,11 @@ export function SalesFunnel() {
               <div
                 className={cn(
                   "h-full rounded-full transition-[width] duration-700 ease-out",
-                  s.stage === "Lost" ? "bg-destructive" : s.stage === "Won" ? "bg-success" : "bg-primary",
+                  s.stage === "Lost"
+                    ? "bg-destructive"
+                    : s.stage === "Won"
+                      ? "bg-success"
+                      : "bg-primary",
                 )}
                 style={{ width: `${(s.count / max) * 100}%` }}
               />

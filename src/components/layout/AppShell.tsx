@@ -27,8 +27,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isAdmin = true;
-  const current = NAV_ITEMS.find((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)));
+  const isAdmin = user?.role === "super_admin";
+  const current = NAV_ITEMS.find((i) =>
+    i.to === "/" ? pathname === "/" : pathname.startsWith(i.to),
+  );
 
   useEffect(() => setMobileOpen(false), [pathname]);
 
@@ -49,7 +51,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full bg-surface">
-      <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} isAdmin={isAdmin} />
+      <AppSidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+        isAdmin={isAdmin}
+      />
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -57,7 +63,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="absolute left-0 top-0 h-full w-[264px] overflow-y-auto border-r border-sidebar-border bg-sidebar p-3">
             <div className="flex items-center justify-between px-2 pb-4 pt-2">
               <p className="text-sm font-semibold">{t("app.name")}</p>
-              <button aria-label={t("shell.closeMenu")} onClick={() => setMobileOpen(false)} className="rounded-lg p-1 hover:bg-accent">
+              <button
+                aria-label={t("shell.closeMenu")}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg p-1 hover:bg-accent"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -70,7 +80,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                     to={item.to}
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
-                      active ? "bg-sidebar-active text-foreground" : "text-sidebar-foreground hover:bg-accent",
+                      active
+                        ? "bg-sidebar-active text-foreground"
+                        : "text-sidebar-foreground hover:bg-accent",
                     )}
                   >
                     <item.icon className="h-[18px] w-[18px]" />
@@ -94,12 +106,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
 
           <div className="hidden min-w-0 lg:block">
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-subtle">
+            <nav
+              aria-label="Breadcrumb"
+              className="flex items-center gap-1 text-[11px] text-subtle"
+            >
               <span>{t("app.name")}</span>
               <span>/</span>
-              <span className="text-muted-foreground">{current ? t(`nav.${current.to}`) : t("shell.workspace")}</span>
+              <span className="text-muted-foreground">
+                {current ? t(`nav.${current.to}`) : t("shell.workspace")}
+              </span>
             </nav>
-            <p className="truncate text-sm font-semibold text-foreground">{current ? t(`nav.${current.to}`) : t("shell.workspace")}</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {current ? t(`nav.${current.to}`) : t("shell.workspace")}
+            </p>
           </div>
 
           <DropdownMenu>
@@ -158,7 +177,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               onClick={() => setDark((d) => !d)}
               className="hidden rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:block"
             >
-              {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+              {dark ? (
+                <Sun className="h-[18px] w-[18px]" />
+              ) : (
+                <Moon className="h-[18px] w-[18px]" />
+              )}
             </button>
 
             <DropdownMenu>
@@ -181,26 +204,28 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-border bg-background py-1.5 pl-1.5 pr-3 transition-colors hover:bg-accent">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
-                  {user?.initials ?? "AS"}
+                  {user?.initials ?? "?"}
                 </span>
                 <span className="hidden leading-tight sm:block">
-                  <span className="block text-[13px] font-medium">{user?.name ?? "Aizhan S."}</span>
-                  <span className="block text-[11px] text-subtle">Admin</span>
+                  <span className="block text-[13px] font-medium">{user?.name ?? "…"}</span>
+                  <span className="block text-[11px] text-subtle">{user?.position ?? ""}</span>
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user?.name ?? "Aizhan Serikova"}</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.name ?? ""}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/settings">{t("shell.profile")}</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/admin">{t("shell.admin")}</Link>
-                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin">{t("shell.admin")}</Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
-                    signOut();
+                  onClick={async () => {
+                    await signOut();
                     void navigate({ to: "/login", replace: true });
                   }}
                 >
