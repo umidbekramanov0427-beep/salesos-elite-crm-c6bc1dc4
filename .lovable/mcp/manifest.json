@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "salesos-elite-crm",
+      "version": "0.1.0",
+      "title": "SalesOS Elite CRM"
+    },
+    "tools": [
+      {
+        "name": "list_leads",
+        "title": "List leads",
+        "description": "List CRM leads from SalesOS Elite, optionally filtered by stage, temperature, owner or a free-text search over name/company.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "search": {
+              "description": "Free-text match on lead name, company or email.",
+              "type": "string"
+            },
+            "stage": {
+              "description": "Pipeline stage filter.",
+              "type": "string",
+              "enum": [
+                "New Lead",
+                "Qualified",
+                "Demo",
+                "Proposal",
+                "Negotiation",
+                "Won"
+              ]
+            },
+            "temperature": {
+              "type": "string",
+              "enum": [
+                "Hot",
+                "Warm",
+                "Cold"
+              ]
+            },
+            "owner": {
+              "description": "Lead owner full name.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max rows to return (default 25).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_lead",
+        "title": "Get lead detail",
+        "description": "Get the full CRM workspace record for one lead: contact details, deal context, recent activity timeline, open tasks and AI suggestions.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "lead_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Lead id, e.g. L-8842."
+            }
+          },
+          "required": [
+            "lead_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_deals",
+        "title": "List deals",
+        "description": "List deals in the SalesOS Elite pipeline with value, probability, stage and owner.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "stage": {
+              "description": "Deal stage filter, e.g. Negotiation, Proposal, Won.",
+              "type": "string"
+            },
+            "owner": {
+              "description": "Deal owner full name.",
+              "type": "string"
+            },
+            "min_value": {
+              "description": "Only deals worth at least this amount.",
+              "type": "number"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "pipeline_summary",
+        "title": "Pipeline summary",
+        "description": "Summarize the sales pipeline: lead and deal counts, total and weighted value per stage.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "leaderboard_ranking",
+        "title": "Sales leaderboard",
+        "description": "Get the current SalesOS Elite sales leaderboard ranking for a metric and period, with AI-style performance insights.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "metric": {
+              "description": "Ranking metric (default overall).",
+              "type": "string",
+              "enum": [
+                "overall",
+                "revenue",
+                "dealsClosed",
+                "calls",
+                "meetings",
+                "tasks",
+                "conversion",
+                "rating",
+                "responseTime",
+                "attendance"
+              ]
+            },
+            "period": {
+              "type": "string",
+              "enum": [
+                "Today",
+                "Week",
+                "Month",
+                "Quarter",
+                "Year"
+              ]
+            },
+            "department": {
+              "description": "Department filter, e.g. Enterprise, SMB.",
+              "type": "string"
+            },
+            "branch": {
+              "description": "Branch filter, e.g. Tashkent HQ, Almaty.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "How many ranks to return (default 10).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

@@ -20,12 +20,16 @@ import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
 import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
 
@@ -84,6 +88,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -94,6 +103,18 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CrmCompaniesRoute = CrmCompaniesRouteImport.update({
   id: '/crm/companies',
   path: '/crm/companies',
@@ -114,6 +135,12 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CrmLeadsIndexRoute = CrmLeadsIndexRouteImport.update({
   id: '/crm/leads/',
   path: '/crm/leads/',
@@ -137,12 +164,16 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
@@ -158,12 +189,16 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/crm/leads': typeof CrmLeadsIndexRoute
 }
@@ -180,12 +215,16 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
@@ -203,12 +242,16 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/lead-tasks'
     | '/login'
+    | '/mcp'
     | '/settings'
     | '/tasks'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/crm/leads/'
   fileRoutesByTo: FileRoutesByTo
@@ -224,12 +267,16 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/lead-tasks'
     | '/login'
+    | '/mcp'
     | '/settings'
     | '/tasks'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/crm/leads'
   id:
@@ -245,12 +292,16 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/lead-tasks'
     | '/login'
+    | '/mcp'
     | '/settings'
     | '/tasks'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/crm/leads/'
   fileRoutesById: FileRoutesById
@@ -267,12 +318,16 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   CrmCompaniesRoute: typeof CrmCompaniesRoute
   CrmContactsRoute: typeof CrmContactsRoute
   CrmDealsRoute: typeof CrmDealsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
   CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
 }
@@ -356,6 +411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -368,6 +430,20 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crm/companies': {
@@ -396,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/crm/pipeline'
       fullPath: '/crm/pipeline'
       preLoaderRoute: typeof CrmPipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crm/leads/': {
@@ -427,12 +510,17 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   CrmCompaniesRoute: CrmCompaniesRoute,
   CrmContactsRoute: CrmContactsRoute,
   CrmDealsRoute: CrmDealsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
   CrmLeadsIndexRoute: CrmLeadsIndexRoute,
 }
