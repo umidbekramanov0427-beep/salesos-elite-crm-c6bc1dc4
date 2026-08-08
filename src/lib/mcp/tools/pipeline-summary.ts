@@ -9,7 +9,7 @@ export default defineTool({
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: () => {
-    const stages = PIPELINE_STAGES.map((stage) => {
+    const stages = PIPELINE_STAGES.map(({ name: stage }) => {
       const leads = CRM_LEADS.filter((l) => l.stage === stage);
       const deals = DEALS.filter((d) => d.stage === stage);
       return {

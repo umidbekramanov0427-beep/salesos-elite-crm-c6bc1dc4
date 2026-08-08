@@ -9,7 +9,7 @@ export default defineTool({
     "List CRM leads from SalesOS Elite, optionally filtered by stage, temperature, owner or a free-text search over name/company.",
   inputSchema: {
     search: z.string().optional().describe("Free-text match on lead name, company or email."),
-    stage: z.enum(PIPELINE_STAGES as unknown as [string, ...string[]]).optional().describe("Pipeline stage filter."),
+    stage: z.enum(PIPELINE_STAGES.map((s) => s.name) as [string, ...string[]]).optional().describe("Pipeline stage filter."),
     temperature: z.enum(["Hot", "Warm", "Cold"]).optional(),
     owner: z.string().optional().describe("Lead owner full name."),
     limit: z.number().int().min(1).max(100).optional().describe("Max rows to return (default 25)."),

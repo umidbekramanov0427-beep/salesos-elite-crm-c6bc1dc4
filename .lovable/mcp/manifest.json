@@ -31,14 +31,14 @@
             },
             "stage": {
               "description": "Pipeline stage filter.",
+              "type": "string",
               "enum": [
-                {
-                  "id": "won",
-                  "name": "Won",
-                  "color": "bg-success",
-                  "probability": 100,
-                  "limit": 0
-                }
+                "New Lead",
+                "Qualified",
+                "Demo",
+                "Proposal",
+                "Negotiation",
+                "Won"
               ]
             },
             "temperature": {
