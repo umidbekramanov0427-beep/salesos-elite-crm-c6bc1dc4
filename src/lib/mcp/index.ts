@@ -1,4 +1,6 @@
-import { defineMcp, type AnyToolDefinition } from "@lovable.dev/mcp-js";
+import { defineMcp } from "@lovable.dev/mcp-js";
+
+type McpTools = Parameters<typeof defineMcp>[0]["tools"];
 import listLeads from "./tools/list-leads";
 import getLead from "./tools/get-lead";
 import listDeals from "./tools/list-deals";
@@ -11,5 +13,5 @@ export default defineMcp({
   version: "0.1.0",
   instructions:
     "Read-only tools for the SalesOS Elite sales operating system. Use `list_leads` and `get_lead` for CRM lead research, `list_deals` and `pipeline_summary` for pipeline value analysis, and `leaderboard_ranking` for sales-team performance rankings and insights.",
-  tools: [listLeads, getLead, listDeals, pipelineSummary, leaderboardRanking] as AnyToolDefinition[],
+  tools: [listLeads, getLead, listDeals, pipelineSummary, leaderboardRanking] as unknown as McpTools,
 });
