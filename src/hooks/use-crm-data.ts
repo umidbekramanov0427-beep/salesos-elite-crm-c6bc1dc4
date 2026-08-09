@@ -101,6 +101,8 @@ const profilesResource = makeResource("profiles", ["profiles"]);
 const stagesResource = makeResource("pipeline_stages", ["pipeline_stages"]);
 const notificationsResource = makeResource("notifications", ["notifications"]);
 const leadActivitiesResource = makeResource("lead_activities", ["lead_activities"]);
+const workSessionsResource = makeResource("work_sessions", ["work_sessions"]);
+const callLogsResource = makeResource("call_logs", ["call_logs"]);
 
 export const useCompaniesRaw = (opts?: Parameters<typeof companiesResource.useList>[0]) =>
   companiesResource.useList({ orderBy: "created_at", ascending: false, ...opts });
@@ -142,6 +144,15 @@ export const usePipelineStagesRaw = (opts?: Parameters<typeof stagesResource.use
 export const useCreateStage = stagesResource.useCreate;
 export const useUpdateStage = stagesResource.useUpdate;
 export const useDeleteStage = stagesResource.useRemove;
+
+export const useWorkSessionsRaw = (opts?: Parameters<typeof workSessionsResource.useList>[0]) =>
+  workSessionsResource.useList({ orderBy: "clock_in", ascending: false, ...opts });
+export const useCreateWorkSession = workSessionsResource.useCreate;
+export const useUpdateWorkSession = workSessionsResource.useUpdate;
+
+export const useCallLogsRaw = (opts?: Parameters<typeof callLogsResource.useList>[0]) =>
+  callLogsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
+export const useCreateCallLog = callLogsResource.useCreate;
 
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
@@ -982,5 +993,252 @@ export function useDeleteTag() {
       }
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["leads"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Attendance — manual clock-in/out and call logging, aggregated into  */
+/* a per-employee daily roster. A future telephony integration can     */
+/* insert into call_logs the same way and this keeps working as-is.    */
+/* ------------------------------------------------------------------ */
+
+export type WorkSessionRow = Tables["work_sessions"]["Row"];
+export type CallLogRow = Tables["call_logs"]["Row"];
+
+function isToday(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+export function useMyOpenSession() {
+  const { user } = useAuth();
+  const { data: sessions, ...rest } = useWorkSessionsRaw({ enabled: !!user });
+  const open = (sessions ?? []).find(
+    (s) => s.profile_id === user?.id && !s.clock_out && isToday(s.clock_in),
+  );
+  return { session: open ?? null, ...rest };
+}
+
+export function useClockIn() {
+  const create = useCreateWorkSession();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not signed in");
+      return create.mutateAsync({ profile_id: user.id });
+    },
+  });
+}
+
+export function useClockOut() {
+  const update = useUpdateWorkSession();
+  return useMutation({
+    mutationFn: async (sessionId: string) =>
+      update.mutateAsync({ id: sessionId, patch: { clock_out: new Date().toISOString() } }),
+  });
+}
+
+export function useLogCall() {
+  const create = useCreateCallLog();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      leadId?: string | null;
+      contactId?: string | null;
+      phone?: string;
+      connected: boolean;
+      durationSeconds: number;
+    }) => {
+      if (!user) throw new Error("Not signed in");
+      return create.mutateAsync({
+        profile_id: user.id,
+        lead_id: input.leadId ?? null,
+        contact_id: input.contactId ?? null,
+        phone: input.phone ?? null,
+        connected: input.connected,
+        duration_seconds: input.durationSeconds,
+      });
+    },
+  });
+}
+
+export type AttendanceRow = {
+  profileId: string;
+  name: string;
+  initials: string;
+  position: string;
+  clockIn: string | null;
+  clockOut: string | null;
+  sessionMinutes: number;
+  callsMade: number;
+  callsConnected: number;
+  totalCallMinutes: number;
+};
+
+export function useAttendanceView() {
+  const profiles = useProfilesRaw();
+  const sessions = useWorkSessionsRaw();
+  const calls = useCallLogsRaw();
+
+  const rows = useMemo<AttendanceRow[]>(() => {
+    return (profiles.data ?? []).map((p): AttendanceRow => {
+      const mySessions = (sessions.data ?? []).filter(
+        (s) => s.profile_id === p.id && isToday(s.clock_in),
+      );
+      const latest = mySessions[0] ?? null;
+      const sessionMinutes = mySessions.reduce((sum, s) => {
+        const end = s.clock_out ? new Date(s.clock_out).getTime() : Date.now();
+        return sum + Math.max(0, (end - new Date(s.clock_in).getTime()) / 60000);
+      }, 0);
+      const myCalls = (calls.data ?? []).filter(
+        (c) => c.profile_id === p.id && isToday(c.created_at),
+      );
+      return {
+        profileId: p.id,
+        name: profileName(p),
+        initials: initialsOf(p.full_name || p.email),
+        position: p.position,
+        clockIn: latest?.clock_in ?? null,
+        clockOut: latest?.clock_out ?? null,
+        sessionMinutes: Math.round(sessionMinutes),
+        callsMade: myCalls.length,
+        callsConnected: myCalls.filter((c) => c.connected).length,
+        totalCallMinutes: Math.round(myCalls.reduce((s, c) => s + c.duration_seconds, 0) / 60),
+      };
+    });
+  }, [profiles.data, sessions.data, calls.data]);
+
+  return {
+    rows,
+    isLoading: profiles.isLoading || sessions.isLoading || calls.isLoading,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Normativlar (quotas) — real revenue vs. each employee's daily/       */
+/* monthly target from profiles + deals, no new tables needed.          */
+/* ------------------------------------------------------------------ */
+
+export type NormativeStatus = "onTrack" | "atRisk" | "behind";
+
+export type NormativeRow = {
+  profileId: string;
+  name: string;
+  initials: string;
+  department: string;
+  dailyTarget: number;
+  monthlyTarget: number;
+  revenueToday: number;
+  revenueMonth: number;
+  monthlyPct: number;
+  pacePct: number;
+  status: NormativeStatus;
+};
+
+export function useNormativesView() {
+  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+  const { data: deals, isLoading: dealsLoading } = useDealsRaw();
+
+  const rows = useMemo<NormativeRow[]>(() => {
+    const dealRows = deals ?? [];
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const expectedPaceFraction = dayOfMonth / daysInMonth;
+
+    return (profiles ?? []).map((p): NormativeRow => {
+      const won = dealRows.filter((d) => d.owner_id === p.id && d.status === "won" && d.close_date);
+      const revenueToday = won
+        .filter((d) => new Date(d.close_date!) >= startOfToday)
+        .reduce((s, d) => s + Number(d.value), 0);
+      const revenueMonth = won
+        .filter((d) => new Date(d.close_date!) >= startOfMonth)
+        .reduce((s, d) => s + Number(d.value), 0);
+      const monthlyTarget = p.monthly_target || 1;
+      const monthlyPct = Math.round((revenueMonth / monthlyTarget) * 1000) / 10;
+      const expectedByNow = monthlyTarget * expectedPaceFraction;
+      const pacePct = Math.round((revenueMonth / Math.max(1, expectedByNow)) * 1000) / 10;
+      const status: NormativeStatus =
+        pacePct >= 90 ? "onTrack" : pacePct >= 60 ? "atRisk" : "behind";
+      return {
+        profileId: p.id,
+        name: profileName(p),
+        initials: initialsOf(p.full_name || p.email),
+        department: p.department,
+        dailyTarget: p.daily_target,
+        monthlyTarget: p.monthly_target,
+        revenueToday,
+        revenueMonth,
+        monthlyPct,
+        pacePct,
+        status,
+      };
+    });
+  }, [profiles, deals]);
+
+  return { rows, isLoading: profilesLoading || dealsLoading };
+}
+
+/* ------------------------------------------------------------------ */
+/* Telegram "hisobotchi_bot" — link-code flow + daily report send.     */
+/* ------------------------------------------------------------------ */
+
+async function authedFetch(path: string, init?: RequestInit) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  return fetch(path, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+}
+
+export function useLinkTelegram() {
+  const { refreshProfile } = useAuth();
+  return useMutation({
+    mutationFn: async (): Promise<{ code: string; botUsername: string | null }> => {
+      const res = await authedFetch("/telegram/link", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to generate a link code");
+      return json;
+    },
+    onSuccess: () => void refreshProfile(),
+  });
+}
+
+export function useSendTestReport() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authedFetch("/telegram/send-test", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to send");
+      return json;
+    },
+  });
+}
+
+export function useSetTelegramBotUsername() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const { error } = await supabase
+        .from("integration_settings")
+        .update({ config: { username }, enabled: true })
+        .eq("key", "telegram_bot");
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["integration_settings", "telegram_bot"] }),
   });
 }

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -22,6 +23,7 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as NormativesRouteImport } from './routes/normatives'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -32,6 +34,10 @@ import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
+import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
+import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
+import { Route as TelegramWebhookRouteImport } from './routes/telegram.webhook'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
 import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
@@ -58,6 +64,11 @@ const AiAssistantRoute = AiAssistantRouteImport.update({
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AttendanceRoute = AttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AudioAnalyticsRoute = AudioAnalyticsRouteImport.update({
@@ -103,6 +114,11 @@ const LoginRoute = LoginRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NormativesRoute = NormativesRouteImport.update({
+  id: '/normatives',
+  path: '/normatives',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -157,6 +173,26 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TelegramLinkRoute = TelegramLinkRouteImport.update({
+  id: '/telegram/link',
+  path: '/telegram/link',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramSendDailyReportRoute = TelegramSendDailyReportRouteImport.update({
+  id: '/telegram/send-daily-report',
+  path: '/telegram/send-daily-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramSendTestRoute = TelegramSendTestRouteImport.update({
+  id: '/telegram/send-test',
+  path: '/telegram/send-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramWebhookRoute = TelegramWebhookRouteImport.update({
+  id: '/telegram/webhook',
+  path: '/telegram/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -202,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
+  '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
@@ -211,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/normatives': typeof NormativesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -221,6 +259,10 @@ export interface FileRoutesByFullPath {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/telegram/link': typeof TelegramLinkRoute
+  '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+  '/telegram/send-test': typeof TelegramSendTestRoute
+  '/telegram/webhook': typeof TelegramWebhookRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -234,6 +276,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
+  '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
@@ -243,6 +286,7 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/normatives': typeof NormativesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -253,6 +297,10 @@ export interface FileRoutesByTo {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/telegram/link': typeof TelegramLinkRoute
+  '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+  '/telegram/send-test': typeof TelegramSendTestRoute
+  '/telegram/webhook': typeof TelegramWebhookRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -267,6 +315,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
+  '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
@@ -276,6 +325,7 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/normatives': typeof NormativesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -286,6 +336,10 @@ export interface FileRoutesById {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/telegram/link': typeof TelegramLinkRoute
+  '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+  '/telegram/send-test': typeof TelegramSendTestRoute
+  '/telegram/webhook': typeof TelegramWebhookRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -301,6 +355,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-assistant'
     | '/analytics'
+    | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
     | '/dashboard'
@@ -310,6 +365,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/normatives'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -320,6 +376,10 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/telegram/link'
+    | '/telegram/send-daily-report'
+    | '/telegram/send-test'
+    | '/telegram/webhook'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -333,6 +393,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-assistant'
     | '/analytics'
+    | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
     | '/dashboard'
@@ -342,6 +403,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/normatives'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -352,6 +414,10 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/telegram/link'
+    | '/telegram/send-daily-report'
+    | '/telegram/send-test'
+    | '/telegram/webhook'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -365,6 +431,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-assistant'
     | '/analytics'
+    | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
     | '/dashboard'
@@ -374,6 +441,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/normatives'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -384,6 +452,10 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/telegram/link'
+    | '/telegram/send-daily-report'
+    | '/telegram/send-test'
+    | '/telegram/webhook'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -398,6 +470,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AiAssistantRoute: typeof AiAssistantRouteWithChildren
   AnalyticsRoute: typeof AnalyticsRoute
+  AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRoute
   CrmStagesRoute: typeof CrmStagesRoute
   DashboardRoute: typeof DashboardRoute
@@ -407,6 +480,7 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
+  NormativesRoute: typeof NormativesRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -415,6 +489,10 @@ export interface RootRouteChildren {
   CrmContactsRoute: typeof CrmContactsRoute
   CrmDealsRoute: typeof CrmDealsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
+  TelegramLinkRoute: typeof TelegramLinkRoute
+  TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
+  TelegramSendTestRoute: typeof TelegramSendTestRoute
+  TelegramWebhookRoute: typeof TelegramWebhookRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
   CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
@@ -448,6 +526,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/attendance': {
+      id: '/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AttendanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/audio-analytics': {
@@ -511,6 +596,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/normatives': {
+      id: '/normatives'
+      path: '/normatives'
+      fullPath: '/normatives'
+      preLoaderRoute: typeof NormativesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -581,6 +673,34 @@ declare module '@tanstack/react-router' {
       path: '/crm/pipeline'
       fullPath: '/crm/pipeline'
       preLoaderRoute: typeof CrmPipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/link': {
+      id: '/telegram/link'
+      path: '/telegram/link'
+      fullPath: '/telegram/link'
+      preLoaderRoute: typeof TelegramLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/send-daily-report': {
+      id: '/telegram/send-daily-report'
+      path: '/telegram/send-daily-report'
+      fullPath: '/telegram/send-daily-report'
+      preLoaderRoute: typeof TelegramSendDailyReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/send-test': {
+      id: '/telegram/send-test'
+      path: '/telegram/send-test'
+      fullPath: '/telegram/send-test'
+      preLoaderRoute: typeof TelegramSendTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/webhook': {
+      id: '/telegram/webhook'
+      path: '/telegram/webhook'
+      fullPath: '/telegram/webhook'
+      preLoaderRoute: typeof TelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -680,6 +800,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AiAssistantRoute: AiAssistantRouteWithChildren,
   AnalyticsRoute: AnalyticsRoute,
+  AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRoute,
   CrmStagesRoute: CrmStagesRoute,
   DashboardRoute: DashboardRoute,
@@ -689,6 +810,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
+  NormativesRoute: NormativesRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
@@ -698,6 +820,10 @@ const rootRouteChildren: RootRouteChildren = {
   CrmContactsRoute: CrmContactsRoute,
   CrmDealsRoute: CrmDealsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
+  TelegramLinkRoute: TelegramLinkRoute,
+  TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,
+  TelegramSendTestRoute: TelegramSendTestRoute,
+  TelegramWebhookRoute: TelegramWebhookRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
   CrmLeadsIndexRoute: CrmLeadsIndexRoute,

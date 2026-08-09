@@ -25,6 +25,7 @@ export type SessionUser = {
   avatarUrl: string | null;
   dailyTarget: number;
   monthlyTarget: number;
+  telegramLinked: boolean;
 };
 
 type AuthResult = { ok: true } | { ok: false; error: string };
@@ -64,6 +65,7 @@ function toSessionUser(profile: Profile): SessionUser {
     avatarUrl: profile.avatar_url,
     dailyTarget: profile.daily_target,
     monthlyTarget: profile.monthly_target,
+    telegramLinked: profile.telegram_chat_id != null,
   };
 }
 

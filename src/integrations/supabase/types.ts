@@ -96,6 +96,93 @@ export type Database = {
           },
         ]
       }
+      call_logs: {
+        Row: {
+          connected: boolean
+          contact_id: string | null
+          created_at: string
+          duration_seconds: number
+          id: string
+          lead_id: string | null
+          phone: string | null
+          profile_id: string
+        }
+        Insert: {
+          connected?: boolean
+          contact_id?: string | null
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          lead_id?: string | null
+          phone?: string | null
+          profile_id: string
+        }
+        Update: {
+          connected?: boolean
+          contact_id?: string | null
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          lead_id?: string | null
+          phone?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_sessions: {
+        Row: {
+          clock_in: string
+          clock_out: string | null
+          created_at: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_sessions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           amocrm_id: number | null
@@ -648,6 +735,8 @@ export type Database = {
           position: string
           role: Database["public"]["Enums"]["app_role"]
           team: string | null
+          telegram_chat_id: number | null
+          telegram_link_code: string | null
           updated_at: string
         }
         Insert: {
@@ -665,6 +754,8 @@ export type Database = {
           position?: string
           role?: Database["public"]["Enums"]["app_role"]
           team?: string | null
+          telegram_chat_id?: number | null
+          telegram_link_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -682,6 +773,8 @@ export type Database = {
           position?: string
           role?: Database["public"]["Enums"]["app_role"]
           team?: string | null
+          telegram_chat_id?: number | null
+          telegram_link_code?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -5,15 +5,19 @@ import {
   ArrowUp,
   Award,
   Building2,
+  Check,
+  Copy,
   ListChecks,
   Loader2,
   LayoutGrid,
   Moon,
   Pencil,
   Plus,
+  Send,
   SlidersHorizontal,
   Sun,
   Tag as TagIcon,
+  MessageCircle,
   Thermometer,
   Trash2,
   TrendingUp,
@@ -35,8 +39,12 @@ import {
   useCrmLeads,
   useDeleteStage,
   useDeleteTag,
+  useIntegrationSetting,
+  useLinkTelegram,
   usePipelineStagesRaw,
   useRenameTag,
+  useSendTestReport,
+  useSetTelegramBotUsername,
   useTagsSummary,
   useUpdateBusinessProfile,
   useUpdateProfile,
@@ -46,7 +54,43 @@ import {
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
+type SectionKey =
+  | "profile"
+  | "business"
+  | "stages"
+  | "tags"
+  | "users"
+  | "telegram"
+  | "categories"
+  | "salesStages"
+  | "scoreModifiers"
+  | "skills"
+  | "qualificationGroups"
+  | "leadCategories"
+  | "conversion";
+
+const SECTION_KEYS: SectionKey[] = [
+  "profile",
+  "business",
+  "stages",
+  "tags",
+  "users",
+  "telegram",
+  "categories",
+  "salesStages",
+  "scoreModifiers",
+  "skills",
+  "qualificationGroups",
+  "leadCategories",
+  "conversion",
+];
+
 export const Route = createFileRoute("/settings")({
+  validateSearch: (search: Record<string, unknown>): { section?: SectionKey | undefined } => ({
+    section: SECTION_KEYS.includes(search["section"] as SectionKey)
+      ? (search["section"] as SectionKey)
+      : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Settings — SalesOS Elite" },
@@ -66,20 +110,6 @@ const STAGE_COLORS = [
   "bg-mint-border",
   "bg-muted-foreground",
 ] as const;
-
-type SectionKey =
-  | "profile"
-  | "business"
-  | "stages"
-  | "tags"
-  | "users"
-  | "categories"
-  | "salesStages"
-  | "scoreModifiers"
-  | "skills"
-  | "qualificationGroups"
-  | "leadCategories"
-  | "conversion";
 
 const COMING_SOON: SectionKey[] = [
   "categories",
@@ -846,6 +876,160 @@ function UsersSection() {
   );
 }
 
+function TelegramSection() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "super_admin";
+  const { data: botSetting } = useIntegrationSetting("telegram_bot");
+  const setBotUsername = useSetTelegramBotUsername();
+  const linkTelegram = useLinkTelegram();
+  const sendTest = useSendTestReport();
+
+  const config = (botSetting?.config ?? {}) as { username?: string };
+  const [username, setUsername] = useState(config.username ?? "");
+  const [linkResult, setLinkResult] = useState<{ code: string; botUsername: string | null } | null>(
+    null,
+  );
+  const [copied, setCopied] = useState(false);
+
+  async function onSaveUsername(e: FormEvent) {
+    e.preventDefault();
+    try {
+      await setBotUsername.mutateAsync(username.trim().replace(/^@/, ""));
+      toast.success(t("settings.telegram.usernameSaved"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.telegram.usernameSaveFailed"));
+    }
+  }
+
+  async function onGetCode() {
+    try {
+      const result = await linkTelegram.mutateAsync();
+      setLinkResult(result);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.telegram.linkFailed"));
+    }
+  }
+
+  async function onSendTest() {
+    try {
+      await sendTest.mutateAsync();
+      toast.success(t("settings.telegram.testSent"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.telegram.testFailed"));
+    }
+  }
+
+  function onCopy() {
+    if (!linkResult) return;
+    void navigator.clipboard.writeText(linkResult.code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="space-y-6">
+      {isAdmin && (
+        <SectionCard
+          title={t("settings.telegram.botTitle")}
+          description={t("settings.telegram.botDesc")}
+        >
+          <form onSubmit={onSaveUsername} className="flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.telegram.botUsername")}
+              </span>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="hisobotchi_bot"
+                className="mt-2 h-11 w-64 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={setBotUsername.isPending}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {setBotUsername.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </button>
+          </form>
+        </SectionCard>
+      )}
+
+      <SectionCard
+        title={t("settings.telegram.myLink")}
+        description={t("settings.telegram.myLinkDesc")}
+      >
+        {user?.telegramLinked ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm font-medium text-success">
+              <Check className="h-4 w-4" /> {t("settings.telegram.linked")}
+            </span>
+            <button
+              onClick={onSendTest}
+              disabled={sendTest.isPending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-muted-foreground hover:bg-accent disabled:opacity-60"
+            >
+              {sendTest.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              {t("settings.telegram.sendTest")}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <button
+              onClick={onGetCode}
+              disabled={linkTelegram.isPending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {linkTelegram.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MessageCircle className="h-4 w-4" />
+              )}
+              {t("settings.telegram.getCode")}
+            </button>
+            {linkResult && (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <p className="text-sm text-muted-foreground">
+                  {t("settings.telegram.instructions")}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="rounded-lg bg-background px-3 py-2 text-lg font-bold tracking-widest text-foreground">
+                    {linkResult.code}
+                  </code>
+                  <button
+                    onClick={onCopy}
+                    className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent"
+                    aria-label={t("settings.telegram.copy")}
+                  >
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+                {linkResult.botUsername && (
+                  <a
+                    href={`https://t.me/${linkResult.botUsername}?start=${linkResult.code}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                  >
+                    {t("settings.telegram.openBot")}
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
 function ComingSoonSection({ label }: { label: string }) {
   const { t } = useI18n();
   return (
@@ -860,9 +1044,10 @@ function ComingSoonSection({ label }: { label: string }) {
 
 function SettingsPage() {
   const { t } = useI18n();
+  const { section: sectionParam } = Route.useSearch();
   const { tags } = useTagsSummary();
   const { data: stages } = usePipelineStagesRaw();
-  const [section, setSection] = useState<SectionKey>("profile");
+  const [section, setSection] = useState<SectionKey>(sectionParam ?? "profile");
 
   const NAV: { key: SectionKey; icon: LucideIcon; label: string; badge?: number | undefined }[] = [
     { key: "profile", icon: Users, label: t("settings.nav.profile") },
@@ -870,6 +1055,7 @@ function SettingsPage() {
     { key: "stages", icon: Workflow, label: t("settings.nav.stages"), badge: stages?.length },
     { key: "tags", icon: TagIcon, label: t("settings.nav.tags"), badge: tags.length },
     { key: "users", icon: Users, label: t("settings.nav.users") },
+    { key: "telegram", icon: Send, label: t("settings.nav.telegram") },
     { key: "categories", icon: LayoutGrid, label: t("settings.nav.categories") },
     { key: "salesStages", icon: Workflow, label: t("settings.nav.salesStages") },
     { key: "scoreModifiers", icon: SlidersHorizontal, label: t("settings.nav.scoreModifiers") },
@@ -919,6 +1105,7 @@ function SettingsPage() {
           {section === "stages" && <StagesSection />}
           {section === "tags" && <TagsSection />}
           {section === "users" && <UsersSection />}
+          {section === "telegram" && <TelegramSection />}
           {COMING_SOON.includes(section) && (
             <ComingSoonSection label={NAV.find((n) => n.key === section)?.label ?? ""} />
           )}
