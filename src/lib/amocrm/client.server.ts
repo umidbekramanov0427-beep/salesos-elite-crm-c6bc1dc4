@@ -158,7 +158,37 @@ async function defaultStageId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
-export type SyncResult = { synced: number; error?: string };
+type AmoCallNote = {
+  id: number;
+  entity_id: number;
+  note_type: "call_in" | "call_out";
+  created_at: number;
+  params?: {
+    duration?: number;
+    phone?: string;
+    link?: string;
+  };
+};
+
+/** Pulls every call-type note (from a connected telephony integration) across all leads. */
+async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
+  const all: AmoCallNote[] = [];
+  let page = 1;
+  for (;;) {
+    const data = (await amoFetch(
+      conn,
+      `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&limit=250&page=${page}`,
+    )) as { _embedded?: { notes?: AmoCallNote[] } } | null;
+    const notes = data?._embedded?.notes ?? [];
+    if (notes.length === 0) break;
+    all.push(...notes);
+    page += 1;
+    if (page > 200) break; // safety cap
+  }
+  return all;
+}
+
+export type SyncResult = { synced: number; callsSynced?: number; error?: string };
 
 /** Pulls every lead from AmoCRM and upserts it into public.leads, keyed by amocrm_id. */
 export async function syncLeadsFromAmo(): Promise<SyncResult> {
@@ -186,6 +216,15 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
       if (error) throw error;
     }
 
+    let callsSynced = 0;
+    try {
+      callsSynced = await syncCallsFromAmo(conn);
+    } catch {
+      // Call sync is best-effort: some AmoCRM accounts have no telephony
+      // integration writing call notes, or the notes endpoint isn't
+      // reachable for this account. Leads still synced successfully.
+    }
+
     await supabaseAdmin
       .from("amocrm_connection")
       .update({ last_synced_at: new Date().toISOString(), last_sync_error: null })
@@ -201,7 +240,7 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
       })
       .eq("key", "amocrm");
 
-    return { synced: leads.length };
+    return { synced: leads.length, callsSynced };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown sync error";
     await supabaseAdmin
@@ -210,6 +249,40 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
       .eq("id", true);
     return { synced: 0, error: message };
   }
+}
+
+/** Pulls call-type notes from AmoCRM and upserts them into public.amocrm_calls. Returns count synced. */
+async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
+  const notes = await fetchCallNotes(conn);
+  if (notes.length === 0) return 0;
+
+  const amoLeadIds = Array.from(new Set(notes.map((n) => n.entity_id)));
+  const { data: leadRows, error: leadsError } = await supabaseAdmin
+    .from("leads")
+    .select("id, amocrm_id")
+    .in("amocrm_id", amoLeadIds);
+  if (leadsError) throw leadsError;
+  const leadIdByAmoId = new Map((leadRows ?? []).map((l) => [l.amocrm_id, l.id]));
+
+  const rows = notes.map((n) => {
+    const duration = n.params?.duration ?? 0;
+    return {
+      amocrm_note_id: n.id,
+      lead_id: leadIdByAmoId.get(n.entity_id) ?? null,
+      direction: n.note_type === "call_in" ? "in" : "out",
+      phone: n.params?.phone ?? null,
+      duration_seconds: duration,
+      connected: duration > 0,
+      recording_url: n.params?.link ?? null,
+      occurred_at: new Date(n.created_at * 1000).toISOString(),
+    };
+  });
+
+  const { error } = await supabaseAdmin
+    .from("amocrm_calls")
+    .upsert(rows, { onConflict: "amocrm_note_id" });
+  if (error) throw error;
+  return rows.length;
 }
 
 /** Upserts a single lead — used by the webhook handler for near-real-time updates. */
