@@ -90,6 +90,7 @@ const en: Dict = {
   "login.signupSuccess": "Account created!",
   "login.confirmEmailNotice":
     "Account created. Check your inbox to confirm your email, then sign in.",
+  "login.emailNotConfirmed": "Please confirm your email before signing in. Check your inbox.",
 
   "lb.title": "Leaderboard",
   "lb.description":
@@ -274,6 +275,7 @@ const ru: Dict = {
   "login.creatingAccount": "Создание аккаунта…",
   "login.signupSuccess": "Аккаунт создан!",
   "login.confirmEmailNotice": "Аккаунт создан. Проверьте почту для подтверждения, затем войдите.",
+  "login.emailNotConfirmed": "Подтвердите почту перед входом. Проверьте вашу почту.",
 
   "lb.title": "Лидерборд",
   "lb.description":
@@ -459,6 +461,7 @@ const uz: Dict = {
   "login.signupSuccess": "Hisob yaratildi!",
   "login.confirmEmailNotice":
     "Hisob yaratildi. Emailingizni tasdiqlash uchun pochtangizni tekshiring, so‘ng tizimga kiring.",
+  "login.emailNotConfirmed": "Kirishdan oldin emailingizni tasdiqlang. Pochtangizni tekshiring.",
 
   "lb.title": "Reyting",
   "lb.description":

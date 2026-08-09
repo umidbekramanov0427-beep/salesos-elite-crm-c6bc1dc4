@@ -1,5 +1,4 @@
 import { defineTool } from "@lovable.dev/mcp-js";
-import { CRM_LEADS, DEALS, PIPELINE_STAGES } from "@/lib/crm-data";
 
 export default defineTool({
   name: "pipeline_summary",
@@ -8,27 +7,50 @@ export default defineTool({
     "Summarize the sales pipeline: lead and deal counts, total and weighted value per stage.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: () => {
-    const stages = PIPELINE_STAGES.map(({ name: stage }) => {
-      const leads = CRM_LEADS.filter((l) => l.stage === stage);
-      const deals = DEALS.filter((d) => d.stage === stage);
+  handler: async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const [
+      { data: stages, error: stagesError },
+      { data: leads, error: leadsError },
+      { data: deals, error: dealsError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("pipeline_stages")
+        .select("id, name")
+        .order("position", { ascending: true }),
+      supabaseAdmin.from("leads").select("stage_id, expected_revenue"),
+      supabaseAdmin.from("deals").select("stage_id, value, probability"),
+    ]);
+    if (stagesError) throw new Error(stagesError.message);
+    if (leadsError) throw new Error(leadsError.message);
+    if (dealsError) throw new Error(dealsError.message);
+
+    const stageRows = stages ?? [];
+    const leadRows = leads ?? [];
+    const dealRows = deals ?? [];
+
+    const summary = stageRows.map((s) => {
+      const stageLeads = leadRows.filter((l) => l.stage_id === s.id);
+      const stageDeals = dealRows.filter((d) => d.stage_id === s.id);
       return {
-        stage,
-        leads: leads.length,
-        leadValue: leads.reduce((s, l) => s + l.expectedRevenue, 0),
-        deals: deals.length,
-        dealValue: deals.reduce((s, d) => s + d.value, 0),
+        stage: s.name,
+        leads: stageLeads.length,
+        leadValue: stageLeads.reduce((sum, l) => sum + l.expected_revenue, 0),
+        deals: stageDeals.length,
+        dealValue: stageDeals.reduce((sum, d) => sum + d.value, 0),
         weightedDealValue: Math.round(
-          deals.reduce((s, d) => s + (d.value * d.probability) / 100, 0),
+          stageDeals.reduce((sum, d) => sum + (d.value * d.probability) / 100, 0),
         ),
       };
     });
+
     const payload = {
-      stages,
+      stages: summary,
       totals: {
-        leads: CRM_LEADS.length,
-        deals: DEALS.length,
-        dealValue: DEALS.reduce((s, d) => s + d.value, 0),
+        leads: leadRows.length,
+        deals: dealRows.length,
+        dealValue: dealRows.reduce((s, d) => s + d.value, 0),
       },
     };
     return {

@@ -24,6 +24,16 @@ export const Route = createFileRoute("/login")({
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Supabase error messages arrive in English regardless of app locale, so map
+// the ones users actually hit to a localized string; anything unrecognized
+// falls through as-is rather than being replaced by a generic "wrong
+// password" message that hides the real cause (e.g. an unconfirmed email).
+function signInErrorMessage(raw: string, t: (key: string) => string): string {
+  if (/email not confirmed/i.test(raw)) return t("login.emailNotConfirmed");
+  if (/invalid login credentials/i.test(raw)) return t("login.failed");
+  return raw;
+}
+
 function LoginPage() {
   const { user, ready, signIn, signUp } = useAuth();
   const { t, lang, setLang } = useI18n();
@@ -62,7 +72,7 @@ function LoginPage() {
     setBusy(false);
 
     if (!result.ok) {
-      setErrors({ form: mode === "signin" ? t("login.failed") : result.error });
+      setErrors({ form: mode === "signin" ? signInErrorMessage(result.error, t) : result.error });
       return;
     }
 
