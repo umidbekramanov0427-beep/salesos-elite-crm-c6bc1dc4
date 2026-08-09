@@ -10,7 +10,10 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Sign in — SalesOS Elite CRM" },
-      { name: "description", content: "Sign in to SalesOS Elite, the sales operating system for revenue teams." },
+      {
+        name: "description",
+        content: "Sign in to SalesOS Elite, the sales operating system for revenue teams.",
+      },
       { property: "og:title", content: "Sign in — SalesOS Elite CRM" },
       { property: "og:description", content: "Secure access to your SalesOS Elite workspace." },
       { name: "robots", content: "noindex" },
@@ -22,14 +25,22 @@ export const Route = createFileRoute("/login")({
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function LoginPage() {
-  const { user, ready, signIn } = useAuth();
+  const { user, ready, signIn, signUp } = useAuth();
   const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
 
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
+  const [errors, setErrors] = useState<{
+    fullName?: string;
+    email?: string;
+    password?: string;
+    form?: string;
+  }>({});
   const [busy, setBusy] = useState(false);
+  const [confirmNotice, setConfirmNotice] = useState(false);
 
   useEffect(() => {
     if (ready && user) void navigate({ to: "/", replace: true });
@@ -38,19 +49,32 @@ function LoginPage() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const next: typeof errors = {};
+    if (mode === "signup" && fullName.trim().length < 2) next.fullName = t("login.needFullName");
     if (!EMAIL_RE.test(email.trim())) next.email = t("login.invalidEmail");
     if (password.length < 8) next.password = t("login.shortPassword");
     setErrors(next);
     if (Object.keys(next).length) return;
 
     setBusy(true);
-    const ok = await signIn(email, password);
+    setConfirmNotice(false);
+    const result =
+      mode === "signin" ? await signIn(email, password) : await signUp(email, password, fullName);
     setBusy(false);
-    if (!ok) {
-      setErrors({ form: t("login.failed") });
+
+    if (!result.ok) {
+      setErrors({ form: mode === "signin" ? t("login.failed") : result.error });
       return;
     }
-    toast.success(t("login.success"));
+
+    if (mode === "signup" && "needsEmailConfirm" in result && result.needsEmailConfirm) {
+      toast.success(t("login.signupSuccess"));
+      setConfirmNotice(true);
+      setMode("signin");
+      setPassword("");
+      return;
+    }
+
+    toast.success(mode === "signin" ? t("login.success") : t("login.signupSuccess"));
     void navigate({ to: "/", replace: true });
   }
 
@@ -71,8 +95,12 @@ function LoginPage() {
             </div>
           </div>
           <div>
-            <h2 className="text-2xl font-semibold leading-tight text-foreground">{t("login.title")}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t("login.subtitle")}</p>
+            <h2 className="text-2xl font-semibold leading-tight text-foreground">
+              {t("login.title")}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              {t("login.subtitle")}
+            </p>
           </div>
           <dl className="grid grid-cols-2 gap-4">
             {[
@@ -103,7 +131,9 @@ function LoginPage() {
                   onClick={() => setLang(l)}
                   className={cn(
                     "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                    lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+                    lang === l
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent",
                   )}
                 >
                   {LANG_SHORT[l]}
@@ -115,9 +145,39 @@ function LoginPage() {
           <h1 className="text-xl font-semibold text-foreground">{t("login.title")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{t("login.subtitle")}</p>
 
+          {confirmNotice && (
+            <p className="mt-4 rounded-xl bg-info/10 px-3 py-2 text-sm font-medium text-info">
+              {t("login.confirmEmailNotice")}
+            </p>
+          )}
+
           <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
+            {mode === "signup" && (
+              <label className="block">
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  {t("login.fullName")}
+                </span>
+                <span className="relative mt-2 block">
+                  <input
+                    type="text"
+                    autoComplete="name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Aizhan Serikova"
+                    aria-invalid={!!errors.fullName}
+                    className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                  />
+                </span>
+                {errors.fullName && (
+                  <span className="mt-1.5 block text-xs text-destructive">{errors.fullName}</span>
+                )}
+              </label>
+            )}
+
             <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">{t("login.email")}</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("login.email")}
+              </span>
               <span className="relative mt-2 block">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
                 <input
@@ -130,11 +190,15 @@ function LoginPage() {
                   className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-background"
                 />
               </span>
-              {errors.email && <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>}
+              {errors.email && (
+                <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
+              )}
             </label>
 
             <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">{t("login.password")}</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("login.password")}
+              </span>
               <span className="relative mt-2 block">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
                 <input
@@ -147,11 +211,16 @@ function LoginPage() {
                   className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-background"
                 />
               </span>
-              {errors.password && <span className="mt-1.5 block text-xs text-destructive">{errors.password}</span>}
+              {errors.password && (
+                <span className="mt-1.5 block text-xs text-destructive">{errors.password}</span>
+              )}
             </label>
 
             {errors.form && (
-              <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+              <p
+                role="alert"
+                className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+              >
                 {errors.form}
               </p>
             )}
@@ -162,13 +231,27 @@ function LoginPage() {
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {busy ? t("login.signingIn") : t("login.submit")}
+              {busy
+                ? mode === "signin"
+                  ? t("login.signingIn")
+                  : t("login.creatingAccount")
+                : mode === "signin"
+                  ? t("login.submit")
+                  : t("login.signupSubmit")}
             </button>
           </form>
 
-          <p className="mt-6 rounded-xl border border-dashed border-border px-3 py-2 text-center text-xs text-subtle">
-            {t("login.demo")}
-          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setMode((m) => (m === "signin" ? "signup" : "signin"));
+              setErrors({});
+              setConfirmNotice(false);
+            }}
+            className="mt-6 block w-full rounded-xl border border-dashed border-border px-3 py-2 text-center text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-foreground"
+          >
+            {mode === "signin" ? t("login.toggleToSignup") : t("login.toggleToSignin")}
+          </button>
         </section>
       </div>
     </main>

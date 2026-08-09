@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export const LANGS = ["uz", "ru", "en"] as const;
 export type Lang = (typeof LANGS)[number];
@@ -71,11 +79,21 @@ const en: Dict = {
   "login.shortPassword": "Password must be at least 8 characters",
   "login.failed": "Email or password is incorrect",
   "login.success": "Welcome back!",
-  "login.demo": "Demo access: super@admin.com / 12345678",
+  "login.demo": "New here? Create the first workspace account.",
   "login.signingIn": "Signing in…",
+  "login.fullName": "Full name",
+  "login.needFullName": "Enter your name",
+  "login.toggleToSignup": "Create an account",
+  "login.toggleToSignin": "Already have an account? Sign in",
+  "login.signupSubmit": "Create account",
+  "login.creatingAccount": "Creating account…",
+  "login.signupSuccess": "Account created!",
+  "login.confirmEmailNotice":
+    "Account created. Check your inbox to confirm your email, then sign in.",
 
   "lb.title": "Leaderboard",
-  "lb.description": "Live ranking across {count} employees. Rankings, KPI and bonuses recalculate every {sec} seconds.",
+  "lb.description":
+    "Live ranking across {count} employees. Rankings, KPI and bonuses recalculate every {sec} seconds.",
   "lb.live": "Live · 3s",
   "lb.paused": "Paused",
   "lb.companyView": "Company view",
@@ -103,7 +121,8 @@ const en: Dict = {
   "lb.bonusPool": "Projected bonus pool",
   "lb.bonusPoolHint": "auto-calculated from formula",
   "lb.liveRanking": "Live ranking — {metric}",
-  "lb.liveRankingDesc": "Positions animate as employees move up or down. Virtualized for 1000+ employees.",
+  "lb.liveRankingDesc":
+    "Positions animate as employees move up or down. Virtualized for 1000+ employees.",
   "lb.aiInsights": "AI insights",
   "lb.aiInsightsDesc": "Generated from the live leaderboard",
   "lb.aiUpdated": "Updated {time}",
@@ -245,11 +264,20 @@ const ru: Dict = {
   "login.shortPassword": "Пароль должен содержать минимум 8 символов",
   "login.failed": "Неверный email или пароль",
   "login.success": "С возвращением!",
-  "login.demo": "Демо-доступ: super@admin.com / 12345678",
+  "login.demo": "Впервые здесь? Создайте первый аккаунт рабочего пространства.",
   "login.signingIn": "Выполняется вход…",
+  "login.fullName": "Имя",
+  "login.needFullName": "Введите имя",
+  "login.toggleToSignup": "Создать аккаунт",
+  "login.toggleToSignin": "Уже есть аккаунт? Войти",
+  "login.signupSubmit": "Создать аккаунт",
+  "login.creatingAccount": "Создание аккаунта…",
+  "login.signupSuccess": "Аккаунт создан!",
+  "login.confirmEmailNotice": "Аккаунт создан. Проверьте почту для подтверждения, затем войдите.",
 
   "lb.title": "Лидерборд",
-  "lb.description": "Живой рейтинг по {count} сотрудникам. Рейтинг, KPI и бонусы пересчитываются каждые {sec} секунд.",
+  "lb.description":
+    "Живой рейтинг по {count} сотрудникам. Рейтинг, KPI и бонусы пересчитываются каждые {sec} секунд.",
   "lb.live": "Онлайн · 3с",
   "lb.paused": "Пауза",
   "lb.companyView": "Вид компании",
@@ -277,7 +305,8 @@ const ru: Dict = {
   "lb.bonusPool": "Прогноз бонусного фонда",
   "lb.bonusPoolHint": "рассчитано по формуле",
   "lb.liveRanking": "Живой рейтинг — {metric}",
-  "lb.liveRankingDesc": "Позиции анимируются при движении вверх или вниз. Виртуализация для 1000+ сотрудников.",
+  "lb.liveRankingDesc":
+    "Позиции анимируются при движении вверх или вниз. Виртуализация для 1000+ сотрудников.",
   "lb.aiInsights": "AI-аналитика",
   "lb.aiInsightsDesc": "Сформировано по данным живого рейтинга",
   "lb.aiUpdated": "Обновлено {time}",
@@ -419,11 +448,21 @@ const uz: Dict = {
   "login.shortPassword": "Parol kamida 8 ta belgidan iborat bo‘lsin",
   "login.failed": "Email yoki parol noto‘g‘ri",
   "login.success": "Xush kelibsiz!",
-  "login.demo": "Demo kirish: super@admin.com / 12345678",
+  "login.demo": "Birinchi marta kiryapsizmi? Ish maydoni uchun birinchi hisobni yarating.",
   "login.signingIn": "Kirilmoqda…",
+  "login.fullName": "To‘liq ism",
+  "login.needFullName": "Ismingizni kiriting",
+  "login.toggleToSignup": "Hisob yaratish",
+  "login.toggleToSignin": "Hisobingiz bormi? Kirish",
+  "login.signupSubmit": "Hisob yaratish",
+  "login.creatingAccount": "Hisob yaratilmoqda…",
+  "login.signupSuccess": "Hisob yaratildi!",
+  "login.confirmEmailNotice":
+    "Hisob yaratildi. Emailingizni tasdiqlash uchun pochtangizni tekshiring, so‘ng tizimga kiring.",
 
   "lb.title": "Reyting",
-  "lb.description": "{count} xodim bo‘yicha jonli reyting. Reyting, KPI va bonuslar har {sec} soniyada qayta hisoblanadi.",
+  "lb.description":
+    "{count} xodim bo‘yicha jonli reyting. Reyting, KPI va bonuslar har {sec} soniyada qayta hisoblanadi.",
   "lb.live": "Jonli · 3s",
   "lb.paused": "To‘xtatilgan",
   "lb.companyView": "Kompaniya ko‘rinishi",
@@ -451,7 +490,8 @@ const uz: Dict = {
   "lb.bonusPool": "Prognoz bonus fondi",
   "lb.bonusPoolHint": "formula asosida hisoblandi",
   "lb.liveRanking": "Jonli reyting — {metric}",
-  "lb.liveRankingDesc": "Xodimlar yuqoriga yoki pastga siljiganda pozitsiyalar animatsiya bilan o‘zgaradi.",
+  "lb.liveRankingDesc":
+    "Xodimlar yuqoriga yoki pastga siljiganda pozitsiyalar animatsiya bilan o‘zgaradi.",
   "lb.aiInsights": "AI xulosalari",
   "lb.aiInsightsDesc": "Jonli reyting ma’lumotlari asosida",
   "lb.aiUpdated": "Yangilandi: {time}",
