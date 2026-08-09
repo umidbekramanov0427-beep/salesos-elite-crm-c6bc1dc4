@@ -71,7 +71,7 @@ function TagFilter({
           <button
             type="button"
             className="fixed inset-0 z-10 cursor-default"
-            aria-label="close"
+            aria-label={t("common.close")}
             onClick={() => setOpen(false)}
           />
           <div className="absolute left-0 top-full z-20 mt-2 max-h-64 w-56 space-y-1 overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-card">

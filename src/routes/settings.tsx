@@ -465,7 +465,7 @@ function StageRowEditor({
                 onClick={onMoveUp}
                 disabled={isFirst}
                 className="text-subtle hover:text-foreground disabled:opacity-30"
-                aria-label="up"
+                aria-label={t("settings.moveUp")}
               >
                 <ArrowUp className="h-3 w-3" />
               </button>
@@ -473,7 +473,7 @@ function StageRowEditor({
                 onClick={onMoveDown}
                 disabled={isLast}
                 className="text-subtle hover:text-foreground disabled:opacity-30"
-                aria-label="down"
+                aria-label={t("settings.moveDown")}
               >
                 <ArrowDown className="h-3 w-3" />
               </button>

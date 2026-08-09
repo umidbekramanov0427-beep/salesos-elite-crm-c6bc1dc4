@@ -74,7 +74,7 @@ export function LeaderboardWidget() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{rep.name}</p>
                 <p className="truncate text-[11px] text-subtle">
-                  {rep.department} · {rep.deals} deals
+                  {rep.department} · {t("widget.dealsCount", { count: rep.deals })}
                 </p>
                 <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div

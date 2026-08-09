@@ -118,20 +118,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger className="hidden items-center gap-2 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground xl:flex">
-              <span className="h-2 w-2 rounded-full bg-success" /> Almaty HQ
+              <span className="h-2 w-2 rounded-full bg-success" /> {t("shell.almatyHq")}
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuLabel>{t("shell.workspace")}</DropdownMenuLabel>
-              <DropdownMenuItem>Almaty HQ</DropdownMenuItem>
-              <DropdownMenuItem>Astana Branch</DropdownMenuItem>
-              <DropdownMenuItem>Tashkent Branch</DropdownMenuItem>
+              <DropdownMenuItem>{t("shell.almatyHq")}</DropdownMenuItem>
+              <DropdownMenuItem>{t("shell.astanaBranch")}</DropdownMenuItem>
+              <DropdownMenuItem>{t("shell.tashkentBranch")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <button
             onClick={() => setPaletteOpen(true)}
-            aria-label="Global search"
+            aria-label={t("shell.globalSearch")}
             className="relative ml-auto hidden h-10 w-full max-w-sm items-center gap-2 rounded-xl border border-border bg-surface px-3 text-sm text-subtle transition-colors hover:border-primary/40 md:flex"
           >
             <Search className="h-4 w-4" />
@@ -143,7 +143,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex items-center gap-1.5 md:ml-0">
             <button
-              aria-label="Search"
+              aria-label={t("shell.globalSearch")}
               onClick={() => setPaletteOpen(true)}
               className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
             >

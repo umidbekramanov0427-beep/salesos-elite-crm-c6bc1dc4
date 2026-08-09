@@ -47,77 +47,77 @@ const CATALOG: Catalog[] = [
     id: "salesforce",
     name: "Salesforce",
     category: "crm",
-    blurb: "Two-way account, contact and opportunity sync.",
+    blurb: "int.blurb.salesforce",
     color: "#00A1E0",
   },
   {
     id: "hubspot",
     name: "HubSpot",
     category: "crm",
-    blurb: "Import lifecycle stages and marketing contacts.",
+    blurb: "int.blurb.hubspot",
     color: "#FF7A59",
   },
   {
     id: "google-sheets",
     name: "Google Sheets",
     category: "data",
-    blurb: "Export leaderboard and pipeline snapshots.",
+    blurb: "int.blurb.googleSheets",
     color: "#0F9D58",
   },
   {
     id: "slack",
     name: "Slack",
     category: "messaging",
-    blurb: "Post deal-won and milestone alerts to channels.",
+    blurb: "int.blurb.slack",
     color: "#611F69",
   },
   {
     id: "telegram",
     name: "Telegram",
     category: "messaging",
-    blurb: "Bot notifications and lead conversations.",
+    blurb: "int.blurb.telegram",
     color: "#229ED9",
   },
   {
     id: "whatsapp",
     name: "WhatsApp Business",
     category: "messaging",
-    blurb: "Templates, replies and chat history sync.",
+    blurb: "int.blurb.whatsapp",
     color: "#25D366",
   },
   {
     id: "gmail",
     name: "Gmail",
     category: "messaging",
-    blurb: "Two-way email sync with thread tracking.",
+    blurb: "int.blurb.gmail",
     color: "#EA4335",
   },
   {
     id: "openai",
     name: "OpenAI",
     category: "ai",
-    blurb: "Call summaries, sentiment and reply drafting.",
+    blurb: "int.blurb.openai",
     color: "#10A37F",
   },
   {
     id: "twilio",
     name: "Twilio",
     category: "other",
-    blurb: "SIP calling, SMS and recording pipeline.",
+    blurb: "int.blurb.twilio",
     color: "#F22F46",
   },
   {
     id: "stripe",
     name: "Stripe",
     category: "other",
-    blurb: "Payment status on deals and invoices.",
+    blurb: "int.blurb.stripe",
     color: "#635BFF",
   },
   {
     id: "webhooks",
     name: "Webhooks",
     category: "other",
-    blurb: "Outbound events to any HTTPS endpoint.",
+    blurb: "int.blurb.webhooks",
     color: "#64748B",
   },
 ];
@@ -143,6 +143,7 @@ const DEFAULTS: Installed[] = [
 ];
 
 function AmoCrmCard() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { data: setting, isLoading } = useIntegrationSetting("amocrm");
   const sync = useTriggerAmoCrmSync();
@@ -157,17 +158,17 @@ function AmoCrmCard() {
     } | null) ?? {};
 
   return (
-    <SectionCard title="AmoCRM" description="One-way lead sync — AmoCRM to SalesOS">
+    <SectionCard title="AmoCRM" description={t("amocrm.desc")}>
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Pill tone={connected ? "success" : "neutral"}>
-                {connected ? "Connected" : "Not connected"}
+                {connected ? t("common.connected") : t("common.notConnected")}
               </Pill>
               {connected && config.subdomain && (
                 <span className="text-xs text-subtle">{config.subdomain}</span>
@@ -175,21 +176,23 @@ function AmoCrmCard() {
             </div>
             {connected && (
               <p className="mt-2 text-xs text-subtle">
-                Last sync:{" "}
-                {config.last_synced_at ? new Date(config.last_synced_at).toLocaleString() : "Never"}
-                {typeof config.lead_count === "number" ? ` · ${config.lead_count} leads` : ""}
+                {t("amocrm.lastSync")}:{" "}
+                {config.last_synced_at
+                  ? new Date(config.last_synced_at).toLocaleString()
+                  : t("amocrm.never")}
+                {typeof config.lead_count === "number"
+                  ? ` · ${t("amocrm.leadsCount", { count: config.lead_count })}`
+                  : ""}
               </p>
             )}
-            {!isAdmin && (
-              <p className="mt-2 text-xs text-subtle">Only admins can connect or sync AmoCRM.</p>
-            )}
+            {!isAdmin && <p className="mt-2 text-xs text-subtle">{t("amocrm.adminOnly")}</p>}
           </div>
 
           {isAdmin && connected && (
             <button
               type="button"
               onClick={() =>
-                sync.mutate(undefined, { onSuccess: () => toast.success("AmoCRM sync started") })
+                sync.mutate(undefined, { onSuccess: () => toast.success(t("amocrm.syncStarted")) })
               }
               disabled={sync.isPending}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
@@ -199,7 +202,7 @@ function AmoCrmCard() {
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Sync now
+              {t("amocrm.syncNow")}
             </button>
           )}
           {isAdmin && !connected && (
@@ -207,7 +210,7 @@ function AmoCrmCard() {
               href="/integrations/amocrm/connect"
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              <Plug className="h-4 w-4" /> Connect AmoCRM
+              <Plug className="h-4 w-4" /> {t("amocrm.connect")}
             </a>
           )}
         </div>
@@ -333,7 +336,7 @@ function IntegrationsPage() {
                     </span>
                   </div>
 
-                  <p className="text-xs leading-relaxed text-muted-foreground">{meta.blurb}</p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{t(meta.blurb)}</p>
 
                   <p className="text-[11px] text-subtle">
                     {t("int.lastSync")}:{" "}
@@ -398,7 +401,7 @@ function IntegrationsPage() {
                     <span className="block truncate text-sm font-medium text-foreground">
                       {c.name}
                     </span>
-                    <span className="block text-[11px] text-subtle">{c.blurb}</span>
+                    <span className="block text-[11px] text-subtle">{t(c.blurb)}</span>
                   </span>
                 </button>
               </li>
