@@ -41,7 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
     iconColor: "text-indigo-500",
   },
   {
-    label: "Pipeline",
+    label: "AmoCRM",
     to: "/crm/pipeline",
     icon: KanbanSquare,
     group: "analytics",

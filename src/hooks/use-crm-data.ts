@@ -284,6 +284,7 @@ export type CrmLeadView = {
   created: string;
   updated: string;
   tags: string[];
+  amocrmId: number | null;
 };
 
 export function useCrmLeads() {
@@ -334,6 +335,7 @@ export function useCrmLeads() {
         created: formatDate(l.created_at),
         updated: timeAgo(l.updated_at),
         tags: l.tags ?? [],
+        amocrmId: l.amocrm_id,
       };
     });
   }, [base.leads, base.contacts, base.profiles, base.stages]);
@@ -887,6 +889,16 @@ export function useIntegrationSetting(key: string) {
       return data;
     },
   });
+}
+
+/** Builds a deep link to a lead's record in the connected AmoCRM account, or null if not connected/synced. */
+export function useAmoCrmLink() {
+  const { data: setting } = useIntegrationSetting("amocrm");
+  const subdomain = (setting?.config as { subdomain?: string } | null)?.subdomain;
+  return (amocrmId: number | null): string | null => {
+    if (!subdomain || !amocrmId) return null;
+    return `https://${subdomain}/leads/detail/${amocrmId}`;
+  };
 }
 
 export function useTriggerAmoCrmSync() {

@@ -9,20 +9,24 @@ import {
   Mail,
   Phone,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { SectionCard, Pill } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import { currency } from "@/lib/mock-data";
 import { cn, timeAgo } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Lang } from "@/lib/i18n";
 import {
+  useAiAssistantChat,
   useCreateLeadActivity,
   useCreateTask,
   useCrmLeads,
   useLeadActivities,
   useTasksView,
 } from "@/hooks/use-crm-data";
+
+const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
 export const Route = createFileRoute("/crm/leads/$leadId")({
   head: () => ({
@@ -52,7 +56,7 @@ function LeadNotFound() {
 const TABS = ["Timeline", "Notes", "Tasks", "WhatsApp", "Telegram", "Email"] as const;
 
 function LeadWorkspace() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { leadId } = Route.useParams();
   const { user } = useAuth();
   const { rows: leads, profiles, isLoading } = useCrmLeads();
@@ -64,6 +68,36 @@ function LeadWorkspace() {
   const createActivity = useCreateLeadActivity();
   const createTask = useCreateTask();
   const { rows: allTasks } = useTasksView();
+
+  const chat = useAiAssistantChat();
+  const [deepAnalysis, setDeepAnalysis] = useState<string | null>(null);
+  const [deepAnalysisBusy, setDeepAnalysisBusy] = useState(false);
+
+  async function generateDeepAnalysis() {
+    if (!lead) return;
+    setDeepAnalysisBusy(true);
+    try {
+      const notes = (activities.data ?? [])
+        .filter((a) => a.type === "note")
+        .map((n) => `- ${n.content}`)
+        .join("\n");
+      const events = (activities.data ?? [])
+        .slice(0, 10)
+        .map((e) => `- [${e.type}] ${e.content}`)
+        .join("\n");
+      const reply = await chat.mutateAsync([
+        {
+          role: "user",
+          content: `Deep-analyze this CRM lead and write a thorough assessment of where the customer stands and what to do next.\n\nLead: ${lead.name} (${lead.company || "no company"})\nStage: ${lead.stage}\nTemperature: ${lead.temperature}\nScore: ${lead.score}\nTags: ${lead.tags.join(", ") || "none"}\nExpected revenue: ${lead.expectedRevenue}\nSource: ${lead.source || "unknown"}\nCreated: ${lead.created}, last contact: ${lead.lastContact}\n\nRecent activity:\n${events || "none recorded"}\n\nNotes:\n${notes || "none"}\n\nCover: overall customer status/intent, key signals from the activity so far, likely objections or risks, and 2-3 concrete next actions for the rep. Respond in ${LANG_NAME[lang]}.`,
+        },
+      ]);
+      setDeepAnalysis(reply);
+    } catch (err) {
+      setDeepAnalysis(err instanceof Error ? err.message : t("lead.deepAnalysis.failed"));
+    } finally {
+      setDeepAnalysisBusy(false);
+    }
+  }
 
   const leadTasks = useMemo(
     () => allTasks.filter((t) => t.leadId === lead?.id),
@@ -364,6 +398,36 @@ function LeadWorkspace() {
                 </button>
               ))}
             </div>
+          </SectionCard>
+
+          <SectionCard
+            title={t("lead.deepAnalysis.title")}
+            description={t("lead.deepAnalysis.desc")}
+            actions={
+              <button
+                type="button"
+                onClick={() => void generateDeepAnalysis()}
+                disabled={deepAnalysisBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
+              >
+                {deepAnalysisBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {t("common.generate")}
+              </button>
+            }
+          >
+            {deepAnalysis ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                {deepAnalysis}
+              </p>
+            ) : (
+              <p className="flex items-center gap-2 text-sm text-subtle">
+                <Sparkles className="h-4 w-4" /> {t("lead.deepAnalysis.placeholder")}
+              </p>
+            )}
           </SectionCard>
 
           <SectionCard title={t("lead.upcoming.title")}>
