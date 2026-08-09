@@ -773,6 +773,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          kpi_percent: number
           manager_id: string | null
           monthly_target: number
           phone: string | null
@@ -792,6 +793,7 @@ export type Database = {
           email: string
           full_name?: string
           id: string
+          kpi_percent?: number
           manager_id?: string | null
           monthly_target?: number
           phone?: string | null
@@ -811,6 +813,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          kpi_percent?: number
           manager_id?: string | null
           monthly_target?: number
           phone?: string | null

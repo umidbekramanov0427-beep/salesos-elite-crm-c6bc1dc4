@@ -126,13 +126,18 @@ type AmoLead = {
   name: string | null;
   price: number | null;
   created_at: number;
+  _embedded?: { tags?: { id: number; name: string }[] };
 };
+
+function amoTagNames(lead: AmoLead): string[] {
+  return (lead._embedded?.tags ?? []).map((t) => t.name).filter(Boolean);
+}
 
 async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
   const all: AmoLead[] = [];
   let page = 1;
   for (;;) {
-    const data = (await amoFetch(conn, `/api/v4/leads?limit=250&page=${page}`)) as {
+    const data = (await amoFetch(conn, `/api/v4/leads?limit=250&page=${page}&with=tags`)) as {
       _embedded?: { leads?: AmoLead[] };
     } | null;
     const leads = data?._embedded?.leads ?? [];
@@ -175,6 +180,7 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
         stage_id: stageId,
         temperature: "Warm" as const,
         priority: "Normal" as const,
+        tags: amoTagNames(l),
       }));
       const { error } = await supabaseAdmin.from("leads").upsert(rows, { onConflict: "amocrm_id" });
       if (error) throw error;

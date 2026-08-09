@@ -342,6 +342,88 @@ export function useCrmLeads() {
 }
 
 /* ------------------------------------------------------------------ */
+/* View: Leaderboard (real per-manager performance, not simulated)     */
+/* ------------------------------------------------------------------ */
+
+export type LeaderboardFilters = {
+  from: string | null;
+  to: string | null;
+  search: string;
+  stageId: string | null;
+  tags: string[];
+};
+
+export type LeaderboardManagerRow = {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl: string | null;
+  totalLeads: number;
+  wonLeads: number;
+  lostLeads: number;
+  revenue: number;
+  conversion: number;
+  kpiPercent: number;
+  monthlyTarget: number;
+  targetCompletion: number;
+};
+
+export function useLeaderboardView(filters: LeaderboardFilters) {
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+  const isLoading = leadsLoading || profilesLoading || stagesLoading;
+
+  const stagesById = useMemo(() => byId(stages), [stages]);
+
+  const filteredLeads = useMemo(
+    () =>
+      (leads ?? []).filter((l) => {
+        if (filters.from && l.created_at < filters.from) return false;
+        if (filters.to && l.created_at > filters.to) return false;
+        if (filters.stageId && l.stage_id !== filters.stageId) return false;
+        if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
+          return false;
+        return true;
+      }),
+    [leads, filters.from, filters.to, filters.stageId, filters.tags],
+  );
+
+  const rows = useMemo<LeaderboardManagerRow[]>(() => {
+    const q = filters.search.trim().toLowerCase();
+    const eligible = (profiles ?? []).filter(
+      (p) => p.role !== "super_admin" && (!q || profileName(p).toLowerCase().includes(q)),
+    );
+    return eligible
+      .map((p): LeaderboardManagerRow => {
+        const mine = filteredLeads.filter((l) => l.owner_id === p.id);
+        const won = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_won : false));
+        const lost = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_lost : false));
+        const revenue = won.reduce((s, l) => s + l.expected_revenue, 0);
+        const conversion = mine.length ? (won.length / mine.length) * 100 : 0;
+        const targetCompletion = p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
+        return {
+          id: p.id,
+          name: profileName(p),
+          initials: initialsOf(profileName(p)),
+          avatarUrl: p.avatar_url,
+          totalLeads: mine.length,
+          wonLeads: won.length,
+          lostLeads: lost.length,
+          revenue,
+          conversion,
+          kpiPercent: p.kpi_percent,
+          monthlyTarget: p.monthly_target,
+          targetCompletion,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [profiles, filteredLeads, stagesById, filters.search]);
+
+  return { rows, filteredLeads, stages: stages ?? [], isLoading };
+}
+
+/* ------------------------------------------------------------------ */
 /* View: Companies                                                     */
 /* ------------------------------------------------------------------ */
 
