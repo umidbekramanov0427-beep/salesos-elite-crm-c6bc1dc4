@@ -204,10 +204,10 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
         to={item.to}
         title={collapsed ? t(`nav.${item.to}`) : undefined}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
+          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
-            : "bg-mint/70 text-sidebar-foreground",
+            : "bg-mint text-sidebar-foreground",
           !active && isSettings && "hover:bg-primary/15 hover:text-primary",
           !active && isAdmin && "hover:bg-destructive/15 hover:text-destructive",
           !active && !isSettings && !isAdmin && "hover:bg-mint-border",
@@ -284,7 +284,9 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
           </div>
         )}
 
-        <div className="space-y-1">{bottomItems.map((item) => renderItem(item))}</div>
+        <div className="space-y-1 rounded-xl border border-sidebar-border p-1.5">
+          {bottomItems.map((item) => renderItem(item))}
+        </div>
 
         <div className="mt-2">
           <UserMenu collapsed={collapsed} />
