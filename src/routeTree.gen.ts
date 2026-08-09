@@ -23,6 +23,7 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as NormativesRouteImport } from './routes/normatives'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -109,6 +110,11 @@ const LoginRoute = LoginRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NormativesRoute = NormativesRouteImport.update({
+  id: '/normatives',
+  path: '/normatives',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/normatives': typeof NormativesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/normatives': typeof NormativesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -285,6 +293,7 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/normatives': typeof NormativesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/normatives'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/normatives'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -386,6 +397,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/normatives'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -420,6 +432,7 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
+  NormativesRoute: typeof NormativesRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -531,6 +544,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/normatives': {
+      id: '/normatives'
+      path: '/normatives'
+      fullPath: '/normatives'
+      preLoaderRoute: typeof NormativesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -710,6 +730,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
+  NormativesRoute: NormativesRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,

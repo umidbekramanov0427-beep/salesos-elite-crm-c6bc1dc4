@@ -1118,3 +1118,71 @@ export function useAttendanceView() {
     isLoading: profiles.isLoading || sessions.isLoading || calls.isLoading,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Normativlar (quotas) — real revenue vs. each employee's daily/       */
+/* monthly target from profiles + deals, no new tables needed.          */
+/* ------------------------------------------------------------------ */
+
+export type NormativeStatus = "onTrack" | "atRisk" | "behind";
+
+export type NormativeRow = {
+  profileId: string;
+  name: string;
+  initials: string;
+  department: string;
+  dailyTarget: number;
+  monthlyTarget: number;
+  revenueToday: number;
+  revenueMonth: number;
+  monthlyPct: number;
+  pacePct: number;
+  status: NormativeStatus;
+};
+
+export function useNormativesView() {
+  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+  const { data: deals, isLoading: dealsLoading } = useDealsRaw();
+
+  const rows = useMemo<NormativeRow[]>(() => {
+    const dealRows = deals ?? [];
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const expectedPaceFraction = dayOfMonth / daysInMonth;
+
+    return (profiles ?? []).map((p): NormativeRow => {
+      const won = dealRows.filter((d) => d.owner_id === p.id && d.status === "won" && d.close_date);
+      const revenueToday = won
+        .filter((d) => new Date(d.close_date!) >= startOfToday)
+        .reduce((s, d) => s + Number(d.value), 0);
+      const revenueMonth = won
+        .filter((d) => new Date(d.close_date!) >= startOfMonth)
+        .reduce((s, d) => s + Number(d.value), 0);
+      const monthlyTarget = p.monthly_target || 1;
+      const monthlyPct = Math.round((revenueMonth / monthlyTarget) * 1000) / 10;
+      const expectedByNow = monthlyTarget * expectedPaceFraction;
+      const pacePct = Math.round((revenueMonth / Math.max(1, expectedByNow)) * 1000) / 10;
+      const status: NormativeStatus =
+        pacePct >= 90 ? "onTrack" : pacePct >= 60 ? "atRisk" : "behind";
+      return {
+        profileId: p.id,
+        name: profileName(p),
+        initials: initialsOf(p.full_name || p.email),
+        department: p.department,
+        dailyTarget: p.daily_target,
+        monthlyTarget: p.monthly_target,
+        revenueToday,
+        revenueMonth,
+        monthlyPct,
+        pacePct,
+        status,
+      };
+    });
+  }, [profiles, deals]);
+
+  return { rows, isLoading: profilesLoading || dealsLoading };
+}

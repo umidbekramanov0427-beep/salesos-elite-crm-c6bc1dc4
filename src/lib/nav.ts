@@ -9,6 +9,7 @@ import {
   KanbanSquare,
   Sparkles,
   Clock,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Important Tasks", to: "/tasks", icon: ClipboardList, badge: "8", group: "analytics" },
   { label: "Audio Analytics", to: "/audio-analytics", icon: AudioLines, group: "analytics" },
   { label: "Attendance", to: "/attendance", icon: Clock, group: "analytics" },
+  { label: "Normatives", to: "/normatives", icon: Target, group: "analytics" },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Admin Panel", to: "/admin", icon: ShieldCheck, adminOnly: true },
 ];
