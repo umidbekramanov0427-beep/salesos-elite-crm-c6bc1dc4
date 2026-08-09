@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Sparkles, Send } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 
@@ -14,9 +20,17 @@ const PROMPTS = [
 
 type Msg = { role: "user" | "assistant"; text: string };
 
-export function AiCopilot({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function AiCopilot({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const page = NAV_ITEMS.find((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)))?.label ?? "Workspace";
+  const page =
+    NAV_ITEMS.find((i) => i.to && (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)))
+      ?.label ?? "Workspace";
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
 
@@ -46,7 +60,9 @@ export function AiCopilot({ open, onOpenChange }: { open: boolean; onOpenChange:
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-2">
           {messages.length === 0 ? (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-subtle">Try asking</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
+                Try asking
+              </p>
               {PROMPTS.map((p) => (
                 <button
                   key={p}

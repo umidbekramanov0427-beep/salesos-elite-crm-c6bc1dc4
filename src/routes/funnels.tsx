@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
@@ -89,7 +89,12 @@ function Funnels() {
         >
           <div className="space-y-5">
             {funnel.map((s) => (
-              <div key={s.stage}>
+              <Link
+                key={s.stage}
+                to="/crm/leads"
+                search={{ stage: s.stage }}
+                className="block rounded-xl transition-opacity hover:opacity-90"
+              >
                 <div className="mb-2 flex items-center justify-between text-sm">
                   <span className="font-medium text-foreground">{s.stage}</span>
                   <span className="text-muted-foreground">
@@ -104,7 +109,7 @@ function Funnels() {
                     {s.conversion}%
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </SectionCard>

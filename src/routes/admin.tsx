@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { KeyRound, Loader2, ShieldAlert, Workflow, ScrollText, Users } from "lucide-react";
+import { KeyRound, Loader2, Pencil, ShieldAlert, Workflow, ScrollText, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import {
@@ -10,7 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import { useProfilesRaw, useUpdateProfile, type ProfileRow } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/admin")({
@@ -29,24 +31,16 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ROLES: ProfileRow["role"][] = ["rep", "manager", "super_admin"];
-const ROLE_LABEL: Record<ProfileRow["role"], string> = {
-  rep: "Sales rep",
-  manager: "Manager",
-  super_admin: "Admin",
-};
 
 function AdminPanel() {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   if (user && user.role !== "super_admin") {
     return (
-      <SectionCard
-        title="Restricted"
-        description="This page is only visible to workspace administrators."
-      >
+      <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <ShieldAlert className="h-4 w-4" /> Ask your admin for access if you believe this is a
-          mistake.
+          <ShieldAlert className="h-4 w-4" /> {t("admin.restrictedHint")}
         </div>
       </SectionCard>
     );
@@ -56,65 +50,82 @@ function AdminPanel() {
 }
 
 function AdminPanelContent() {
+  const { t } = useI18n();
   const { data: profiles, isLoading } = useProfilesRaw();
   const updateProfile = useUpdateProfile();
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmEditProfile, setConfirmEditProfile] = useState<ProfileRow | null>(null);
+  const [pendingChange, setPendingChange] = useState<{
+    profile: ProfileRow;
+    role: ProfileRow["role"];
+  } | null>(null);
+
+  const roleLabel: Record<ProfileRow["role"], string> = {
+    rep: t("admin.roleRep"),
+    manager: t("admin.roleManager"),
+    super_admin: t("admin.roleAdmin"),
+  };
 
   const employees = profiles ?? [];
   const adminCount = employees.filter((p) => p.role === "super_admin").length;
 
-  async function changeRole(id: string, role: ProfileRow["role"]) {
-    setSavingId(id);
+  async function applyRoleChange(profile: ProfileRow, role: ProfileRow["role"]) {
+    setSavingId(profile.id);
     try {
-      await updateProfile.mutateAsync({ id, patch: { role } });
-      toast.success("Role updated");
+      await updateProfile.mutateAsync({ id: profile.id, patch: { role } });
+      toast.success(t("admin.roleUpdated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update role");
+      toast.error(err instanceof Error ? err.message : t("admin.roleUpdateFailed"));
     } finally {
       setSavingId(null);
+      setEditingId(null);
     }
   }
 
   return (
     <>
       <PageHeader
-        title="Admin Panel"
-        description="Restricted controls for workspace owners and administrators."
-        actions={<Pill tone="danger">Admins only</Pill>}
+        title={t("admin.title")}
+        description={t("admin.description")}
+        actions={<Pill tone="danger">{t("admin.adminsOnly")}</Pill>}
       />
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Employees"
+          label={t("admin.employees")}
           value={String(employees.length)}
-          hint={`${adminCount} admins`}
+          hint={`${adminCount} ${t("admin.admins")}`}
           tone="mint"
         />
-        <StatCard label="Active roles" value={String(new Set(employees.map((p) => p.role)).size)} />
         <StatCard
-          label="Departments"
+          label={t("admin.activeRoles")}
+          value={String(new Set(employees.map((p) => p.role)).size)}
+        />
+        <StatCard
+          label={t("admin.departments")}
           value={String(new Set(employees.map((p) => p.department)).size)}
         />
         <StatCard
-          label="Managers"
+          label={t("admin.managers")}
           value={String(employees.filter((p) => p.role === "manager").length)}
         />
       </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-3">
         <SectionCard
-          title="Employee & role management"
-          description="Sign-ups appear here automatically"
+          title={t("admin.employeeMgmt")}
+          description={t("admin.employeeMgmtDesc")}
           className="xl:col-span-2"
         >
           {isLoading && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading employees…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("admin.loadingEmployees")}
             </div>
           )}
           {!isLoading && employees.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No one has signed up yet.
+              {t("admin.noSignups")}
             </p>
           )}
           {employees.length > 0 && (
@@ -122,41 +133,62 @@ function AdminPanelContent() {
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
-                    <th className="px-6 py-3 font-medium">Employee</th>
-                    <th className="px-6 py-3 font-medium">Department</th>
-                    <th className="px-6 py-3 font-medium">Email</th>
-                    <th className="px-6 py-3 font-medium">Role</th>
+                    <th className="px-6 py-3 font-medium">{t("admin.colEmployee")}</th>
+                    <th className="px-6 py-3 font-medium">{t("admin.colDepartment")}</th>
+                    <th className="px-6 py-3 font-medium">{t("admin.colEmail")}</th>
+                    <th className="px-6 py-3 font-medium">{t("admin.colRole")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b border-border last:border-0 hover:bg-surface"
-                    >
-                      <td className="px-6 py-4 font-medium">{p.full_name || "—"}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{p.department}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
-                      <td className="px-6 py-4">
-                        <Select
-                          value={p.role}
-                          disabled={savingId === p.id}
-                          onValueChange={(v) => changeRole(p.id, v as ProfileRow["role"])}
-                        >
-                          <SelectTrigger className="h-9 w-36">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLES.map((r) => (
-                              <SelectItem key={r} value={r}>
-                                {ROLE_LABEL[r]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    </tr>
-                  ))}
+                  {employees.map((p) => {
+                    const isEditing = editingId === p.id;
+                    return (
+                      <tr
+                        key={p.id}
+                        className="border-b border-border last:border-0 hover:bg-surface"
+                      >
+                        <td className="px-6 py-4 font-medium">{p.full_name || "—"}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{p.department}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {isEditing ? (
+                              <Select
+                                value={p.role}
+                                disabled={savingId === p.id}
+                                onValueChange={(v) =>
+                                  setPendingChange({ profile: p, role: v as ProfileRow["role"] })
+                                }
+                              >
+                                <SelectTrigger className="h-9 w-36">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {ROLES.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                      {roleLabel[r]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-sm font-medium">{roleLabel[p.role]}</span>
+                            )}
+                            <button
+                              type="button"
+                              aria-label={t("admin.editRole")}
+                              onClick={() =>
+                                isEditing ? setEditingId(null) : setConfirmEditProfile(p)
+                              }
+                              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -164,17 +196,17 @@ function AdminPanelContent() {
         </SectionCard>
 
         <div className="space-y-6">
-          <SectionCard title="Controls">
+          <SectionCard title={t("admin.controls")}>
             <ul className="space-y-3">
               {[
-                { icon: Users, label: "Permissions matrix", href: "/crm-stages" },
-                { icon: Workflow, label: "Funnels & pipeline stages", href: "/crm-stages" },
+                { icon: Users, label: t("admin.permissionsMatrix"), href: "/crm-stages" },
+                { icon: Workflow, label: t("admin.funnelsStages"), href: "/crm-stages" },
                 {
                   icon: KeyRound,
-                  label: "API keys — OpenAI, Telegram, WhatsApp",
+                  label: t("admin.apiKeys"),
                   href: "/integrations",
                 },
-                { icon: ScrollText, label: "Feature flags", href: "/settings" },
+                { icon: ScrollText, label: t("admin.featureFlags"), href: "/settings" },
               ].map((c) => (
                 <li key={c.label}>
                   <a
@@ -189,24 +221,59 @@ function AdminPanelContent() {
             </ul>
           </SectionCard>
 
-          <SectionCard title="About roles">
+          <SectionCard title={t("admin.aboutRoles")}>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li>
-                <span className="font-medium text-foreground">Admin</span> — full access, including
-                role management.
+                <span className="font-medium text-foreground">{t("admin.roleAdmin")}</span> —{" "}
+                {t("admin.aboutRoleAdmin")}
               </li>
               <li>
-                <span className="font-medium text-foreground">Manager</span> — can edit any record,
-                cannot change roles.
+                <span className="font-medium text-foreground">{t("admin.roleManager")}</span> —{" "}
+                {t("admin.aboutRoleManager")}
               </li>
               <li>
-                <span className="font-medium text-foreground">Sales rep</span> — can edit their own
-                records.
+                <span className="font-medium text-foreground">{t("admin.roleRep")}</span> —{" "}
+                {t("admin.aboutRoleRep")}
               </li>
             </ul>
           </SectionCard>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmEditProfile}
+        onOpenChange={(open) => !open && setConfirmEditProfile(null)}
+        title={t("admin.confirmEditTitle")}
+        description={
+          confirmEditProfile
+            ? t("admin.confirmEditDesc", {
+                name: confirmEditProfile.full_name || confirmEditProfile.email,
+              })
+            : undefined
+        }
+        onConfirm={() => {
+          if (confirmEditProfile) setEditingId(confirmEditProfile.id);
+          setConfirmEditProfile(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!pendingChange}
+        onOpenChange={(open) => !open && setPendingChange(null)}
+        title={t("admin.confirmSaveTitle")}
+        description={
+          pendingChange
+            ? t("admin.confirmSaveDesc", {
+                name: pendingChange.profile.full_name || pendingChange.profile.email,
+                role: roleLabel[pendingChange.role],
+              })
+            : undefined
+        }
+        onConfirm={() => {
+          if (pendingChange) void applyRoleChange(pendingChange.profile, pendingChange.role);
+          setPendingChange(null);
+        }}
+      />
     </>
   );
 }

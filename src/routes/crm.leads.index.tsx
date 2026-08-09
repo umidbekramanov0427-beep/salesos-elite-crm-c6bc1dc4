@@ -19,6 +19,9 @@ import { useCrmLeads } from "@/hooks/use-crm-data";
 import { NewLeadDialog } from "@/components/crm/quick-create";
 
 export const Route = createFileRoute("/crm/leads/")({
+  validateSearch: (search: Record<string, unknown>): { stage?: string | undefined } => ({
+    stage: typeof search["stage"] === "string" ? search["stage"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Leads — SalesOS Elite CRM" },
@@ -43,6 +46,8 @@ const tempTone = (t: string): "danger" | "warning" | "info" =>
   t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info";
 
 function LeadsPage() {
+  const { stage: stageFilter } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<string>(SAVED_VIEWS[0] ?? "All leads");
   const [selected, setSelected] = useState<string[]>([]);
@@ -52,6 +57,7 @@ function LeadsPage() {
   const rows = useMemo(() => {
     const q = query.toLowerCase();
     return allLeads
+      .filter((l) => !stageFilter || l.stage === stageFilter)
       .filter(
         (l) =>
           !q ||
@@ -60,7 +66,7 @@ function LeadsPage() {
           ),
       )
       .sort((a, b) => (sortDesc ? b.score - a.score : a.score - b.score));
-  }, [allLeads, query, sortDesc]);
+  }, [allLeads, query, sortDesc, stageFilter]);
 
   const hotCount = allLeads.filter((l) => l.score >= 80).length;
   const avgScore = allLeads.length
@@ -109,6 +115,21 @@ function LeadsPage() {
       {isLoading && (
         <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading leads…
+        </div>
+      )}
+
+      {stageFilter && (
+        <div className="mt-6 flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-mint px-3 py-1.5 text-xs font-medium text-mint-foreground">
+            Stage: {stageFilter}
+            <button
+              onClick={() => void navigate({ search: {} })}
+              className="rounded-full p-0.5 hover:bg-background/40"
+              aria-label="Clear stage filter"
+            >
+              ×
+            </button>
+          </span>
         </div>
       )}
 

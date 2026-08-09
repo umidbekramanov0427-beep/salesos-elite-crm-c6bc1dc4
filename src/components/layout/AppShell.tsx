@@ -28,8 +28,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = user?.role === "super_admin";
-  const current = NAV_ITEMS.find((i) =>
-    i.to === "/" ? pathname === "/" : pathname.startsWith(i.to),
+  const current = NAV_ITEMS.find(
+    (i) => i.to && (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)),
   );
 
   useEffect(() => setMobileOpen(false), [pathname]);
@@ -55,6 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         isAdmin={isAdmin}
+        onOpenAiCopilot={() => setCopilotOpen(true)}
       />
 
       {mobileOpen && (
@@ -72,12 +73,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
             <nav className="space-y-1">
-              {NAV_ITEMS.map((item) => {
-                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+              {NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin).map((item) => {
+                if (item.action === "ai-copilot") {
+                  return (
+                    <button
+                      key="ai-copilot"
+                      type="button"
+                      onClick={() => setCopilotOpen(true)}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-accent"
+                    >
+                      <item.icon className="h-[18px] w-[18px]" />
+                      {t("nav.aiAssistant")}
+                    </button>
+                  );
+                }
+                const active =
+                  item.to && (item.to === "/" ? pathname === "/" : pathname.startsWith(item.to));
                 return (
                   <Link
                     key={item.to}
-                    to={item.to}
+                    to={item.to!}
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
                       active
@@ -86,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     )}
                   >
                     <item.icon className="h-[18px] w-[18px]" />
-                    {t(`nav.${item.to}`)}
+                    {item.to ? t(`nav.${item.to}`) : item.label}
                   </Link>
                 );
               })}

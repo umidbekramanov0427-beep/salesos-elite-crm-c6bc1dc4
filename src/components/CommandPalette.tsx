@@ -23,7 +23,13 @@ const COMMANDS = [
   { label: "Create Invoice", icon: FileText },
 ];
 
-export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,8 +55,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Navigation">
-          {NAV_ITEMS.map((item) => (
-            <CommandItem key={item.to} value={`nav ${item.label}`} onSelect={() => go(item.to)}>
+          {NAV_ITEMS.filter((item) => item.to).map((item) => (
+            <CommandItem key={item.to} value={`nav ${item.label}`} onSelect={() => go(item.to!)}>
               <item.icon className="mr-2 h-4 w-4" />
               {item.label}
             </CommandItem>
@@ -61,7 +67,11 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <CommandGroup heading="Leads">
           {LEADS.map((l) => (
-            <CommandItem key={l.id} value={`lead ${l.company} ${l.contact}`} onSelect={() => go("/crm-stages")}>
+            <CommandItem
+              key={l.id}
+              value={`lead ${l.company} ${l.contact}`}
+              onSelect={() => go("/crm-stages")}
+            >
               {l.company}
               <CommandShortcut>{l.stage}</CommandShortcut>
             </CommandItem>
@@ -70,7 +80,11 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <CommandGroup heading="People">
           {REPS.map((r) => (
-            <CommandItem key={r.id} value={`person ${r.name} ${r.department}`} onSelect={() => go("/")}>
+            <CommandItem
+              key={r.id}
+              value={`person ${r.name} ${r.department}`}
+              onSelect={() => go("/")}
+            >
               {r.name}
               <CommandShortcut>{r.department}</CommandShortcut>
             </CommandItem>
