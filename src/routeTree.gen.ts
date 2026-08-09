@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -58,6 +59,11 @@ const AiAssistantRoute = AiAssistantRouteImport.update({
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AttendanceRoute = AttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AudioAnalyticsRoute = AudioAnalyticsRouteImport.update({
@@ -202,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
+  '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
+  '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
+  '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-assistant'
     | '/analytics'
+    | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
     | '/dashboard'
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-assistant'
     | '/analytics'
+    | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
     | '/dashboard'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-assistant'
     | '/analytics'
+    | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
     | '/dashboard'
@@ -398,6 +410,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AiAssistantRoute: typeof AiAssistantRouteWithChildren
   AnalyticsRoute: typeof AnalyticsRoute
+  AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRoute
   CrmStagesRoute: typeof CrmStagesRoute
   DashboardRoute: typeof DashboardRoute
@@ -448,6 +461,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/attendance': {
+      id: '/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AttendanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/audio-analytics': {
@@ -680,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AiAssistantRoute: AiAssistantRouteWithChildren,
   AnalyticsRoute: AnalyticsRoute,
+  AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRoute,
   CrmStagesRoute: CrmStagesRoute,
   DashboardRoute: DashboardRoute,
