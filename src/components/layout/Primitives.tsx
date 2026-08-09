@@ -14,11 +14,33 @@ export function PageHeader({
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="font-semibold text-foreground">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>}
+        {description && (
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>
+        )}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
+}
+
+// Deterministic accent color per card, keyed by label, so every stat tile
+// across the platform reads as its own thing at a glance instead of a wall
+// of identical gray boxes — without every call site having to pick a color.
+const STAT_ACCENTS = [
+  "before:bg-blue-500",
+  "before:bg-emerald-500",
+  "before:bg-amber-500",
+  "before:bg-violet-500",
+  "before:bg-rose-500",
+  "before:bg-cyan-500",
+  "before:bg-orange-500",
+  "before:bg-teal-500",
+] as const;
+
+function statAccent(label: string): string {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  return STAT_ACCENTS[hash % STAT_ACCENTS.length] ?? STAT_ACCENTS[0];
 }
 
 export function StatCard({
@@ -35,9 +57,17 @@ export function StatCard({
   tone?: "default" | "mint";
 }) {
   return (
-    <div className={cn("p-6", tone === "mint" ? "mint-card" : "surface-card")}>
+    <div
+      className={cn(
+        "relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5",
+        statAccent(label),
+        tone === "mint" ? "mint-card" : "surface-card",
+      )}
+    >
       <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
-      <p className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-foreground">{value}</p>
+      <p className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-foreground">
+        {value}
+      </p>
       <div className="mt-3 flex items-center gap-2 text-xs">
         {delta !== undefined && (
           <span className={cn("font-semibold", delta >= 0 ? "text-success" : "text-destructive")}>
@@ -95,7 +125,12 @@ export function Pill({
     info: "bg-primary/10 text-primary",
   } as const;
   return (
-    <span className={cn("inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-semibold", tones[tone])}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-semibold",
+        tones[tone],
+      )}
+    >
       {children}
     </span>
   );
