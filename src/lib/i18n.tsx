@@ -299,6 +299,25 @@ const en: Dict = {
   "settings.business.terminology": "Business-specific terms / jargon",
   "settings.business.tone": "Tone of voice",
   "settings.business.readOnlyHint": "Only an admin or manager can edit this.",
+  "bizbot.cta": "Fill in with AI bot",
+  "bizbot.title": "Business profile bot",
+  "bizbot.q.companyName":
+    "Hi! Let's fill out your business profile together. First, what's your company called?",
+  "bizbot.q.description":
+    "Thanks! Now tell me in detail about your business — what do you sell or what service do you provide, and who are your customers?",
+  "bizbot.q.competitors": "Who are your main competitors?",
+  "bizbot.q.terminology":
+    "Does your business use any specific terminology or jargon? (product names, internal terms, etc.)",
+  "bizbot.q.tone":
+    "What tone should the AI assistant use with customers and staff — formal, friendly, short and to the point?",
+  "bizbot.thinking": "Building your profile from your answers...",
+  "bizbot.done": "Done! I've put together your profile — review it in the form below and save.",
+  "bizbot.answerPlaceholder": "Type your answer...",
+  "bizbot.filledHint":
+    "The bot filled in the form fields from your answers. Review and click Save.",
+  "bizbot.extractFailed":
+    "Couldn't process the answers, but your raw answers were added to the form.",
+  "bizbot.reviewHint": "The bot filled in the form fields — review and save.",
   "settings.business.saved": "Business profile saved",
   "settings.business.saveFailed": "Failed to save",
   "settings.stages.title": "Stages",
@@ -1289,6 +1308,23 @@ const ru: Dict = {
   "settings.business.terminology": "Термины / жаргон бизнеса",
   "settings.business.tone": "Тон общения",
   "settings.business.readOnlyHint": "Редактировать может только админ или менеджер.",
+  "bizbot.cta": "Заполнить с AI-ботом",
+  "bizbot.title": "Бот бизнес-профиля",
+  "bizbot.q.companyName":
+    "Привет! Давайте вместе заполним бизнес-профиль. Для начала — как называется ваша компания?",
+  "bizbot.q.description":
+    "Спасибо! Теперь расскажите подробнее о вашем бизнесе — что вы продаёте или какие услуги оказываете, кто ваши клиенты?",
+  "bizbot.q.competitors": "Кто ваши основные конкуренты?",
+  "bizbot.q.terminology":
+    "Есть ли в вашем бизнесе специфические термины или жаргон? (названия продуктов, внутренние термины и т.д.)",
+  "bizbot.q.tone":
+    "В каком тоне AI-ассистент должен общаться с клиентами и сотрудниками — официальном, дружелюбном, кратком и по делу?",
+  "bizbot.thinking": "Формирую профиль на основе ваших ответов...",
+  "bizbot.done": "Готово! Я сформировал ваш профиль — проверьте форму ниже и сохраните.",
+  "bizbot.answerPlaceholder": "Напишите ответ...",
+  "bizbot.filledHint": "Бот заполнил поля формы вашими ответами. Проверьте и нажмите «Сохранить».",
+  "bizbot.extractFailed": "Не удалось обработать ответы, но исходные ответы добавлены в форму.",
+  "bizbot.reviewHint": "Бот заполнил поля формы — проверьте и сохраните.",
   "settings.business.saved": "Бизнес-профиль сохранён",
   "settings.business.saveFailed": "Не удалось сохранить",
   "settings.stages.title": "Этапы",
@@ -2288,6 +2324,25 @@ const uz: Dict = {
   "settings.business.terminology": "Biznesga xos atamalar / jargon",
   "settings.business.tone": "Muloqot ohangi",
   "settings.business.readOnlyHint": "Faqat admin yoki menejer tahrirlay oladi.",
+  "bizbot.cta": "AI bot bilan to'ldirish",
+  "bizbot.title": "Biznes profil boti",
+  "bizbot.q.companyName":
+    "Salom! Keling, biznes profilingizni birga to'ldiramiz. Avvalo, kompaniyangiz nomi qanday?",
+  "bizbot.q.description":
+    "Rahmat! Endi biznesingiz haqida batafsil so'zlab bering — nima sotasiz yoki qanday xizmat ko'rsatasiz, mijozlaringiz kimlar?",
+  "bizbot.q.competitors": "Asosiy raqobatchilaringiz kimlar?",
+  "bizbot.q.terminology":
+    "Biznesingizda ishlatiladigan maxsus atamalar yoki jargon bormi? (mahsulot nomlari, ichki atamalar va h.k.)",
+  "bizbot.q.tone":
+    "AI yordamchi mijozlar va xodimlar bilan qanday ohangda gaplashishini xohlaysiz — rasmiy, do'stona, qisqa va aniqmi?",
+  "bizbot.thinking": "Javoblaringiz asosida profil shakllantirilmoqda...",
+  "bizbot.done":
+    "Ajoyib! Profilingizni shakllantirdim — pastdagi formada ko'rib chiqing va saqlang.",
+  "bizbot.answerPlaceholder": "Javobingizni yozing...",
+  "bizbot.filledHint":
+    'Bot javoblaringizni forma maydonlariga joylashtirdi. Tekshirib, "Saqlash" tugmasini bosing.',
+  "bizbot.extractFailed": "Javoblarni qayta ishlab bo'lmadi, lekin xom javoblar formaga joylandi.",
+  "bizbot.reviewHint": "Bot forma maydonlarini to'ldirdi — tekshirib, saqlang.",
   "settings.business.saved": "Biznes profili saqlandi",
   "settings.business.saveFailed": "Saqlab bo‘lmadi",
   "settings.stages.title": "Bosqichlar",
