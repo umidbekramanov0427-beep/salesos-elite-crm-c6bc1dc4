@@ -13,6 +13,7 @@ export type Lang = (typeof LANGS)[number];
 
 export const LANG_LABELS: Record<Lang, string> = { uz: "O‘zbekcha", ru: "Русский", en: "English" };
 export const LANG_SHORT: Record<Lang, string> = { uz: "UZ", ru: "RU", en: "EN" };
+export const LANG_FLAGS: Record<Lang, string> = { uz: "🇺🇿", ru: "🇷🇺", en: "🇺🇸" };
 
 type Dict = Record<string, string>;
 
@@ -97,6 +98,14 @@ const en: Dict = {
   "admin.confirmCreateTitle": "Create this account?",
   "admin.confirmCreateDesc":
     "Create a {role} account for {name}? They'll be able to sign in immediately.",
+  "admin.errors.title": "Errors",
+  "admin.errors.desc": "Everything caught across the app, in one place, so issues get fixed fast.",
+  "admin.errors.unresolvedCount": "{count} unresolved",
+  "admin.errors.hideResolved": "Hide resolved",
+  "admin.errors.showAll": "Show all",
+  "admin.errors.none": "No errors — everything's running clean.",
+  "admin.errors.resolve": "Resolve",
+  "admin.errors.resolveFailed": "Couldn't mark as resolved",
 
   "ai.subtitle": "Ask about your leads, deals and pipeline.",
   "ai.tryAsking": "Try asking",
@@ -670,6 +679,14 @@ const ru: Dict = {
   "admin.employeeCreateFailed": "Не удалось создать аккаунт",
   "admin.confirmCreateTitle": "Создать этот аккаунт?",
   "admin.confirmCreateDesc": "Создать аккаунт {name} с ролью {role}? Он сможет войти сразу.",
+  "admin.errors.title": "Ошибки",
+  "admin.errors.desc": "Всё, что фиксируется в приложении, в одном месте — чтобы быстро чинить.",
+  "admin.errors.unresolvedCount": "Не решено: {count}",
+  "admin.errors.hideResolved": "Скрыть решённые",
+  "admin.errors.showAll": "Показать все",
+  "admin.errors.none": "Ошибок нет — всё работает чисто.",
+  "admin.errors.resolve": "Решено",
+  "admin.errors.resolveFailed": "Не удалось отметить как решённое",
 
   "ai.subtitle": "Спрашивайте о лидах, сделках и воронке продаж.",
   "ai.tryAsking": "Попробуйте спросить",
@@ -1244,6 +1261,15 @@ const uz: Dict = {
   "admin.confirmCreateTitle": "Ushbu hisob yaratilsinmi?",
   "admin.confirmCreateDesc":
     "{name} uchun {role} roli bilan hisob yaratilsinmi? U darhol tizimga kira oladi.",
+  "admin.errors.title": "Xatoliklar",
+  "admin.errors.desc":
+    "Ilovada yuzaga kelgan barcha xatoliklar bitta joyda — muammolar tezroq tuzatilishi uchun.",
+  "admin.errors.unresolvedCount": "{count} ta hal qilinmagan",
+  "admin.errors.hideResolved": "Hal qilinganlarni yashirish",
+  "admin.errors.showAll": "Hammasini ko‘rsatish",
+  "admin.errors.none": "Xatolik yo‘q — hammasi toza ishlayapti.",
+  "admin.errors.resolve": "Hal qilindi",
+  "admin.errors.resolveFailed": "Hal qilindi deb belgilab bo‘lmadi",
 
   "ai.subtitle": "Lidlaringiz, bitimlaringiz va voronka haqida so‘rang.",
   "ai.tryAsking": "Shuni so‘rab ko‘ring",

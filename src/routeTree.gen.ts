@@ -34,6 +34,7 @@ import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
 import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
 import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
@@ -173,6 +174,11 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErrorsLogRoute = ErrorsLogRouteImport.update({
+  id: '/errors/log',
+  path: '/errors/log',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TelegramLinkRoute = TelegramLinkRouteImport.update({
   id: '/telegram/link',
   path: '/telegram/link',
@@ -259,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/errors/log': typeof ErrorsLogRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/errors/log': typeof ErrorsLogRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -336,6 +344,7 @@ export interface FileRoutesById {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/errors/log': typeof ErrorsLogRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -376,6 +385,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/errors/log'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -414,6 +424,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/errors/log'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -452,6 +463,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/errors/log'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -489,6 +501,7 @@ export interface RootRouteChildren {
   CrmContactsRoute: typeof CrmContactsRoute
   CrmDealsRoute: typeof CrmDealsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
+  ErrorsLogRoute: typeof ErrorsLogRoute
   TelegramLinkRoute: typeof TelegramLinkRoute
   TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
   TelegramSendTestRoute: typeof TelegramSendTestRoute
@@ -675,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/errors/log': {
+      id: '/errors/log'
+      path: '/errors/log'
+      fullPath: '/errors/log'
+      preLoaderRoute: typeof ErrorsLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/telegram/link': {
       id: '/telegram/link'
       path: '/telegram/link'
@@ -820,6 +840,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmContactsRoute: CrmContactsRoute,
   CrmDealsRoute: CrmDealsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
+  ErrorsLogRoute: ErrorsLogRoute,
   TelegramLinkRoute: TelegramLinkRoute,
   TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,
   TelegramSendTestRoute: TelegramSendTestRoute,
