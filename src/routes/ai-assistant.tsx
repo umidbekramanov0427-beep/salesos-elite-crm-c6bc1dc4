@@ -2,7 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
+  Clock,
+  Flame,
+  Lightbulb,
   Loader2,
+  MessageSquare,
   Phone,
   Send,
   Sparkles,
@@ -35,6 +39,10 @@ const PROMPT_STYLE = [
   { icon: AlertTriangle, tone: "bg-destructive/10 text-destructive" },
   { icon: Phone, tone: "bg-success/10 text-success" },
   { icon: TrendingDown, tone: "bg-warning/15 text-warning-foreground" },
+  { icon: Flame, tone: "bg-orange-500/10 text-orange-500" },
+  { icon: Lightbulb, tone: "bg-violet-500/10 text-violet-500" },
+  { icon: Clock, tone: "bg-cyan-500/10 text-cyan-600" },
+  { icon: MessageSquare, tone: "bg-teal-500/10 text-teal-600" },
 ] as const;
 
 function SuggestionCard({
@@ -52,12 +60,12 @@ function SuggestionCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
     >
-      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", tone)}>
-        <Icon className="h-4 w-4" />
+      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", tone)}>
+        <Icon className="h-[18px] w-[18px]" />
       </span>
-      <span className="text-sm font-medium text-foreground">{label}</span>
+      <span className="text-[15px] font-semibold text-foreground">{label}</span>
     </button>
   );
 }
@@ -68,15 +76,15 @@ function EmptyState({ children }: { children: ReactNode }) {
   const firstName = (user?.name ?? "").split(" ")[0] || t("ai.friend");
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-      <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background shadow-elevated">
-        <Sparkles className="h-6 w-6" />
+    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-10 text-center">
+      <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-foreground text-background shadow-elevated">
+        <Sparkles className="h-7 w-7" />
       </span>
-      <h2 className="text-2xl font-bold tracking-tight text-foreground">
+      <h2 className="text-3xl font-bold tracking-tight text-foreground">
         {t("ai.greeting", { name: firstName })}
       </h2>
-      <p className="mt-2 text-sm text-muted-foreground">{t("ai.subtitle")}</p>
-      <div className="mt-8 grid w-full max-w-2xl gap-3 sm:grid-cols-2">{children}</div>
+      <p className="mt-2.5 text-base text-muted-foreground">{t("ai.subtitle")}</p>
+      <div className="mt-8 grid w-full max-w-3xl gap-3 sm:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -87,7 +95,16 @@ function AiAssistantPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
 
-  const prompts = [t("ai.prompt1"), t("ai.prompt2"), t("ai.prompt3"), t("ai.prompt4")];
+  const prompts = [
+    t("ai.prompt1"),
+    t("ai.prompt2"),
+    t("ai.prompt3"),
+    t("ai.prompt4"),
+    t("ai.prompt5"),
+    t("ai.prompt6"),
+    t("ai.prompt7"),
+    t("ai.prompt8"),
+  ];
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -141,7 +158,7 @@ function AiAssistantPage() {
               <div
                 key={i}
                 className={cn(
-                  "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm",
+                  "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px]",
                   m.role === "user"
                     ? "ml-auto bg-primary text-primary-foreground"
                     : m.error
@@ -167,7 +184,7 @@ function AiAssistantPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("ai.placeholder")}
-              className="h-12 flex-1 rounded-full border border-border bg-surface px-5 text-sm outline-none transition-colors focus:border-primary/50"
+              className="h-12 flex-1 rounded-full border border-border bg-surface px-5 text-[15px] outline-none transition-colors focus:border-primary/50"
             />
             <button
               type="submit"
