@@ -13,6 +13,7 @@ export type Lang = (typeof LANGS)[number];
 
 export const LANG_LABELS: Record<Lang, string> = { uz: "O‘zbekcha", ru: "Русский", en: "English" };
 export const LANG_SHORT: Record<Lang, string> = { uz: "UZ", ru: "RU", en: "EN" };
+export const LANG_FLAGS: Record<Lang, string> = { uz: "🇺🇿", ru: "🇷🇺", en: "🇺🇸" };
 
 type Dict = Record<string, string>;
 

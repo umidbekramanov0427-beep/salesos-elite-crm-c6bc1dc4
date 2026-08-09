@@ -7,11 +7,12 @@ import {
   Command,
   LogOut,
   Plug,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { LANGS, LANG_LABELS, useI18n, type Lang } from "@/lib/i18n";
+import { LANGS, LANG_FLAGS, LANG_SHORT, useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { useIntegrationSetting } from "@/hooks/use-crm-data";
@@ -85,9 +86,9 @@ function BusinessProfileLink({ collapsed }: { collapsed: boolean }) {
             <Link
               to="/settings"
               search={{ section: "business" }}
-              className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-mint text-success"
+              className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/20 text-warning"
             >
-              <CircleCheck className="h-4 w-4" />
+              <CircleCheck className="h-5 w-5" />
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">{t("settings.nav.business")}</TooltipContent>
@@ -100,16 +101,16 @@ function BusinessProfileLink({ collapsed }: { collapsed: boolean }) {
     <Link
       to="/settings"
       search={{ section: "business" }}
-      className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-mint-border bg-mint px-3 py-2 text-sm font-medium text-mint-foreground transition-colors hover:bg-mint-border"
+      className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-3 text-sm font-semibold text-warning-foreground shadow-soft transition-colors hover:bg-warning/25"
     >
-      <CircleCheck className="h-4 w-4 shrink-0 text-success" />
+      <CircleCheck className="h-5 w-5 shrink-0 text-warning" />
       <span className="flex-1 truncate">{t("settings.nav.business")}</span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-subtle" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-warning" />
     </Link>
   );
 }
 
-function UserMenu({ collapsed }: { collapsed: boolean }) {
+function UserMenu({ collapsed, isAdmin }: { collapsed: boolean; isAdmin: boolean }) {
   const { t, lang, setLang } = useI18n();
   const { dark, setDark } = useTheme();
   const { user, signOut } = useAuth();
@@ -125,7 +126,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       {user?.initials ?? "?"}
     </button>
   ) : (
-    <button className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-accent">
+    <button className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-2 text-left transition-colors hover:bg-accent">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
         {user?.initials ?? "?"}
       </span>
@@ -142,23 +143,23 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   return (
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={8} className="w-72 space-y-4 p-4">
-        <div>
-          <span className="text-[13px] font-medium text-muted-foreground">
+      <PopoverContent side="top" align="start" sideOffset={8} className="w-72 space-y-3 p-4">
+        <div className="rounded-xl bg-surface p-3">
+          <span className="text-[13px] font-semibold text-muted-foreground">
             {t("userMenu.language")}
           </span>
           <div className="mt-2">
             <SegmentedControl<Lang>
               value={lang}
               options={LANGS}
-              render={(l) => LANG_LABELS[l]}
+              render={(l) => `${LANG_FLAGS[l]} ${LANG_SHORT[l]}`}
               onChange={setLang}
               size="sm"
             />
           </div>
         </div>
-        <div>
-          <span className="text-[13px] font-medium text-muted-foreground">
+        <div className="rounded-xl bg-surface p-3">
+          <span className="text-[13px] font-semibold text-muted-foreground">
             {t("userMenu.theme")}
           </span>
           <div className="mt-2">
@@ -171,6 +172,14 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
             />
           </div>
         </div>
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            <ShieldCheck className="h-4 w-4" /> {t("nav./admin")}
+          </Link>
+        )}
         <button
           onClick={onSignOut}
           className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
@@ -190,34 +199,32 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
   );
   const topItems = mainItems.filter((i) => !i.group);
   const analyticsItems = mainItems.filter((i) => i.group === "analytics");
-  const bottomItems = NAV_ITEMS.filter(
-    (i) => (i.to === "/settings" || i.to === "/admin") && (!i.adminOnly || isAdmin),
-  );
+  const settingsItem = NAV_ITEMS.find((i) => i.to === "/settings")!;
 
   function renderItem(item: (typeof NAV_ITEMS)[number]) {
     const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
     const isSettings = item.to === "/settings";
-    const isAdmin = item.to === "/admin";
     return (
       <Link
         key={item.to}
         to={item.to}
         title={collapsed ? t(`nav.${item.to}`) : undefined}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200",
+          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors duration-200",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
-            : "bg-mint text-sidebar-foreground",
+            : "bg-card text-sidebar-foreground shadow-soft",
           !active && isSettings && "hover:bg-primary/15 hover:text-primary",
-          !active && isAdmin && "hover:bg-destructive/15 hover:text-destructive",
-          !active && !isSettings && !isAdmin && "hover:bg-mint-border",
+          !active && !isSettings && "hover:bg-accent",
           collapsed && "justify-center px-0",
         )}
       >
         <item.icon
           className={cn(
             "h-[18px] w-[18px] shrink-0 transition-colors",
-            active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-current",
+            active
+              ? "text-sidebar-active-foreground"
+              : "text-sidebar-muted group-hover:text-current",
           )}
         />
         {!collapsed && (
@@ -284,12 +291,10 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
           </div>
         )}
 
-        <div className="space-y-1 rounded-xl border border-sidebar-border p-1.5">
-          {bottomItems.map((item) => renderItem(item))}
-        </div>
+        <div>{renderItem(settingsItem)}</div>
 
         <div className="mt-2">
-          <UserMenu collapsed={collapsed} />
+          <UserMenu collapsed={collapsed} isAdmin={isAdmin} />
         </div>
 
         <button
