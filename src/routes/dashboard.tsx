@@ -24,8 +24,9 @@ import {
   AiInsightsWidget,
 } from "@/components/dashboard/Widgets";
 import { Skeleton } from "@/components/ui/skeleton";
-import { currency } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import { useCurrency } from "@/lib/currency";
 import { useDashboardKpis, useRevenueSeries } from "@/hooks/use-crm-data";
 
 const RevenueChart = lazy(() =>
@@ -67,20 +68,22 @@ function ChartSkeleton({ height = 300, className }: { height?: number; className
   );
 }
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 function Dashboard() {
   const { user } = useAuth();
+  const { t, lang } = useI18n();
+  const { format } = useCurrency();
   const kpis = useDashboardKpis();
   const revenueSeries = useRevenueSeries();
   const spark = useMemo(() => revenueSeries.map((r) => r.revenue), [revenueSeries]);
 
-  const today = new Date().toLocaleDateString("en-US", {
+  function greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return t("dash.greetingMorning");
+    if (h < 18) return t("dash.greetingAfternoon");
+    return t("dash.greetingEvening");
+  }
+
+  const today = new Date().toLocaleDateString(lang === "uz" ? "en-US" : lang, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -93,81 +96,81 @@ function Dashboard() {
   const kpiCards = [
     {
       id: "revenue-today",
-      label: "Revenue today",
-      value: currency(kpis.revenueToday),
+      label: t("kpi.revenueToday"),
+      value: format(kpis.revenueToday),
       delta: 0,
-      comparison: "won deals closed today",
-      tooltip: "Sum of all deals marked Won today.",
+      comparison: t("kpi.revenueTodayHint"),
+      tooltip: t("kpi.revenueTodayTip"),
       icon: Banknote,
       spark: spark.length ? spark : [0],
     },
     {
       id: "revenue-month",
-      label: "Revenue this month",
-      value: currency(kpis.revenueMonth),
+      label: t("kpi.revenueMonth"),
+      value: format(kpis.revenueMonth),
       delta: 0,
-      comparison: "month to date",
-      tooltip: "Month-to-date closed revenue.",
+      comparison: t("kpi.revenueMonthHint"),
+      tooltip: t("kpi.revenueMonthTip"),
       icon: CalendarRange,
       spark: spark.length ? spark : [0],
     },
     {
       id: "pipeline",
-      label: "Pipeline value",
-      value: currency(kpis.pipelineValue),
+      label: t("kpi.pipeline"),
+      value: format(kpis.pipelineValue),
       delta: 0,
-      comparison: `${kpis.openDealsCount} active deals`,
-      tooltip: "Total value of all open opportunities.",
+      comparison: t("kpi.pipelineHint", { count: kpis.openDealsCount }),
+      tooltip: t("kpi.pipelineTip"),
       icon: Layers3,
       spark: spark.length ? spark : [0],
     },
     {
       id: "new-leads",
-      label: "New leads today",
+      label: t("kpi.newLeads"),
       value: String(kpis.newLeadsToday),
       delta: 0,
-      comparison: "created today",
-      tooltip: "Leads created today.",
+      comparison: t("kpi.newLeadsHint"),
+      tooltip: t("kpi.newLeadsTip"),
       icon: UserPlus,
       spark: spark.length ? spark : [0],
     },
     {
       id: "won",
-      label: "Won deals",
+      label: t("kpi.won"),
       value: String(kpis.wonThisWeek),
       delta: 0,
-      comparison: "this week",
-      tooltip: "Deals moved to Won in the last 7 days.",
+      comparison: t("kpi.wonHint"),
+      tooltip: t("kpi.wonTip"),
       icon: Trophy,
       spark: spark.length ? spark : [0],
     },
     {
       id: "lost",
-      label: "Lost deals",
+      label: t("kpi.lost"),
       value: String(kpis.lostThisWeek),
       delta: 0,
-      comparison: "this week",
-      tooltip: "Deals marked Lost in the last 7 days. Lower is better.",
+      comparison: t("kpi.lostHint"),
+      tooltip: t("kpi.lostTip"),
       icon: XCircle,
       spark: spark.length ? spark : [0],
     },
     {
       id: "conversion",
-      label: "Conversion rate",
+      label: t("kpi.conversion"),
       value: `${kpis.conversion.toFixed(1)}%`,
       delta: 0,
-      comparison: "lead → won",
-      tooltip: "Percentage of leads that reached the Won stage.",
+      comparison: t("kpi.conversionHint"),
+      tooltip: t("kpi.conversionTip"),
       icon: Percent,
       spark: spark.length ? spark : [0],
     },
     {
       id: "employee-kpi",
-      label: "Today's goal",
+      label: t("kpi.todayGoal"),
       value: `${goalPct}%`,
       delta: 0,
-      comparison: `of ${currency(todayGoal)} target`,
-      tooltip: "Your progress toward today's revenue target.",
+      comparison: t("kpi.todayGoalHint", { target: format(todayGoal) }),
+      tooltip: t("kpi.todayGoalTip"),
       icon: Gauge,
       spark: spark.length ? spark : [0],
     },
@@ -175,31 +178,31 @@ function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" description="The operating center of your revenue team." />
+      <PageHeader title={t("dash.title")} description={t("dash.desc")} />
 
       <section className="mint-card grid gap-4 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
-            {greeting()}, {user?.name?.split(" ")[0] ?? "there"} 👋
+            {greeting()}, {user?.name?.split(" ")[0] ?? t("dash.friend")} 👋
           </h2>
           <p className="mt-1 text-xs text-subtle">{today}</p>
           <p className="mt-3 flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-mint-foreground" />
             {kpis.wonThisWeek > 0 || kpis.newLeadsToday > 0
-              ? `This week: ${kpis.wonThisWeek} deal${kpis.wonThisWeek === 1 ? "" : "s"} won, ${kpis.newLeadsToday} new lead${kpis.newLeadsToday === 1 ? "" : "s"} today.`
-              : "Add leads and deals to see live insights here."}
+              ? t("dash.weekSummary", { won: kpis.wonThisWeek, leads: kpis.newLeadsToday })
+              : t("dash.weekSummaryEmpty")}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:w-[280px]">
           <div className="rounded-xl bg-background p-3">
-            <p className="text-[11px] text-subtle">Today's revenue</p>
+            <p className="text-[11px] text-subtle">{t("dash.todayRevenue")}</p>
             <p className="mt-1 text-lg font-semibold text-foreground">
-              {currency(kpis.revenueToday)}
+              {format(kpis.revenueToday)}
             </p>
           </div>
           <div className="rounded-xl bg-background p-3">
-            <p className="text-[11px] text-subtle">Today's goal</p>
-            <p className="mt-1 text-lg font-semibold text-foreground">{currency(todayGoal)}</p>
+            <p className="text-[11px] text-subtle">{t("dash.todayGoal")}</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{format(todayGoal)}</p>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-success transition-[width] duration-700"
