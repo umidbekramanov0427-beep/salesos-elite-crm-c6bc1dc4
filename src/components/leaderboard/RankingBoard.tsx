@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { currency } from "@/lib/mock-data";
+import { useCurrency } from "@/lib/currency";
 import type { LeaderboardRow, MetricDef } from "@/lib/leaderboard-engine";
 import type { RankMove } from "@/hooks/use-leaderboard";
 import { AnimatedNumber, Avatar, Progress, RankDelta } from "./LeaderboardParts";
@@ -31,6 +31,7 @@ export function RankingBoard({
   bonusHint?: (row: LeaderboardRow) => string;
 }) {
   const { t } = useI18n();
+  const { format } = useCurrency();
   const ref = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
 
@@ -108,12 +109,14 @@ export function RankingBoard({
                   </div>
                 </button>
 
-                <span className="truncate text-sm font-semibold tabular-nums">{row.metricLabel}</span>
+                <span className="truncate text-sm font-semibold tabular-nums">
+                  {row.metricLabel}
+                </span>
 
                 <AnimatedNumber
                   className="text-right text-sm tabular-nums text-muted-foreground"
                   value={row.revenue}
-                  format={(n) => currency(n)}
+                  format={format}
                 />
                 <AnimatedNumber
                   className="text-right text-sm tabular-nums text-muted-foreground"

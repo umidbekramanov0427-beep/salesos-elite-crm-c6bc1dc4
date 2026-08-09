@@ -19,15 +19,18 @@ function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
   const anyConnected = items.some((i) => i.connected);
 
   const trigger = collapsed ? (
-    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-surface">
-      <Plug className={cn("h-4 w-4", anyConnected ? "text-success" : "text-sidebar-muted")} />
+    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-mint">
+      <Plug className={cn("h-4 w-4", anyConnected ? "text-success" : "text-mint-foreground")} />
     </div>
   ) : (
-    <div className="mx-3 mb-2 flex cursor-default items-center gap-2 rounded-xl border border-sidebar-border bg-surface px-3 py-2 text-xs">
+    <div className="mx-3 mb-2 flex cursor-default items-center gap-2 rounded-xl border border-mint-border bg-mint px-3 py-2 text-xs">
       <Plug
-        className={cn("h-3.5 w-3.5 shrink-0", anyConnected ? "text-success" : "text-sidebar-muted")}
+        className={cn(
+          "h-3.5 w-3.5 shrink-0",
+          anyConnected ? "text-success" : "text-mint-foreground",
+        )}
       />
-      <span className="truncate font-medium text-sidebar-foreground">
+      <span className="truncate font-medium text-mint-foreground">
         {t("nav.integrations")}
         {anyConnected
           ? `: ${items
@@ -70,6 +73,8 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
 
   function renderItem(item: (typeof NAV_ITEMS)[number]) {
     const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+    const isSettings = item.to === "/settings";
+    const isAdmin = item.to === "/admin";
     return (
       <Link
         key={item.to}
@@ -79,14 +84,17 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
           "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
-            : "text-sidebar-foreground hover:bg-accent",
+            : "bg-mint/70 text-sidebar-foreground",
+          !active && isSettings && "hover:bg-primary/15 hover:text-primary",
+          !active && isAdmin && "hover:bg-destructive/15 hover:text-destructive",
+          !active && !isSettings && !isAdmin && "hover:bg-mint-border",
           collapsed && "justify-center px-0",
         )}
       >
         <item.icon
           className={cn(
             "h-[18px] w-[18px] shrink-0 transition-colors",
-            active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-foreground",
+            active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-current",
           )}
         />
         {!collapsed && (
