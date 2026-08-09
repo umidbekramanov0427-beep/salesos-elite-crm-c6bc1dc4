@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bell, ChevronDown, Globe, Menu, Moon, Search, Sparkles, Sun, X } from "lucide-react";
+import { Bell, Globe, Menu, Moon, Search, Sparkles, Sun, X } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
+import { LocationPicker } from "./LocationPicker";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useI18n, LANGS, LANG_SHORT, LANG_LABELS } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -116,18 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </p>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="hidden items-center gap-2 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground xl:flex">
-              <span className="h-2 w-2 rounded-full bg-success" /> {t("shell.almatyHq")}
-              <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>{t("shell.workspace")}</DropdownMenuLabel>
-              <DropdownMenuItem>{t("shell.almatyHq")}</DropdownMenuItem>
-              <DropdownMenuItem>{t("shell.astanaBranch")}</DropdownMenuItem>
-              <DropdownMenuItem>{t("shell.tashkentBranch")}</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <LocationPicker canEdit={isAdmin} />
 
           <button
             onClick={() => setPaletteOpen(true)}

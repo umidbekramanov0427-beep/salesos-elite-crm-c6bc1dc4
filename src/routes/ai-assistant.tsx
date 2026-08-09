@@ -76,7 +76,7 @@ function EmptyState({ children }: { children: ReactNode }) {
   const firstName = (user?.name ?? "").split(" ")[0] || t("ai.friend");
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-10 text-center">
+    <div className="flex flex-1 flex-col items-center overflow-y-auto px-6 pb-10 pt-8 text-center">
       <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-foreground text-background shadow-elevated">
         <Sparkles className="h-7 w-7" />
       </span>
@@ -178,21 +178,21 @@ function AiAssistantPage() {
           </div>
         )}
 
-        <div className="border-t border-border p-4">
-          <form onSubmit={onSubmit} className="flex items-center gap-2">
+        <div className="border-t border-border p-5">
+          <form onSubmit={onSubmit} className="flex items-center gap-3">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("ai.placeholder")}
-              className="h-12 flex-1 rounded-full border border-border bg-surface px-5 text-[15px] outline-none transition-colors focus:border-primary/50"
+              className="h-14 flex-1 rounded-full border border-border bg-surface px-6 text-base outline-none transition-colors focus:border-primary/50"
             />
             <button
               type="submit"
               disabled={chat.isPending || !input.trim()}
               aria-label={t("ai.send")}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5" />
             </button>
           </form>
           <p className="mt-2.5 text-center text-[11px] text-subtle">{t("ai.disclaimer")}</p>

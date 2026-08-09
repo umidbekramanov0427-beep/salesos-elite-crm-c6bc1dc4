@@ -401,6 +401,7 @@ export type LeaderboardFilters = {
   to: string | null;
   search: string;
   stageId: string | null;
+  funnel: string | null;
   tags: string[];
 };
 
@@ -456,11 +457,12 @@ export function useLeaderboardView(
         if (filters.from && l.created_at < filters.from) return false;
         if (filters.to && l.created_at > filters.to) return false;
         if (filters.stageId && l.stage_id !== filters.stageId) return false;
+        if (filters.funnel && (l.funnel || "Direct Sales") !== filters.funnel) return false;
         if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
           return false;
         return true;
       }),
-    [leads, filters.from, filters.to, filters.stageId, filters.tags],
+    [leads, filters.from, filters.to, filters.stageId, filters.funnel, filters.tags],
   );
 
   const rows = useMemo<LeaderboardManagerRow[]>(() => {
@@ -962,13 +964,41 @@ export type DashboardKpi = {
   tooltip: string;
 };
 
-export function useDashboardKpis() {
+// Assumed baseline win rate used to project pipeline revenue when nothing
+// unusual is known about a lead — matches the "normal conversion" the user
+// asked this KPI to reason in terms of, rather than a raw sum of deal value.
+const NORMAL_CONVERSION_RATE = 0.15;
+
+export type DashboardFilters = { from: string | null; to: string | null; funnel: string | null };
+
+export function useDashboardKpis(filters?: DashboardFilters) {
   const { data: deals } = useDealsRaw();
   const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
 
   return useMemo(() => {
-    const dealRows = deals ?? [];
-    const leadRows = leads ?? [];
+    const from = filters?.from ?? null;
+    const to = filters?.to ?? null;
+    const funnel = filters?.funnel ?? null;
+
+    // The funnel filter narrows every card to that funnel's data; the date
+    // range narrows which leads count toward lead-driven metrics (new
+    // leads, pipeline projection, conversion). Revenue/won/lost cards keep
+    // their own literal today/week/month windows regardless of the date
+    // filter — "today's revenue" always means today, not an arbitrary range.
+    const leadRows = (leads ?? []).filter((l) => {
+      if (from && l.created_at < from) return false;
+      if (to && l.created_at > to) return false;
+      if (funnel && (l.funnel || "Direct Sales") !== funnel) return false;
+      return true;
+    });
+    const leadsById = byId(leads);
+    const dealRows = (deals ?? []).filter((d) => {
+      if (!funnel) return true;
+      const lead = d.lead_id ? leadsById.get(d.lead_id) : undefined;
+      return (lead?.funnel || "Direct Sales") === funnel;
+    });
+    const stagesById = byId(stages);
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
@@ -993,19 +1023,37 @@ export function useDashboardKpis() {
 
     const revenueToday = wonToday.reduce((s, d) => s + Number(d.value), 0);
     const revenueMonth = wonThisMonth.reduce((s, d) => s + Number(d.value), 0);
-    const pipelineValue = openDeals.reduce((s, d) => s + Number(d.value), 0);
+
+    // Pipeline value = expected revenue if the leads currently sitting in
+    // the pipeline close at a normal 15% conversion rate, i.e.
+    // openLeads * 0.15 * average revenue per real sale — not a raw sum of
+    // every open lead's optimistic expected_revenue.
+    const openLeads = leadRows.filter((l) => {
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      return !stage?.is_won && !stage?.is_lost;
+    });
+    const wonLeads = leadRows.filter((l) => {
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      return stage?.is_won;
+    });
+    const avgDealValue = wonLeads.length
+      ? wonLeads.reduce((s, l) => s + l.expected_revenue, 0) / wonLeads.length
+      : openLeads.length
+        ? openLeads.reduce((s, l) => s + l.expected_revenue, 0) / openLeads.length
+        : 0;
+    const pipelineValue = Math.round(openLeads.length * NORMAL_CONVERSION_RATE * avgDealValue);
 
     return {
       revenueToday,
       revenueMonth,
       pipelineValue,
-      openDealsCount: openDeals.length,
+      openDealsCount: openLeads.length,
       newLeadsToday: newLeadsToday.length,
       wonThisWeek: wonThisWeek.length,
       lostThisWeek: lostThisWeek.length,
       conversion,
     };
-  }, [deals, leads]);
+  }, [deals, leads, stages, filters?.from, filters?.to, filters?.funnel]);
 }
 
 export type ActivityItem = {
@@ -1542,6 +1590,27 @@ export function useSetTelegramBotUsername() {
     },
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: ["integration_settings", "telegram_bot"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Office location — a single precise address (OpenStreetMap search/    */
+/* embed, no maps API key needed) shown in the header, admin-editable.  */
+/* ------------------------------------------------------------------ */
+
+export type OfficeLocationConfig = { label: string; address: string; lat: number; lon: number };
+
+export function useSetOfficeLocation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (config: OfficeLocationConfig) => {
+      const { error } = await supabase
+        .from("integration_settings")
+        .upsert({ key: "office_location", config, enabled: true });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["integration_settings", "office_location"] }),
   });
 }
 

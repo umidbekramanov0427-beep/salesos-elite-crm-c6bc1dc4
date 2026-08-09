@@ -8,6 +8,7 @@ import { useI18n, type Lang } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import {
   useAiAssistantChat,
+  useFunnelNames,
   useLeaderboardView,
   usePipelineStagesRaw,
   useTagsSummary,
@@ -154,10 +155,12 @@ function Leaderboard() {
   });
   const [search, setSearch] = useState("");
   const [stageId, setStageId] = useState<string | null>(null);
+  const [funnel, setFunnel] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [live, setLive] = useState(true);
 
   const { data: stageOptions } = usePipelineStagesRaw();
+  const { names: funnelNames } = useFunnelNames();
   const { tags: tagSummary } = useTagsSummary();
 
   const filters = useMemo(
@@ -166,9 +169,10 @@ function Leaderboard() {
       to: dateFilter.to ? dateFilter.to.toISOString() : null,
       search,
       stageId,
+      funnel,
       tags: selectedTags,
     }),
-    [dateFilter, search, stageId, selectedTags],
+    [dateFilter, search, stageId, funnel, selectedTags],
   );
   const { rows, isLoading, isFetching, refetch } = useLeaderboardView(filters, {
     refetchInterval: live ? LIVE_REFRESH_MS : false,
@@ -185,6 +189,7 @@ function Leaderboard() {
       to: null,
       search: "",
       stageId: null,
+      funnel: null,
       tags: [],
     },
     { refetchInterval: live ? LIVE_REFRESH_MS : false },
@@ -321,6 +326,18 @@ function Leaderboard() {
               </option>
             ))}
           </select>
+          <select
+            value={funnel ?? ""}
+            onChange={(e) => setFunnel(e.target.value || null)}
+            className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <option value="">{t("leadFilter.allFunnels")}</option>
+            {funnelNames.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
           <TagFilter
             options={tagSummary.map((tg) => tg.name)}
             selected={selectedTags}
@@ -354,57 +371,79 @@ function Leaderboard() {
       <div className="mt-6">
         <SectionCard title={t("lb.liveRanking2")}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[920px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-subtle">
-                  <th className="py-2 pr-3">{t("lb.colManager")}</th>
-                  <th className="px-3 py-2 text-right">{t("lb.colTotalLeads")}</th>
-                  <th className="px-3 py-2 text-right">{t("lb.colWonLeads")}</th>
-                  <th className="px-3 py-2 text-right">{t("lb.colRevenue")}</th>
-                  <th className="px-3 py-2 text-right">{t("lb.colConversion")}</th>
-                  <th className="px-3 py-2 text-right">{t("lb.colKpi")}</th>
-                  <th className="py-2 pl-3 text-right">{t("lb.colTarget")}</th>
+                  <th className="py-2.5 pr-4">{t("lb.colManager")}</th>
+                  <th className="px-4 py-2.5 text-center">{t("lb.colTotalLeads")}</th>
+                  <th className="px-4 py-2.5 text-center">{t("lb.colWonLeads")}</th>
+                  <th className="px-4 py-2.5 text-right">{t("lb.colRevenue")}</th>
+                  <th className="px-4 py-2.5 text-center">{t("lb.colConversion")}</th>
+                  <th className="px-4 py-2.5 text-center">{t("lb.colKpi")}</th>
+                  <th className="px-4 py-2.5 text-right">{t("lb.colBonus")}</th>
+                  <th className="py-2.5 pl-4 text-right">{t("lb.colTarget")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map((r) => (
+                {rows.map((r, i) => (
                   <tr key={r.id}>
-                    <td className="py-3 pr-3">
-                      <div className="flex items-center gap-2.5">
+                    <td className="py-3.5 pr-4">
+                      <div className="flex items-center gap-3">
+                        <span className="w-7 shrink-0 text-right text-sm font-bold text-amber-500">
+                          #{i + 1}
+                        </span>
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
                           {r.initials}
                         </span>
                         <span className="truncate font-medium text-foreground">{r.name}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.totalLeads}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.wonLeads}</td>
-                    <td className="px-3 py-3 text-right tabular-nums font-semibold text-foreground">
+                    <td className="px-4 py-3.5 text-center tabular-nums">{r.totalLeads}</td>
+                    <td className="px-4 py-3.5 text-center tabular-nums">{r.wonLeads}</td>
+                    <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-foreground">
                       {format(r.revenue)}
                     </td>
-                    <td className="px-3 py-3 text-right tabular-nums">{pct(r.conversion)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-primary">
+                    <td className="px-4 py-3.5 text-center tabular-nums">{pct(r.conversion)}</td>
+                    <td className="px-4 py-3.5 text-center tabular-nums text-primary">
                       {pct(r.kpiPercent)}
                     </td>
-                    <td className="py-3 pl-3 text-right">
-                      <span
-                        className={cn(
-                          "tabular-nums font-semibold",
-                          r.targetCompletion >= 100
-                            ? "text-success"
-                            : r.targetCompletion >= 60
-                              ? "text-warning"
-                              : "text-destructive",
-                        )}
-                      >
-                        {pct(r.targetCompletion)}
-                      </span>
+                    <td className="px-4 py-3.5 text-right tabular-nums font-medium text-success">
+                      {format(r.revenue * 0.05)}
+                    </td>
+                    <td className="py-3.5 pl-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              r.targetCompletion >= 100
+                                ? "bg-success"
+                                : r.targetCompletion >= 60
+                                  ? "bg-warning"
+                                  : "bg-destructive",
+                            )}
+                            style={{ width: `${Math.min(100, r.targetCompletion)}%` }}
+                          />
+                        </div>
+                        <span
+                          className={cn(
+                            "w-12 shrink-0 text-right tabular-nums font-semibold",
+                            r.targetCompletion >= 100
+                              ? "text-success"
+                              : r.targetCompletion >= 60
+                                ? "text-warning"
+                                : "text-destructive",
+                          )}
+                        >
+                          {pct(r.targetCompletion)}
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {rows.length === 0 && !isLoading && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-sm text-subtle">
+                    <td colSpan={8} className="py-8 text-center text-sm text-subtle">
                       {t("lb.noManagers")}
                     </td>
                   </tr>
