@@ -55,8 +55,8 @@ export function CommandPalette({
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Navigation">
-          {NAV_ITEMS.filter((item) => item.to).map((item) => (
-            <CommandItem key={item.to} value={`nav ${item.label}`} onSelect={() => go(item.to!)}>
+          {NAV_ITEMS.map((item) => (
+            <CommandItem key={item.to} value={`nav ${item.label}`} onSelect={() => go(item.to)}>
               <item.icon className="mr-2 h-4 w-4" />
               {item.label}
             </CommandItem>

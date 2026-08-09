@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { KeyRound, Loader2, Pencil, ShieldAlert, Workflow, ScrollText, Users } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import {
+  KeyRound,
+  Loader2,
+  Pencil,
+  ShieldAlert,
+  UserPlus,
+  Workflow,
+  ScrollText,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import {
@@ -10,10 +19,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { useProfilesRaw, useUpdateProfile, type ProfileRow } from "@/hooks/use-crm-data";
+import {
+  useProfilesRaw,
+  useUpdateProfile,
+  useCreateEmployee,
+  type ProfileRow,
+} from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -31,6 +55,158 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ROLES: ProfileRow["role"][] = ["rep", "manager", "super_admin"];
+
+function CreateEmployeeDialog() {
+  const { t } = useI18n();
+  const createEmployee = useCreateEmployee();
+  const updateProfile = useUpdateProfile();
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<ProfileRow["role"]>("rep");
+  const [department, setDepartment] = useState("Sales");
+  const [busy, setBusy] = useState(false);
+
+  const roleLabel: Record<ProfileRow["role"], string> = {
+    rep: t("admin.roleRep"),
+    manager: t("admin.roleManager"),
+    super_admin: t("admin.roleAdmin"),
+  };
+
+  function reset() {
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setRole("rep");
+    setDepartment("Sales");
+  }
+
+  async function submit() {
+    setBusy(true);
+    try {
+      const { id } = await createEmployee.mutateAsync({
+        email: email.trim(),
+        password,
+        full_name: fullName.trim(),
+      });
+      await updateProfile.mutateAsync({ id, patch: { role, department: department.trim() } });
+      toast.success(t("admin.employeeCreated"));
+      reset();
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.employeeCreateFailed"));
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!fullName.trim() || !email.trim() || password.length < 8) return;
+    setConfirming(true);
+  }
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) reset();
+        }}
+      >
+        <DialogTrigger asChild>
+          <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
+            <UserPlus className="h-4 w-4" /> {t("admin.addEmployee")}
+          </button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.addEmployee")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="emp-name">{t("admin.newEmployeeName")}</Label>
+              <Input
+                id="emp-name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="emp-email">{t("admin.colEmail")}</Label>
+              <Input
+                id="emp-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="emp-password">{t("admin.newEmployeePassword")}</Label>
+              <Input
+                id="emp-password"
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t("admin.colRole")}</Label>
+                <Select value={role} onValueChange={(v) => setRole(v as ProfileRow["role"])}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {roleLabel[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="emp-dept">{t("admin.colDepartment")}</Label>
+                <Input
+                  id="emp-dept"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                type="submit"
+                disabled={busy}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("admin.addEmployee")}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={t("admin.confirmCreateTitle")}
+        description={t("admin.confirmCreateDesc", { name: fullName.trim(), role: roleLabel[role] })}
+        onConfirm={() => void submit()}
+      />
+    </>
+  );
+}
 
 function AdminPanel() {
   const { user } = useAuth();
@@ -88,7 +264,12 @@ function AdminPanelContent() {
       <PageHeader
         title={t("admin.title")}
         description={t("admin.description")}
-        actions={<Pill tone="danger">{t("admin.adminsOnly")}</Pill>}
+        actions={
+          <>
+            <CreateEmployeeDialog />
+            <Pill tone="danger">{t("admin.adminsOnly")}</Pill>
+          </>
+        }
       />
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">

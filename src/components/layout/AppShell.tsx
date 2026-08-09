@@ -7,7 +7,6 @@ import { useI18n, LANGS, LANG_SHORT, LANG_LABELS } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
-import { AiCopilot } from "@/components/AiCopilot";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,15 +20,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [copilotOpen, setCopilotOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const { t, lang, setLang } = useI18n();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = user?.role === "super_admin";
-  const current = NAV_ITEMS.find(
-    (i) => i.to && (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)),
+  const current = NAV_ITEMS.find((i) =>
+    i.to === "/" ? pathname === "/" : pathname.startsWith(i.to),
   );
 
   useEffect(() => setMobileOpen(false), [pathname]);
@@ -55,7 +53,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         isAdmin={isAdmin}
-        onOpenAiCopilot={() => setCopilotOpen(true)}
       />
 
       {mobileOpen && (
@@ -74,25 +71,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <nav className="space-y-1">
               {NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin).map((item) => {
-                if (item.action === "ai-copilot") {
-                  return (
-                    <button
-                      key="ai-copilot"
-                      type="button"
-                      onClick={() => setCopilotOpen(true)}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-accent"
-                    >
-                      <item.icon className="h-[18px] w-[18px]" />
-                      {t("nav.aiAssistant")}
-                    </button>
-                  );
-                }
-                const active =
-                  item.to && (item.to === "/" ? pathname === "/" : pathname.startsWith(item.to));
+                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
                 return (
                   <Link
                     key={item.to}
-                    to={item.to!}
+                    to={item.to}
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
                       active
@@ -101,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     )}
                   >
                     <item.icon className="h-[18px] w-[18px]" />
-                    {item.to ? t(`nav.${item.to}`) : item.label}
+                    {t(`nav.${item.to}`)}
                   </Link>
                 );
               })}
@@ -170,13 +153,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Search className="h-[18px] w-[18px]" />
             </button>
 
-            <button
-              onClick={() => setCopilotOpen(true)}
+            <Link
+              to="/ai-assistant"
               className="inline-flex items-center gap-1.5 rounded-xl bg-mint px-2.5 py-2 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border"
             >
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:inline">AI</span>
-            </button>
+            </Link>
 
             <Link
               to="/inbox"
@@ -257,7 +240,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <AiCopilot open={copilotOpen} onOpenChange={setCopilotOpen} />
     </div>
   );
 }

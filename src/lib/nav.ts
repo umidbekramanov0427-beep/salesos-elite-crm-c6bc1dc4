@@ -13,11 +13,10 @@ import {
 
 export type NavItem = {
   label: string;
-  to?: string;
+  to: string;
   icon: LucideIcon;
   adminOnly?: boolean;
   badge?: string;
-  action?: "ai-copilot";
 };
 
 // Sidebar is intentionally a short, fixed list — everything else (Leads,
@@ -30,7 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Pipeline", to: "/crm/pipeline", icon: KanbanSquare },
   { label: "Important Tasks", to: "/tasks", icon: ClipboardList, badge: "8" },
   { label: "Audio Analytics", to: "/audio-analytics", icon: AudioLines },
-  { label: "AI Assistant", icon: Sparkles, action: "ai-copilot" },
+  { label: "AI Assistant", to: "/ai-assistant", icon: Sparkles },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Admin Panel", to: "/admin", icon: ShieldCheck, adminOnly: true },
 ];
