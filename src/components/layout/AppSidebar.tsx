@@ -10,10 +10,10 @@ import {
   LogOut,
   Plug,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 import { LANGS, LANG_FLAGS, LANG_SHORT, useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
@@ -355,7 +355,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
     >
       <div className="flex h-16 items-center gap-3 px-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-          <Sparkles className="h-[18px] w-[18px]" />
+          <Logo className="h-[18px] w-[18px]" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
