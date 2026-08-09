@@ -116,6 +116,9 @@ const en: Dict = {
   "ai.placeholder": "Ask the assistant…",
   "ai.send": "Send",
   "ai.genericError": "Something went wrong. Please try again.",
+  "ai.greeting": "How can I help, {name}?",
+  "ai.friend": "there",
+  "ai.disclaimer": "AI can make mistakes — verify important numbers against the dashboard.",
 
   "shell.workspace": "Workspace",
   "shell.search": "Search everything…",
@@ -697,6 +700,9 @@ const ru: Dict = {
   "ai.placeholder": "Спросите помощника…",
   "ai.send": "Отправить",
   "ai.genericError": "Что-то пошло не так. Попробуйте ещё раз.",
+  "ai.greeting": "Чем помочь, {name}?",
+  "ai.friend": "коллега",
+  "ai.disclaimer": "AI может ошибаться — проверяйте важные цифры по дашборду.",
 
   "shell.workspace": "Рабочее пространство",
   "shell.search": "Искать везде…",
@@ -1280,6 +1286,9 @@ const uz: Dict = {
   "ai.placeholder": "Yordamchidan so‘rang…",
   "ai.send": "Yuborish",
   "ai.genericError": "Nimadir xato ketdi. Qayta urinib ko'ring.",
+  "ai.greeting": "Qanday yordam bera olaman, {name}?",
+  "ai.friend": "hurmatli foydalanuvchi",
+  "ai.disclaimer": "AI xato qilishi mumkin — muhim raqamlarni dashboard bilan tekshiring.",
 
   "shell.workspace": "Ish maydoni",
   "shell.search": "Hamma joyda qidirish…",

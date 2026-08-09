@@ -1,8 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  AlertTriangle,
+  Loader2,
+  Phone,
+  Send,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { useAiAssistantChat } from "@/hooks/use-crm-data";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +29,57 @@ export const Route = createFileRoute("/ai-assistant")({
 });
 
 type Msg = { role: "user" | "assistant"; content: string; error?: boolean };
+
+const PROMPT_STYLE = [
+  { icon: TrendingUp, tone: "bg-primary/10 text-primary" },
+  { icon: AlertTriangle, tone: "bg-destructive/10 text-destructive" },
+  { icon: Phone, tone: "bg-success/10 text-success" },
+  { icon: TrendingDown, tone: "bg-warning/15 text-warning-foreground" },
+] as const;
+
+function SuggestionCard({
+  icon: Icon,
+  tone,
+  label,
+  onClick,
+}: {
+  icon: typeof TrendingUp;
+  tone: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
+    >
+      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", tone)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+    </button>
+  );
+}
+
+function EmptyState({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const firstName = (user?.name ?? "").split(" ")[0] || t("ai.friend");
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+      <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background shadow-elevated">
+        <Sparkles className="h-6 w-6" />
+      </span>
+      <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        {t("ai.greeting", { name: firstName })}
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t("ai.subtitle")}</p>
+      <div className="mt-8 grid w-full max-w-2xl gap-3 sm:grid-cols-2">{children}</div>
+    </div>
+  );
+}
 
 function AiAssistantPage() {
   const { t } = useI18n();
@@ -59,65 +119,67 @@ function AiAssistantPage() {
     <>
       <PageHeader title={t("nav.aiAssistant")} description={t("ai.subtitle")} />
 
-      <section className="surface-card flex h-[70vh] flex-col overflow-hidden">
-        <div className="flex-1 space-y-4 overflow-y-auto p-6">
-          {messages.length === 0 && (
-            <div className="space-y-2">
-              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-subtle">
-                <Sparkles className="h-3.5 w-3.5" /> {t("ai.tryAsking")}
-              </p>
-              {prompts.map((p) => (
-                <button
+      <section className="surface-card flex h-[75vh] flex-col overflow-hidden">
+        {messages.length === 0 ? (
+          <EmptyState>
+            {prompts.map((p, i) => {
+              const style = PROMPT_STYLE[i % PROMPT_STYLE.length]!;
+              return (
+                <SuggestionCard
                   key={p}
-                  type="button"
+                  icon={style.icon}
+                  tone={style.tone}
+                  label={p}
                   onClick={() => void send(p)}
-                  className="block w-full rounded-xl border border-border px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
+                />
+              );
+            })}
+          </EmptyState>
+        ) : (
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm",
+                  m.role === "user"
+                    ? "ml-auto bg-primary text-primary-foreground"
+                    : m.error
+                      ? "border border-destructive/30 bg-destructive/10 text-destructive"
+                      : "bg-surface text-foreground",
+                )}
+              >
+                {m.content}
+              </div>
+            ))}
 
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={cn(
-                "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm",
-                m.role === "user"
-                  ? "ml-auto bg-primary text-primary-foreground"
-                  : m.error
-                    ? "border border-destructive/30 bg-destructive/10 text-destructive"
-                    : "bg-surface text-foreground",
-              )}
+            {chat.isPending && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-border p-4">
+          <form onSubmit={onSubmit} className="flex items-center gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t("ai.placeholder")}
+              className="h-12 flex-1 rounded-full border border-border bg-surface px-5 text-sm outline-none transition-colors focus:border-primary/50"
+            />
+            <button
+              type="submit"
+              disabled={chat.isPending || !input.trim()}
+              aria-label={t("ai.send")}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              {m.content}
-            </div>
-          ))}
-
-          {chat.isPending && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
-            </div>
-          )}
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+          <p className="mt-2.5 text-center text-[11px] text-subtle">{t("ai.disclaimer")}</p>
         </div>
-
-        <form onSubmit={onSubmit} className="flex items-center gap-2 border-t border-border p-4">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={t("ai.placeholder")}
-            className="h-11 flex-1 rounded-xl border border-border bg-surface px-4 text-sm outline-none transition-colors focus:border-primary/50"
-          />
-          <button
-            type="submit"
-            disabled={chat.isPending || !input.trim()}
-            aria-label={t("ai.send")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </form>
       </section>
     </>
   );
