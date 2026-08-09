@@ -204,7 +204,7 @@ function FunnelsNavGroup({
 }) {
   const { t } = useI18n();
   const { names } = useFunnelNames();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(() => active);
   const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
   const activeFunnel = typeof search["funnel"] === "string" ? search["funnel"] : undefined;
 
@@ -354,8 +354,8 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
       )}
     >
       <div className="flex h-16 items-center gap-3 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-          <Logo className="h-[18px] w-[18px]" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
+          <Logo className="h-5 w-5" />
         </div>
         {!collapsed && (
           <div className="min-w-0">

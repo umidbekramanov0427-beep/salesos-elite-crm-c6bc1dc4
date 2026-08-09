@@ -97,7 +97,7 @@ function LoginPage() {
       <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-background/70 shadow-soft backdrop-blur-xl lg:grid-cols-2">
         <section className="hidden flex-col justify-between gap-8 border-r border-border bg-mint/60 p-10 lg:flex">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background shadow-soft">
               <Logo className="h-5 w-5" />
             </span>
             <div>
@@ -130,9 +130,14 @@ function LoginPage() {
 
         <section className="p-8 sm:p-10">
           <div className="mb-8 flex items-center justify-between gap-3">
-            <div className="lg:hidden">
-              <p className="text-sm font-semibold text-foreground">{t("app.name")}</p>
-              <p className="text-xs text-muted-foreground">{t("app.tagline")}</p>
+            <div className="flex items-center gap-3 lg:hidden">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background shadow-soft">
+                <Logo className="h-[18px] w-[18px]" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{t("app.name")}</p>
+                <p className="text-xs text-muted-foreground">{t("app.tagline")}</p>
+              </div>
             </div>
             <div className="ml-auto flex items-center gap-1 rounded-xl border border-border p-1">
               {LANGS.map((l) => (
