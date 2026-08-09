@@ -1,5 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
 import {
+  ChevronDown,
   ChevronRight,
   ChevronsUpDown,
   ChevronsLeft,
@@ -15,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { LANGS, LANG_FLAGS, LANG_SHORT, useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
-import { useIntegrationSetting } from "@/hooks/use-crm-data";
+import { useFunnelNames, useIntegrationSetting } from "@/hooks/use-crm-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -191,6 +193,109 @@ function UserMenu({ collapsed, isAdmin }: { collapsed: boolean; isAdmin: boolean
   );
 }
 
+function FunnelsNavGroup({
+  item,
+  collapsed,
+  active,
+}: {
+  item: (typeof NAV_ITEMS)[number];
+  collapsed: boolean;
+  active: boolean;
+}) {
+  const { t } = useI18n();
+  const { names } = useFunnelNames();
+  const [expanded, setExpanded] = useState(true);
+  const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
+  const activeFunnel = typeof search["funnel"] === "string" ? search["funnel"] : undefined;
+
+  if (collapsed) {
+    return (
+      <Link
+        to={item.to}
+        title={t(`nav.${item.to}`)}
+        className={cn(
+          "group flex w-full items-center justify-center rounded-xl px-0 py-2.5 transition-colors duration-200",
+          active
+            ? "bg-sidebar-active text-sidebar-active-foreground"
+            : "bg-card text-sidebar-foreground shadow-soft hover:bg-accent",
+        )}
+      >
+        <item.icon
+          className={cn(
+            "h-[18px] w-[18px] shrink-0",
+            active
+              ? "text-sidebar-active-foreground"
+              : "text-sidebar-muted group-hover:text-current",
+          )}
+        />
+      </Link>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "group flex w-full items-center gap-1 rounded-xl text-[15px] font-semibold transition-colors duration-200",
+          active
+            ? "bg-sidebar-active text-sidebar-active-foreground"
+            : "bg-card text-sidebar-foreground shadow-soft",
+        )}
+      >
+        <Link
+          to={item.to}
+          className={cn(
+            "flex flex-1 items-center gap-3 rounded-xl px-3 py-2.5",
+            !active && "hover:bg-accent",
+          )}
+        >
+          <item.icon
+            className={cn(
+              "h-[18px] w-[18px] shrink-0",
+              active
+                ? "text-sidebar-active-foreground"
+                : "text-sidebar-muted group-hover:text-current",
+            )}
+          />
+          <span className="truncate">{t(`nav.${item.to}`)}</span>
+        </Link>
+        {names.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="mr-1.5 rounded-lg p-1 text-current/70 hover:bg-black/5"
+            aria-label={expanded ? t("nav.collapse") : t("nav.groupAnalytics")}
+          >
+            <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
+      </div>
+      {expanded && names.length > 0 && (
+        <div className="ml-[22px] mt-1 space-y-0.5 border-l border-sidebar-border pl-3">
+          {names.map((name) => {
+            const isActiveFunnel = active && activeFunnel === name;
+            return (
+              <Link
+                key={name}
+                to="/funnels"
+                search={{ funnel: name }}
+                className={cn(
+                  "block truncate rounded-lg px-2 py-1.5 text-[13px] transition-colors",
+                  isActiveFunnel
+                    ? "bg-mint font-semibold text-mint-foreground"
+                    : "text-sidebar-muted hover:bg-accent hover:text-sidebar-foreground",
+                )}
+              >
+                {name}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
   const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -275,7 +380,20 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
               </p>
             )}
             {collapsed && <div className="my-3 border-t border-sidebar-border" />}
-            <div className="space-y-1.5">{analyticsItems.map((item) => renderItem(item))}</div>
+            <div className="space-y-1.5">
+              {analyticsItems.map((item) =>
+                item.to === "/funnels" ? (
+                  <FunnelsNavGroup
+                    key={item.to}
+                    item={item}
+                    collapsed={collapsed}
+                    active={pathname.startsWith(item.to)}
+                  />
+                ) : (
+                  renderItem(item)
+                ),
+              )}
+            </div>
           </>
         )}
       </nav>
