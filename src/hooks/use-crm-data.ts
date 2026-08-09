@@ -1241,3 +1241,15 @@ export function useSetTelegramBotUsername() {
       void qc.invalidateQueries({ queryKey: ["integration_settings", "telegram_bot"] }),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Error logs — everything caught by the global client-side handlers   */
+/* and server routes, surfaced in Admin Panel so issues get fixed fast.*/
+/* ------------------------------------------------------------------ */
+
+export type ErrorLogRow = Tables["error_logs"]["Row"];
+const errorLogsResource = makeResource("error_logs", ["error_logs"]);
+
+export const useErrorLogsRaw = (opts?: Parameters<typeof errorLogsResource.useList>[0]) =>
+  errorLogsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
+export const useResolveErrorLog = errorLogsResource.useUpdate;

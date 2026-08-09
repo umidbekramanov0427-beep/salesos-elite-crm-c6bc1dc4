@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { installGlobalErrorLogging, logClientError } from "../lib/error-log";
 import { AppShell } from "../components/layout/AppShell";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { I18nProvider } from "../lib/i18n";
@@ -47,6 +48,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    logClientError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
   return (
@@ -178,6 +180,10 @@ function AuthGate() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    installGlobalErrorLogging();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

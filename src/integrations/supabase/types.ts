@@ -183,6 +183,50 @@ export type Database = {
           },
         ]
       }
+      error_logs: {
+        Row: {
+          context: Json
+          created_at: string
+          id: string
+          message: string
+          resolved: boolean
+          route: string | null
+          source: string
+          stack: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          id?: string
+          message: string
+          resolved?: boolean
+          route?: string | null
+          source?: string
+          stack?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          id?: string
+          message?: string
+          resolved?: boolean
+          route?: string | null
+          source?: string
+          stack?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           amocrm_id: number | null
