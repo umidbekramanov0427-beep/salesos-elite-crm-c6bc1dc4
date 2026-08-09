@@ -1253,3 +1253,17 @@ const errorLogsResource = makeResource("error_logs", ["error_logs"]);
 export const useErrorLogsRaw = (opts?: Parameters<typeof errorLogsResource.useList>[0]) =>
   errorLogsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
 export const useResolveErrorLog = errorLogsResource.useUpdate;
+
+/* ------------------------------------------------------------------ */
+/* Distinct funnel names — for the sidebar's expandable Funnels group. */
+/* ------------------------------------------------------------------ */
+
+export function useFunnelNames() {
+  const { data: leads, isLoading } = useLeadsRaw();
+  const names = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of leads ?? []) set.add(l.funnel || "Direct Sales");
+    return Array.from(set).sort();
+  }, [leads]);
+  return { names, isLoading };
+}
