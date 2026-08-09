@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { GripVertical, Loader2 } from "lucide-react";
 import { PageHeader, Pill } from "@/components/layout/Primitives";
-import { currency } from "@/lib/mock-data";
+import { TagEditor } from "@/components/crm/tag-editor";
+import { useCurrency } from "@/lib/currency";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useCrmLeads, useUpdateLead } from "@/hooks/use-crm-data";
 
@@ -28,6 +30,8 @@ export const Route = createFileRoute("/crm/pipeline")({
 });
 
 function PipelinePage() {
+  const { t } = useI18n();
+  const { format } = useCurrency();
   const { rows: leads, stages, isLoading } = useCrmLeads();
   const updateLead = useUpdateLead();
 
@@ -56,19 +60,16 @@ function PipelinePage() {
 
   return (
     <>
-      <PageHeader
-        title="Pipeline"
-        description="Drag deals between stages — the stage change is saved instantly."
-      />
+      <PageHeader title={t("pipeline.title")} description={t("pipeline.desc")} />
 
       {isLoading && (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading pipeline…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("pipeline.loading")}
         </div>
       )}
 
       <div className="overflow-x-auto pb-4">
-        <div className="flex min-w-max gap-4">
+        <div className="flex min-w-max gap-5">
           {stages.map((s) => {
             const ids = board[s.id] ?? [];
             const items = ids.map((id) => leads.find((l) => l.id === id)!).filter(Boolean);
@@ -83,45 +84,68 @@ function PipelinePage() {
                 onDragLeave={() => setOver((o) => (o === s.id ? null : o))}
                 onDrop={() => move(s.id)}
                 className={cn(
-                  "w-[300px] shrink-0 rounded-2xl border bg-surface p-3 transition-colors",
-                  over === s.id ? "border-primary/50 bg-mint" : "border-border",
+                  "flex w-[300px] shrink-0 flex-col rounded-2xl border bg-surface/60 p-3 shadow-soft transition-colors",
+                  over === s.id
+                    ? "border-primary/50 bg-mint ring-2 ring-primary/20"
+                    : "border-border",
                 )}
               >
-                <header className="flex items-center justify-between px-2 pb-3">
+                <header className="flex items-center justify-between rounded-xl bg-background px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <span className={cn("h-2.5 w-2.5 rounded-full", s.color)} />
                     <p className="text-sm font-semibold text-foreground">{s.name}</p>
-                    <span className="text-xs text-subtle">{items.length}</span>
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                      {items.length}
+                    </span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
                     {s.probability}%
                   </span>
                 </header>
-                <p className="px-2 pb-3 text-xs text-subtle">{currency(value)} expected</p>
+                <p className="px-2 py-2 text-xs font-medium text-subtle">
+                  {format(value)} {t("pipeline.expected")}
+                </p>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {items.map((l) => (
                     <article
                       key={l.id}
                       draggable
                       onDragStart={() => setDragged(l.id)}
-                      className="group cursor-grab rounded-xl border border-border bg-background p-3 shadow-soft active:cursor-grabbing"
+                      className={cn(
+                        "group cursor-grab rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:cursor-grabbing",
+                        dragged === l.id && "opacity-50",
+                      )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <Link
                           to="/crm/leads/$leadId"
                           params={{ leadId: l.id }}
-                          className="text-sm font-medium text-foreground hover:text-primary"
+                          className="flex min-w-0 items-center gap-2"
                         >
-                          {l.company || l.name}
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-semibold text-mint-foreground">
+                            {l.initials}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-foreground hover:text-primary">
+                              {l.company || l.name}
+                            </span>
+                            <span className="block truncate text-xs text-subtle">
+                              {l.name} · {l.owner}
+                            </span>
+                          </span>
                         </Link>
                         <GripVertical className="h-4 w-4 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
                       </div>
-                      <p className="mt-1 text-xs text-subtle">
-                        {l.name} · {l.owner}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-sm font-semibold">{currency(l.expectedRevenue)}</span>
+
+                      <div className="mt-2.5">
+                        <TagEditor leadId={l.id} tags={l.tags} />
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+                        <span className="text-sm font-semibold text-foreground">
+                          {format(l.expectedRevenue)}
+                        </span>
                         <Pill
                           tone={
                             l.temperature === "Hot"
@@ -138,7 +162,7 @@ function PipelinePage() {
                   ))}
                   {items.length === 0 && (
                     <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-subtle">
-                      Drop a deal here
+                      {t("pipeline.dropHint")}
                     </p>
                   )}
                 </div>

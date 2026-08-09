@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { SAVED_VIEWS } from "@/lib/crm-data";
-import { currency } from "@/lib/mock-data";
+import { useCurrency } from "@/lib/currency";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useCrmLeads } from "@/hooks/use-crm-data";
 import { NewLeadDialog } from "@/components/crm/quick-create";
@@ -46,6 +47,8 @@ const tempTone = (t: string): "danger" | "warning" | "info" =>
   t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info";
 
 function LeadsPage() {
+  const { t } = useI18n();
+  const { format } = useCurrency();
   const { stage: stageFilter } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [query, setQuery] = useState("");
@@ -79,20 +82,20 @@ function LeadsPage() {
   return (
     <>
       <PageHeader
-        title="Leads"
-        description="Every lead, contact point and next action in one register."
+        title={t("leads.title")}
+        description={t("leads.desc")}
         actions={
           <>
             <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
-              <Upload className="h-4 w-4" /> Import
+              <Upload className="h-4 w-4" /> {t("leads.import")}
             </button>
             <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> {t("leads.export")}
             </button>
             <NewLeadDialog
               trigger={
                 <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                  <Plus className="h-4 w-4" /> New lead
+                  <Plus className="h-4 w-4" /> {t("leads.newLead")}
                 </button>
               }
             />
@@ -102,30 +105,34 @@ function LeadsPage() {
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Active leads"
+          label={t("leads.activeLeads")}
           value={String(allLeads.length)}
-          hint="all funnels"
+          hint={t("leads.allFunnels")}
           tone="mint"
         />
-        <StatCard label="Hot leads" value={String(hotCount)} hint="score ≥ 80" />
-        <StatCard label="Avg. lead score" value={String(avgScore)} />
-        <StatCard label="Open value" value={currency(openValue)} />
+        <StatCard
+          label={t("leads.hotLeads")}
+          value={String(hotCount)}
+          hint={t("leads.scoreHint")}
+        />
+        <StatCard label={t("leads.avgScore")} value={String(avgScore)} />
+        <StatCard label={t("leads.openValue")} value={format(openValue)} />
       </div>
 
       {isLoading && (
         <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading leads…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("leads.loading")}
         </div>
       )}
 
       {stageFilter && (
         <div className="mt-6 flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-mint px-3 py-1.5 text-xs font-medium text-mint-foreground">
-            Stage: {stageFilter}
+            {t("leads.stageFilter", { stage: stageFilter })}
             <button
               onClick={() => void navigate({ search: {} })}
               className="rounded-full p-0.5 hover:bg-background/40"
-              aria-label="Clear stage filter"
+              aria-label={t("leads.clearFilter")}
             >
               ×
             </button>
@@ -158,7 +165,7 @@ function LeadsPage() {
       <div className="mt-6">
         <SectionCard
           title={view}
-          description={`${rows.length} of ${allLeads.length} leads · grouped by stage priority`}
+          description={t("leads.groupDesc", { shown: rows.length, total: allLeads.length })}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
@@ -166,7 +173,7 @@ function LeadsPage() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search leads, companies, owners"
+                  placeholder={t("leads.searchPlaceholder")}
                   className="h-10 w-64 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
                 />
               </div>
@@ -174,21 +181,30 @@ function LeadsPage() {
                 onClick={() => setSortDesc((s) => !s)}
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-accent"
               >
-                Score{" "}
+                {t("leads.score")}{" "}
                 <ChevronDown
                   className={cn("h-4 w-4 transition-transform", !sortDesc && "rotate-180")}
                 />
               </button>
               <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-accent">
-                <Filter className="h-4 w-4" /> Filters
+                <Filter className="h-4 w-4" /> {t("leads.filters")}
               </button>
             </div>
           }
         >
           {selected.length > 0 && (
             <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-mint-border bg-mint px-4 py-3 text-sm">
-              <span className="font-semibold text-mint-foreground">{selected.length} selected</span>
-              {["Assign owner", "Change stage", "Add tag", "Merge", "Export", "Delete"].map((a) => (
+              <span className="font-semibold text-mint-foreground">
+                {t("leads.selectedCount", { count: selected.length })}
+              </span>
+              {[
+                t("leads.bulkAssignOwner"),
+                t("leads.bulkChangeStage"),
+                t("leads.bulkAddTag"),
+                t("leads.bulkMerge"),
+                t("leads.export"),
+                t("leads.bulkDelete"),
+              ].map((a) => (
                 <button
                   key={a}
                   className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent"
@@ -206,21 +222,21 @@ function LeadsPage() {
                   <th className="px-6 py-3">
                     <input
                       type="checkbox"
-                      aria-label="Select all leads"
+                      aria-label={t("leads.selectAll")}
                       checked={allSelected}
                       onChange={(e) => setSelected(e.target.checked ? rows.map((r) => r.id) : [])}
                     />
                   </th>
                   {[
-                    "Lead",
-                    "Company",
-                    "Stage",
-                    "Owner",
-                    "Score",
-                    "Temp",
-                    "Expected",
-                    "Next follow up",
-                    "Updated",
+                    t("leads.colLead"),
+                    t("leads.colCompany"),
+                    t("leads.colStage"),
+                    t("leads.colOwner"),
+                    t("leads.colScore"),
+                    t("leads.colTemp"),
+                    t("leads.colExpected"),
+                    t("leads.colNextFollowUp"),
+                    t("leads.colUpdated"),
                   ].map((h) => (
                     <th key={h} className="px-6 py-3 font-medium">
                       {h}
@@ -237,7 +253,7 @@ function LeadsPage() {
                     <td className="px-6 py-4">
                       <input
                         type="checkbox"
-                        aria-label={`Select ${l.name}`}
+                        aria-label={t("leads.selectOne", { name: l.name })}
                         checked={selected.includes(l.id)}
                         onChange={(e) =>
                           setSelected((s) =>
@@ -284,7 +300,7 @@ function LeadsPage() {
                     <td className="px-6 py-4">
                       <Pill tone={tempTone(l.temperature)}>{l.temperature}</Pill>
                     </td>
-                    <td className="px-6 py-4 font-medium">{currency(l.expectedRevenue)}</td>
+                    <td className="px-6 py-4 font-medium">{format(l.expectedRevenue)}</td>
                     <td className="px-6 py-4 text-muted-foreground">{l.nextFollowUp}</td>
                     <td className="px-6 py-4 text-subtle">{l.updated}</td>
                   </tr>
@@ -295,14 +311,12 @@ function LeadsPage() {
 
           {rows.length === 0 && !isLoading && (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No leads yet. Click “New lead” to add your first one.
+              {t("leads.emptyState")}
             </p>
           )}
 
           <div className="-mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-border px-6 pt-4 text-xs text-subtle">
-            <span>
-              Showing {rows.length} of {allLeads.length}
-            </span>
+            <span>{t("leads.showingCount", { shown: rows.length, total: allLeads.length })}</span>
           </div>
         </SectionCard>
       </div>

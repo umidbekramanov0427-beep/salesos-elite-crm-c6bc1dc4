@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { useTasksView, useUpdateTask, type TaskRow } from "@/hooks/use-crm-data";
 import { NewTaskDialog } from "@/components/crm/quick-create";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tasks")({
@@ -28,15 +29,23 @@ export const Route = createFileRoute("/tasks")({
 const COLUMNS: TaskRow["status"][] = ["Todo", "In progress", "Review", "Done"];
 
 function Tasks() {
+  const { t } = useI18n();
   const { rows: tasks, isLoading } = useTasksView();
   const updateTask = useUpdateTask();
   const [dragOverCol, setDragOverCol] = useState<TaskRow["status"] | null>(null);
+
+  const columnLabel: Record<TaskRow["status"], string> = {
+    Todo: t("tasks.colTodo"),
+    "In progress": t("tasks.colInProgress"),
+    Review: t("tasks.colReview"),
+    Done: t("tasks.colDone"),
+  };
 
   async function moveTask(id: string, status: TaskRow["status"]) {
     try {
       await updateTask.mutateAsync({ id, patch: { status } });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't move this task");
+      toast.error(err instanceof Error ? err.message : t("tasks.moveFailed"));
     }
   }
 
@@ -55,13 +64,13 @@ function Tasks() {
   return (
     <>
       <PageHeader
-        title="Important Tasks"
-        description="Company-level work assigned by admins, tracked to completion."
+        title={t("tasks.title")}
+        description={t("tasks.desc")}
         actions={
           <NewTaskDialog
             trigger={
               <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> New task
+                <Plus className="h-4 w-4" /> {t("tasks.newTask")}
               </button>
             }
           />
@@ -70,13 +79,13 @@ function Tasks() {
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading tasks…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("tasks.loading")}
         </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         {COLUMNS.map((col) => {
-          const items = tasks.filter((t) => t.status === col && !t.leadId);
+          const items = tasks.filter((task) => task.status === col && !task.leadId);
           return (
             <div
               key={col}
@@ -91,41 +100,46 @@ function Tasks() {
                 dragOverCol === col && "ring-2 ring-primary/50",
               )}
             >
-              <SectionCard title={col} description={`${items.length} tasks`}>
+              <SectionCard
+                title={columnLabel[col]}
+                description={t("tasks.taskCount", { count: items.length })}
+              >
                 <div className="min-h-[80px] space-y-4">
-                  {items.length === 0 && <p className="text-sm text-subtle">Nothing here yet.</p>}
-                  {items.map((t) => (
+                  {items.length === 0 && (
+                    <p className="text-sm text-subtle">{t("tasks.nothingHere")}</p>
+                  )}
+                  {items.map((task) => (
                     <article
-                      key={t.id}
+                      key={task.id}
                       draggable
-                      onDragStart={(e) => onDragStart(e, t.id)}
+                      onDragStart={(e) => onDragStart(e, task.id)}
                       className="cursor-grab rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-card active:cursor-grabbing"
                     >
                       <div className="flex items-center justify-between">
                         <Pill
                           tone={
-                            t.priority === "Urgent"
+                            task.priority === "Urgent"
                               ? "danger"
-                              : t.priority === "High"
+                              : task.priority === "High"
                                 ? "warning"
                                 : "neutral"
                           }
                         >
-                          {t.priority}
+                          {task.priority}
                         </Pill>
                       </div>
                       <p className="mt-2 text-sm font-medium leading-snug text-foreground">
-                        {t.title}
+                        {task.title}
                       </p>
                       <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-border">
                         <div
                           className="h-full rounded-full bg-success"
-                          style={{ width: `${t.progress}%` }}
+                          style={{ width: `${task.progress}%` }}
                         />
                       </div>
                       <div className="mt-3 flex items-center justify-between text-xs text-subtle">
                         <span>
-                          {t.assignee.split(" ")[0]} · {t.due}
+                          {task.assignee.split(" ")[0]} · {task.due}
                         </span>
                       </div>
                     </article>

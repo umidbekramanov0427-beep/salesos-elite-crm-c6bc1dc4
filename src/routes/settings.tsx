@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { useUpdateProfile } from "@/hooks/use-crm-data";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -22,41 +23,9 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
-function SegmentedControl<T extends string>({
-  value,
-  options,
-  render,
-  onChange,
-}: {
-  value: T;
-  options: readonly T[];
-  render?: (v: T) => string;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="inline-flex h-11 items-center gap-1 rounded-xl border border-border bg-surface p-1">
-      {options.map((o) => (
-        <button
-          key={o}
-          type="button"
-          onClick={() => onChange(o)}
-          className={cn(
-            "h-full rounded-lg px-3 text-sm font-semibold transition-colors",
-            value === o
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent",
-          )}
-        >
-          {render ? render(o) : o}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function SettingsPage() {
+  const { t, lang, setLang } = useI18n();
   const { unit, setUnit } = useCurrency();
-  const { lang, setLang } = useI18n();
   const { dark, setDark } = useTheme();
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
@@ -74,9 +43,9 @@ function SettingsPage() {
         id: user.id,
         patch: { full_name: fullName.trim(), phone: phone.trim() || null },
       });
-      toast.success("Profile updated");
+      toast.success(t("settings.profileUpdated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update profile");
+      toast.error(err instanceof Error ? err.message : t("settings.profileUpdateFailed"));
     } finally {
       setSaving(false);
     }
@@ -84,16 +53,15 @@ function SettingsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Settings"
-        description="Personal and workspace configuration for SalesOS Elite."
-      />
+      <PageHeader title={t("settings.title")} description={t("settings.desc")} />
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Profile">
+        <SectionCard title={t("settings.profile")}>
           <form onSubmit={onSaveProfile} className="grid gap-5 sm:grid-cols-2">
             <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">Full name</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.fullName")}
+              </span>
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -101,7 +69,9 @@ function SettingsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">Email</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.email")}
+              </span>
               <input
                 value={user?.email ?? ""}
                 disabled
@@ -109,7 +79,9 @@ function SettingsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">Role</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.role")}
+              </span>
               <input
                 value={user?.role ?? ""}
                 disabled
@@ -117,7 +89,9 @@ function SettingsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">Phone</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.phone")}
+              </span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -132,22 +106,26 @@ function SettingsPage() {
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                Save changes
+                {t("settings.saveChanges")}
               </button>
             </div>
           </form>
         </SectionCard>
 
-        <SectionCard title="Preferences">
+        <SectionCard title={t("settings.preferences")}>
           <div className="space-y-6">
             <div>
-              <span className="text-[13px] font-medium text-muted-foreground">Currency</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.currency")}
+              </span>
               <div className="mt-2">
                 <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
               </div>
             </div>
             <div>
-              <span className="text-[13px] font-medium text-muted-foreground">Language</span>
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("settings.language")}
+              </span>
               <div className="mt-2">
                 <SegmentedControl
                   value={lang}
@@ -159,8 +137,10 @@ function SettingsPage() {
             </div>
             <div className="flex items-start justify-between gap-6">
               <div>
-                <p className="text-[13px] font-medium text-muted-foreground">Appearance</p>
-                <p className="mt-1 text-xs text-subtle">Switch the workspace to the dark palette</p>
+                <p className="text-[13px] font-medium text-muted-foreground">
+                  {t("settings.appearance")}
+                </p>
+                <p className="mt-1 text-xs text-subtle">{t("settings.appearanceDesc")}</p>
               </div>
               <button
                 type="button"
@@ -168,14 +148,22 @@ function SettingsPage() {
                 aria-checked={dark}
                 onClick={() => setDark(!dark)}
                 className={cn(
-                  "mt-1 inline-flex h-9 w-16 shrink-0 items-center justify-center gap-1 rounded-full transition-colors",
-                  dark ? "bg-foreground" : "bg-border",
+                  "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors",
+                  dark ? "bg-foreground" : "bg-warning/25",
                 )}
               >
-                <Sun className={cn("h-3.5 w-3.5", dark ? "text-background/40" : "text-warning")} />
-                <Moon
-                  className={cn("h-3.5 w-3.5", dark ? "text-background" : "text-background/40")}
-                />
+                <span
+                  className={cn(
+                    "absolute left-1 flex h-6 w-6 items-center justify-center rounded-full bg-background shadow-soft transition-transform duration-200",
+                    dark && "translate-x-6",
+                  )}
+                >
+                  {dark ? (
+                    <Moon className="h-3.5 w-3.5 text-foreground" />
+                  ) : (
+                    <Sun className="h-3.5 w-3.5 text-warning" />
+                  )}
+                </span>
               </button>
             </div>
           </div>
