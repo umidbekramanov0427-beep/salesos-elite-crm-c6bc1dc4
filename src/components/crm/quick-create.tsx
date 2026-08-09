@@ -1,10 +1,15 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { useCompaniesRaw, usePipelineStagesRaw, useProfilesRaw } from "@/hooks/use-crm-data";
+import {
+  useCompaniesRaw,
+  useLeadsRaw,
+  usePipelineStagesRaw,
+  useProfilesRaw,
+} from "@/hooks/use-crm-data";
 import {
   Dialog,
   DialogContent,
@@ -46,10 +51,17 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
   const [phone, setPhone] = useState("");
   const [revenue, setRevenue] = useState("");
   const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>("Normal");
+  const [funnel, setFunnel] = useState("Direct Sales");
   const [busy, setBusy] = useState(false);
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: stages } = usePipelineStagesRaw();
+  const { data: existingLeads } = useLeadsRaw();
+  const funnelOptions = useMemo(() => {
+    const set = new Set<string>(["Direct Sales"]);
+    for (const l of existingLeads ?? []) if (l.funnel) set.add(l.funnel);
+    return Array.from(set);
+  }, [existingLeads]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -80,6 +92,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
         priority,
         expected_revenue: revenue ? Number(revenue) : 0,
         stage_id: newStage?.id ?? null,
+        funnel: funnel.trim() || "Direct Sales",
       });
       if (leadErr) throw leadErr;
       await Promise.all([
@@ -94,6 +107,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
       setPhone("");
       setRevenue("");
       setPriority("Normal");
+      setFunnel("Direct Sales");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create lead");
     } finally {
@@ -164,6 +178,20 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Funnel</Label>
+            <Input
+              value={funnel}
+              onChange={(e) => setFunnel(e.target.value)}
+              placeholder="Direct Sales"
+              list="funnel-options"
+            />
+            <datalist id="funnel-options">
+              {funnelOptions.map((f) => (
+                <option key={f} value={f} />
+              ))}
+            </datalist>
           </div>
           <DialogFooter>
             <SubmitButton busy={busy} label="Create lead" />

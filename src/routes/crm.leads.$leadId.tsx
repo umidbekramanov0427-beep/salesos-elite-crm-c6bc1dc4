@@ -11,6 +11,7 @@ import {
   Send,
 } from "lucide-react";
 import { SectionCard, Pill } from "@/components/layout/Primitives";
+import { TagEditor } from "@/components/crm/tag-editor";
 import { AI_SUGGESTIONS } from "@/lib/crm-data";
 import { currency } from "@/lib/mock-data";
 import { cn, timeAgo } from "@/lib/utils";
@@ -193,13 +194,7 @@ function LeadWorkspace() {
           </SectionCard>
 
           <SectionCard title="Tags">
-            <div className="flex flex-wrap gap-2">
-              {lead.tags.length ? (
-                lead.tags.map((t) => <Pill key={t}>{t}</Pill>)
-              ) : (
-                <p className="text-sm text-subtle">No tags yet.</p>
-              )}
-            </div>
+            <TagEditor leadId={lead.id} tags={lead.tags} />
           </SectionCard>
         </div>
 
