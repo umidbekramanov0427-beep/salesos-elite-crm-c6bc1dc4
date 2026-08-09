@@ -17,6 +17,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { I18nProvider } from "../lib/i18n";
 import { CurrencyProvider } from "../lib/currency";
+import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -182,10 +183,12 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <CurrencyProvider>
-          <AuthProvider>
-            <AuthGate />
-            <Toaster />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <AuthGate />
+              <Toaster />
+            </AuthProvider>
+          </ThemeProvider>
         </CurrencyProvider>
       </I18nProvider>
     </QueryClientProvider>

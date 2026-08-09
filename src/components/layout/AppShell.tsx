@@ -5,6 +5,7 @@ import { AppSidebar } from "./AppSidebar";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useI18n, LANGS, LANG_SHORT, LANG_LABELS } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
 import {
@@ -20,8 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [dark, setDark] = useState(false);
   const { t, lang, setLang } = useI18n();
+  const { dark, toggle: toggleDark } = useTheme();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -31,10 +32,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => setMobileOpen(false), [pathname]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -172,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <button
               aria-label={t("shell.theme")}
-              onClick={() => setDark((d) => !d)}
+              onClick={toggleDark}
               className="hidden rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:block"
             >
               {dark ? (

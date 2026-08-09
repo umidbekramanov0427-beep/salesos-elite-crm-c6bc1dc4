@@ -21,6 +21,7 @@ export type SessionUser = {
   role: Profile["role"];
   department: string;
   position: string;
+  phone: string | null;
   avatarUrl: string | null;
   dailyTarget: number;
   monthlyTarget: number;
@@ -59,6 +60,7 @@ function toSessionUser(profile: Profile): SessionUser {
     role: profile.role,
     department: profile.department,
     position: profile.position,
+    phone: profile.phone,
     avatarUrl: profile.avatar_url,
     dailyTarget: profile.daily_target,
     monthlyTarget: profile.monthly_target,
