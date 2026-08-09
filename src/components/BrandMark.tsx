@@ -2,13 +2,12 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 // Full splash lockup for decorative/marketing placements (the login
-// screen's dark branding panel). A circular data-flow ring in a
-// blue-to-teal gradient with three upward arrows orbiting it — reading as
-// data continuously flowing up and around, i.e. growth. Minimal and sleek
-// by design: no crowded detail, just the ring, the arrows and the
-// wordmark. The small in-app icon used everywhere else (sidebar, compact
-// headers) stays the simpler four-point mark in Logo.tsx — this version
-// is intentionally more detailed and only meant for a dark background.
+// screen's branding panel): a six-petal pinwheel mark in a green
+// gradient, plus the "SalesOS Elite CRM" wordmark on one line beneath
+// it. One petal + one accent dot are drawn once and rotated five times
+// (60° apart) to get the exact six-fold symmetry. The small in-app icon
+// used everywhere else (sidebar, compact headers) stays the simpler mark
+// in Logo.tsx — this version is only meant for a larger, decorative size.
 export function BrandMark({
   className,
   iconClassName,
@@ -16,68 +15,51 @@ export function BrandMark({
   className?: string;
   iconClassName?: string;
 }) {
-  const flowGrad = useId();
+  const petalGrad = useId();
+  const petalId = useId();
+  const dotId = useId();
+  const angles = [0, 60, 120, 180, 240, 300];
 
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
       <svg
-        viewBox="0 0 64 64"
+        viewBox="0 0 100 100"
         fill="none"
         className={cn("h-16 w-16", iconClassName)}
         aria-hidden="true"
       >
         <defs>
           <linearGradient
-            id={flowGrad}
-            x1="6"
-            y1="58"
-            x2="58"
-            y2="6"
+            id={petalGrad}
+            x1="50"
+            y1="50"
+            x2="50"
+            y2="12"
             gradientUnits="userSpaceOnUse"
           >
-            <stop offset="0" stopColor="#3B82F6" />
-            <stop offset="1" stopColor="#2DD4BF" />
+            <stop offset="0" stopColor="#14532D" />
+            <stop offset="0.55" stopColor="#16A34A" />
+            <stop offset="1" stopColor="#4ADE80" />
           </linearGradient>
+          <path
+            id={petalId}
+            d="M50 50 C45.5 39 43.5 25 50 12 C59 20 63 33 56.5 43.5 C54.5 46.5 52 48.5 50 50 Z"
+            fill={`url(#${petalGrad})`}
+          />
+          <circle id={dotId} cx="50" cy="6.5" r="3.2" fill="#22C55E" />
         </defs>
 
-        <circle cx="32" cy="32" r="21" stroke={`url(#${flowGrad})`} strokeWidth="2.5" />
-
-        <path
-          d="M25.5 21 L32 12.5 L38.5 21"
-          stroke={`url(#${flowGrad})`}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          transform="rotate(-20 32 32)"
-        />
-        <path
-          d="M25.5 21 L32 12.5 L38.5 21"
-          stroke={`url(#${flowGrad})`}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          transform="rotate(100 32 32)"
-        />
-        <path
-          d="M25.5 21 L32 12.5 L38.5 21"
-          stroke={`url(#${flowGrad})`}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          transform="rotate(220 32 32)"
-        />
-
-        <circle cx="32" cy="32" r="3.5" fill={`url(#${flowGrad})`} />
+        {angles.map((a) => (
+          <use key={`p-${a}`} href={`#${petalId}`} transform={`rotate(${a} 50 50)`} />
+        ))}
+        {angles.map((a) => (
+          <use key={`d-${a}`} href={`#${dotId}`} transform={`rotate(${a} 50 50)`} />
+        ))}
       </svg>
 
-      <div className="text-center leading-tight">
-        <p className="text-2xl font-bold tracking-tight text-white">
-          SALES<span className="text-teal-400">OS</span>
-        </p>
-        <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/60">
-          Elite CRM
-        </p>
-      </div>
+      <p className="whitespace-nowrap text-xl font-extrabold tracking-tight text-emerald-400">
+        SalesOS Elite CRM
+      </p>
     </div>
   );
 }
