@@ -1,37 +1,13 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import {
-  DEFAULT_BONUS_CONFIG,
-  buildInsights,
-  buildRows,
-  generateRoster,
-  type Filters,
-  type LeaderboardMetricKey,
-} from "@/lib/leaderboard-engine";
-
-const METRIC_KEYS = [
-  "overall",
-  "revenue",
-  "dealsClosed",
-  "calls",
-  "meetings",
-  "tasks",
-  "conversion",
-  "rating",
-  "responseTime",
-  "attendance",
-] as const;
 
 export default defineTool({
   name: "leaderboard_ranking",
   title: "Sales leaderboard",
   description:
-    "Get the current SalesOS Elite sales leaderboard ranking for a metric and period, with AI-style performance insights.",
+    "Get the current SalesOS Elite sales leaderboard ranking: revenue, conversion, KPI and target completion per manager, computed from real CRM leads.",
   inputSchema: {
-    metric: z.enum(METRIC_KEYS).optional().describe("Ranking metric (default overall)."),
-    period: z.enum(["Today", "Week", "Month", "Quarter", "Year"]).optional(),
-    department: z.string().optional().describe("Department filter, e.g. Enterprise, SMB."),
-    branch: z.string().optional().describe("Branch filter, e.g. Tashkent HQ, Almaty."),
+    search: z.string().optional().describe("Filter managers by name."),
     limit: z
       .number()
       .int()
@@ -41,42 +17,52 @@ export default defineTool({
       .describe("How many ranks to return (default 10)."),
   },
   annotations: { readOnlyHint: true, openWorldHint: false },
-  handler: ({ metric, period, department, branch, limit }) => {
-    const filters: Filters = {
-      period: (period ?? "Today") as Filters["period"],
-      metric: (metric ?? "overall") as LeaderboardMetricKey,
-      department: department ?? "All",
-      team: "All",
-      branch: branch ?? "All",
-      scope: "company",
-      scopeTeam: "Alpha",
-      search: "",
-    };
+  handler: async ({ search, limit }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const rows = buildRows(generateRoster(), filters, DEFAULT_BONUS_CONFIG);
-    const top = rows.slice(0, limit ?? 10).map((r) => ({
-      rank: r.rank,
-      name: r.employee.name,
-      department: r.employee.department,
-      team: r.employee.team,
-      branch: r.employee.branch,
-      metric: r.metricLabel,
-      revenue: Math.round(r.revenue),
-      targetCompletion: Number(r.targetCompletion.toFixed(1)),
-      bonus: Math.round(r.bonus),
-    }));
+    const [
+      { data: profiles, error: profilesError },
+      { data: leads, error: leadsError },
+      { data: stages, error: stagesError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email, role, monthly_target, kpi_percent"),
+      supabaseAdmin.from("leads").select("owner_id, stage_id, expected_revenue"),
+      supabaseAdmin.from("pipeline_stages").select("id, is_won, is_lost"),
+    ]);
+    if (profilesError) throw new Error(profilesError.message);
+    if (leadsError) throw new Error(leadsError.message);
+    if (stagesError) throw new Error(stagesError.message);
 
-    const payload = {
-      filters: {
-        metric: filters.metric,
-        period: filters.period,
-        department: filters.department,
-        branch: filters.branch,
-      },
-      totalEmployees: rows.length,
-      ranking: top,
-      insights: buildInsights(rows).map((i) => `${i.tone}: ${i.text}`),
-    };
+    const stagesById = new Map((stages ?? []).map((s) => [s.id, s]));
+    const q = search?.trim().toLowerCase();
+
+    const ranking = (profiles ?? [])
+      .filter((p) => p.role !== "super_admin")
+      .filter((p) => !q || (p.full_name || p.email).toLowerCase().includes(q))
+      .map((p) => {
+        const mine = (leads ?? []).filter((l) => l.owner_id === p.id);
+        const won = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_won : false));
+        const lost = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_lost : false));
+        const revenue = won.reduce((s, l) => s + l.expected_revenue, 0);
+        const conversion = mine.length ? (won.length / mine.length) * 100 : 0;
+        const targetCompletion = p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
+        return {
+          name: p.full_name || p.email,
+          totalLeads: mine.length,
+          wonLeads: won.length,
+          lostLeads: lost.length,
+          revenue: Math.round(revenue),
+          conversion: Number(conversion.toFixed(1)),
+          kpiPercent: p.kpi_percent,
+          targetCompletion: Number(targetCompletion.toFixed(1)),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit ?? 10);
+
+    const payload = { totalManagers: (profiles ?? []).length, ranking };
 
     return {
       content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],

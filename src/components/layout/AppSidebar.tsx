@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
+  Bell,
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
@@ -17,7 +18,12 @@ import { Logo } from "@/components/Logo";
 import { LANGS, LANG_FLAGS, LANG_SHORT, useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
-import { useFunnelNames, useIntegrationSetting } from "@/hooks/use-crm-data";
+import {
+  useFunnelNames,
+  useIntegrationSetting,
+  useMarkNotificationRead,
+  useNotificationsView,
+} from "@/hooks/use-crm-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -35,45 +41,119 @@ function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
   const anyConnected = items.some((i) => i.connected);
 
   const trigger = collapsed ? (
-    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-mint">
+    <button
+      type="button"
+      className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-mint transition-colors hover:bg-mint-border"
+    >
       <Plug className={cn("h-4 w-4", anyConnected ? "text-success" : "text-mint-foreground")} />
-    </div>
+    </button>
   ) : (
-    <div className="mx-3 mb-2 flex cursor-default items-center gap-2 rounded-xl border border-mint-border bg-mint px-3 py-2 text-xs">
+    <button
+      type="button"
+      className="mx-3 mb-2 flex w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl border border-mint-border bg-mint px-3 py-2.5 text-left transition-colors hover:bg-mint-border"
+    >
       <Plug
-        className={cn(
-          "h-3.5 w-3.5 shrink-0",
-          anyConnected ? "text-success" : "text-mint-foreground",
-        )}
+        className={cn("h-4 w-4 shrink-0", anyConnected ? "text-success" : "text-mint-foreground")}
       />
-      <span className="truncate font-medium text-mint-foreground">
+      <span className="truncate text-sm font-bold text-mint-foreground">
         {t("nav.integrations")}
-        {anyConnected
-          ? `: ${items
-              .filter((i) => i.connected)
-              .map((i) => i.name)
-              .join(", ")}`
-          : ""}
       </span>
-    </div>
+    </button>
   );
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-        <TooltipContent side="right" className="max-w-[220px]">
-          <p className="font-semibold">{t("nav.integrations")}</p>
-          <ul className="mt-1 space-y-0.5">
-            {items.map((i) => (
-              <li key={i.name}>
-                {i.name}: {i.connected ? t("common.connected") : t("common.notConnected")}
-              </li>
+    <Popover>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent side="right" align="start" sideOffset={8} className="w-72 space-y-2 p-3">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-subtle">
+          {t("nav.integrations")}
+        </p>
+        <div className="space-y-1.5">
+          {items.map((i) => (
+            <div
+              key={i.name}
+              className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5"
+            >
+              <span className="text-sm font-semibold text-foreground">{i.name}</span>
+              <span
+                className={cn(
+                  "text-[11px] font-bold uppercase tracking-wide",
+                  i.connected ? "text-success" : "text-subtle",
+                )}
+              >
+                {i.connected ? t("common.connected") : t("common.notConnected")}
+              </span>
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function NotificationBell() {
+  const { t } = useI18n();
+  const { rows: notifications } = useNotificationsView();
+  const markRead = useMarkNotificationRead();
+  const unreadCount = notifications.filter((n) => n.unread).length;
+  const recent = notifications.slice(0, 6);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={t("shell.notifications")}
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-destructive/20 bg-destructive/10 text-destructive shadow-soft transition-colors hover:bg-destructive/15"
+        >
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" sideOffset={8} className="w-80 space-y-1 p-2">
+        <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-subtle">
+          {t("shell.notifications")}
+        </p>
+        {recent.length === 0 ? (
+          <p className="px-2 py-6 text-center text-sm text-subtle">{t("inbox.empty")}</p>
+        ) : (
+          <div className="max-h-80 space-y-1 overflow-y-auto">
+            {recent.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => n.unread && markRead.mutate(n.id)}
+                className={cn(
+                  "block w-full rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-accent",
+                  n.unread && "bg-destructive/5",
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  {n.unread && (
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
+                  )}
+                  <span className="truncate text-sm font-semibold text-foreground">{n.title}</span>
+                </span>
+                {n.body && (
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {n.body}
+                  </span>
+                )}
+                <span className="mt-0.5 block text-[11px] text-subtle">{n.meta}</span>
+              </button>
             ))}
-          </ul>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+          </div>
+        )}
+        <Link
+          to="/inbox"
+          className="mt-1 block rounded-xl px-3 py-2 text-center text-xs font-semibold text-primary hover:bg-accent"
+        >
+          {t("inbox.viewAll")}
+        </Link>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -223,9 +303,7 @@ function FunnelsNavGroup({
         <item.icon
           className={cn(
             "h-[18px] w-[18px] shrink-0",
-            active
-              ? "text-sidebar-active-foreground"
-              : "text-sidebar-muted group-hover:text-current",
+            active ? "text-sidebar-active-foreground" : (item.iconColor ?? "text-sidebar-muted"),
           )}
         />
       </Link>
@@ -252,9 +330,7 @@ function FunnelsNavGroup({
           <item.icon
             className={cn(
               "h-[18px] w-[18px] shrink-0",
-              active
-                ? "text-sidebar-active-foreground"
-                : "text-sidebar-muted group-hover:text-current",
+              active ? "text-sidebar-active-foreground" : (item.iconColor ?? "text-sidebar-muted"),
             )}
           />
           <span className="truncate">{t(`nav.${item.to}`)}</span>
@@ -329,7 +405,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
             "h-[18px] w-[18px] shrink-0 transition-colors",
             active
               ? "text-sidebar-active-foreground"
-              : "text-sidebar-muted group-hover:text-current",
+              : (item.iconColor ?? "text-sidebar-muted group-hover:text-current"),
           )}
         />
         {!collapsed && (
@@ -353,14 +429,17 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
         collapsed ? "w-[76px]" : "w-[264px]",
       )}
     >
-      <div className="flex h-16 items-center gap-3 px-4">
+      <div className="flex h-16 items-center gap-2.5 px-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
           <Logo className="h-6 w-6" />
         </div>
         {!collapsed && (
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-foreground">{t("app.name")}</p>
-          </div>
+          <>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold text-foreground">{t("app.name")}</p>
+            </div>
+            <NotificationBell />
+          </>
         )}
       </div>
 

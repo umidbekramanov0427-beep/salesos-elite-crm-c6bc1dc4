@@ -1,23 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { GripVertical, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, GripVertical, Loader2 } from "lucide-react";
 import { PageHeader, Pill } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
+import {
+  LeadFilterBar,
+  filterLeads,
+  EMPTY_LEAD_FILTERS,
+  type LeadFilterState,
+} from "@/components/crm/LeadFilterBar";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { useCrmLeads, useUpdateLead } from "@/hooks/use-crm-data";
+import {
+  useAmoCrmLink,
+  useCrmLeads,
+  useProfilesRaw,
+  useTagsSummary,
+  useUpdateLead,
+} from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/crm/pipeline")({
   head: () => ({
     meta: [
-      { title: "Pipeline — SalesOS Elite CRM" },
+      { title: "AmoCRM — SalesOS Elite CRM" },
       {
         name: "description",
         content:
           "Kanban pipeline with drag & drop stage movement, stage limits, colors, won, lost and archived deals.",
       },
-      { property: "og:title", content: "Pipeline — SalesOS Elite CRM" },
+      { property: "og:title", content: "AmoCRM — SalesOS Elite CRM" },
       {
         property: "og:description",
         content: "Drag & drop Kanban board for the whole revenue pipeline.",
@@ -29,11 +41,28 @@ export const Route = createFileRoute("/crm/pipeline")({
   component: PipelinePage,
 });
 
+function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): string {
+  if (s.is_won) return "bg-success/10 border-success/30";
+  if (s.is_lost) return "bg-destructive/10 border-destructive/30";
+  return `${s.color}/5 border-border`;
+}
+
 function PipelinePage() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const { rows: leads, stages, isLoading } = useCrmLeads();
   const updateLead = useUpdateLead();
+  const { data: profiles } = useProfilesRaw();
+  const { tags: tagSummary } = useTagsSummary();
+  const getAmoLink = useAmoCrmLink();
+
+  const [filters, setFilters] = useState<LeadFilterState>(EMPTY_LEAD_FILTERS);
+  const funnelNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of leads) set.add(l.funnel || "Direct Sales");
+    return Array.from(set).sort();
+  }, [leads]);
+  const filteredLeads = useMemo(() => filterLeads(leads, filters), [leads, filters]);
 
   const [board, setBoard] = useState<Record<string, string[]>>({});
   const [dragged, setDragged] = useState<string | null>(null);
@@ -41,9 +70,10 @@ function PipelinePage() {
 
   useEffect(() => {
     const next: Record<string, string[]> = {};
-    for (const s of stages) next[s.id] = leads.filter((l) => l.stageId === s.id).map((l) => l.id);
+    for (const s of stages)
+      next[s.id] = filteredLeads.filter((l) => l.stageId === s.id).map((l) => l.id);
     setBoard(next);
-  }, [stages, leads]);
+  }, [stages, filteredLeads]);
 
   const move = (stageId: string) => {
     if (!dragged) return;
@@ -62,6 +92,17 @@ function PipelinePage() {
     <>
       <PageHeader title={t("pipeline.title")} description={t("pipeline.desc")} />
 
+      <div className="mb-6">
+        <LeadFilterBar
+          value={filters}
+          onChange={setFilters}
+          funnels={funnelNames}
+          owners={profiles ?? []}
+          tags={tagSummary.map((tg) => tg.name)}
+          stages={stages}
+        />
+      </div>
+
       {isLoading && (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("pipeline.loading")}
@@ -72,7 +113,7 @@ function PipelinePage() {
         <div className="flex min-w-max gap-5">
           {stages.map((s) => {
             const ids = board[s.id] ?? [];
-            const items = ids.map((id) => leads.find((l) => l.id === id)!).filter(Boolean);
+            const items = ids.map((id) => filteredLeads.find((l) => l.id === id)!).filter(Boolean);
             const value = items.reduce((sum, l) => sum + l.expectedRevenue, 0);
             return (
               <section
@@ -84,10 +125,8 @@ function PipelinePage() {
                 onDragLeave={() => setOver((o) => (o === s.id ? null : o))}
                 onDrop={() => move(s.id)}
                 className={cn(
-                  "flex w-[300px] shrink-0 flex-col rounded-2xl border bg-surface/60 p-3 shadow-soft transition-colors",
-                  over === s.id
-                    ? "border-primary/50 bg-mint ring-2 ring-primary/20"
-                    : "border-border",
+                  "flex w-[300px] shrink-0 flex-col rounded-2xl border p-3 shadow-soft transition-colors",
+                  over === s.id ? "border-primary/50 bg-mint ring-2 ring-primary/20" : stageTint(s),
                 )}
               >
                 <header className="flex items-center justify-between rounded-xl bg-background px-3 py-2.5">
@@ -107,59 +146,73 @@ function PipelinePage() {
                 </p>
 
                 <div className="space-y-2.5">
-                  {items.map((l) => (
-                    <article
-                      key={l.id}
-                      draggable
-                      onDragStart={() => setDragged(l.id)}
-                      className={cn(
-                        "group cursor-grab rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:cursor-grabbing",
-                        dragged === l.id && "opacity-50",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <Link
-                          to="/crm/leads/$leadId"
-                          params={{ leadId: l.id }}
-                          className="flex min-w-0 items-center gap-2"
-                        >
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-semibold text-mint-foreground">
-                            {l.initials}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-foreground hover:text-primary">
-                              {l.company || l.name}
+                  {items.map((l) => {
+                    const amoLink = getAmoLink(l.amocrmId);
+                    return (
+                      <article
+                        key={l.id}
+                        draggable
+                        onDragStart={() => setDragged(l.id)}
+                        className={cn(
+                          "group relative cursor-grab rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:cursor-grabbing",
+                          dragged === l.id && "opacity-50",
+                        )}
+                      >
+                        {amoLink && (
+                          <a
+                            href={amoLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-foreground/90 px-1.5 py-0.5 text-[10px] font-bold text-background hover:opacity-80"
+                          >
+                            {t("leadFilter.openInAmoCrm")} <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            to="/crm/leads/$leadId"
+                            params={{ leadId: l.id }}
+                            className="flex min-w-0 items-center gap-2"
+                          >
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-semibold text-mint-foreground">
+                              {l.initials}
                             </span>
-                            <span className="block truncate text-xs text-subtle">
-                              {l.name} · {l.owner}
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium text-foreground hover:text-primary">
+                                {l.company || l.name}
+                              </span>
+                              <span className="block truncate text-xs text-subtle">
+                                {l.name} · {l.owner}
+                              </span>
                             </span>
+                          </Link>
+                          <GripVertical className="h-4 w-4 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+                        </div>
+
+                        <div className="mt-2.5">
+                          <TagEditor leadId={l.id} tags={l.tags} />
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+                          <span className="text-sm font-semibold text-foreground">
+                            {format(l.expectedRevenue)}
                           </span>
-                        </Link>
-                        <GripVertical className="h-4 w-4 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
-                      </div>
-
-                      <div className="mt-2.5">
-                        <TagEditor leadId={l.id} tags={l.tags} />
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
-                        <span className="text-sm font-semibold text-foreground">
-                          {format(l.expectedRevenue)}
-                        </span>
-                        <Pill
-                          tone={
-                            l.temperature === "Hot"
-                              ? "danger"
-                              : l.temperature === "Warm"
-                                ? "warning"
-                                : "info"
-                          }
-                        >
-                          {l.temperature}
-                        </Pill>
-                      </div>
-                    </article>
-                  ))}
+                          <Pill
+                            tone={
+                              l.temperature === "Hot"
+                                ? "danger"
+                                : l.temperature === "Warm"
+                                  ? "warning"
+                                  : "info"
+                            }
+                          >
+                            {l.temperature}
+                          </Pill>
+                        </div>
+                      </article>
+                    );
+                  })}
                   {items.length === 0 && (
                     <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-subtle">
                       {t("pipeline.dropHint")}

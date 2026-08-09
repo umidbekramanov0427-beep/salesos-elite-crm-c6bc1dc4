@@ -5,6 +5,7 @@ import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Pri
 import { currency } from "@/lib/mock-data";
 import { LEAD_PERMISSIONS } from "@/lib/crm-data";
 import { useCrmLeads } from "@/hooks/use-crm-data";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/crm-stages")({
   head: () => ({
@@ -25,7 +26,18 @@ export const Route = createFileRoute("/crm-stages")({
   component: CrmStages,
 });
 
+const PERMISSION_KEY: Record<string, string> = {
+  "View leads": "stages.permission.viewLeads",
+  "Edit leads": "stages.permission.editLeads",
+  "Delete leads": "stages.permission.deleteLeads",
+  "Export leads": "stages.permission.exportLeads",
+  "Assign leads": "stages.permission.assignLeads",
+  "Merge leads": "stages.permission.mergeLeads",
+  "Restore leads": "stages.permission.restoreLeads",
+};
+
 function CrmStages() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const { rows: leads, leads: rawLeads, stages, isLoading } = useCrmLeads();
 
@@ -47,21 +59,31 @@ function CrmStages() {
 
   return (
     <>
-      <PageHeader
-        title="CRM Stages"
-        description="The full lead register with stage movement and history."
-      />
+      <PageHeader title={t("stages.title")} description={t("stages.desc")} />
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total leads" value={String(leads.length)} hint="all stages" tone="mint" />
-        <StatCard label="Recently updated" value={String(movedThisWeek)} hint="last 7 days" />
-        <StatCard label="Stalled 7+ days" value={String(stalled)} hint="needs attention" />
-        <StatCard label="Open value" value={currency(openValue)} />
+        <StatCard
+          label={t("stages.totalLeads")}
+          value={String(leads.length)}
+          hint={t("stages.allStages")}
+          tone="mint"
+        />
+        <StatCard
+          label={t("stages.recentlyUpdated")}
+          value={String(movedThisWeek)}
+          hint={t("stages.last7Days")}
+        />
+        <StatCard
+          label={t("stages.stalled")}
+          value={String(stalled)}
+          hint={t("stages.needsAttention")}
+        />
+        <StatCard label={t("stages.openValue")} value={currency(openValue)} />
       </div>
 
       <div className="mt-8">
         <SectionCard
-          title="All leads"
+          title={t("stages.allLeads")}
           actions={
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -69,37 +91,35 @@ function CrmStages() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search leads"
+                  placeholder={t("stages.searchPlaceholder")}
                   className="h-10 w-52 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
                 />
               </div>
               <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
-                <Filter className="h-4 w-4" /> Filters
+                <Filter className="h-4 w-4" /> {t("stages.filters")}
               </button>
             </div>
           }
         >
           {isLoading && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading leads…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("stages.loading")}
             </div>
           )}
           {!isLoading && rows.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No leads match this search.
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("stages.empty")}</p>
           )}
           {rows.length > 0 && (
             <div className="-m-6 overflow-x-auto">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
-                    <th className="px-6 py-3 font-medium">Lead</th>
-                    <th className="px-6 py-3 font-medium">Contact</th>
-                    <th className="px-6 py-3 font-medium">Current stage</th>
-                    <th className="px-6 py-3 font-medium">Owner</th>
-                    <th className="px-6 py-3 font-medium">Value</th>
-                    <th className="px-6 py-3 font-medium">Updated</th>
+                    <th className="px-6 py-3 font-medium">{t("stages.colLead")}</th>
+                    <th className="px-6 py-3 font-medium">{t("stages.colContact")}</th>
+                    <th className="px-6 py-3 font-medium">{t("stages.colCurrentStage")}</th>
+                    <th className="px-6 py-3 font-medium">{t("stages.colOwner")}</th>
+                    <th className="px-6 py-3 font-medium">{t("stages.colValue")}</th>
+                    <th className="px-6 py-3 font-medium">{t("stages.colUpdated")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,10 +154,7 @@ function CrmStages() {
       </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-2">
-        <SectionCard
-          title="Stage configuration"
-          description="Order, color and probability of every pipeline stage"
-        >
+        <SectionCard title={t("stages.config")} description={t("stages.configDesc")}>
           <ul className="space-y-2">
             {stages.map((s, i) => {
               const count = leads.filter((l) => l.stageId === s.id).length;
@@ -152,8 +169,11 @@ function CrmStages() {
                     <div>
                       <p className="text-sm font-medium text-foreground">{s.name}</p>
                       <p className="text-xs text-subtle">
-                        Position {i + 1} · probability {s.probability}% · {count} lead
-                        {count === 1 ? "" : "s"}
+                        {t("stages.positionInfo", {
+                          pos: i + 1,
+                          prob: s.probability,
+                          count,
+                        })}
                       </p>
                     </div>
                   </div>
@@ -163,24 +183,28 @@ function CrmStages() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="Lead permissions" description="Every action respects role permissions">
+        <SectionCard title={t("stages.permissions")} description={t("stages.permissionsDesc")}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
-                  <th className="py-3 font-medium">Action</th>
-                  <th className="py-3 font-medium">Admin</th>
-                  <th className="py-3 font-medium">Manager</th>
-                  <th className="py-3 font-medium">Sales rep</th>
+                  <th className="py-3 font-medium">{t("stages.colAction")}</th>
+                  <th className="py-3 font-medium">{t("stages.colAdmin")}</th>
+                  <th className="py-3 font-medium">{t("stages.colManager")}</th>
+                  <th className="py-3 font-medium">{t("stages.colRep")}</th>
                 </tr>
               </thead>
               <tbody>
                 {LEAD_PERMISSIONS.map((p) => (
                   <tr key={p.action} className="border-b border-border last:border-0">
-                    <td className="py-3 font-medium text-foreground">{p.action}</td>
+                    <td className="py-3 font-medium text-foreground">
+                      {t(PERMISSION_KEY[p.action] ?? p.action)}
+                    </td>
                     {[p.admin, p.manager, p.rep].map((v, i) => (
                       <td key={i} className="py-3">
-                        <Pill tone={v ? "success" : "neutral"}>{v ? "Allowed" : "Denied"}</Pill>
+                        <Pill tone={v ? "success" : "neutral"}>
+                          {v ? t("stages.allowed") : t("stages.denied")}
+                        </Pill>
                       </td>
                     ))}
                   </tr>

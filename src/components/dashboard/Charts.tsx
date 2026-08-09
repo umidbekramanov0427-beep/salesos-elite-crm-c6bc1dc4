@@ -16,6 +16,7 @@ import { SectionCard } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useFunnelFlow, usePipelineStageStats, useRevenueSeries } from "@/hooks/use-crm-data";
+import { useI18n } from "@/lib/i18n";
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -26,26 +27,27 @@ const tooltipStyle = {
 };
 
 export function RevenueChart() {
+  const { t } = useI18n();
   const data = useRevenueSeries();
 
   return (
     <SectionCard
-      title="Revenue"
-      description="Monthly won revenue against open pipeline"
+      title={t("charts.revenue.title")}
+      description={t("charts.revenue.desc")}
       className="xl:col-span-2"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => toast.success("Revenue report queued as PDF")}
+            onClick={() => toast.success(t("charts.revenue.pdfQueued"))}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <Download className="h-3.5 w-3.5" /> PDF
+            <Download className="h-3.5 w-3.5" /> {t("charts.pdf")}
           </button>
           <button
-            onClick={() => toast.success("Revenue report queued as Excel")}
+            onClick={() => toast.success(t("charts.revenue.excelQueued"))}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+            <FileSpreadsheet className="h-3.5 w-3.5" /> {t("charts.excel")}
           </button>
         </div>
       }
@@ -103,9 +105,10 @@ export function RevenueChart() {
 }
 
 export function PipelineChart() {
+  const { t } = useI18n();
   const stats = usePipelineStageStats();
   return (
-    <SectionCard title="Pipeline" description="Deal value per stage">
+    <SectionCard title={t("charts.pipeline.title")} description={t("charts.pipeline.desc")}>
       <div className="h-[180px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={stats} margin={{ left: -18, right: 8, top: 4 }}>
@@ -153,7 +156,9 @@ export function PipelineChart() {
         {stats.slice(0, 3).map((s) => (
           <div key={s.stage}>
             <dt className="text-[11px] text-subtle">{s.stage}</dt>
-            <dd className="mt-1 text-sm font-semibold text-foreground">{s.deals} deals</dd>
+            <dd className="mt-1 text-sm font-semibold text-foreground">
+              {t("charts.pipeline.deals", { count: s.deals })}
+            </dd>
           </div>
         ))}
       </dl>
@@ -162,10 +167,11 @@ export function PipelineChart() {
 }
 
 export function SalesFunnel() {
+  const { t } = useI18n();
   const flow = useFunnelFlow();
   const max = flow[0]?.count ?? 1;
   return (
-    <SectionCard title="Sales funnel" description="Lead to won conversion">
+    <SectionCard title={t("charts.funnel.title")} description={t("charts.funnel.desc")}>
       <ol className="space-y-3">
         {flow.map((s) => (
           <li key={s.stage}>

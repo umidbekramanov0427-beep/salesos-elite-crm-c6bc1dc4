@@ -58,6 +58,53 @@ export type Database = {
           },
         ]
       }
+      amocrm_calls: {
+        Row: {
+          amocrm_note_id: number
+          connected: boolean
+          direction: string
+          duration_seconds: number
+          id: string
+          lead_id: string | null
+          occurred_at: string
+          phone: string | null
+          recording_url: string | null
+          synced_at: string
+        }
+        Insert: {
+          amocrm_note_id: number
+          connected?: boolean
+          direction: string
+          duration_seconds?: number
+          id?: string
+          lead_id?: string | null
+          occurred_at: string
+          phone?: string | null
+          recording_url?: string | null
+          synced_at?: string
+        }
+        Update: {
+          amocrm_note_id?: number
+          connected?: boolean
+          direction?: string
+          duration_seconds?: number
+          id?: string
+          lead_id?: string | null
+          occurred_at?: string
+          phone?: string | null
+          recording_url?: string | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amocrm_calls_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -773,6 +820,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          kpi_percent: number
           manager_id: string | null
           monthly_target: number
           phone: string | null
@@ -792,6 +840,7 @@ export type Database = {
           email: string
           full_name?: string
           id: string
+          kpi_percent?: number
           manager_id?: string | null
           monthly_target?: number
           phone?: string | null
@@ -811,6 +860,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          kpi_percent?: number
           manager_id?: string | null
           monthly_target?: number
           phone?: string | null

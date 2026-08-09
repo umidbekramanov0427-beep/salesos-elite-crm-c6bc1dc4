@@ -4,6 +4,7 @@ import { CalendarClock, Loader2 } from "lucide-react";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { useCrmLeads, useTasksView } from "@/hooks/use-crm-data";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/lead-tasks")({
   head: () => ({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/lead-tasks")({
 });
 
 function LeadTasks() {
+  const { t } = useI18n();
   const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
   const { rows: tasks, isLoading: tasksLoading } = useTasksView();
 
@@ -42,14 +44,11 @@ function LeadTasks() {
 
   return (
     <>
-      <PageHeader
-        title="Lead Tasks"
-        description="Every open action item, anchored to the lead it belongs to."
-      />
+      <PageHeader title={t("leadTasks.title")} description={t("leadTasks.desc")} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
         </div>
       )}
 
@@ -57,9 +56,7 @@ function LeadTasks() {
         <div className="space-y-6 xl:col-span-2">
           {!isLoading && leadsWithTasks.length === 0 && (
             <SectionCard>
-              <p className="text-sm text-subtle">
-                No lead has tasks yet. Open a lead and add one from its Tasks tab.
-              </p>
+              <p className="text-sm text-subtle">{t("leadTasks.empty")}</p>
             </SectionCard>
           )}
           {leadsWithTasks.map((l) => {
@@ -96,8 +93,10 @@ function LeadTasks() {
           })}
         </div>
 
-        <SectionCard title="Upcoming across leads" description="Soonest due first">
-          {upcoming.length === 0 && <p className="text-sm text-subtle">Nothing scheduled yet.</p>}
+        <SectionCard title={t("leadTasks.upcoming")} description={t("leadTasks.upcomingDesc")}>
+          {upcoming.length === 0 && (
+            <p className="text-sm text-subtle">{t("leadTasks.upcomingEmpty")}</p>
+          )}
           <ol className="relative space-y-6 border-l border-border pl-5">
             {upcoming.map((t) => (
               <li key={t.id} className="relative">

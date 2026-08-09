@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { cn } from "@/lib/utils";
 import { useMarkNotificationRead, useNotificationsView } from "@/hooks/use-crm-data";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/inbox")({
   head: () => ({
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/inbox")({
 const FILTERS = ["All", "Unread"] as const;
 
 function InboxPage() {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const { rows: notifications, isLoading } = useNotificationsView();
   const markRead = useMarkNotificationRead();
@@ -32,12 +34,14 @@ function InboxPage() {
     [notifications, filter],
   );
 
+  const filterLabel: Record<(typeof FILTERS)[number], string> = {
+    All: t("inbox.filterAll"),
+    Unread: t("inbox.filterUnread"),
+  };
+
   return (
     <>
-      <PageHeader
-        title="Inbox"
-        description="Everything that needs your attention, ranked by recency."
-      />
+      <PageHeader title={t("inbox.title")} description={t("inbox.desc")} />
 
       <div className="mb-6 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
@@ -51,20 +55,20 @@ function InboxPage() {
                 : "border border-border bg-background text-muted-foreground hover:bg-accent",
             )}
           >
-            {f}
+            {filterLabel[f]}
           </button>
         ))}
       </div>
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
         </div>
       )}
 
       <SectionCard>
         {rows.length === 0 && !isLoading && (
-          <p className="py-10 text-center text-sm text-muted-foreground">You're all caught up.</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("inbox.empty")}</p>
         )}
         <ul className="-m-6 divide-y divide-border">
           {rows.map((n) => (

@@ -13,8 +13,10 @@ export type ContactRow = Tables["contacts"]["Row"];
 export type LeadRow = Tables["leads"]["Row"];
 export type DealRow = Tables["deals"]["Row"];
 export type TaskRow = Tables["tasks"]["Row"];
+export type TaskCommentRow = Tables["task_comments"]["Row"];
 export type NotificationRow = Tables["notifications"]["Row"];
 export type LeadActivityRow = Tables["lead_activities"]["Row"];
+export type AmoCrmCallRow = Tables["amocrm_calls"]["Row"];
 
 /* ------------------------------------------------------------------ */
 /* Generic CRUD resource factory — one query key per table, list reads */
@@ -103,6 +105,7 @@ const notificationsResource = makeResource("notifications", ["notifications"]);
 const leadActivitiesResource = makeResource("lead_activities", ["lead_activities"]);
 const workSessionsResource = makeResource("work_sessions", ["work_sessions"]);
 const callLogsResource = makeResource("call_logs", ["call_logs"]);
+const amocrmCallsResource = makeResource("amocrm_calls", ["amocrm_calls"]);
 
 export const useCompaniesRaw = (opts?: Parameters<typeof companiesResource.useList>[0]) =>
   companiesResource.useList({ orderBy: "created_at", ascending: false, ...opts });
@@ -134,6 +137,43 @@ export const useCreateTask = tasksResource.useCreate;
 export const useUpdateTask = tasksResource.useUpdate;
 export const useDeleteTask = tasksResource.useRemove;
 
+export function useTaskComments(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ["task_comments", taskId],
+    enabled: !!taskId,
+    queryFn: async (): Promise<TaskCommentRow[]> => {
+      const { data, error } = await supabase
+        .from("task_comments")
+        .select("*")
+        .eq("task_id", taskId!)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateTaskComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      taskId: string;
+      content: string;
+      authorId: string | null;
+    }): Promise<TaskCommentRow> => {
+      const { data, error } = await supabase
+        .from("task_comments")
+        .insert({ task_id: input.taskId, content: input.content, author_id: input.authorId })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["task_comments", vars.taskId] }),
+  });
+}
+
 export const useProfilesRaw = (opts?: Parameters<typeof profilesResource.useList>[0]) =>
   profilesResource.useList({ orderBy: "full_name", ...opts });
 export const useUpdateProfile = profilesResource.useUpdate;
@@ -153,6 +193,9 @@ export const useUpdateWorkSession = workSessionsResource.useUpdate;
 export const useCallLogsRaw = (opts?: Parameters<typeof callLogsResource.useList>[0]) =>
   callLogsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
 export const useCreateCallLog = callLogsResource.useCreate;
+
+export const useAmoCrmCallsRaw = (opts?: Parameters<typeof amocrmCallsResource.useList>[0]) =>
+  amocrmCallsResource.useList({ orderBy: "occurred_at", ascending: false, ...opts });
 
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
@@ -284,6 +327,7 @@ export type CrmLeadView = {
   created: string;
   updated: string;
   tags: string[];
+  amocrmId: number | null;
 };
 
 export function useCrmLeads() {
@@ -334,11 +378,222 @@ export function useCrmLeads() {
         created: formatDate(l.created_at),
         updated: timeAgo(l.updated_at),
         tags: l.tags ?? [],
+        amocrmId: l.amocrm_id,
       };
     });
   }, [base.leads, base.contacts, base.profiles, base.stages]);
 
   return { rows, ...base };
+}
+
+/* ------------------------------------------------------------------ */
+/* View: Leaderboard (real per-manager performance, not simulated)     */
+/* ------------------------------------------------------------------ */
+
+export type LeaderboardFilters = {
+  from: string | null;
+  to: string | null;
+  search: string;
+  stageId: string | null;
+  tags: string[];
+};
+
+export type LeaderboardManagerRow = {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl: string | null;
+  totalLeads: number;
+  wonLeads: number;
+  lostLeads: number;
+  revenue: number;
+  conversion: number;
+  kpiPercent: number;
+  monthlyTarget: number;
+  targetCompletion: number;
+};
+
+export function useLeaderboardView(filters: LeaderboardFilters) {
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+  const isLoading = leadsLoading || profilesLoading || stagesLoading;
+
+  const stagesById = useMemo(() => byId(stages), [stages]);
+
+  const filteredLeads = useMemo(
+    () =>
+      (leads ?? []).filter((l) => {
+        if (filters.from && l.created_at < filters.from) return false;
+        if (filters.to && l.created_at > filters.to) return false;
+        if (filters.stageId && l.stage_id !== filters.stageId) return false;
+        if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
+          return false;
+        return true;
+      }),
+    [leads, filters.from, filters.to, filters.stageId, filters.tags],
+  );
+
+  const rows = useMemo<LeaderboardManagerRow[]>(() => {
+    const q = filters.search.trim().toLowerCase();
+    const eligible = (profiles ?? []).filter(
+      (p) => p.role !== "super_admin" && (!q || profileName(p).toLowerCase().includes(q)),
+    );
+    return eligible
+      .map((p): LeaderboardManagerRow => {
+        const mine = filteredLeads.filter((l) => l.owner_id === p.id);
+        const won = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_won : false));
+        const lost = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_lost : false));
+        const revenue = won.reduce((s, l) => s + l.expected_revenue, 0);
+        const conversion = mine.length ? (won.length / mine.length) * 100 : 0;
+        const targetCompletion = p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
+        return {
+          id: p.id,
+          name: profileName(p),
+          initials: initialsOf(profileName(p)),
+          avatarUrl: p.avatar_url,
+          totalLeads: mine.length,
+          wonLeads: won.length,
+          lostLeads: lost.length,
+          revenue,
+          conversion,
+          kpiPercent: p.kpi_percent,
+          monthlyTarget: p.monthly_target,
+          targetCompletion,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [profiles, filteredLeads, stagesById, filters.search]);
+
+  return { rows, filteredLeads, stages: stages ?? [], isLoading };
+}
+
+/* ------------------------------------------------------------------ */
+/* View: Audio Analytics (real AmoCRM call activity — no transcription /  */
+/* sentiment yet, that needs a speech-to-text provider not connected      */
+/* to this workspace).                                                    */
+/* ------------------------------------------------------------------ */
+
+export type AudioCallView = {
+  id: string;
+  leadId: string | null;
+  leadName: string;
+  company: string;
+  owner: string;
+  phone: string;
+  direction: "in" | "out";
+  connected: boolean;
+  durationSeconds: number;
+  recordingUrl: string | null;
+  occurredAt: string;
+};
+
+export type RecoverableLeadView = {
+  id: string;
+  name: string;
+  company: string;
+  owner: string;
+  tags: string[];
+  lastCallAt: string;
+  connectedCalls: number;
+  amocrmId: number | null;
+};
+
+export function useAudioAnalyticsView() {
+  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+  const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
+  const isLoading = callsLoading || leadsLoading;
+
+  const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
+
+  const recent = useMemo<AudioCallView[]>(
+    () =>
+      (calls ?? []).map((c) => {
+        const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+        return {
+          id: c.id,
+          leadId: c.lead_id,
+          leadName: lead?.name ?? "",
+          company: lead?.company ?? "",
+          owner: lead?.owner ?? "",
+          phone: c.phone ?? lead?.phone ?? "",
+          direction: c.direction === "in" ? "in" : "out",
+          connected: c.connected,
+          durationSeconds: c.duration_seconds,
+          recordingUrl: c.recording_url,
+          occurredAt: timeAgo(c.occurred_at),
+        };
+      }),
+    [calls, leadsById],
+  );
+
+  const totals = useMemo(() => {
+    const total = calls?.length ?? 0;
+    const connected = (calls ?? []).filter((c) => c.connected).length;
+    const totalDuration = (calls ?? []).reduce((s, c) => s + c.duration_seconds, 0);
+    const avgDuration = total ? Math.round(totalDuration / total) : 0;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const callsToday = (calls ?? []).filter((c) => new Date(c.occurred_at) >= startOfToday).length;
+    return {
+      total,
+      connected,
+      connectionRate: total ? Math.round((connected / total) * 1000) / 10 : 0,
+      avgDuration,
+      callsToday,
+    };
+  }, [calls]);
+
+  const perRep = useMemo(() => {
+    const map = new Map<
+      string,
+      { name: string; calls: number; connected: number; duration: number }
+    >();
+    for (const c of calls ?? []) {
+      const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+      const key = lead?.ownerId || "unknown";
+      const name = lead?.owner || "—";
+      if (!map.has(key)) map.set(key, { name, calls: 0, connected: 0, duration: 0 });
+      const row = map.get(key)!;
+      row.calls += 1;
+      if (c.connected) row.connected += 1;
+      row.duration += c.duration_seconds;
+    }
+    return Array.from(map.values()).sort((a, b) => b.calls - a.calls);
+  }, [calls, leadsById]);
+
+  const recoverable = useMemo<RecoverableLeadView[]>(() => {
+    const callsByLead = new Map<string, AmoCrmCallRow[]>();
+    for (const c of calls ?? []) {
+      if (!c.lead_id) continue;
+      if (!callsByLead.has(c.lead_id)) callsByLead.set(c.lead_id, []);
+      callsByLead.get(c.lead_id)!.push(c);
+    }
+    return leads
+      .filter((l) => l.stage === "Lost")
+      .map((l) => {
+        const leadCalls = callsByLead.get(l.id) ?? [];
+        const connectedCalls = leadCalls.filter((c) => c.connected).length;
+        const last = [...leadCalls].sort(
+          (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+        )[0];
+        return {
+          id: l.id,
+          name: l.name,
+          company: l.company,
+          owner: l.owner,
+          tags: l.tags,
+          lastCallAt: last ? timeAgo(last.occurred_at) : "",
+          connectedCalls,
+          amocrmId: l.amocrmId,
+        };
+      })
+      .filter((l) => l.connectedCalls > 0)
+      .sort((a, b) => b.connectedCalls - a.connectedCalls)
+      .slice(0, 10);
+  }, [leads, calls]);
+
+  return { recent, totals, perRep, recoverable, isLoading };
 }
 
 /* ------------------------------------------------------------------ */
@@ -807,6 +1062,16 @@ export function useIntegrationSetting(key: string) {
   });
 }
 
+/** Builds a deep link to a lead's record in the connected AmoCRM account, or null if not connected/synced. */
+export function useAmoCrmLink() {
+  const { data: setting } = useIntegrationSetting("amocrm");
+  const subdomain = (setting?.config as { subdomain?: string } | null)?.subdomain;
+  return (amocrmId: number | null): string | null => {
+    if (!subdomain || !amocrmId) return null;
+    return `https://${subdomain}/leads/detail/${amocrmId}`;
+  };
+}
+
 export function useTriggerAmoCrmSync() {
   const qc = useQueryClient();
   return useMutation({
@@ -823,6 +1088,7 @@ export function useTriggerAmoCrmSync() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["leads"] });
+      void qc.invalidateQueries({ queryKey: ["amocrm_calls"] });
       void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] });
     },
   });

@@ -9,20 +9,24 @@ import {
   Mail,
   Phone,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { SectionCard, Pill } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
-import { AI_SUGGESTIONS } from "@/lib/crm-data";
 import { currency } from "@/lib/mock-data";
 import { cn, timeAgo } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { useI18n, type Lang } from "@/lib/i18n";
 import {
+  useAiAssistantChat,
   useCreateLeadActivity,
   useCreateTask,
   useCrmLeads,
   useLeadActivities,
   useTasksView,
 } from "@/hooks/use-crm-data";
+
+const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
 export const Route = createFileRoute("/crm/leads/$leadId")({
   head: () => ({
@@ -39,10 +43,11 @@ export const Route = createFileRoute("/crm/leads/$leadId")({
 });
 
 function LeadNotFound() {
+  const { t } = useI18n();
   return (
-    <SectionCard title="Lead unavailable" description="This lead does not exist or was archived.">
+    <SectionCard title={t("lead.notFoundTitle")} description={t("lead.notFoundDesc")}>
       <Link to="/crm/leads" className="text-sm font-semibold text-primary">
-        Back to leads
+        {t("lead.backToLeads")}
       </Link>
     </SectionCard>
   );
@@ -51,6 +56,7 @@ function LeadNotFound() {
 const TABS = ["Timeline", "Notes", "Tasks", "WhatsApp", "Telegram", "Email"] as const;
 
 function LeadWorkspace() {
+  const { t, lang } = useI18n();
   const { leadId } = Route.useParams();
   const { user } = useAuth();
   const { rows: leads, profiles, isLoading } = useCrmLeads();
@@ -62,6 +68,36 @@ function LeadWorkspace() {
   const createActivity = useCreateLeadActivity();
   const createTask = useCreateTask();
   const { rows: allTasks } = useTasksView();
+
+  const chat = useAiAssistantChat();
+  const [deepAnalysis, setDeepAnalysis] = useState<string | null>(null);
+  const [deepAnalysisBusy, setDeepAnalysisBusy] = useState(false);
+
+  async function generateDeepAnalysis() {
+    if (!lead) return;
+    setDeepAnalysisBusy(true);
+    try {
+      const notes = (activities.data ?? [])
+        .filter((a) => a.type === "note")
+        .map((n) => `- ${n.content}`)
+        .join("\n");
+      const events = (activities.data ?? [])
+        .slice(0, 10)
+        .map((e) => `- [${e.type}] ${e.content}`)
+        .join("\n");
+      const reply = await chat.mutateAsync([
+        {
+          role: "user",
+          content: `Deep-analyze this CRM lead and write a thorough assessment of where the customer stands and what to do next.\n\nLead: ${lead.name} (${lead.company || "no company"})\nStage: ${lead.stage}\nTemperature: ${lead.temperature}\nScore: ${lead.score}\nTags: ${lead.tags.join(", ") || "none"}\nExpected revenue: ${lead.expectedRevenue}\nSource: ${lead.source || "unknown"}\nCreated: ${lead.created}, last contact: ${lead.lastContact}\n\nRecent activity:\n${events || "none recorded"}\n\nNotes:\n${notes || "none"}\n\nCover: overall customer status/intent, key signals from the activity so far, likely objections or risks, and 2-3 concrete next actions for the rep. Respond in ${LANG_NAME[lang]}.`,
+        },
+      ]);
+      setDeepAnalysis(reply);
+    } catch (err) {
+      setDeepAnalysis(err instanceof Error ? err.message : t("lead.deepAnalysis.failed"));
+    } finally {
+      setDeepAnalysisBusy(false);
+    }
+  }
 
   const leadTasks = useMemo(
     () => allTasks.filter((t) => t.leadId === lead?.id),
@@ -82,7 +118,7 @@ function LeadWorkspace() {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading lead…
+        <Loader2 className="h-4 w-4 animate-spin" /> {t("lead.loading")}
       </div>
     );
   }
@@ -111,7 +147,7 @@ function LeadWorkspace() {
   }
 
   const profileName = (id: string | null) =>
-    profiles.find((p) => p.id === id)?.full_name || "Someone";
+    profiles.find((p) => p.id === id)?.full_name || t("lead.someone");
 
   return (
     <>
@@ -120,7 +156,7 @@ function LeadWorkspace() {
           <Link
             to="/crm/leads"
             className="rounded-xl border border-border p-2 text-muted-foreground hover:bg-accent"
-            aria-label="Back to leads"
+            aria-label={t("lead.backToLeads")}
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
@@ -138,10 +174,10 @@ function LeadWorkspace() {
           <Pill tone={lead.temperature === "Hot" ? "danger" : "warning"}>{lead.temperature}</Pill>
           <Pill tone={lead.stage === "Won" ? "success" : "info"}>{lead.stage}</Pill>
           {[
-            { icon: Phone, label: "Call" },
-            { icon: MessageCircle, label: "WhatsApp" },
-            { icon: Send, label: "Telegram" },
-            { icon: Mail, label: "Email" },
+            { icon: Phone, label: t("lead.actionCall") },
+            { icon: MessageCircle, label: t("lead.actionWhatsapp") },
+            { icon: Send, label: t("lead.actionTelegram") },
+            { icon: Mail, label: t("lead.actionEmail") },
           ].map((a) => (
             <button
               key={a.label}
@@ -156,26 +192,26 @@ function LeadWorkspace() {
       <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_320px]">
         {/* LEFT — lead information */}
         <div className="space-y-6">
-          <SectionCard title="Lead information">
+          <SectionCard title={t("lead.info.title")}>
             <dl className="space-y-3 text-sm">
               {[
-                ["Phone", lead.phone || "—"],
-                ["Additional phone", lead.altPhone || "—"],
-                ["Email", lead.email || "—"],
-                ["Telegram", lead.telegram || "—"],
-                ["WhatsApp", lead.whatsapp || "—"],
-                ["Source", lead.source || "—"],
-                ["Campaign", lead.campaign || "—"],
-                ["Owner", lead.owner],
-                ["Manager", lead.manager],
-                ["Priority", lead.priority],
-                ["Budget", currency(lead.budget)],
-                ["Expected revenue", currency(lead.expectedRevenue)],
-                ["Funnel", lead.funnel || "—"],
-                ["Next follow up", lead.nextFollowUp],
-                ["Last contact", lead.lastContact],
-                ["Created", lead.created],
-                ["Updated", lead.updated],
+                [t("lead.info.phone"), lead.phone || "—"],
+                [t("lead.info.altPhone"), lead.altPhone || "—"],
+                [t("lead.info.email"), lead.email || "—"],
+                [t("lead.info.telegram"), lead.telegram || "—"],
+                [t("lead.info.whatsapp"), lead.whatsapp || "—"],
+                [t("lead.info.source"), lead.source || "—"],
+                [t("lead.info.campaign"), lead.campaign || "—"],
+                [t("lead.info.owner"), lead.owner],
+                [t("lead.info.manager"), lead.manager],
+                [t("lead.info.priority"), lead.priority],
+                [t("lead.info.budget"), currency(lead.budget)],
+                [t("lead.info.expectedRevenue"), currency(lead.expectedRevenue)],
+                [t("lead.info.funnel"), lead.funnel || "—"],
+                [t("lead.info.nextFollowUp"), lead.nextFollowUp],
+                [t("lead.info.lastContact"), lead.lastContact],
+                [t("lead.info.created"), lead.created],
+                [t("lead.info.updated"), lead.updated],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-start justify-between gap-3">
                   <dt className="text-subtle">{k}</dt>
@@ -185,7 +221,7 @@ function LeadWorkspace() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Location">
+          <SectionCard title={t("lead.location.title")}>
             <p className="text-sm text-muted-foreground">{lead.address || "—"}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {lead.city || "—"}, {lead.region || "—"}
@@ -193,7 +229,7 @@ function LeadWorkspace() {
             <p className="mt-1 text-sm text-muted-foreground">{lead.country || "—"}</p>
           </SectionCard>
 
-          <SectionCard title="Tags">
+          <SectionCard title={t("lead.tags.title")}>
             <TagEditor leadId={lead.id} tags={lead.tags} />
           </SectionCard>
         </div>
@@ -201,31 +237,31 @@ function LeadWorkspace() {
         {/* CENTER — workspace tabs */}
         <div className="space-y-6">
           <div className="flex flex-wrap gap-1 rounded-2xl border border-border bg-surface p-1">
-            {TABS.map((t) => (
+            {TABS.map((tb) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
+                key={tb}
+                onClick={() => setTab(tb)}
                 className={cn(
                   "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                  tab === t
+                  tab === tb
                     ? "bg-background text-foreground shadow-soft"
                     : "text-muted-foreground hover:bg-accent",
                 )}
               >
-                {t}
+                {t(`lead.tab.${tb}`)}
               </button>
             ))}
           </div>
 
           {tab === "Timeline" && (
-            <SectionCard title="Timeline" description="Every recorded event on this lead">
+            <SectionCard title={t("lead.timeline.title")} description={t("lead.timeline.desc")}>
               {activities.isLoading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
                 </div>
               )}
               {!activities.isLoading && (activities.data?.length ?? 0) === 0 && (
-                <p className="text-sm text-subtle">No activity recorded yet.</p>
+                <p className="text-sm text-subtle">{t("lead.timeline.empty")}</p>
               )}
               <ol className="relative space-y-6 border-l border-border pl-5">
                 {(activities.data ?? []).map((e) => (
@@ -245,11 +281,11 @@ function LeadWorkspace() {
           )}
 
           {tab === "Notes" && (
-            <SectionCard title="Notes" description="Notes are saved to this lead's timeline">
+            <SectionCard title={t("lead.notes.title")} description={t("lead.notes.desc")}>
               <textarea
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Write a note…"
+                placeholder={t("lead.notes.placeholder")}
                 className="h-24 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
               />
               <div className="mt-3 flex items-center gap-2">
@@ -258,7 +294,7 @@ function LeadWorkspace() {
                   disabled={createActivity.isPending || !noteText.trim()}
                   className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                 >
-                  Save note
+                  {t("lead.notes.save")}
                 </button>
               </div>
               <ul className="mt-6 space-y-4">
@@ -277,12 +313,12 @@ function LeadWorkspace() {
           )}
 
           {tab === "Tasks" && (
-            <SectionCard title="Lead tasks" description="Tasks linked to this lead">
+            <SectionCard title={t("lead.tasks.title")} description={t("lead.tasks.desc")}>
               <div className="mb-4 flex items-center gap-2">
                 <input
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder="New task title…"
+                  placeholder={t("lead.tasks.placeholder")}
                   className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
                 />
                 <button
@@ -290,11 +326,11 @@ function LeadWorkspace() {
                   disabled={createTask.isPending || !taskTitle.trim()}
                   className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                 >
-                  Add
+                  {t("common.add")}
                 </button>
               </div>
               {leadTasks.length === 0 && (
-                <p className="text-sm text-subtle">No tasks yet for this lead.</p>
+                <p className="text-sm text-subtle">{t("lead.tasks.empty")}</p>
               )}
               <ul className="space-y-3">
                 {leadTasks.map((t) => (
@@ -328,10 +364,9 @@ function LeadWorkspace() {
           )}
 
           {(tab === "WhatsApp" || tab === "Telegram" || tab === "Email") && (
-            <SectionCard title={tab} description="Integrated messaging">
+            <SectionCard title={t(`lead.tab.${tab}`)} description={t("lead.messaging.desc")}>
               <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-subtle">
-                {tab} isn't connected yet. Add your API keys in Settings → Integrations to enable
-                messaging from here.
+                {t("lead.messaging.notConnected", { channel: t(`lead.tab.${tab}`) })}
               </div>
             </SectionCard>
           )}
@@ -339,10 +374,7 @@ function LeadWorkspace() {
 
         {/* RIGHT — AI + quick actions */}
         <div className="space-y-6">
-          <SectionCard
-            title="Lead score"
-            description="Manual score — adjust as the deal progresses"
-          >
+          <SectionCard title={t("lead.score.title")} description={t("lead.score.desc")}>
             <div className="flex items-end gap-3">
               <p className="text-4xl font-semibold tracking-tight text-foreground">{lead.score}</p>
             </div>
@@ -351,26 +383,57 @@ function LeadWorkspace() {
             </div>
           </SectionCard>
 
-          <SectionCard title="AI assistant" description="Context-aware for this lead">
+          <SectionCard title={t("lead.ai.title")} description={t("lead.ai.desc")}>
             <div className="rounded-xl bg-mint p-4 text-sm text-mint-foreground">
               <Bot className="mb-2 h-4 w-4" />
-              Open the AI Copilot (top bar) and ask about {lead.name} — it can draft follow-ups,
-              summarize notes and suggest next actions.
+              {t("lead.ai.hint", { name: lead.name })}
             </div>
             <div className="mt-4 grid gap-2">
-              {AI_SUGGESTIONS.map((s) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <button
-                  key={s}
+                  key={i}
                   className="rounded-xl border border-border px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  {s}
+                  {t(`lead.ai.suggest${i}`)}
                 </button>
               ))}
             </div>
           </SectionCard>
 
-          <SectionCard title="Upcoming tasks">
-            {upcoming.length === 0 && <p className="text-sm text-subtle">Nothing scheduled yet.</p>}
+          <SectionCard
+            title={t("lead.deepAnalysis.title")}
+            description={t("lead.deepAnalysis.desc")}
+            actions={
+              <button
+                type="button"
+                onClick={() => void generateDeepAnalysis()}
+                disabled={deepAnalysisBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
+              >
+                {deepAnalysisBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {t("common.generate")}
+              </button>
+            }
+          >
+            {deepAnalysis ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                {deepAnalysis}
+              </p>
+            ) : (
+              <p className="flex items-center gap-2 text-sm text-subtle">
+                <Sparkles className="h-4 w-4" /> {t("lead.deepAnalysis.placeholder")}
+              </p>
+            )}
+          </SectionCard>
+
+          <SectionCard title={t("lead.upcoming.title")}>
+            {upcoming.length === 0 && (
+              <p className="text-sm text-subtle">{t("lead.upcoming.empty")}</p>
+            )}
             <ul className="space-y-3">
               {upcoming.map((t) => (
                 <li

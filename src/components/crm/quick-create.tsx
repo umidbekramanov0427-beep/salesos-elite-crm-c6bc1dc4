@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import {
   useCompaniesRaw,
   useLeadsRaw,
@@ -44,6 +45,7 @@ function SubmitButton({ busy, label }: { busy: boolean; label: string }) {
 }
 
 export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
@@ -99,7 +101,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
         qc.invalidateQueries({ queryKey: ["leads"] }),
         qc.invalidateQueries({ queryKey: ["contacts"] }),
       ]);
-      toast.success("Lead created");
+      toast.success(t("qc.leadCreated"));
       setOpen(false);
       setName("");
       setCompany("");
@@ -109,7 +111,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
       setPriority("Normal");
       setFunnel("Direct Sales");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create lead");
+      toast.error(err instanceof Error ? err.message : t("qc.leadCreateFailed"));
     } finally {
       setBusy(false);
     }
@@ -120,11 +122,11 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New lead</DialogTitle>
+          <DialogTitle>{t("qc.newLead")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Full name</Label>
+            <Label>{t("qc.fullName")}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -133,7 +135,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Company</Label>
+            <Label>{t("qc.company")}</Label>
             <Input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
@@ -142,17 +144,17 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>{t("qc.email")}</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Phone</Label>
+              <Label>{t("qc.phone")}</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Expected revenue ($)</Label>
+              <Label>{t("qc.expectedRevenue")}</Label>
               <Input
                 type="number"
                 min={0}
@@ -161,7 +163,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Priority</Label>
+              <Label>{t("qc.priority")}</Label>
               <Select
                 value={priority}
                 onValueChange={(v) => setPriority(v as (typeof PRIORITIES)[number])}
@@ -180,7 +182,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Funnel</Label>
+            <Label>{t("qc.funnel")}</Label>
             <Input
               value={funnel}
               onChange={(e) => setFunnel(e.target.value)}
@@ -194,7 +196,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
             </datalist>
           </div>
           <DialogFooter>
-            <SubmitButton busy={busy} label="Create lead" />
+            <SubmitButton busy={busy} label={t("qc.createLead")} />
           </DialogFooter>
         </form>
       </DialogContent>
@@ -203,6 +205,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
 }
 
 export function NewCompanyDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -226,14 +229,14 @@ export function NewCompanyDialog({ trigger }: { trigger: ReactNode }) {
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["companies"] });
-      toast.success("Company created");
+      toast.success(t("qc.companyCreated"));
       setOpen(false);
       setName("");
       setIndustry("");
       setWebsite("");
       setCity("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create company");
+      toast.error(err instanceof Error ? err.message : t("qc.companyCreateFailed"));
     } finally {
       setBusy(false);
     }
@@ -244,25 +247,25 @@ export function NewCompanyDialog({ trigger }: { trigger: ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New company</DialogTitle>
+          <DialogTitle>{t("qc.newCompany")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Company name</Label>
+            <Label>{t("qc.companyName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Industry</Label>
+              <Label>{t("qc.industry")}</Label>
               <Input value={industry} onChange={(e) => setIndustry(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>City</Label>
+              <Label>{t("qc.city")}</Label>
               <Input value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Website</Label>
+            <Label>{t("qc.website")}</Label>
             <Input
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
@@ -270,7 +273,7 @@ export function NewCompanyDialog({ trigger }: { trigger: ReactNode }) {
             />
           </div>
           <DialogFooter>
-            <SubmitButton busy={busy} label="Create company" />
+            <SubmitButton busy={busy} label={t("qc.createCompany")} />
           </DialogFooter>
         </form>
       </DialogContent>
@@ -279,6 +282,7 @@ export function NewCompanyDialog({ trigger }: { trigger: ReactNode }) {
 }
 
 export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [companyId, setCompanyId] = useState<string>("");
@@ -305,7 +309,7 @@ export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["contacts"] });
-      toast.success("Contact created");
+      toast.success(t("qc.contactCreated"));
       setOpen(false);
       setName("");
       setCompanyId("");
@@ -313,7 +317,7 @@ export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
       setEmail("");
       setPhone("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create contact");
+      toast.error(err instanceof Error ? err.message : t("qc.contactCreateFailed"));
     } finally {
       setBusy(false);
     }
@@ -324,19 +328,19 @@ export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New contact</DialogTitle>
+          <DialogTitle>{t("qc.newContact")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Full name</Label>
+            <Label>{t("qc.fullName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Company</Label>
+              <Label>{t("qc.company")}</Label>
               <Select value={companyId} onValueChange={setCompanyId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={t("common.none")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(companies ?? []).map((c) => (
@@ -348,22 +352,22 @@ export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Position</Label>
+              <Label>{t("qc.position")}</Label>
               <Input value={position} onChange={(e) => setPosition(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>{t("qc.email")}</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Phone</Label>
+              <Label>{t("qc.phone")}</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <SubmitButton busy={busy} label="Create contact" />
+            <SubmitButton busy={busy} label={t("qc.createContact")} />
           </DialogFooter>
         </form>
       </DialogContent>
@@ -372,6 +376,7 @@ export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
 }
 
 export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState<string>("");
@@ -396,14 +401,14 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("Task created");
+      toast.success(t("qc.taskCreated"));
       setOpen(false);
       setTitle("");
       setAssigneeId("");
       setPriority("Normal");
       setDueDate("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create task");
+      toast.error(err instanceof Error ? err.message : t("qc.taskCreateFailed"));
     } finally {
       setBusy(false);
     }
@@ -414,19 +419,19 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New task</DialogTitle>
+          <DialogTitle>{t("qc.newTask")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Title</Label>
+            <Label>{t("qc.title")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Assignee</Label>
+              <Label>{t("qc.assignee")}</Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Me" />
+                  <SelectValue placeholder={t("qc.me")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(profiles ?? []).map((p) => (
@@ -438,7 +443,7 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Priority</Label>
+              <Label>{t("qc.priority")}</Label>
               <Select
                 value={priority}
                 onValueChange={(v) => setPriority(v as (typeof PRIORITIES)[number])}
@@ -457,7 +462,7 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Due date</Label>
+            <Label>{t("qc.dueDate")}</Label>
             <Input
               type="datetime-local"
               value={dueDate}
@@ -465,7 +470,7 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
             />
           </div>
           <DialogFooter>
-            <SubmitButton busy={busy} label="Create task" />
+            <SubmitButton busy={busy} label={t("qc.createTask")} />
           </DialogFooter>
         </form>
       </DialogContent>
@@ -474,6 +479,7 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
 }
 
 export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [companyId, setCompanyId] = useState<string>("");
@@ -501,14 +507,14 @@ export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["deals"] });
-      toast.success("Deal created");
+      toast.success(t("qc.dealCreated"));
       setOpen(false);
       setName("");
       setCompanyId("");
       setValue("");
       setStageId("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create deal");
+      toast.error(err instanceof Error ? err.message : t("qc.dealCreateFailed"));
     } finally {
       setBusy(false);
     }
@@ -519,18 +525,18 @@ export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New deal</DialogTitle>
+          <DialogTitle>{t("qc.newDeal")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Deal name</Label>
+            <Label>{t("qc.dealName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
-            <Label>Company</Label>
+            <Label>{t("qc.company")}</Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={t("common.none")} />
               </SelectTrigger>
               <SelectContent>
                 {(companies ?? []).map((c) => (
@@ -543,7 +549,7 @@ export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Value ($)</Label>
+              <Label>{t("qc.value")}</Label>
               <Input
                 type="number"
                 min={0}
@@ -552,7 +558,7 @@ export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Stage</Label>
+              <Label>{t("qc.stage")}</Label>
               <Select value={stageId} onValueChange={setStageId}>
                 <SelectTrigger>
                   <SelectValue placeholder="New Lead" />
@@ -568,7 +574,7 @@ export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
             </div>
           </div>
           <DialogFooter>
-            <SubmitButton busy={busy} label="Create deal" />
+            <SubmitButton busy={busy} label={t("qc.createDeal")} />
           </DialogFooter>
         </form>
       </DialogContent>
