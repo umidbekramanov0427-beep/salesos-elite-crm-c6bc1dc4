@@ -1234,9 +1234,8 @@ export function useSetTelegramBotUsername() {
     mutationFn: async (username: string) => {
       const { error } = await supabase
         .from("integration_settings")
-        .update({ config: { username }, enabled: true })
-        .eq("key", "telegram_bot");
-      if (error) throw error;
+        .upsert({ key: "telegram_bot", config: { username }, enabled: true });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: ["integration_settings", "telegram_bot"] }),
