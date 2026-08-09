@@ -32,7 +32,13 @@ export default defineTool({
     period: z.enum(["Today", "Week", "Month", "Quarter", "Year"]).optional(),
     department: z.string().optional().describe("Department filter, e.g. Enterprise, SMB."),
     branch: z.string().optional().describe("Branch filter, e.g. Tashkent HQ, Almaty."),
-    limit: z.number().int().min(1).max(50).optional().describe("How many ranks to return (default 10)."),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe("How many ranks to return (default 10)."),
   },
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ metric, period, department, branch, limit }) => {
@@ -61,7 +67,12 @@ export default defineTool({
     }));
 
     const payload = {
-      filters: { metric: filters.metric, period: filters.period, department: filters.department, branch: filters.branch },
+      filters: {
+        metric: filters.metric,
+        period: filters.period,
+        department: filters.department,
+        branch: filters.branch,
+      },
       totalEmployees: rows.length,
       ranking: top,
       insights: buildInsights(rows).map((i) => `${i.tone}: ${i.text}`),

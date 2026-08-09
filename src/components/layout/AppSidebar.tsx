@@ -1,19 +1,129 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronsLeft, Command, Sparkles } from "lucide-react";
-import { NAV_ITEMS, CRM_NAV_ITEMS } from "@/lib/nav";
+import { ChevronsLeft, Command, Plug, Sparkles } from "lucide-react";
+import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useIntegrationSetting } from "@/hooks/use-crm-data";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Props = {
   collapsed: boolean;
   onToggle: () => void;
   isAdmin: boolean;
+  onOpenAiCopilot: () => void;
 };
 
-export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
+function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
+  const { t } = useI18n();
+  const { data: amocrm } = useIntegrationSetting("amocrm");
+  const items = [{ name: "amoCRM", connected: amocrm?.enabled ?? false }];
+  const anyConnected = items.some((i) => i.connected);
+
+  const trigger = collapsed ? (
+    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-surface">
+      <Plug className={cn("h-4 w-4", anyConnected ? "text-success" : "text-sidebar-muted")} />
+    </div>
+  ) : (
+    <div className="mx-3 mb-2 flex cursor-default items-center gap-2 rounded-xl border border-sidebar-border bg-surface px-3 py-2 text-xs">
+      <Plug
+        className={cn("h-3.5 w-3.5 shrink-0", anyConnected ? "text-success" : "text-sidebar-muted")}
+      />
+      <span className="truncate font-medium text-sidebar-foreground">
+        {t("nav.integrations")}
+        {anyConnected
+          ? `: ${items
+              .filter((i) => i.connected)
+              .map((i) => i.name)
+              .join(", ")}`
+          : ""}
+      </span>
+    </div>
+  );
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[220px]">
+          <p className="font-semibold">{t("nav.integrations")}</p>
+          <ul className="mt-1 space-y-0.5">
+            {items.map((i) => (
+              <li key={i.name}>
+                {i.name}: {i.connected ? t("common.connected") : t("common.notConnected")}
+              </li>
+            ))}
+          </ul>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+export function AppSidebar({ collapsed, onToggle, isAdmin, onOpenAiCopilot }: Props) {
   const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
+  const mainItems = NAV_ITEMS.filter(
+    (i) => (!i.adminOnly || isAdmin) && i.to !== "/settings" && i.to !== "/admin",
+  );
+  const bottomItems = NAV_ITEMS.filter(
+    (i) => (i.to === "/settings" || i.to === "/admin") && (!i.adminOnly || isAdmin),
+  );
+
+  function renderItem(item: (typeof NAV_ITEMS)[number]) {
+    const active = item.to && (item.to === "/" ? pathname === "/" : pathname.startsWith(item.to));
+    const content = (
+      <>
+        <item.icon
+          className={cn(
+            "h-[18px] w-[18px] shrink-0 transition-colors",
+            active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-foreground",
+          )}
+        />
+        {!collapsed && (
+          <>
+            <span className="truncate">{item.to ? t(`nav.${item.to}`) : t("nav.aiAssistant")}</span>
+            {item.badge && (
+              <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                {item.badge}
+              </span>
+            )}
+          </>
+        )}
+      </>
+    );
+    const className = cn(
+      "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
+      active
+        ? "bg-sidebar-active text-sidebar-active-foreground"
+        : "text-sidebar-foreground hover:bg-accent",
+      collapsed && "justify-center px-0",
+    );
+
+    if (item.action === "ai-copilot") {
+      return (
+        <button
+          key="ai-copilot"
+          type="button"
+          onClick={onOpenAiCopilot}
+          title={collapsed ? t("nav.aiAssistant") : undefined}
+          className={className}
+        >
+          {content}
+        </button>
+      );
+    }
+
+    return (
+      <Link
+        key={item.to}
+        to={item.to!}
+        title={collapsed ? t(`nav.${item.to}`) : undefined}
+        className={className}
+      >
+        {content}
+      </Link>
+    );
+  }
 
   return (
     <aside
@@ -34,74 +144,12 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {items.map((item) => {
-          const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              title={collapsed ? t(`nav.${item.to}`) : undefined}
-              className={cn(
-                "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
-                active
-                  ? "bg-sidebar-active text-sidebar-active-foreground"
-                  : "text-sidebar-foreground hover:bg-accent",
-                collapsed && "justify-center px-0",
-              )}
-            >
-              <item.icon
-                className={cn(
-                  "h-[18px] w-[18px] shrink-0 transition-colors",
-                  active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-foreground",
-                )}
-              />
-              {!collapsed && (
-                <>
-                  <span className="truncate">{t(`nav.${item.to}`)}</span>
-                  {item.badge && (
-                    <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                      {item.badge}
-                    </span>
-                  )}
-                </>
-              )}
-            </Link>
-          );
-        })}
+      <div className="px-0 pb-1 pt-1">
+        <IntegrationsStatus collapsed={collapsed} />
+      </div>
 
-        <div className="pt-4">
-          {!collapsed && (
-            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">{t("nav.crmCore")}</p>
-          )}
-          <div className="space-y-1">
-            {CRM_NAV_ITEMS.map((item) => {
-              const active = pathname.startsWith(item.to);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  title={collapsed ? t(`nav.${item.to}`) : undefined}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
-                    active
-                      ? "bg-sidebar-active text-sidebar-active-foreground"
-                      : "text-sidebar-foreground hover:bg-accent",
-                    collapsed && "justify-center px-0",
-                  )}
-                >
-                  <item.icon
-                    className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors",
-                      active ? "text-mint-foreground" : "text-sidebar-muted group-hover:text-foreground",
-                    )}
-                  />
-                  {!collapsed && <span className="truncate">{t(`nav.${item.to}`)}</span>}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+        {mainItems.map((item) => renderItem(item))}
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
@@ -114,14 +162,19 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
             </div>
           </div>
         )}
+
+        <div className="space-y-1">{bottomItems.map((item) => renderItem(item))}</div>
+
         <button
           onClick={onToggle}
           className={cn(
-            "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-sidebar-muted transition-colors hover:bg-accent hover:text-foreground",
+            "mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-sidebar-muted transition-colors hover:bg-accent hover:text-foreground",
             collapsed && "justify-center px-0",
           )}
         >
-          <ChevronsLeft className={cn("h-4 w-4 transition-transform duration-300", collapsed && "rotate-180")} />
+          <ChevronsLeft
+            className={cn("h-4 w-4 transition-transform duration-300", collapsed && "rotate-180")}
+          />
           {!collapsed && <span>{t("nav.collapse")}</span>}
           {!collapsed && (
             <span className="ml-auto flex items-center gap-0.5 text-[11px] text-subtle">
