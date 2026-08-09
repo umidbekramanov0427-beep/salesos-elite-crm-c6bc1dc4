@@ -1,0 +1,53 @@
+// Server-only. Resolves the caller's user id from a bearer JWT and checks
+// their role, for server routes that must gate an action to super_admins.
+import type { Database } from "@/integrations/supabase/types";
+
+function isNewSupabaseApiKey(value: string): boolean {
+  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
+}
+
+export async function getRequestUserId(request: Request): Promise<string | null> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.replace("Bearer ", "");
+  if (token.split(".").length !== 3) return null;
+
+  const SUPABASE_URL = process.env["SUPABASE_URL"];
+  const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
+
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: {
+      fetch: (input, init) => {
+        const headers = new Headers(init?.headers);
+        if (
+          isNewSupabaseApiKey(SUPABASE_PUBLISHABLE_KEY) &&
+          headers.get("Authorization") === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+        ) {
+          headers.delete("Authorization");
+        }
+        headers.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+        return fetch(input, { ...init, headers });
+      },
+    },
+    auth: { persistSession: false },
+  });
+
+  const { data, error } = await supabase.auth.getClaims(token);
+  if (error || !data?.claims?.sub) return null;
+  return data.claims.sub;
+}
+
+/** Returns the caller's user id if they're a super_admin, otherwise null. */
+export async function requireSuperAdmin(request: Request): Promise<string | null> {
+  const userId = await getRequestUserId(request);
+  if (!userId) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  return profile?.role === "super_admin" ? userId : null;
+}

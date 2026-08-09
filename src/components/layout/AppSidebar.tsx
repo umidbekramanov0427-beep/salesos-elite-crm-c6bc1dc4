@@ -10,7 +10,6 @@ type Props = {
   collapsed: boolean;
   onToggle: () => void;
   isAdmin: boolean;
-  onOpenAiCopilot: () => void;
 };
 
 function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
@@ -59,7 +58,7 @@ function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function AppSidebar({ collapsed, onToggle, isAdmin, onOpenAiCopilot }: Props) {
+export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
   const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const mainItems = NAV_ITEMS.filter(
@@ -70,9 +69,20 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, onOpenAiCopilot }: Pr
   );
 
   function renderItem(item: (typeof NAV_ITEMS)[number]) {
-    const active = item.to && (item.to === "/" ? pathname === "/" : pathname.startsWith(item.to));
-    const content = (
-      <>
+    const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+    return (
+      <Link
+        key={item.to}
+        to={item.to}
+        title={collapsed ? t(`nav.${item.to}`) : undefined}
+        className={cn(
+          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
+          active
+            ? "bg-sidebar-active text-sidebar-active-foreground"
+            : "text-sidebar-foreground hover:bg-accent",
+          collapsed && "justify-center px-0",
+        )}
+      >
         <item.icon
           className={cn(
             "h-[18px] w-[18px] shrink-0 transition-colors",
@@ -81,7 +91,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, onOpenAiCopilot }: Pr
         />
         {!collapsed && (
           <>
-            <span className="truncate">{item.to ? t(`nav.${item.to}`) : t("nav.aiAssistant")}</span>
+            <span className="truncate">{t(`nav.${item.to}`)}</span>
             {item.badge && (
               <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
                 {item.badge}
@@ -89,38 +99,6 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, onOpenAiCopilot }: Pr
             )}
           </>
         )}
-      </>
-    );
-    const className = cn(
-      "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200",
-      active
-        ? "bg-sidebar-active text-sidebar-active-foreground"
-        : "text-sidebar-foreground hover:bg-accent",
-      collapsed && "justify-center px-0",
-    );
-
-    if (item.action === "ai-copilot") {
-      return (
-        <button
-          key="ai-copilot"
-          type="button"
-          onClick={onOpenAiCopilot}
-          title={collapsed ? t("nav.aiAssistant") : undefined}
-          className={className}
-        >
-          {content}
-        </button>
-      );
-    }
-
-    return (
-      <Link
-        key={item.to}
-        to={item.to!}
-        title={collapsed ? t(`nav.${item.to}`) : undefined}
-        className={className}
-      >
-        {content}
       </Link>
     );
   }

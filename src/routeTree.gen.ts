@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
@@ -25,6 +26,8 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
+import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
@@ -45,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiAssistantRoute = AiAssistantRouteImport.update({
+  id: '/ai-assistant',
+  path: '/ai-assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -119,6 +127,16 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminCreateEmployeeRoute = AdminCreateEmployeeRouteImport.update({
+  id: '/create-employee',
+  path: '/create-employee',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AiAssistantChatRoute = AiAssistantChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AiAssistantRoute,
+} as any)
 const CrmCompaniesRoute = CrmCompaniesRouteImport.update({
   id: '/crm/companies',
   path: '/crm/companies',
@@ -181,7 +199,8 @@ const IntegrationsAmocrmWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
@@ -196,6 +215,8 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -210,7 +231,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
@@ -225,6 +247,8 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -240,7 +264,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/audio-analytics': typeof AudioAnalyticsRoute
   '/crm-stages': typeof CrmStagesRoute
@@ -255,6 +280,8 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -272,6 +299,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/ai-assistant'
     | '/analytics'
     | '/audio-analytics'
     | '/crm-stages'
@@ -286,6 +314,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/create-employee'
+    | '/ai-assistant/chat'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -301,6 +331,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/ai-assistant'
     | '/analytics'
     | '/audio-analytics'
     | '/crm-stages'
@@ -315,6 +346,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/create-employee'
+    | '/ai-assistant/chat'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -330,6 +363,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/ai-assistant'
     | '/analytics'
     | '/audio-analytics'
     | '/crm-stages'
@@ -344,6 +378,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/create-employee'
+    | '/ai-assistant/chat'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -359,7 +395,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  AiAssistantRoute: typeof AiAssistantRouteWithChildren
   AnalyticsRoute: typeof AnalyticsRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRoute
   CrmStagesRoute: typeof CrmStagesRoute
@@ -397,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-assistant': {
+      id: '/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant'
+      preLoaderRoute: typeof AiAssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -497,6 +541,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/create-employee': {
+      id: '/admin/create-employee'
+      path: '/create-employee'
+      fullPath: '/admin/create-employee'
+      preLoaderRoute: typeof AdminCreateEmployeeRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/ai-assistant/chat': {
+      id: '/ai-assistant/chat'
+      path: '/chat'
+      fullPath: '/ai-assistant/chat'
+      preLoaderRoute: typeof AiAssistantChatRouteImport
+      parentRoute: typeof AiAssistantRoute
+    }
     '/crm/companies': {
       id: '/crm/companies'
       path: '/crm/companies'
@@ -577,6 +635,28 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminCreateEmployeeRoute: typeof AdminCreateEmployeeRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminCreateEmployeeRoute: AdminCreateEmployeeRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface AiAssistantRouteChildren {
+  AiAssistantChatRoute: typeof AiAssistantChatRoute
+}
+
+const AiAssistantRouteChildren: AiAssistantRouteChildren = {
+  AiAssistantChatRoute: AiAssistantChatRoute,
+}
+
+const AiAssistantRouteWithChildren = AiAssistantRoute._addFileChildren(
+  AiAssistantRouteChildren,
+)
+
 interface IntegrationsRouteChildren {
   IntegrationsAmocrmCallbackRoute: typeof IntegrationsAmocrmCallbackRoute
   IntegrationsAmocrmConnectRoute: typeof IntegrationsAmocrmConnectRoute
@@ -597,7 +677,8 @@ const IntegrationsRouteWithChildren = IntegrationsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
+  AiAssistantRoute: AiAssistantRouteWithChildren,
   AnalyticsRoute: AnalyticsRoute,
   AudioAnalyticsRoute: AudioAnalyticsRoute,
   CrmStagesRoute: CrmStagesRoute,

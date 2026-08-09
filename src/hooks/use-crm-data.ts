@@ -816,6 +816,56 @@ export function useTriggerAmoCrmSync() {
   });
 }
 
+export function useCreateEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      email: string;
+      password: string;
+      full_name: string;
+    }): Promise<{ id: string }> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/create-employee", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to create employee");
+      return json;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["profiles"] });
+    },
+  });
+}
+
+export function useAiAssistantChat() {
+  return useMutation({
+    mutationFn: async (
+      messages: { role: "user" | "assistant"; content: string }[],
+    ): Promise<string> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/ai-assistant/chat", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ messages }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "AI assistant failed");
+      return json.reply as string;
+    },
+  });
+}
+
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   const { user } = useAuth();
