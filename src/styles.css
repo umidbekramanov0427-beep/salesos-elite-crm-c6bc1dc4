@@ -163,6 +163,15 @@
   html {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Always reserve the scrollbar's width, even on pages short enough to
+       not need one — otherwise switching between a tall page and a short
+       one shifts the whole layout sideways by the scrollbar's width,
+       which reads as the screen "wobbling" while navigating/scrolling. */
+    scrollbar-gutter: stable;
+    /* Stop scroll momentum from chaining into an elastic bounce past the
+       top/bottom edge of the page (the other common cause of a wobbly,
+       "not anchored" feeling while scrolling). */
+    overscroll-behavior-y: none;
   }
 
   body {
@@ -170,6 +179,7 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overscroll-behavior-y: none;
   }
 
   h1 {
