@@ -354,13 +354,12 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
       )}
     >
       <div className="flex h-16 items-center gap-3 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
-          <Logo className="h-5 w-5" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
+          <Logo className="h-6 w-6" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{t("app.name")}</p>
-            <p className="truncate text-xs text-sidebar-muted">{t("app.tagline")}</p>
+            <p className="truncate text-[15px] font-semibold text-foreground">{t("app.name")}</p>
           </div>
         )}
       </div>
