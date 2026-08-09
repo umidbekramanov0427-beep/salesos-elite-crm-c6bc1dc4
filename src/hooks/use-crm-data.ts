@@ -13,6 +13,7 @@ export type ContactRow = Tables["contacts"]["Row"];
 export type LeadRow = Tables["leads"]["Row"];
 export type DealRow = Tables["deals"]["Row"];
 export type TaskRow = Tables["tasks"]["Row"];
+export type TaskCommentRow = Tables["task_comments"]["Row"];
 export type NotificationRow = Tables["notifications"]["Row"];
 export type LeadActivityRow = Tables["lead_activities"]["Row"];
 
@@ -133,6 +134,43 @@ export const useTasksRaw = (opts?: Parameters<typeof tasksResource.useList>[0]) 
 export const useCreateTask = tasksResource.useCreate;
 export const useUpdateTask = tasksResource.useUpdate;
 export const useDeleteTask = tasksResource.useRemove;
+
+export function useTaskComments(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ["task_comments", taskId],
+    enabled: !!taskId,
+    queryFn: async (): Promise<TaskCommentRow[]> => {
+      const { data, error } = await supabase
+        .from("task_comments")
+        .select("*")
+        .eq("task_id", taskId!)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateTaskComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      taskId: string;
+      content: string;
+      authorId: string | null;
+    }): Promise<TaskCommentRow> => {
+      const { data, error } = await supabase
+        .from("task_comments")
+        .insert({ task_id: input.taskId, content: input.content, author_id: input.authorId })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["task_comments", vars.taskId] }),
+  });
+}
 
 export const useProfilesRaw = (opts?: Parameters<typeof profilesResource.useList>[0]) =>
   profilesResource.useList({ orderBy: "full_name", ...opts });

@@ -1,12 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type DragEvent } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
-import { useTasksView, useUpdateTask, type TaskRow } from "@/hooks/use-crm-data";
+import {
+  useCreateTaskComment,
+  useProfilesRaw,
+  useTaskComments,
+  useTasksView,
+  useUpdateTask,
+  type TaskRow,
+  type TaskView,
+} from "@/hooks/use-crm-data";
 import { NewTaskDialog } from "@/components/crm/quick-create";
+import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -28,11 +38,131 @@ export const Route = createFileRoute("/tasks")({
 
 const COLUMNS: TaskRow["status"][] = ["Todo", "In progress", "Review", "Done"];
 
+function TaskDetailDialog({ task, onClose }: { task: TaskView; onClose: () => void }) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const { data: profiles } = useProfilesRaw();
+  const { data: comments, isLoading } = useTaskComments(task.id);
+  const createComment = useCreateTaskComment();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const authorName = (authorId: string | null) =>
+    (authorId && profiles?.find((p) => p.id === authorId)?.full_name) || t("tasks.someone");
+
+  async function send() {
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      await createComment.mutateAsync({
+        taskId: task.id,
+        content: text.trim(),
+        authorId: user?.id ?? null,
+      });
+      setText("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("tasks.feedbackFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{task.title}</DialogTitle>
+        </DialogHeader>
+
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <dt className="text-[11px] text-subtle">{t("tasks.assignee")}</dt>
+            <dd className="mt-1 font-semibold text-foreground">{task.assignee}</dd>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <dt className="text-[11px] text-subtle">{t("tasks.priority")}</dt>
+            <dd className="mt-1 font-semibold text-foreground">{task.priority}</dd>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <dt className="text-[11px] text-subtle">{t("tasks.status")}</dt>
+            <dd className="mt-1 font-semibold text-foreground">{task.status}</dd>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <dt className="text-[11px] text-subtle">{t("tasks.due")}</dt>
+            <dd className="mt-1 font-semibold text-foreground">{task.due}</dd>
+          </div>
+        </dl>
+
+        <div>
+          <p className="mb-1 flex items-center justify-between text-[11px] text-subtle">
+            <span>{t("tasks.progress")}</span>
+            <span>{task.progress}%</span>
+          </p>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-success"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+        </div>
+
+        {task.description && (
+          <p className="rounded-xl bg-surface p-3 text-sm text-muted-foreground">
+            {task.description}
+          </p>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <p className="mb-3 text-sm font-semibold text-foreground">{t("tasks.feedback")}</p>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+            </div>
+          )}
+          {!isLoading && (comments?.length ?? 0) === 0 && (
+            <p className="text-sm text-subtle">{t("tasks.feedbackEmpty")}</p>
+          )}
+          <ul className="space-y-3">
+            {(comments ?? []).map((c) => (
+              <li key={c.id} className="rounded-xl border border-border bg-surface p-3">
+                <p className="text-sm text-foreground">{c.content}</p>
+                <p className="mt-1.5 text-[11px] text-subtle">
+                  {authorName(c.author_id)} · {timeAgo(c.created_at)}
+                </p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void send()}
+              placeholder={t("tasks.feedbackPlaceholder")}
+              className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
+            />
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={busy || !text.trim()}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {t("tasks.feedbackSend")}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Tasks() {
   const { t } = useI18n();
   const { rows: tasks, isLoading } = useTasksView();
   const updateTask = useUpdateTask();
   const [dragOverCol, setDragOverCol] = useState<TaskRow["status"] | null>(null);
+  const [selected, setSelected] = useState<TaskView | null>(null);
 
   const columnLabel: Record<TaskRow["status"], string> = {
     Todo: t("tasks.colTodo"),
@@ -113,6 +243,7 @@ function Tasks() {
                       key={task.id}
                       draggable
                       onDragStart={(e) => onDragStart(e, task.id)}
+                      onClick={() => setSelected(task)}
                       className="cursor-grab rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-card active:cursor-grabbing"
                     >
                       <div className="flex items-center justify-between">
@@ -150,6 +281,8 @@ function Tasks() {
           );
         })}
       </div>
+
+      {selected && <TaskDetailDialog task={selected} onClose={() => setSelected(null)} />}
     </>
   );
 }
