@@ -19,7 +19,7 @@ export const Route = createFileRoute("/ai-assistant")({
   component: AiAssistantPage,
 });
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; error?: boolean };
 
 function AiAssistantPage() {
   const { t } = useI18n();
@@ -41,7 +41,11 @@ function AiAssistantPage() {
     } catch (err) {
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: err instanceof Error ? err.message : "Error" },
+        {
+          role: "assistant",
+          content: err instanceof Error ? err.message : t("ai.genericError"),
+          error: true,
+        },
       ]);
     }
   }
@@ -82,7 +86,9 @@ function AiAssistantPage() {
                 "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm",
                 m.role === "user"
                   ? "ml-auto bg-primary text-primary-foreground"
-                  : "bg-surface text-foreground",
+                  : m.error
+                    ? "border border-destructive/30 bg-destructive/10 text-destructive"
+                    : "bg-surface text-foreground",
               )}
             >
               {m.content}

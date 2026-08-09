@@ -141,6 +141,7 @@ export const usePipelineStagesRaw = (opts?: Parameters<typeof stagesResource.use
   stagesResource.useList({ orderBy: "position", ...opts });
 export const useCreateStage = stagesResource.useCreate;
 export const useUpdateStage = stagesResource.useUpdate;
+export const useDeleteStage = stagesResource.useRemove;
 
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
@@ -876,5 +877,110 @@ export function useMarkNotificationRead() {
       return id;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["notifications", user?.id] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Business profile — a single shared row used as AI assistant context */
+/* ------------------------------------------------------------------ */
+
+export type BusinessProfileRow = Tables["business_profile"]["Row"];
+
+export function useBusinessProfile() {
+  return useQuery({
+    queryKey: ["business_profile"],
+    queryFn: async (): Promise<BusinessProfileRow | null> => {
+      const { data, error } = await supabase
+        .from("business_profile")
+        .select("*")
+        .eq("id", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUpdateBusinessProfile() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (
+      patch: Partial<
+        Pick<
+          BusinessProfileRow,
+          "company_name" | "description" | "competitors" | "terminology" | "tone"
+        >
+      >,
+    ) => {
+      const { data, error } = await supabase
+        .from("business_profile")
+        .update({ ...patch, updated_by: user?.id ?? null })
+        .eq("id", true)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["business_profile"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Tags — aggregated across every lead, with rename/delete that touch  */
+/* every lead carrying that tag.                                       */
+/* ------------------------------------------------------------------ */
+
+export type TagSummary = { name: string; count: number };
+
+export function useTagsSummary() {
+  const { data: leads, ...rest } = useLeadsRaw();
+  const tags = useMemo<TagSummary[]>(() => {
+    const counts = new Map<string, number>();
+    for (const l of leads ?? []) {
+      for (const tag of l.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [leads]);
+  return { tags, ...rest };
+}
+
+export function useRenameTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ from, to }: { from: string; to: string }) => {
+      const { data: leads, error: fetchErr } = await supabase
+        .from("leads")
+        .select("id, tags")
+        .contains("tags", [from]);
+      if (fetchErr) throw fetchErr;
+      for (const lead of leads ?? []) {
+        const next = Array.from(new Set((lead.tags ?? []).map((t) => (t === from ? to : t))));
+        const { error } = await supabase.from("leads").update({ tags: next }).eq("id", lead.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["leads"] }),
+  });
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (tag: string) => {
+      const { data: leads, error: fetchErr } = await supabase
+        .from("leads")
+        .select("id, tags")
+        .contains("tags", [tag]);
+      if (fetchErr) throw fetchErr;
+      for (const lead of leads ?? []) {
+        const next = (lead.tags ?? []).filter((t) => t !== tag);
+        const { error } = await supabase.from("leads").update({ tags: next }).eq("id", lead.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["leads"] }),
   });
 }

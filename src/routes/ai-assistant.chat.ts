@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestUserId } from "@/lib/auth.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -33,20 +34,34 @@ export const Route = createFileRoute("/ai-assistant/chat")({
           );
         }
 
+        const { data: profile } = await supabaseAdmin
+          .from("business_profile")
+          .select("company_name, description, competitors, terminology, tone")
+          .eq("id", true)
+          .maybeSingle();
+
+        let systemPrompt =
+          "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.";
+        if (profile) {
+          const context = [
+            profile.company_name && `Company: ${profile.company_name}`,
+            profile.description && `About the business: ${profile.description}`,
+            profile.competitors && `Known competitors: ${profile.competitors}`,
+            profile.terminology && `Business-specific terms/jargon: ${profile.terminology}`,
+            profile.tone && `Preferred tone of voice: ${profile.tone}`,
+          ]
+            .filter(Boolean)
+            .join("\n");
+          if (context) systemPrompt += `\n\nBusiness context:\n${context}`;
+        }
+
         const res = await fetch("https://api.deepseek.com/chat/completions", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
           body: JSON.stringify({
             model: "deepseek-chat",
             temperature: 0.4,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.",
-              },
-              ...messages,
-            ],
+            messages: [{ role: "system", content: systemPrompt }, ...messages],
           }),
         });
 
