@@ -96,28 +96,27 @@ function LoginPage() {
       <div className="pointer-events-none absolute -bottom-40 -right-24 h-[460px] w-[460px] rounded-full bg-mint blur-3xl" />
 
       <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-background/70 shadow-soft backdrop-blur-xl lg:grid-cols-2">
-        <section className="hidden flex-col justify-between gap-8 border-r border-border bg-mint/60 p-10 lg:flex">
-          <div className="flex justify-start">
+        <section className="relative hidden flex-col justify-between gap-8 overflow-hidden border-r border-border bg-gradient-to-br from-[#0B1120] via-[#0E1A2E] to-[#0B1120] p-10 lg:flex">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+
+          <div className="relative flex justify-start">
             <BrandMark className="items-start text-left" />
           </div>
-          <div>
-            <h2 className="text-2xl font-semibold leading-tight text-foreground">
-              {t("login.title")}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              {t("login.subtitle")}
-            </p>
+          <div className="relative">
+            <h2 className="text-2xl font-semibold leading-tight text-white">{t("login.title")}</h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/60">{t("login.subtitle")}</p>
           </div>
-          <dl className="grid grid-cols-2 gap-4">
+          <dl className="relative grid grid-cols-2 gap-4">
             {[
               ["240+", t("lb.title")],
               ["3s", t("lb.live")],
               ["10", t("lb.type")],
               ["16", t("int.title")],
             ].map(([v, k]) => (
-              <div key={k as string} className="rounded-xl bg-background/70 p-3">
-                <dt className="text-lg font-semibold text-foreground">{v}</dt>
-                <dd className="text-[11px] text-subtle">{k}</dd>
+              <div key={k as string} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <dt className="text-lg font-semibold text-white">{v}</dt>
+                <dd className="text-[11px] text-white/50">{k}</dd>
               </div>
             ))}
           </dl>
