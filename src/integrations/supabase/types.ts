@@ -735,6 +735,8 @@ export type Database = {
           position: string
           role: Database["public"]["Enums"]["app_role"]
           team: string | null
+          telegram_chat_id: number | null
+          telegram_link_code: string | null
           updated_at: string
         }
         Insert: {
@@ -752,6 +754,8 @@ export type Database = {
           position?: string
           role?: Database["public"]["Enums"]["app_role"]
           team?: string | null
+          telegram_chat_id?: number | null
+          telegram_link_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -769,6 +773,8 @@ export type Database = {
           position?: string
           role?: Database["public"]["Enums"]["app_role"]
           team?: string | null
+          telegram_chat_id?: number | null
+          telegram_link_code?: string | null
           updated_at?: string
         }
         Relationships: [

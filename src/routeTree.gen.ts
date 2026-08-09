@@ -34,6 +34,10 @@ import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
+import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
+import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
+import { Route as TelegramWebhookRouteImport } from './routes/telegram.webhook'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
 import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
@@ -169,6 +173,26 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TelegramLinkRoute = TelegramLinkRouteImport.update({
+  id: '/telegram/link',
+  path: '/telegram/link',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramSendDailyReportRoute = TelegramSendDailyReportRouteImport.update({
+  id: '/telegram/send-daily-report',
+  path: '/telegram/send-daily-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramSendTestRoute = TelegramSendTestRouteImport.update({
+  id: '/telegram/send-test',
+  path: '/telegram/send-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramWebhookRoute = TelegramWebhookRouteImport.update({
+  id: '/telegram/webhook',
+  path: '/telegram/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -235,6 +259,10 @@ export interface FileRoutesByFullPath {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/telegram/link': typeof TelegramLinkRoute
+  '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+  '/telegram/send-test': typeof TelegramSendTestRoute
+  '/telegram/webhook': typeof TelegramWebhookRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -269,6 +297,10 @@ export interface FileRoutesByTo {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/telegram/link': typeof TelegramLinkRoute
+  '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+  '/telegram/send-test': typeof TelegramSendTestRoute
+  '/telegram/webhook': typeof TelegramWebhookRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -304,6 +336,10 @@ export interface FileRoutesById {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/telegram/link': typeof TelegramLinkRoute
+  '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+  '/telegram/send-test': typeof TelegramSendTestRoute
+  '/telegram/webhook': typeof TelegramWebhookRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -340,6 +376,10 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/telegram/link'
+    | '/telegram/send-daily-report'
+    | '/telegram/send-test'
+    | '/telegram/webhook'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -374,6 +414,10 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/telegram/link'
+    | '/telegram/send-daily-report'
+    | '/telegram/send-test'
+    | '/telegram/webhook'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -408,6 +452,10 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/telegram/link'
+    | '/telegram/send-daily-report'
+    | '/telegram/send-test'
+    | '/telegram/webhook'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -441,6 +489,10 @@ export interface RootRouteChildren {
   CrmContactsRoute: typeof CrmContactsRoute
   CrmDealsRoute: typeof CrmDealsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
+  TelegramLinkRoute: typeof TelegramLinkRoute
+  TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
+  TelegramSendTestRoute: typeof TelegramSendTestRoute
+  TelegramWebhookRoute: typeof TelegramWebhookRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
   CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
@@ -623,6 +675,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/telegram/link': {
+      id: '/telegram/link'
+      path: '/telegram/link'
+      fullPath: '/telegram/link'
+      preLoaderRoute: typeof TelegramLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/send-daily-report': {
+      id: '/telegram/send-daily-report'
+      path: '/telegram/send-daily-report'
+      fullPath: '/telegram/send-daily-report'
+      preLoaderRoute: typeof TelegramSendDailyReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/send-test': {
+      id: '/telegram/send-test'
+      path: '/telegram/send-test'
+      fullPath: '/telegram/send-test'
+      preLoaderRoute: typeof TelegramSendTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/webhook': {
+      id: '/telegram/webhook'
+      path: '/telegram/webhook'
+      fullPath: '/telegram/webhook'
+      preLoaderRoute: typeof TelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -740,6 +820,10 @@ const rootRouteChildren: RootRouteChildren = {
   CrmContactsRoute: CrmContactsRoute,
   CrmDealsRoute: CrmDealsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
+  TelegramLinkRoute: TelegramLinkRoute,
+  TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,
+  TelegramSendTestRoute: TelegramSendTestRoute,
+  TelegramWebhookRoute: TelegramWebhookRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
   CrmLeadsIndexRoute: CrmLeadsIndexRoute,

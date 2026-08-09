@@ -1186,3 +1186,59 @@ export function useNormativesView() {
 
   return { rows, isLoading: profilesLoading || dealsLoading };
 }
+
+/* ------------------------------------------------------------------ */
+/* Telegram "hisobotchi_bot" — link-code flow + daily report send.     */
+/* ------------------------------------------------------------------ */
+
+async function authedFetch(path: string, init?: RequestInit) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  return fetch(path, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+}
+
+export function useLinkTelegram() {
+  const { refreshProfile } = useAuth();
+  return useMutation({
+    mutationFn: async (): Promise<{ code: string; botUsername: string | null }> => {
+      const res = await authedFetch("/telegram/link", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to generate a link code");
+      return json;
+    },
+    onSuccess: () => void refreshProfile(),
+  });
+}
+
+export function useSendTestReport() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authedFetch("/telegram/send-test", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to send");
+      return json;
+    },
+  });
+}
+
+export function useSetTelegramBotUsername() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const { error } = await supabase
+        .from("integration_settings")
+        .update({ config: { username }, enabled: true })
+        .eq("key", "telegram_bot");
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["integration_settings", "telegram_bot"] }),
+  });
+}
