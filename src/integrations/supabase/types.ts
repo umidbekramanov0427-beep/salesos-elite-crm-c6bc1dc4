@@ -314,6 +314,47 @@ export type Database = {
           },
         ]
       }
+      business_profile: {
+        Row: {
+          company_name: string
+          competitors: string
+          description: string
+          id: boolean
+          terminology: string
+          tone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_name?: string
+          competitors?: string
+          description?: string
+          id?: boolean
+          terminology?: string
+          tone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_name?: string
+          competitors?: string
+          description?: string
+          id?: boolean
+          terminology?: string
+          tone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_settings: {
         Row: {
           config: Json
