@@ -28,10 +28,16 @@ function makeResource<TableName extends keyof Tables>(table: TableName, queryKey
   type Insert = Tables[TableName]["Insert"];
   type Update = Tables[TableName]["Update"];
 
-  function useList(config?: { orderBy?: string; ascending?: boolean; enabled?: boolean }) {
+  function useList(config?: {
+    orderBy?: string;
+    ascending?: boolean;
+    enabled?: boolean;
+    refetchInterval?: number | false;
+  }) {
     return useQuery({
       queryKey,
       enabled: config?.enabled ?? true,
+      refetchInterval: config?.refetchInterval ?? false,
       queryFn: async (): Promise<Row[]> => {
         let query = supabase.from(table).select("*");
         if (config?.orderBy)
@@ -413,11 +419,34 @@ export type LeaderboardManagerRow = {
   targetCompletion: number;
 };
 
-export function useLeaderboardView(filters: LeaderboardFilters) {
-  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
-  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
-  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+export function useLeaderboardView(
+  filters: LeaderboardFilters,
+  opts?: { refetchInterval?: number | false },
+) {
+  const refetchInterval = opts?.refetchInterval ?? false;
+  const {
+    data: leads,
+    isLoading: leadsLoading,
+    isFetching: leadsFetching,
+    refetch: refetchLeads,
+    dataUpdatedAt,
+  } = useLeadsRaw({ refetchInterval });
+  const {
+    data: profiles,
+    isLoading: profilesLoading,
+    isFetching: profilesFetching,
+    refetch: refetchProfiles,
+  } = useProfilesRaw({ refetchInterval });
+  const {
+    data: stages,
+    isLoading: stagesLoading,
+    isFetching: stagesFetching,
+    refetch: refetchStages,
+  } = usePipelineStagesRaw({ refetchInterval });
   const isLoading = leadsLoading || profilesLoading || stagesLoading;
+  const isFetching = leadsFetching || profilesFetching || stagesFetching;
+
+  const refetch = () => Promise.all([refetchLeads(), refetchProfiles(), refetchStages()]);
 
   const stagesById = useMemo(() => byId(stages), [stages]);
 
@@ -465,7 +494,15 @@ export function useLeaderboardView(filters: LeaderboardFilters) {
       .sort((a, b) => b.revenue - a.revenue);
   }, [profiles, filteredLeads, stagesById, filters.search]);
 
-  return { rows, filteredLeads, stages: stages ?? [], isLoading };
+  return {
+    rows,
+    filteredLeads,
+    stages: stages ?? [],
+    isLoading,
+    isFetching,
+    refetch,
+    dataUpdatedAt,
+  };
 }
 
 /* ------------------------------------------------------------------ */

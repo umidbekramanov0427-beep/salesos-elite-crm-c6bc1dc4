@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Crown, Loader2, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Crown, Loader2, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard } from "@/components/layout/Primitives";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ export const Route = createFileRoute("/")({
 });
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
+const LIVE_REFRESH_MS = 3000;
 
 function pct(n: number): string {
   return `${Math.round(n * 10) / 10}%`;
@@ -154,6 +155,7 @@ function Leaderboard() {
   const [search, setSearch] = useState("");
   const [stageId, setStageId] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [live, setLive] = useState(true);
 
   const { data: stageOptions } = usePipelineStagesRaw();
   const { tags: tagSummary } = useTagsSummary();
@@ -168,20 +170,30 @@ function Leaderboard() {
     }),
     [dateFilter, search, stageId, selectedTags],
   );
-  const { rows, isLoading } = useLeaderboardView(filters);
+  const { rows, isLoading, isFetching, refetch } = useLeaderboardView(filters, {
+    refetchInterval: live ? LIVE_REFRESH_MS : false,
+  });
 
   const todayIso = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d.toISOString();
   }, []);
-  const { rows: todayRows } = useLeaderboardView({
-    from: todayIso,
-    to: null,
-    search: "",
-    stageId: null,
-    tags: [],
-  });
+  const { rows: todayRows } = useLeaderboardView(
+    {
+      from: todayIso,
+      to: null,
+      search: "",
+      stageId: null,
+      tags: [],
+    },
+    { refetchInterval: live ? LIVE_REFRESH_MS : false },
+  );
+
+  async function handleManualRefresh() {
+    await refetch();
+    toast.success(t("lb.refreshed"));
+  }
 
   const totals = useMemo(() => {
     const totalLeads = rows.reduce((s, r) => s + r.totalLeads, 0);
@@ -250,7 +262,43 @@ function Leaderboard() {
 
   return (
     <>
-      <PageHeader title={t("lb.title")} description={t("lb.description2")} />
+      <PageHeader
+        title={t("lb.title")}
+        description={t("lb.description2")}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setLive((v) => !v)}
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors",
+                live
+                  ? "border-success/30 bg-success/10 text-success"
+                  : "border-border bg-background text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {live ? (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                </span>
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+              {live ? t("lb.live") : t("lb.paused")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleManualRefresh()}
+              disabled={isFetching}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+              {t("common.refresh")}
+            </button>
+          </>
+        }
+      />
 
       <SectionCard title={t("lb.filters")}>
         <div className="flex flex-wrap items-end gap-3">

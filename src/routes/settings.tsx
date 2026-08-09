@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   Award,
+  Bot,
   Building2,
   Check,
   Copy,
@@ -53,6 +54,7 @@ import {
 } from "@/hooks/use-crm-data";
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { BusinessProfileBot } from "@/components/settings/BusinessProfileBot";
 
 type SectionKey =
   | "profile"
@@ -281,6 +283,7 @@ function BusinessProfileSection() {
   const [tone, setTone] = useState(profile?.tone ?? "");
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showBot, setShowBot] = useState(false);
 
   useEffect(() => {
     if (!profile || hydrated) return;
@@ -312,7 +315,22 @@ function BusinessProfileSection() {
   }
 
   return (
-    <SectionCard title={t("settings.business.title")} description={t("settings.business.desc")}>
+    <SectionCard
+      title={t("settings.business.title")}
+      description={t("settings.business.desc")}
+      actions={
+        canManage &&
+        !showBot && (
+          <button
+            type="button"
+            onClick={() => setShowBot(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+          >
+            <Bot className="h-3.5 w-3.5" /> {t("bizbot.cta")}
+          </button>
+        )
+      }
+    >
       {isLoading && (
         <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
@@ -322,6 +340,19 @@ function BusinessProfileSection() {
         <p className="mb-4 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-subtle">
           {t("settings.business.readOnlyHint")}
         </p>
+      )}
+      {showBot && (
+        <BusinessProfileBot
+          onClose={() => setShowBot(false)}
+          onComplete={(fields) => {
+            if (fields.company_name) setCompanyName(fields.company_name);
+            if (fields.description) setDescription(fields.description);
+            if (fields.competitors) setCompetitors(fields.competitors);
+            if (fields.terminology) setTerminology(fields.terminology);
+            if (fields.tone) setTone(fields.tone);
+            toast.success(t("bizbot.reviewHint"));
+          }}
+        />
       )}
       <form onSubmit={onSave} className="grid gap-5 sm:grid-cols-2">
         <label className="block sm:col-span-2">
