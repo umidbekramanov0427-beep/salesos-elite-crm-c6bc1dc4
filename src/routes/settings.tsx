@@ -1,13 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
+import { useCurrency, CURRENCIES } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "Settings — SalesOS Elite" },
-      { name: "description", content: "Profile, workspace, language, appearance, notifications, integrations and branding." },
+      {
+        name: "description",
+        content:
+          "Profile, workspace, language, appearance, notifications, integrations and branding.",
+      },
       { property: "og:title", content: "Settings — SalesOS Elite" },
-      { property: "og:description", content: "Workspace, appearance, notification and integration settings." },
+      {
+        property: "og:description",
+        content: "Workspace, appearance, notification and integration settings.",
+      },
     ],
   }),
   component: SettingsPage,
@@ -35,16 +44,22 @@ function Toggle({ label, description, on }: { label: string; description: string
       <span
         className={`mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${on ? "bg-success" : "bg-border"}`}
       >
-        <span className={`h-5 w-5 rounded-full bg-background shadow-soft transition-transform ${on ? "translate-x-5" : ""}`} />
+        <span
+          className={`h-5 w-5 rounded-full bg-background shadow-soft transition-transform ${on ? "translate-x-5" : ""}`}
+        />
       </span>
     </div>
   );
 }
 
 function SettingsPage() {
+  const { unit, setUnit } = useCurrency();
   return (
     <>
-      <PageHeader title="Settings" description="Personal and workspace configuration for SalesOS Elite." />
+      <PageHeader
+        title="Settings"
+        description="Personal and workspace configuration for SalesOS Elite."
+      />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="Profile">
@@ -59,7 +74,26 @@ function SettingsPage() {
         <SectionCard title="Workspace">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Company" value="SalesOS Elite" />
-            <Field label="Currency" value="USD" />
+            <label className="block">
+              <span className="text-[13px] font-medium text-muted-foreground">Currency</span>
+              <div className="mt-2 inline-flex h-11 items-center gap-1 rounded-xl border border-border bg-surface p-1">
+                {CURRENCIES.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setUnit(c)}
+                    className={cn(
+                      "h-full rounded-lg px-3 text-sm font-semibold transition-colors",
+                      unit === c
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </label>
             <Field label="Language" value="English" />
             <Field label="Timezone" value="Asia/Almaty (UTC+5)" />
           </div>
@@ -67,9 +101,17 @@ function SettingsPage() {
 
         <SectionCard title="Notifications">
           <div className="divide-y divide-border">
-            <Toggle label="Task assignments" description="Notify me when a task is assigned to me" on />
+            <Toggle
+              label="Task assignments"
+              description="Notify me when a task is assigned to me"
+              on
+            />
             <Toggle label="Overdue alerts" description="Daily digest of overdue lead tasks" on />
-            <Toggle label="AI call insights" description="Alert when AI detects a critical objection" on />
+            <Toggle
+              label="AI call insights"
+              description="Alert when AI detects a critical objection"
+              on
+            />
             <Toggle label="Weekly report" description="Monday morning revenue summary" />
           </div>
         </SectionCard>

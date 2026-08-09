@@ -200,7 +200,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DropdownMenu>
 
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-border bg-background py-1.5 pl-1.5 pr-3 transition-colors hover:bg-accent">
+              <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-mint-border bg-mint py-1.5 pl-1.5 pr-3 transition-colors hover:bg-mint-border">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
                   {user?.initials ?? "?"}
                 </span>

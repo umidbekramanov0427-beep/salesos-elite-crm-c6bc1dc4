@@ -16,9 +16,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "../components/layout/AppShell";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { I18nProvider } from "../lib/i18n";
+import { CurrencyProvider } from "../lib/currency";
 import { Toaster } from "../components/ui/sonner";
-
-
 
 function NotFoundComponent() {
   return (
@@ -88,16 +87,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "SalesOS Elite CRM" },
       {
         name: "description",
-        content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison.",
+        content:
+          "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:title", content: "SalesOS Elite CRM" },
       { name: "twitter:title", content: "SalesOS Elite CRM" },
-      { property: "og:description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
-      { name: "twitter:description", content: "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e92766a1-8f45-40ca-9851-bf7db5a8df65" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e92766a1-8f45-40ca-9851-bf7db5a8df65" },
+      {
+        property: "og:description",
+        content:
+          "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Real-time sales rep ranking, monthly targets, bonus tracking and department comparison.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e92766a1-8f45-40ca-9851-bf7db5a8df65",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e92766a1-8f45-40ca-9851-bf7db5a8df65",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -165,13 +181,13 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <AuthProvider>
-          <AuthGate />
-          <Toaster />
-        </AuthProvider>
+        <CurrencyProvider>
+          <AuthProvider>
+            <AuthGate />
+            <Toaster />
+          </AuthProvider>
+        </CurrencyProvider>
       </I18nProvider>
     </QueryClientProvider>
   );
 }
-
-

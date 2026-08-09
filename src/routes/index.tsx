@@ -3,9 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Activity, Building2, Download, Radio, RefreshCw, Sparkles, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
-import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useCurrency, CURRENCIES } from "@/lib/currency";
 import {
   BRANCHES,
   DEPARTMENTS,
@@ -134,6 +134,7 @@ function toCsv(rows: LeaderboardRow[]): string {
 
 function Leaderboard() {
   const { t, lang } = useI18n();
+  const { unit, setUnit, format } = useCurrency();
   const {
     rows,
     insights,
@@ -217,6 +218,23 @@ function Leaderboard() {
         description={t("lb.description", { count: rows.length, sec: REFRESH_MS / 1000 })}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1 rounded-xl border border-border p-1">
+              {CURRENCIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setUnit(c)}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                    unit === c
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => setLive((v) => !v)}
@@ -375,7 +393,7 @@ function Leaderboard() {
       <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t("lb.revenueOfPeriod", { period: t(`period.${filters.period}`) })}
-          value={currency(totals.revenue)}
+          value={format(totals.revenue)}
           hint={t("lb.employeesInView", { count: rows.length })}
           tone="mint"
         />
@@ -391,7 +409,7 @@ function Leaderboard() {
         />
         <StatCard
           label={t("lb.bonusPool")}
-          value={currency(totals.bonusPool)}
+          value={format(totals.bonusPool)}
           hint={t("lb.bonusPoolHint")}
         />
       </div>
@@ -522,7 +540,7 @@ function Leaderboard() {
                         />
                       </div>
                       <span className="w-24 text-right tabular-nums text-muted-foreground">
-                        {currency(d.revenue)}
+                        {format(d.revenue)}
                       </span>
                     </li>
                   ))}
@@ -556,7 +574,7 @@ function Leaderboard() {
                 <Activity className="h-4 w-4 shrink-0 text-primary" />
                 {t("lb.companyKpi", {
                   kpi: `${totals.avgKpi.toFixed(1)}%`,
-                  pool: currency(totals.bonusPool),
+                  pool: format(totals.bonusPool),
                 })}
               </div>
             </div>
@@ -580,9 +598,9 @@ function Leaderboard() {
                   [t("emp.position"), selected.employee.position],
                   [t("emp.rankNow"), `#${selected.rank}`],
                   [metricLabel, selected.metricLabel],
-                  [t("col.revenue"), currency(selected.revenue)],
-                  [t("emp.monthRevenue"), currency(selected.employee.monthlyRevenue)],
-                  [t("emp.monthTarget"), currency(selected.employee.monthlyTarget)],
+                  [t("col.revenue"), format(selected.revenue)],
+                  [t("emp.monthRevenue"), format(selected.employee.monthlyRevenue)],
+                  [t("emp.monthTarget"), format(selected.employee.monthlyTarget)],
                   [t("col.deals"), String(selected.employee.dealsClosed)],
                   [t("col.calls"), String(selected.employee.calls)],
                   [t("col.meetings"), String(selected.employee.meetings)],
