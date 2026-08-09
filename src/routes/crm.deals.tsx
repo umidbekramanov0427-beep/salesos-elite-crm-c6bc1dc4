@@ -5,6 +5,7 @@ import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Pri
 import { currency } from "@/lib/mock-data";
 import { useDealsView } from "@/hooks/use-crm-data";
 import { NewDealDialog } from "@/components/crm/quick-create";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/crm/deals")({
   head: () => ({
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/crm/deals")({
 });
 
 function DealsPage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const { rows: deals, isLoading } = useDealsView();
 
@@ -43,13 +45,13 @@ function DealsPage() {
   return (
     <>
       <PageHeader
-        title="Deals"
-        description="Commercial reality of the pipeline — value, probability and timing."
+        title={t("deals.title")}
+        description={t("deals.desc")}
         actions={
           <NewDealDialog
             trigger={
               <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                <Plus className="h-4 w-4" /> New deal
+                <Plus className="h-4 w-4" /> {t("deals.new")}
               </button>
             }
           />
@@ -58,26 +60,26 @@ function DealsPage() {
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Open deals"
+          label={t("deals.openDeals")}
           value={String(openDeals.length)}
-          hint="this quarter"
+          hint={t("deals.thisQuarter")}
           tone="mint"
         />
-        <StatCard label="Total value" value={currency(totalValue)} />
-        <StatCard label="Weighted forecast" value={currency(Math.round(weighted))} />
-        <StatCard label="Avg. deal size" value={currency(avgSize)} />
+        <StatCard label={t("deals.totalValue")} value={currency(totalValue)} />
+        <StatCard label={t("deals.weightedForecast")} value={currency(Math.round(weighted))} />
+        <StatCard label={t("deals.avgSize")} value={currency(avgSize)} />
       </div>
 
       <div className="mt-8">
         <SectionCard
-          title="All deals"
+          title={t("deals.all")}
           actions={
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search deals"
+                placeholder={t("deals.searchPlaceholder")}
                 className="h-10 w-56 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
               />
             </div>
@@ -85,13 +87,11 @@ function DealsPage() {
         >
           {isLoading && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading deals…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("deals.loading")}
             </div>
           )}
           {!isLoading && rows.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No deals yet. Click “New deal” to create your first one.
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("deals.empty")}</p>
           )}
           {rows.length > 0 && (
             <div className="-m-6 overflow-x-auto">
@@ -99,15 +99,15 @@ function DealsPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
                     {[
-                      "Deal",
-                      "Company",
-                      "Value",
-                      "Probability",
-                      "Close date",
-                      "Stage",
-                      "Pipeline",
-                      "Products",
-                      "Owner",
+                      t("deals.colDeal"),
+                      t("deals.colCompany"),
+                      t("deals.colValue"),
+                      t("deals.colProbability"),
+                      t("deals.colCloseDate"),
+                      t("deals.colStage"),
+                      t("deals.colPipeline"),
+                      t("deals.colProducts"),
+                      t("deals.colOwner"),
                     ].map((h) => (
                       <th key={h} className="px-6 py-3 font-medium">
                         {h}
@@ -124,7 +124,7 @@ function DealsPage() {
                       <td className="px-6 py-4">
                         <p className="font-medium text-foreground">{d.name}</p>
                         <p className="text-xs text-subtle">
-                          disc. {d.discount}% · tax {d.tax}%
+                          {t("deals.discTax", { discount: d.discount, tax: d.tax })}
                         </p>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">{d.company || "—"}</td>

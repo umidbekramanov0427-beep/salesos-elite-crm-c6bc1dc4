@@ -4,6 +4,7 @@ import { Loader2, Mail, MessageCircle, Phone, Plus, Search, Send } from "lucide-
 import { PageHeader, SectionCard, StatCard } from "@/components/layout/Primitives";
 import { useContactsView } from "@/hooks/use-crm-data";
 import { NewContactDialog } from "@/components/crm/quick-create";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/crm/contacts")({
   head: () => ({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/crm/contacts")({
 });
 
 function ContactsPage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const { rows: contacts, isLoading } = useContactsView();
 
@@ -43,13 +45,13 @@ function ContactsPage() {
   return (
     <>
       <PageHeader
-        title="Contacts"
-        description="People behind every company, deal and conversation."
+        title={t("contacts.title")}
+        description={t("contacts.desc")}
         actions={
           <NewContactDialog
             trigger={
               <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                <Plus className="h-4 w-4" /> New contact
+                <Plus className="h-4 w-4" /> {t("contacts.new")}
               </button>
             }
           />
@@ -58,26 +60,35 @@ function ContactsPage() {
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total contacts"
+          label={t("contacts.totalContacts")}
           value={String(contacts.length)}
-          hint={`across ${companiesCount} companies`}
+          hint={t("contacts.acrossCompanies", { count: companiesCount })}
           tone="mint"
         />
-        <StatCard label="With deals" value={String(contacts.filter((c) => c.deals > 0).length)} />
-        <StatCard label="With email" value={String(contacts.filter((c) => c.email).length)} />
-        <StatCard label="With phone" value={String(contacts.filter((c) => c.phone).length)} />
+        <StatCard
+          label={t("contacts.withDeals")}
+          value={String(contacts.filter((c) => c.deals > 0).length)}
+        />
+        <StatCard
+          label={t("contacts.withEmail")}
+          value={String(contacts.filter((c) => c.email).length)}
+        />
+        <StatCard
+          label={t("contacts.withPhone")}
+          value={String(contacts.filter((c) => c.phone).length)}
+        />
       </div>
 
       <div className="mt-8">
         <SectionCard
-          title="Contact directory"
+          title={t("contacts.directory")}
           actions={
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search contacts"
+                placeholder={t("contacts.searchPlaceholder")}
                 className="h-10 w-56 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
               />
             </div>
@@ -85,13 +96,11 @@ function ContactsPage() {
         >
           {isLoading && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading contacts…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("contacts.loading")}
             </div>
           )}
           {!isLoading && rows.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No contacts yet. Click “New contact” to add your first one.
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("contacts.empty")}</p>
           )}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {rows.map((c) => (
@@ -109,23 +118,23 @@ function ContactsPage() {
                 </div>
                 <dl className="mt-4 space-y-1.5 text-xs">
                   <div className="flex justify-between">
-                    <dt className="text-subtle">Phone</dt>
+                    <dt className="text-subtle">{t("contacts.phone")}</dt>
                     <dd className="font-medium">{c.phone || "—"}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-subtle">Email</dt>
+                    <dt className="text-subtle">{t("contacts.email")}</dt>
                     <dd className="max-w-[150px] truncate font-medium">{c.email || "—"}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-subtle">Telegram</dt>
+                    <dt className="text-subtle">{t("contacts.telegram")}</dt>
                     <dd className="font-medium">{c.telegram || "—"}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-subtle">Birthday</dt>
+                    <dt className="text-subtle">{t("contacts.birthday")}</dt>
                     <dd className="font-medium">{c.birthday}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-subtle">Deals · tasks</dt>
+                    <dt className="text-subtle">{t("contacts.dealsTasks")}</dt>
                     <dd className="font-medium">
                       {c.deals} · {c.tasks}
                     </dd>
@@ -136,7 +145,7 @@ function ContactsPage() {
                     <button
                       key={i}
                       className="rounded-xl border border-border bg-background p-2 text-muted-foreground hover:bg-accent"
-                      aria-label="Contact action"
+                      aria-label={t("contacts.action")}
                     >
                       <Icon className="h-4 w-4" />
                     </button>

@@ -5,6 +5,7 @@ import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Pri
 import { currency } from "@/lib/mock-data";
 import { useCompaniesView } from "@/hooks/use-crm-data";
 import { NewCompanyDialog } from "@/components/crm/quick-create";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/crm/companies")({
   head: () => ({
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/crm/companies")({
 });
 
 function CompaniesPage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const { rows: companies, isLoading } = useCompaniesView();
 
@@ -47,13 +49,13 @@ function CompaniesPage() {
   return (
     <>
       <PageHeader
-        title="Companies"
-        description="Accounts with every contact, deal and document attached."
+        title={t("companies.title")}
+        description={t("companies.desc")}
         actions={
           <NewCompanyDialog
             trigger={
               <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                <Plus className="h-4 w-4" /> New company
+                <Plus className="h-4 w-4" /> {t("companies.new")}
               </button>
             }
           />
@@ -62,26 +64,26 @@ function CompaniesPage() {
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Companies"
+          label={t("companies.count")}
           value={String(companies.length)}
-          hint="active accounts"
+          hint={t("companies.activeAccounts")}
           tone="mint"
         />
-        <StatCard label="Enterprise accounts" value={String(enterpriseCount)} />
-        <StatCard label="Open account value" value={currency(openValue)} />
-        <StatCard label="Avg. contacts per account" value={avgContacts} />
+        <StatCard label={t("companies.enterpriseAccounts")} value={String(enterpriseCount)} />
+        <StatCard label={t("companies.openValue")} value={currency(openValue)} />
+        <StatCard label={t("companies.avgContacts")} value={avgContacts} />
       </div>
 
       <div className="mt-8">
         <SectionCard
-          title="Account list"
+          title={t("companies.list")}
           actions={
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search companies"
+                placeholder={t("companies.searchPlaceholder")}
                 className="h-10 w-56 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
               />
             </div>
@@ -89,12 +91,12 @@ function CompaniesPage() {
         >
           {isLoading && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading companies…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("companies.loading")}
             </div>
           )}
           {!isLoading && rows.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No companies yet. Click “New company” to add your first account.
+              {t("companies.empty")}
             </p>
           )}
           {rows.length > 0 && (
@@ -103,14 +105,14 @@ function CompaniesPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
                     {[
-                      "Company",
-                      "Industry",
-                      "Employees",
-                      "Annual revenue",
-                      "Owner",
-                      "Contacts",
-                      "Deals",
-                      "Open value",
+                      t("companies.colCompany"),
+                      t("companies.colIndustry"),
+                      t("companies.colEmployees"),
+                      t("companies.colRevenue"),
+                      t("companies.colOwner"),
+                      t("companies.colContacts"),
+                      t("companies.colDeals"),
+                      t("companies.colOpenValue"),
                     ].map((h) => (
                       <th key={h} className="px-6 py-3 font-medium">
                         {h}
