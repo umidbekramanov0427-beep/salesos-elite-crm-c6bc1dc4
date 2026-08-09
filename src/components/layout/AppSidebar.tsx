@@ -1,5 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronsUpDown, ChevronsLeft, Command, LogOut, Plug, Sparkles } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronsUpDown,
+  ChevronsLeft,
+  CircleCheck,
+  Command,
+  LogOut,
+  Plug,
+  Sparkles,
+} from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { LANGS, LANG_LABELS, useI18n, type Lang } from "@/lib/i18n";
@@ -62,6 +71,41 @@ function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+function BusinessProfileLink({ collapsed }: { collapsed: boolean }) {
+  const { t } = useI18n();
+
+  if (collapsed) {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              to="/settings"
+              search={{ section: "business" }}
+              className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-mint text-success"
+            >
+              <CircleCheck className="h-4 w-4" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t("settings.nav.business")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <Link
+      to="/settings"
+      search={{ section: "business" }}
+      className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-mint-border bg-mint px-3 py-2 text-sm font-medium text-mint-foreground transition-colors hover:bg-mint-border"
+    >
+      <CircleCheck className="h-4 w-4 shrink-0 text-success" />
+      <span className="flex-1 truncate">{t("settings.nav.business")}</span>
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-subtle" />
+    </Link>
   );
 }
 
@@ -144,6 +188,8 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
   const mainItems = NAV_ITEMS.filter(
     (i) => (!i.adminOnly || isAdmin) && i.to !== "/settings" && i.to !== "/admin",
   );
+  const topItems = mainItems.filter((i) => !i.group);
+  const analyticsItems = mainItems.filter((i) => i.group === "analytics");
   const bottomItems = NAV_ITEMS.filter(
     (i) => (i.to === "/settings" || i.to === "/admin") && (!i.adminOnly || isAdmin),
   );
@@ -209,10 +255,22 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
 
       <div className="px-0 pb-1 pt-1">
         <IntegrationsStatus collapsed={collapsed} />
+        <BusinessProfileLink collapsed={collapsed} />
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {mainItems.map((item) => renderItem(item))}
+      <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
+        {topItems.map((item) => renderItem(item))}
+        {analyticsItems.length > 0 && (
+          <>
+            {!collapsed && (
+              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">
+                {t("nav.groupAnalytics")}
+              </p>
+            )}
+            {collapsed && <div className="my-3 border-t border-sidebar-border" />}
+            <div className="space-y-1.5">{analyticsItems.map((item) => renderItem(item))}</div>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-sidebar-border p-3">

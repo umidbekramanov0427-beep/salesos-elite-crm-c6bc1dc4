@@ -46,7 +46,41 @@ import {
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
+type SectionKey =
+  | "profile"
+  | "business"
+  | "stages"
+  | "tags"
+  | "users"
+  | "categories"
+  | "salesStages"
+  | "scoreModifiers"
+  | "skills"
+  | "qualificationGroups"
+  | "leadCategories"
+  | "conversion";
+
+const SECTION_KEYS: SectionKey[] = [
+  "profile",
+  "business",
+  "stages",
+  "tags",
+  "users",
+  "categories",
+  "salesStages",
+  "scoreModifiers",
+  "skills",
+  "qualificationGroups",
+  "leadCategories",
+  "conversion",
+];
+
 export const Route = createFileRoute("/settings")({
+  validateSearch: (search: Record<string, unknown>): { section?: SectionKey | undefined } => ({
+    section: SECTION_KEYS.includes(search["section"] as SectionKey)
+      ? (search["section"] as SectionKey)
+      : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Settings — SalesOS Elite" },
@@ -66,20 +100,6 @@ const STAGE_COLORS = [
   "bg-mint-border",
   "bg-muted-foreground",
 ] as const;
-
-type SectionKey =
-  | "profile"
-  | "business"
-  | "stages"
-  | "tags"
-  | "users"
-  | "categories"
-  | "salesStages"
-  | "scoreModifiers"
-  | "skills"
-  | "qualificationGroups"
-  | "leadCategories"
-  | "conversion";
 
 const COMING_SOON: SectionKey[] = [
   "categories",
@@ -860,9 +880,10 @@ function ComingSoonSection({ label }: { label: string }) {
 
 function SettingsPage() {
   const { t } = useI18n();
+  const { section: sectionParam } = Route.useSearch();
   const { tags } = useTagsSummary();
   const { data: stages } = usePipelineStagesRaw();
-  const [section, setSection] = useState<SectionKey>("profile");
+  const [section, setSection] = useState<SectionKey>(sectionParam ?? "profile");
 
   const NAV: { key: SectionKey; icon: LucideIcon; label: string; badge?: number | undefined }[] = [
     { key: "profile", icon: Users, label: t("settings.nav.profile") },
