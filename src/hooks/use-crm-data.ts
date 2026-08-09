@@ -774,6 +774,48 @@ export function useTopPerformers(limit = 5) {
   }, [deals, profiles, limit]);
 }
 
+/* ------------------------------------------------------------------ */
+/* AmoCRM integration — status readout + manual sync trigger.          */
+/* ------------------------------------------------------------------ */
+
+export type IntegrationSettingRow = Database["public"]["Tables"]["integration_settings"]["Row"];
+
+export function useIntegrationSetting(key: string) {
+  return useQuery({
+    queryKey: ["integration_settings", key],
+    queryFn: async (): Promise<IntegrationSettingRow | null> => {
+      const { data, error } = await supabase
+        .from("integration_settings")
+        .select("*")
+        .eq("key", key)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useTriggerAmoCrmSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ synced: number; error?: string }> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/integrations/amocrm/sync", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Sync failed");
+      return json;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+      void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] });
+    },
+  });
+}
+
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   const { user } = useAuth();
