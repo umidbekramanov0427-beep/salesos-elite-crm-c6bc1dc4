@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      amocrm_connection: {
+        Row: {
+          access_token: string
+          connected_at: string
+          connected_by: string | null
+          id: boolean
+          last_sync_error: string | null
+          last_synced_at: string | null
+          refresh_token: string
+          subdomain: string
+          token_expires_at: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string
+          connected_by?: string | null
+          id?: boolean
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          refresh_token: string
+          subdomain: string
+          token_expires_at: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string
+          connected_by?: string | null
+          id?: boolean
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          refresh_token?: string
+          subdomain?: string
+          token_expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amocrm_connection_connected_by_fkey"
+            columns: ["connected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -54,6 +98,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          amocrm_id: number | null
           annual_revenue: number | null
           city: string | null
           country: string | null
@@ -67,6 +112,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          amocrm_id?: number | null
           annual_revenue?: number | null
           city?: string | null
           country?: string | null
@@ -80,6 +126,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          amocrm_id?: number | null
           annual_revenue?: number | null
           city?: string | null
           country?: string | null
@@ -105,6 +152,7 @@ export type Database = {
       contacts: {
         Row: {
           alt_phone: string | null
+          amocrm_id: number | null
           birthday: string | null
           company_id: string | null
           created_at: string
@@ -120,6 +168,7 @@ export type Database = {
         }
         Insert: {
           alt_phone?: string | null
+          amocrm_id?: number | null
           birthday?: string | null
           company_id?: string | null
           created_at?: string
@@ -135,6 +184,7 @@ export type Database = {
         }
         Update: {
           alt_phone?: string | null
+          amocrm_id?: number | null
           birthday?: string | null
           company_id?: string | null
           created_at?: string
@@ -341,6 +391,7 @@ export type Database = {
       leads: {
         Row: {
           address: string | null
+          amocrm_id: number | null
           budget: number
           campaign: string | null
           city: string | null
@@ -369,6 +420,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          amocrm_id?: number | null
           budget?: number
           campaign?: string | null
           city?: string | null
@@ -397,6 +449,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          amocrm_id?: number | null
           budget?: number
           campaign?: string | null
           city?: string | null

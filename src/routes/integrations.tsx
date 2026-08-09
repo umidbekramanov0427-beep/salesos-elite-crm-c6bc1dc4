@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plug, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plug, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { useIntegrationSetting, useTriggerAmoCrmSync } from "@/hooks/use-crm-data";
 import {
   Dialog,
   DialogContent,
@@ -19,30 +21,105 @@ export const Route = createFileRoute("/integrations")({
       { title: "Integrations — SalesOS Elite CRM" },
       {
         name: "description",
-        content: "Connect Salesforce, HubSpot, Slack, Google Sheets, Telegram and more to your SalesOS Elite workspace.",
+        content:
+          "Connect Salesforce, HubSpot, Slack, Google Sheets, Telegram and more to your SalesOS Elite workspace.",
       },
       { property: "og:title", content: "Integrations — SalesOS Elite CRM" },
-      { property: "og:description", content: "Connect and manage the tools your revenue team uses every day." },
+      {
+        property: "og:description",
+        content: "Connect and manage the tools your revenue team uses every day.",
+      },
     ],
   }),
   component: IntegrationsPage,
 });
 
-type Catalog = { id: string; name: string; category: "crm" | "messaging" | "data" | "ai" | "other"; blurb: string; color: string };
+type Catalog = {
+  id: string;
+  name: string;
+  category: "crm" | "messaging" | "data" | "ai" | "other";
+  blurb: string;
+  color: string;
+};
 
 const CATALOG: Catalog[] = [
-  { id: "salesforce", name: "Salesforce", category: "crm", blurb: "Two-way account, contact and opportunity sync.", color: "#00A1E0" },
-  { id: "hubspot", name: "HubSpot", category: "crm", blurb: "Import lifecycle stages and marketing contacts.", color: "#FF7A59" },
-  { id: "amocrm", name: "amoCRM", category: "crm", blurb: "Sync leads and pipelines with amoCRM.", color: "#2E9BFF" },
-  { id: "google-sheets", name: "Google Sheets", category: "data", blurb: "Export leaderboard and pipeline snapshots.", color: "#0F9D58" },
-  { id: "slack", name: "Slack", category: "messaging", blurb: "Post deal-won and milestone alerts to channels.", color: "#611F69" },
-  { id: "telegram", name: "Telegram", category: "messaging", blurb: "Bot notifications and lead conversations.", color: "#229ED9" },
-  { id: "whatsapp", name: "WhatsApp Business", category: "messaging", blurb: "Templates, replies and chat history sync.", color: "#25D366" },
-  { id: "gmail", name: "Gmail", category: "messaging", blurb: "Two-way email sync with thread tracking.", color: "#EA4335" },
-  { id: "openai", name: "OpenAI", category: "ai", blurb: "Call summaries, sentiment and reply drafting.", color: "#10A37F" },
-  { id: "twilio", name: "Twilio", category: "other", blurb: "SIP calling, SMS and recording pipeline.", color: "#F22F46" },
-  { id: "stripe", name: "Stripe", category: "other", blurb: "Payment status on deals and invoices.", color: "#635BFF" },
-  { id: "webhooks", name: "Webhooks", category: "other", blurb: "Outbound events to any HTTPS endpoint.", color: "#64748B" },
+  {
+    id: "salesforce",
+    name: "Salesforce",
+    category: "crm",
+    blurb: "Two-way account, contact and opportunity sync.",
+    color: "#00A1E0",
+  },
+  {
+    id: "hubspot",
+    name: "HubSpot",
+    category: "crm",
+    blurb: "Import lifecycle stages and marketing contacts.",
+    color: "#FF7A59",
+  },
+  {
+    id: "google-sheets",
+    name: "Google Sheets",
+    category: "data",
+    blurb: "Export leaderboard and pipeline snapshots.",
+    color: "#0F9D58",
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    category: "messaging",
+    blurb: "Post deal-won and milestone alerts to channels.",
+    color: "#611F69",
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    category: "messaging",
+    blurb: "Bot notifications and lead conversations.",
+    color: "#229ED9",
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp Business",
+    category: "messaging",
+    blurb: "Templates, replies and chat history sync.",
+    color: "#25D366",
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    category: "messaging",
+    blurb: "Two-way email sync with thread tracking.",
+    color: "#EA4335",
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    category: "ai",
+    blurb: "Call summaries, sentiment and reply drafting.",
+    color: "#10A37F",
+  },
+  {
+    id: "twilio",
+    name: "Twilio",
+    category: "other",
+    blurb: "SIP calling, SMS and recording pipeline.",
+    color: "#F22F46",
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    category: "other",
+    blurb: "Payment status on deals and invoices.",
+    color: "#635BFF",
+  },
+  {
+    id: "webhooks",
+    name: "Webhooks",
+    category: "other",
+    blurb: "Outbound events to any HTTPS endpoint.",
+    color: "#64748B",
+  },
 ];
 
 type Installed = { id: string; active: boolean; addedAt: string; lastSync: string | null };
@@ -50,10 +127,94 @@ type Installed = { id: string; active: boolean; addedAt: string; lastSync: strin
 const STORAGE_KEY = "salesos.integrations";
 
 const DEFAULTS: Installed[] = [
-  { id: "telegram", active: true, addedAt: new Date().toISOString(), lastSync: new Date().toISOString() },
-  { id: "openai", active: true, addedAt: new Date().toISOString(), lastSync: new Date().toISOString() },
+  {
+    id: "telegram",
+    active: true,
+    addedAt: new Date().toISOString(),
+    lastSync: new Date().toISOString(),
+  },
+  {
+    id: "openai",
+    active: true,
+    addedAt: new Date().toISOString(),
+    lastSync: new Date().toISOString(),
+  },
   { id: "whatsapp", active: false, addedAt: new Date().toISOString(), lastSync: null },
 ];
+
+function AmoCrmCard() {
+  const { user } = useAuth();
+  const { data: setting, isLoading } = useIntegrationSetting("amocrm");
+  const sync = useTriggerAmoCrmSync();
+  const isAdmin = user?.role === "super_admin";
+
+  const connected = setting?.enabled ?? false;
+  const config =
+    (setting?.config as {
+      subdomain?: string;
+      last_synced_at?: string;
+      lead_count?: number;
+    } | null) ?? {};
+
+  return (
+    <SectionCard title="AmoCRM" description="One-way lead sync — AmoCRM to SalesOS">
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Pill tone={connected ? "success" : "neutral"}>
+                {connected ? "Connected" : "Not connected"}
+              </Pill>
+              {connected && config.subdomain && (
+                <span className="text-xs text-subtle">{config.subdomain}</span>
+              )}
+            </div>
+            {connected && (
+              <p className="mt-2 text-xs text-subtle">
+                Last sync:{" "}
+                {config.last_synced_at ? new Date(config.last_synced_at).toLocaleString() : "Never"}
+                {typeof config.lead_count === "number" ? ` · ${config.lead_count} leads` : ""}
+              </p>
+            )}
+            {!isAdmin && (
+              <p className="mt-2 text-xs text-subtle">Only admins can connect or sync AmoCRM.</p>
+            )}
+          </div>
+
+          {isAdmin && connected && (
+            <button
+              type="button"
+              onClick={() =>
+                sync.mutate(undefined, { onSuccess: () => toast.success("AmoCRM sync started") })
+              }
+              disabled={sync.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {sync.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Sync now
+            </button>
+          )}
+          {isAdmin && !connected && (
+            <a
+              href="/integrations/amocrm/connect"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Plug className="h-4 w-4" /> Connect AmoCRM
+            </a>
+          )}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
 
 function IntegrationsPage() {
   const { t } = useI18n();
@@ -80,7 +241,15 @@ function IntegrationsPage() {
   const available = CATALOG.filter((c) => !installed.some((i) => i.id === c.id));
 
   function add(c: Catalog) {
-    persist([...installed, { id: c.id, active: true, addedAt: new Date().toISOString(), lastSync: new Date().toISOString() }]);
+    persist([
+      ...installed,
+      {
+        id: c.id,
+        active: true,
+        addedAt: new Date().toISOString(),
+        lastSync: new Date().toISOString(),
+      },
+    ]);
     setOpen(false);
     toast.success(t("int.connectedToast", { name: c.name }));
   }
@@ -91,11 +260,15 @@ function IntegrationsPage() {
     const active = !item.active;
     persist(
       installed.map((i) =>
-        i.id === id ? { ...i, active, lastSync: active ? new Date().toISOString() : i.lastSync } : i,
+        i.id === id
+          ? { ...i, active, lastSync: active ? new Date().toISOString() : i.lastSync }
+          : i,
       ),
     );
     const name = byId.get(id)?.name ?? id;
-    toast[active ? "success" : "message"](t(active ? "int.connectedToast" : "int.disconnectedToast", { name }));
+    toast[active ? "success" : "message"](
+      t(active ? "int.connectedToast" : "int.disconnectedToast", { name }),
+    );
   }
 
   function remove(id: string) {
@@ -120,7 +293,14 @@ function IntegrationsPage() {
         }
       />
 
-      <SectionCard title={t("int.connected")} description={`${installed.filter((i) => i.active).length} / ${installed.length}`}>
+      <div className="mb-6">
+        <AmoCrmCard />
+      </div>
+
+      <SectionCard
+        title={t("int.connected")}
+        description={`${installed.filter((i) => i.active).length} / ${installed.length}`}
+      >
         {!hydrated ? (
           <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
         ) : installed.length === 0 ? (
@@ -142,7 +322,9 @@ function IntegrationsPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{meta.name}</p>
-                      <p className="text-[11px] text-subtle">{t(`int.category.${meta.category}`)}</p>
+                      <p className="text-[11px] text-subtle">
+                        {t(`int.category.${meta.category}`)}
+                      </p>
                     </div>
                     <span className="ml-auto">
                       <Pill tone={item.active ? "success" : "danger"}>
@@ -213,15 +395,15 @@ function IntegrationsPage() {
                     {c.name[0]}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-foreground">{c.name}</span>
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {c.name}
+                    </span>
                     <span className="block text-[11px] text-subtle">{c.blurb}</span>
                   </span>
                 </button>
               </li>
             ))}
-            {available.length === 0 && (
-              <li className="text-sm text-muted-foreground">—</li>
-            )}
+            {available.length === 0 && <li className="text-sm text-muted-foreground">—</li>}
           </ul>
         </DialogContent>
       </Dialog>

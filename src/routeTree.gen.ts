@@ -32,6 +32,10 @@ import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
 import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
+import { Route as IntegrationsAmocrmCallbackRouteImport } from './routes/integrations.amocrm.callback'
+import { Route as IntegrationsAmocrmConnectRouteImport } from './routes/integrations.amocrm.connect'
+import { Route as IntegrationsAmocrmSyncRouteImport } from './routes/integrations.amocrm.sync'
+import { Route as IntegrationsAmocrmWebhookRouteImport } from './routes/integrations.amocrm.webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -151,6 +155,29 @@ const CrmLeadsLeadIdRoute = CrmLeadsLeadIdRouteImport.update({
   path: '/crm/leads/$leadId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntegrationsAmocrmCallbackRoute =
+  IntegrationsAmocrmCallbackRouteImport.update({
+    id: '/amocrm/callback',
+    path: '/amocrm/callback',
+    getParentRoute: () => IntegrationsRoute,
+  } as any)
+const IntegrationsAmocrmConnectRoute =
+  IntegrationsAmocrmConnectRouteImport.update({
+    id: '/amocrm/connect',
+    path: '/amocrm/connect',
+    getParentRoute: () => IntegrationsRoute,
+  } as any)
+const IntegrationsAmocrmSyncRoute = IntegrationsAmocrmSyncRouteImport.update({
+  id: '/amocrm/sync',
+  path: '/amocrm/sync',
+  getParentRoute: () => IntegrationsRoute,
+} as any)
+const IntegrationsAmocrmWebhookRoute =
+  IntegrationsAmocrmWebhookRouteImport.update({
+    id: '/amocrm/webhook',
+    path: '/amocrm/webhook',
+    getParentRoute: () => IntegrationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -161,7 +188,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
-  '/integrations': typeof IntegrationsRoute
+  '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -175,6 +202,10 @@ export interface FileRoutesByFullPath {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+  '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
+  '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
+  '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
+  '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -186,7 +217,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
-  '/integrations': typeof IntegrationsRoute
+  '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -200,6 +231,10 @@ export interface FileRoutesByTo {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+  '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
+  '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
+  '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
+  '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
   '/crm/leads': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesById {
@@ -212,7 +247,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
-  '/integrations': typeof IntegrationsRoute
+  '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -226,6 +261,10 @@ export interface FileRoutesById {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+  '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
+  '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
+  '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
+  '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRouteTypes {
@@ -253,6 +292,10 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
+    | '/integrations/amocrm/callback'
+    | '/integrations/amocrm/connect'
+    | '/integrations/amocrm/sync'
+    | '/integrations/amocrm/webhook'
     | '/crm/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -278,6 +321,10 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
+    | '/integrations/amocrm/callback'
+    | '/integrations/amocrm/connect'
+    | '/integrations/amocrm/sync'
+    | '/integrations/amocrm/webhook'
     | '/crm/leads'
   id:
     | '__root__'
@@ -303,6 +350,10 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
+    | '/integrations/amocrm/callback'
+    | '/integrations/amocrm/connect'
+    | '/integrations/amocrm/sync'
+    | '/integrations/amocrm/webhook'
     | '/crm/leads/'
   fileRoutesById: FileRoutesById
 }
@@ -315,7 +366,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
-  IntegrationsRoute: typeof IntegrationsRoute
+  IntegrationsRoute: typeof IntegrationsRouteWithChildren
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
@@ -495,8 +546,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmLeadsLeadIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/integrations/amocrm/callback': {
+      id: '/integrations/amocrm/callback'
+      path: '/amocrm/callback'
+      fullPath: '/integrations/amocrm/callback'
+      preLoaderRoute: typeof IntegrationsAmocrmCallbackRouteImport
+      parentRoute: typeof IntegrationsRoute
+    }
+    '/integrations/amocrm/connect': {
+      id: '/integrations/amocrm/connect'
+      path: '/amocrm/connect'
+      fullPath: '/integrations/amocrm/connect'
+      preLoaderRoute: typeof IntegrationsAmocrmConnectRouteImport
+      parentRoute: typeof IntegrationsRoute
+    }
+    '/integrations/amocrm/sync': {
+      id: '/integrations/amocrm/sync'
+      path: '/amocrm/sync'
+      fullPath: '/integrations/amocrm/sync'
+      preLoaderRoute: typeof IntegrationsAmocrmSyncRouteImport
+      parentRoute: typeof IntegrationsRoute
+    }
+    '/integrations/amocrm/webhook': {
+      id: '/integrations/amocrm/webhook'
+      path: '/amocrm/webhook'
+      fullPath: '/integrations/amocrm/webhook'
+      preLoaderRoute: typeof IntegrationsAmocrmWebhookRouteImport
+      parentRoute: typeof IntegrationsRoute
+    }
   }
 }
+
+interface IntegrationsRouteChildren {
+  IntegrationsAmocrmCallbackRoute: typeof IntegrationsAmocrmCallbackRoute
+  IntegrationsAmocrmConnectRoute: typeof IntegrationsAmocrmConnectRoute
+  IntegrationsAmocrmSyncRoute: typeof IntegrationsAmocrmSyncRoute
+  IntegrationsAmocrmWebhookRoute: typeof IntegrationsAmocrmWebhookRoute
+}
+
+const IntegrationsRouteChildren: IntegrationsRouteChildren = {
+  IntegrationsAmocrmCallbackRoute: IntegrationsAmocrmCallbackRoute,
+  IntegrationsAmocrmConnectRoute: IntegrationsAmocrmConnectRoute,
+  IntegrationsAmocrmSyncRoute: IntegrationsAmocrmSyncRoute,
+  IntegrationsAmocrmWebhookRoute: IntegrationsAmocrmWebhookRoute,
+}
+
+const IntegrationsRouteWithChildren = IntegrationsRoute._addFileChildren(
+  IntegrationsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -507,7 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,
-  IntegrationsRoute: IntegrationsRoute,
+  IntegrationsRoute: IntegrationsRouteWithChildren,
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
