@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Banknote,
@@ -11,7 +11,7 @@ import {
   UserPlus,
   XCircle,
 } from "lucide-react";
-import { PageHeader } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import {
@@ -27,7 +27,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
-import { useDashboardKpis, useRevenueSeries } from "@/hooks/use-crm-data";
+import { useDashboardKpis, useFunnelNames, useRevenueSeries } from "@/hooks/use-crm-data";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 
 const RevenueChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })),
@@ -72,7 +73,22 @@ function Dashboard() {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const { format } = useCurrency();
-  const kpis = useDashboardKpis();
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
+  const [funnel, setFunnel] = useState<string | null>(null);
+  const { names: funnelNames } = useFunnelNames();
+  const dashboardFilters = useMemo(
+    () => ({
+      from: dateFilter.from ? dateFilter.from.toISOString() : null,
+      to: dateFilter.to ? dateFilter.to.toISOString() : null,
+      funnel,
+    }),
+    [dateFilter, funnel],
+  );
+  const kpis = useDashboardKpis(dashboardFilters);
   const revenueSeries = useRevenueSeries();
   const spark = useMemo(() => revenueSeries.map((r) => r.revenue), [revenueSeries]);
 
@@ -180,6 +196,24 @@ function Dashboard() {
     <>
       <PageHeader title={t("dash.title")} description={t("dash.desc")} />
 
+      <SectionCard title={t("lb.filters")} className="mb-6">
+        <div className="flex flex-wrap items-end gap-3">
+          <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+          <select
+            value={funnel ?? ""}
+            onChange={(e) => setFunnel(e.target.value || null)}
+            className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <option value="">{t("leadFilter.allFunnels")}</option>
+            {funnelNames.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </div>
+      </SectionCard>
+
       <section className="mint-card grid gap-4 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
@@ -193,16 +227,18 @@ function Dashboard() {
               : t("dash.weekSummaryEmpty")}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:w-[280px]">
-          <div className="rounded-xl bg-background p-3">
+        <div className="grid grid-cols-2 gap-3 md:w-[300px]">
+          <div className="min-w-0 rounded-xl bg-background p-3">
             <p className="text-[11px] text-subtle">{t("dash.todayRevenue")}</p>
-            <p className="mt-1 text-lg font-semibold text-foreground">
+            <p className="mt-1 truncate text-base font-semibold text-foreground sm:text-lg">
               {format(kpis.revenueToday)}
             </p>
           </div>
-          <div className="rounded-xl bg-background p-3">
+          <div className="min-w-0 rounded-xl bg-background p-3">
             <p className="text-[11px] text-subtle">{t("dash.todayGoal")}</p>
-            <p className="mt-1 text-lg font-semibold text-foreground">{format(todayGoal)}</p>
+            <p className="mt-1 truncate text-base font-semibold text-foreground sm:text-lg">
+              {format(todayGoal)}
+            </p>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-success transition-[width] duration-700"
