@@ -19,6 +19,7 @@ import {
   Sun,
   Tag as TagIcon,
   MessageCircle,
+  Palette,
   Thermometer,
   Trash2,
   TrendingUp,
@@ -58,6 +59,7 @@ import { BusinessProfileBot } from "@/components/settings/BusinessProfileBot";
 
 type SectionKey =
   | "profile"
+  | "personalization"
   | "business"
   | "stages"
   | "tags"
@@ -73,6 +75,7 @@ type SectionKey =
 
 const SECTION_KEYS: SectionKey[] = [
   "profile",
+  "personalization",
   "business",
   "stages",
   "tags",
@@ -124,9 +127,7 @@ const COMING_SOON: SectionKey[] = [
 ];
 
 function ProfileSection() {
-  const { t, lang, setLang } = useI18n();
-  const { unit, setUnit } = useCurrency();
-  const { dark, setDark } = useTheme();
+  const { t } = useI18n();
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
 
@@ -153,7 +154,7 @@ function ProfileSection() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <SectionCard title={t("settings.profile")}>
+      <SectionCard title={t("settings.profile")} className="xl:col-span-2">
         <form onSubmit={onSaveProfile} className="grid gap-5 sm:grid-cols-2">
           <label className="block">
             <span className="text-[13px] font-medium text-muted-foreground">
@@ -208,64 +209,75 @@ function ProfileSection() {
           </div>
         </form>
       </SectionCard>
+    </div>
+  );
+}
 
-      <SectionCard title={t("settings.preferences")}>
-        <div className="space-y-6">
-          <div>
-            <span className="text-[13px] font-medium text-muted-foreground">
-              {t("settings.currency")}
-            </span>
-            <div className="mt-2">
-              <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
-            </div>
-          </div>
-          <div>
-            <span className="text-[13px] font-medium text-muted-foreground">
-              {t("settings.language")}
-            </span>
-            <div className="mt-2">
-              <SegmentedControl
-                value={lang}
-                options={LANGS}
-                render={(l) => LANG_LABELS[l]}
-                onChange={setLang}
-              />
-            </div>
-          </div>
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <p className="text-[13px] font-medium text-muted-foreground">
-                {t("settings.appearance")}
-              </p>
-              <p className="mt-1 text-xs text-subtle">{t("settings.appearanceDesc")}</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={dark}
-              onClick={() => setDark(!dark)}
-              className={cn(
-                "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors",
-                dark ? "bg-foreground" : "bg-warning/25",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute left-1 flex h-6 w-6 items-center justify-center rounded-full bg-background shadow-soft transition-transform duration-200",
-                  dark && "translate-x-6",
-                )}
-              >
-                {dark ? (
-                  <Moon className="h-3.5 w-3.5 text-foreground" />
-                ) : (
-                  <Sun className="h-3.5 w-3.5 text-warning" />
-                )}
-              </span>
-            </button>
+function PersonalizationSection() {
+  const { t, lang, setLang } = useI18n();
+  const { unit, setUnit } = useCurrency();
+  const { dark, setDark } = useTheme();
+
+  return (
+    <SectionCard
+      title={t("settings.nav.personalization")}
+      description={t("settings.personalizationDesc")}
+    >
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div>
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.currency")}
+          </span>
+          <div className="mt-2">
+            <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
           </div>
         </div>
-      </SectionCard>
-    </div>
+        <div>
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.language")}
+          </span>
+          <div className="mt-2">
+            <SegmentedControl
+              value={lang}
+              options={LANGS}
+              render={(l) => LANG_LABELS[l]}
+              onChange={setLang}
+            />
+          </div>
+        </div>
+        <div className="flex items-start justify-between gap-6 sm:col-span-2">
+          <div>
+            <p className="text-[13px] font-medium text-muted-foreground">
+              {t("settings.appearance")}
+            </p>
+            <p className="mt-1 text-xs text-subtle">{t("settings.appearanceDesc")}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={dark}
+            onClick={() => setDark(!dark)}
+            className={cn(
+              "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors",
+              dark ? "bg-foreground" : "bg-warning/25",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute left-1 flex h-6 w-6 items-center justify-center rounded-full bg-background shadow-soft transition-transform duration-200",
+                dark && "translate-x-6",
+              )}
+            >
+              {dark ? (
+                <Moon className="h-3.5 w-3.5 text-foreground" />
+              ) : (
+                <Sun className="h-3.5 w-3.5 text-warning" />
+              )}
+            </span>
+          </button>
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 
@@ -1082,6 +1094,7 @@ function SettingsPage() {
 
   const NAV: { key: SectionKey; icon: LucideIcon; label: string; badge?: number | undefined }[] = [
     { key: "profile", icon: Users, label: t("settings.nav.profile") },
+    { key: "personalization", icon: Palette, label: t("settings.nav.personalization") },
     { key: "business", icon: Building2, label: t("settings.nav.business") },
     { key: "stages", icon: Workflow, label: t("settings.nav.stages"), badge: stages?.length },
     { key: "tags", icon: TagIcon, label: t("settings.nav.tags"), badge: tags.length },
@@ -1132,6 +1145,7 @@ function SettingsPage() {
 
         <div>
           {section === "profile" && <ProfileSection />}
+          {section === "personalization" && <PersonalizationSection />}
           {section === "business" && <BusinessProfileSection />}
           {section === "stages" && <StagesSection />}
           {section === "tags" && <TagsSection />}

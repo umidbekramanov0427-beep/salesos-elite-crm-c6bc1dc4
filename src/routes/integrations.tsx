@@ -65,6 +65,20 @@ const CATALOG: Catalog[] = [
     color: "#0F9D58",
   },
   {
+    id: "google-docs",
+    name: "Google Docs",
+    category: "data",
+    blurb: "int.blurb.googleDocs",
+    color: "#4285F4",
+  },
+  {
+    id: "google-forms",
+    name: "Google Forms",
+    category: "data",
+    blurb: "int.blurb.googleForms",
+    color: "#673AB7",
+  },
+  {
     id: "slack",
     name: "Slack",
     category: "messaging",

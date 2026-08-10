@@ -1627,6 +1627,21 @@ export const useErrorLogsRaw = (opts?: Parameters<typeof errorLogsResource.useLi
 export const useResolveErrorLog = errorLogsResource.useUpdate;
 
 /* ------------------------------------------------------------------ */
+/* Auto-responders — admin-configured "ask this, save the answer to    */
+/* this CRM field" scripts. Config only: actually sending needs a      */
+/* connected messaging channel, which isn't wired up yet.              */
+/* ------------------------------------------------------------------ */
+
+export type AutoResponderRow = Tables["auto_responders"]["Row"];
+const autoRespondersResource = makeResource("auto_responders", ["auto_responders"]);
+
+export const useAutoRespondersRaw = (opts?: Parameters<typeof autoRespondersResource.useList>[0]) =>
+  autoRespondersResource.useList({ orderBy: "created_at", ascending: false, ...opts });
+export const useCreateAutoResponder = autoRespondersResource.useCreate;
+export const useUpdateAutoResponder = autoRespondersResource.useUpdate;
+export const useDeleteAutoResponder = autoRespondersResource.useRemove;
+
+/* ------------------------------------------------------------------ */
 /* Distinct funnel names — for the sidebar's expandable Funnels group. */
 /* ------------------------------------------------------------------ */
 
