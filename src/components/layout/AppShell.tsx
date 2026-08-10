@@ -187,12 +187,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DropdownMenu>
 
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-mint-border bg-mint py-1.5 pl-1.5 pr-3 transition-colors hover:bg-mint-border">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
+              <DropdownMenuTrigger className="flex items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-400/15 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-amber-400/25 dark:border-amber-400/30 dark:bg-amber-400/10 dark:hover:bg-amber-400/20">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/25 text-xs font-bold text-amber-700 dark:bg-amber-400/20 dark:text-amber-300">
                   {user?.initials ?? "?"}
                 </span>
                 <span className="hidden leading-tight sm:block">
-                  <span className="block text-[13px] font-medium">{user?.name ?? "…"}</span>
+                  <span className="block text-[13px] font-bold text-amber-700 dark:text-amber-300">
+                    {user?.name ?? "…"}
+                  </span>
                   <span className="block text-[11px] text-subtle">{user?.position ?? ""}</span>
                 </span>
               </DropdownMenuTrigger>
