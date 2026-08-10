@@ -33,6 +33,10 @@ type AuthResult = { ok: true } | { ok: false; error: string };
 type AuthValue = {
   user: SessionUser | null;
   ready: boolean;
+  // True while the session was opened by a password-recovery email link —
+  // the login screen uses this to show a "set new password" form instead
+  // of redirecting straight into the app like a normal sign-in would.
+  recoveryMode: boolean;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signUp: (
     email: string,
@@ -41,6 +45,8 @@ type AuthValue = {
   ) => Promise<AuthResult & { needsEmailConfirm?: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetPassword: (email: string) => Promise<AuthResult>;
+  updatePassword: (newPassword: string) => Promise<AuthResult>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -82,6 +88,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -111,7 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted.current) setReady(true);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       if (session?.user) {
         void hydrate(session.user.id).finally(() => {
           if (mounted.current) setReady(true);
@@ -151,9 +159,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.session?.user) await hydrate(data.session.user.id);
   }, [hydrate]);
 
+  const resetPassword = useCallback(async (email: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }, []);
+
+  const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { ok: false, error: error.message };
+    setRecoveryMode(false);
+    return { ok: true };
+  }, []);
+
   const value = useMemo(
-    () => ({ user, ready, signIn, signUp, signOut, refreshProfile }),
-    [user, ready, signIn, signUp, signOut, refreshProfile],
+    () => ({
+      user,
+      ready,
+      recoveryMode,
+      signIn,
+      signUp,
+      signOut,
+      refreshProfile,
+      resetPassword,
+      updatePassword,
+    }),
+    [
+      user,
+      ready,
+      recoveryMode,
+      signIn,
+      signUp,
+      signOut,
+      refreshProfile,
+      resetPassword,
+      updatePassword,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

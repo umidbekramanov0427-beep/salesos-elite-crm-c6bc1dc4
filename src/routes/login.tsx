@@ -37,7 +37,7 @@ function signInErrorMessage(raw: string, t: (key: string) => string): string {
 }
 
 function LoginPage() {
-  const { user, ready, signIn, signUp } = useAuth();
+  const { user, ready, recoveryMode, signIn, signUp, resetPassword, updatePassword } = useAuth();
   const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
 
@@ -54,9 +54,60 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [confirmNotice, setConfirmNotice] = useState(false);
 
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [recoveryError, setRecoveryError] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+
   useEffect(() => {
-    if (ready && user) void navigate({ to: "/", replace: true });
-  }, [ready, user, navigate]);
+    if (ready && user && !recoveryMode) void navigate({ to: "/", replace: true });
+  }, [ready, user, recoveryMode, navigate]);
+
+  async function onForgotSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!EMAIL_RE.test(forgotEmail.trim())) {
+      setRecoveryError("");
+      setForgotError(t("login.invalidEmail"));
+      return;
+    }
+    setForgotBusy(true);
+    setForgotError("");
+    const result = await resetPassword(forgotEmail);
+    setForgotBusy(false);
+    if (!result.ok) {
+      setForgotError(result.error);
+      return;
+    }
+    setForgotSent(true);
+  }
+
+  async function onRecoverySubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setRecoveryError(t("login.shortPassword"));
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setRecoveryError(t("login.passwordMismatch"));
+      return;
+    }
+    setRecoveryBusy(true);
+    setRecoveryError("");
+    const result = await updatePassword(newPassword);
+    setRecoveryBusy(false);
+    if (!result.ok) {
+      setRecoveryError(result.error);
+      return;
+    }
+    toast.success(t("login.passwordUpdated"));
+    void navigate({ to: "/", replace: true });
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -100,10 +151,14 @@ function LoginPage() {
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div className="relative flex justify-start">
-            <BrandMark className="items-start text-left" />
+          <div className="relative flex justify-center">
+            <BrandMark
+              className="items-center text-center"
+              iconClassName="h-24 w-24 sm:h-28 sm:w-28"
+              wordmarkClassName="text-3xl sm:text-4xl"
+            />
           </div>
-          <div className="relative">
+          <div className="relative text-center">
             <h2 className="text-4xl font-bold leading-tight text-white sm:text-5xl">
               {t("login.title")}
             </h2>
@@ -117,26 +172,26 @@ function LoginPage() {
               but built from the same fields, framed as if inside a monitor
               so the branding panel reads as "this is the real product". */}
           <div className="relative">
-            <div className="rounded-t-2xl border border-white/10 bg-[#04070f] p-2.5 shadow-elevated">
-              <div className="mb-2 flex items-center gap-1.5 px-1">
-                <span className="h-2 w-2 rounded-full bg-white/20" />
-                <span className="h-2 w-2 rounded-full bg-white/20" />
-                <span className="h-2 w-2 rounded-full bg-white/20" />
-                <span className="ml-2 truncate rounded-md bg-white/[0.06] px-2 py-0.5 text-[9px] text-white/30">
+            <div className="rounded-t-2xl border border-white/10 bg-[#04070f] p-4 shadow-elevated">
+              <div className="mb-3 flex items-center gap-2 px-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="ml-2 truncate rounded-md bg-white/[0.06] px-2.5 py-1 text-xs text-white/30">
                   app.salesos.uz/reyting
                 </span>
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-white/[0.05] p-3">
-                <div className="mb-2.5 flex items-center gap-2">
-                  <span className="relative flex h-2 w-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
                   </span>
-                  <p className="text-xs font-semibold text-white/80">{t("lb.title")}</p>
+                  <p className="text-base font-semibold text-white/80">{t("lb.title")}</p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   {[
                     { initials: "MR", name: "Mavjuda R.", crown: true },
                     { initials: "MR", name: "Munira R.", crown: false },
@@ -145,58 +200,56 @@ function LoginPage() {
                     <div
                       key={i}
                       className={cn(
-                        "rounded-lg border p-2",
+                        "rounded-lg border p-3",
                         p.crown
                           ? "border-amber-400/50 bg-amber-400/[0.07]"
                           : "border-white/10 bg-white/[0.04]",
                       )}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[9px] font-bold text-emerald-300">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
                           {p.initials}
                         </span>
-                        <span className="truncate text-[10px] font-semibold text-white/80">
+                        <span className="truncate text-sm font-semibold text-white/80">
                           {p.name}
                         </span>
-                        {p.crown && <span className="ml-auto shrink-0 text-xs">👑</span>}
+                        {p.crown && <span className="ml-auto shrink-0 text-base">👑</span>}
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-1">
+                      <div className="mt-3 grid grid-cols-2 gap-1.5">
                         <div>
-                          <p className="text-[7px] text-white/35">{t("lb.colRevenue")}</p>
-                          <p className="text-[9px] font-bold text-emerald-300">UZS 0</p>
+                          <p className="text-[10px] text-white/35">{t("lb.colRevenue")}</p>
+                          <p className="text-sm font-bold text-emerald-300">UZS 0</p>
                         </div>
                         <div>
-                          <p className="text-[7px] text-white/35">{t("lb.colWonLeads")}</p>
-                          <p className="text-[9px] font-bold text-white">0</p>
+                          <p className="text-[10px] text-white/35">{t("lb.colWonLeads")}</p>
+                          <p className="text-sm font-bold text-white">0</p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <p className="mb-1.5 mt-3 text-[9px] font-semibold uppercase tracking-wide text-white/40">
+                <p className="mb-2.5 mt-5 text-xs font-semibold uppercase tracking-wide text-white/40">
                   {t("lb.liveRanking2")}
                 </p>
-                <div className="space-y-1.5 border-t border-white/10 pt-2">
+                <div className="space-y-3 border-t border-white/10 pt-3">
                   {[
                     { rank: 1, name: "Mavjuda R.", target: 92, bonus: "1.8M" },
                     { rank: 2, name: "Munira R.", target: 74, bonus: "1.3M" },
                     { rank: 3, name: "Nilufar I.", target: 58, bonus: "0.9M" },
                   ].map((r) => (
-                    <div key={r.rank} className="flex items-center gap-2">
-                      <span className="w-4 shrink-0 text-[10px] font-bold text-amber-400">
+                    <div key={r.rank} className="flex items-center gap-3">
+                      <span className="w-5 shrink-0 text-sm font-bold text-amber-400">
                         #{r.rank}
                       </span>
-                      <span className="w-16 shrink-0 truncate text-[9px] text-white/65">
-                        {r.name}
-                      </span>
-                      <div className="h-1 flex-1 rounded-full bg-white/10">
+                      <span className="w-24 shrink-0 truncate text-sm text-white/65">{r.name}</span>
+                      <div className="h-2 flex-1 rounded-full bg-white/10">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-300"
                           style={{ width: `${r.target}%` }}
                         />
                       </div>
-                      <span className="w-8 shrink-0 text-right text-[9px] font-semibold text-emerald-300">
+                      <span className="w-12 shrink-0 text-right text-sm font-semibold text-emerald-300">
                         {r.bonus}
                       </span>
                     </div>
@@ -205,8 +258,8 @@ function LoginPage() {
               </div>
             </div>
             {/* monitor stand */}
-            <div className="mx-auto h-3 w-14 bg-[#04070f]" />
-            <div className="mx-auto h-1.5 w-24 rounded-full bg-[#04070f]" />
+            <div className="mx-auto h-4 w-20 bg-[#04070f]" />
+            <div className="mx-auto h-2 w-36 rounded-full bg-[#04070f]" />
           </div>
         </section>
 
@@ -232,126 +285,259 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-sm">
-            <div className="mb-7 flex flex-col items-center text-center">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-background shadow-soft">
-                <Logo className="h-9 w-9" />
+          <div className="mx-auto w-full max-w-md">
+            <div className="mb-8 flex flex-col items-center text-center">
+              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-background shadow-soft">
+                <Logo className="h-11 w-11" />
               </span>
-              <p className="mt-3 text-2xl font-bold text-foreground">SalesOS Elite CRM</p>
+              <p className="mt-4 text-3xl font-bold text-foreground">SalesOS Elite CRM</p>
+              <p className="mt-2 text-base text-muted-foreground">{t("login.subtitle")}</p>
             </div>
 
-            <h1 className="text-center text-xl font-semibold text-foreground">
-              {t("login.title")}
-            </h1>
-            <p className="mt-2 text-center text-sm text-muted-foreground">{t("login.subtitle")}</p>
-
             {confirmNotice && (
-              <p className="mt-4 rounded-xl bg-info/10 px-3 py-2 text-sm font-medium text-info">
+              <p className="mb-6 rounded-xl bg-info/10 px-3 py-2 text-sm font-medium text-info">
                 {t("login.confirmEmailNotice")}
               </p>
             )}
 
-            <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
-              {mode === "signup" && (
+            {recoveryMode ? (
+              <form onSubmit={onRecoverySubmit} noValidate className="space-y-5">
+                <p className="text-center text-sm text-muted-foreground">
+                  {t("login.setNewPasswordDesc")}
+                </p>
                 <label className="block">
                   <span className="text-[13px] font-medium text-muted-foreground">
-                    {t("login.fullName")}
+                    {t("login.newPassword")}
                   </span>
                   <span className="relative mt-2 block">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
                     <input
-                      type="text"
-                      autoComplete="name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Aizhan Serikova"
-                      aria-invalid={!!errors.fullName}
-                      className="h-14 w-full rounded-xl border border-border bg-surface px-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      type="password"
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
                     />
                   </span>
-                  {errors.fullName && (
-                    <span className="mt-1.5 block text-xs text-destructive">{errors.fullName}</span>
-                  )}
                 </label>
-              )}
-
-              <label className="block">
-                <span className="text-[13px] font-medium text-muted-foreground">
-                  {t("login.email")}
-                </span>
-                <span className="relative mt-2 block">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                  <input
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="super@admin.com"
-                    aria-invalid={!!errors.email}
-                    className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
-                  />
-                </span>
-                {errors.email && (
-                  <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
+                <label className="block">
+                  <span className="text-[13px] font-medium text-muted-foreground">
+                    {t("login.newPasswordConfirm")}
+                  </span>
+                  <span className="relative mt-2 block">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                    />
+                  </span>
+                </label>
+                {recoveryError && (
+                  <p
+                    role="alert"
+                    className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                  >
+                    {recoveryError}
+                  </p>
                 )}
-              </label>
-
-              <label className="block">
-                <span className="text-[13px] font-medium text-muted-foreground">
-                  {t("login.password")}
-                </span>
-                <span className="relative mt-2 block">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                  <input
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    aria-invalid={!!errors.password}
-                    className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
-                  />
-                </span>
-                {errors.password && (
-                  <span className="mt-1.5 block text-xs text-destructive">{errors.password}</span>
-                )}
-              </label>
-
-              {errors.form && (
-                <p
-                  role="alert"
-                  className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                <button
+                  type="submit"
+                  disabled={recoveryBusy}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
                 >
-                  {errors.form}
-                </p>
-              )}
+                  {recoveryBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {t("login.updatePassword")}
+                </button>
+              </form>
+            ) : forgotOpen ? (
+              <div className="space-y-5">
+                {forgotSent ? (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
+                    <p className="text-sm text-foreground">
+                      {t("login.forgotSent", { email: forgotEmail })}
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={onForgotSubmit} noValidate className="space-y-5">
+                    <p className="text-center text-sm text-muted-foreground">
+                      {t("login.forgotDesc")}
+                    </p>
+                    <label className="block">
+                      <span className="text-[13px] font-medium text-muted-foreground">
+                        {t("login.email")}
+                      </span>
+                      <span className="relative mt-2 block">
+                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                        <input
+                          type="email"
+                          autoComplete="email"
+                          value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                          placeholder="super@admin.com"
+                          className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                        />
+                      </span>
+                    </label>
+                    {forgotError && (
+                      <p
+                        role="alert"
+                        className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                      >
+                        {forgotError}
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={forgotBusy}
+                      className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                    >
+                      {forgotBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {t("login.sendResetLink")}
+                    </button>
+                  </form>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotOpen(false);
+                    setForgotSent(false);
+                    setForgotError("");
+                  }}
+                  className="block w-full text-center text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {t("login.backToSignIn")}
+                </button>
+              </div>
+            ) : (
+              <>
+                <form onSubmit={onSubmit} noValidate className="space-y-5">
+                  {mode === "signup" && (
+                    <label className="block">
+                      <span className="text-[13px] font-medium text-muted-foreground">
+                        {t("login.fullName")}
+                      </span>
+                      <span className="relative mt-2 block">
+                        <input
+                          type="text"
+                          autoComplete="name"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Aizhan Serikova"
+                          aria-invalid={!!errors.fullName}
+                          className="h-14 w-full rounded-xl border border-border bg-surface px-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                        />
+                      </span>
+                      {errors.fullName && (
+                        <span className="mt-1.5 block text-xs text-destructive">
+                          {errors.fullName}
+                        </span>
+                      )}
+                    </label>
+                  )}
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {busy
-                  ? mode === "signin"
-                    ? t("login.signingIn")
-                    : t("login.creatingAccount")
-                  : mode === "signin"
-                    ? t("login.submit")
-                    : t("login.signupSubmit")}
-              </button>
-            </form>
+                  <label className="block">
+                    <span className="text-[13px] font-medium text-muted-foreground">
+                      {t("login.email")}
+                    </span>
+                    <span className="relative mt-2 block">
+                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="super@admin.com"
+                        aria-invalid={!!errors.email}
+                        className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      />
+                    </span>
+                    {errors.email && (
+                      <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
+                    )}
+                  </label>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMode((m) => (m === "signin" ? "signup" : "signin"));
-                setErrors({});
-                setConfirmNotice(false);
-              }}
-              className="mt-6 block w-full rounded-xl border border-amber-400/40 bg-amber-400/15 px-3 py-2.5 text-center text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-400/25 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
-            >
-              {mode === "signin" ? t("login.toggleToSignup") : t("login.toggleToSignin")}
-            </button>
+                  <label className="block">
+                    <span className="text-[13px] font-medium text-muted-foreground">
+                      {t("login.password")}
+                    </span>
+                    <span className="relative mt-2 block">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        aria-invalid={!!errors.password}
+                        className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      />
+                    </span>
+                    {errors.password && (
+                      <span className="mt-1.5 block text-xs text-destructive">
+                        {errors.password}
+                      </span>
+                    )}
+                    {mode === "signin" && (
+                      <span className="mt-2 block text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForgotEmail(email);
+                            setForgotOpen(true);
+                            setForgotSent(false);
+                            setForgotError("");
+                          }}
+                          className="text-[13px] font-medium text-primary hover:underline"
+                        >
+                          {t("login.forgotPassword")}
+                        </button>
+                      </span>
+                    )}
+                  </label>
+
+                  {errors.form && (
+                    <p
+                      role="alert"
+                      className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                    >
+                      {errors.form}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="mx-auto flex h-14 w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                  >
+                    {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {busy
+                      ? mode === "signin"
+                        ? t("login.signingIn")
+                        : t("login.creatingAccount")
+                      : mode === "signin"
+                        ? t("login.submit")
+                        : t("login.signupSubmit")}
+                  </button>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode((m) => (m === "signin" ? "signup" : "signin"));
+                    setErrors({});
+                    setConfirmNotice(false);
+                  }}
+                  className="mt-6 block h-11 w-full rounded-xl border border-amber-400/40 bg-amber-400/15 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-400/25 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
+                >
+                  {mode === "signin" ? t("login.toggleToSignup") : t("login.toggleToSignin")}
+                </button>
+              </>
+            )}
           </div>
         </section>
       </div>

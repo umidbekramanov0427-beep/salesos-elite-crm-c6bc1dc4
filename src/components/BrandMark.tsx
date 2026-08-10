@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 export function BrandMark({
   className,
   iconClassName,
+  wordmarkClassName,
 }: {
   className?: string;
   iconClassName?: string;
+  wordmarkClassName?: string;
 }) {
   const petalGrad = useId();
   const petalId = useId();
@@ -57,7 +59,12 @@ export function BrandMark({
         ))}
       </svg>
 
-      <p className="whitespace-nowrap text-xl font-extrabold tracking-tight text-emerald-400">
+      <p
+        className={cn(
+          "whitespace-nowrap text-xl font-extrabold tracking-tight text-emerald-400",
+          wordmarkClassName,
+        )}
+      >
         SalesOS Elite CRM
       </p>
     </div>
