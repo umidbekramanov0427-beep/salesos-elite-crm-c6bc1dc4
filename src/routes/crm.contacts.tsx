@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Loader2, Mail, MessageCircle, Phone, Plus, Search, Send } from "lucide-react";
-import { PageHeader, SectionCard, StatCard } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard, StatCard, ExportButton } from "@/components/layout/Primitives";
 import { useContactsView } from "@/hooks/use-crm-data";
 import { NewContactDialog } from "@/components/crm/quick-create";
 import { useI18n } from "@/lib/i18n";
@@ -48,13 +48,28 @@ function ContactsPage() {
         title={t("contacts.title")}
         description={t("contacts.desc")}
         actions={
-          <NewContactDialog
-            trigger={
-              <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                <Plus className="h-4 w-4" /> {t("contacts.new")}
-              </button>
-            }
-          />
+          <>
+            <ExportButton
+              filename="contacts"
+              rows={rows.map((c) => ({
+                Name: c.name,
+                Position: c.position,
+                Company: c.company,
+                Phone: c.phone,
+                Email: c.email,
+                Telegram: c.telegram,
+                WhatsApp: c.whatsapp,
+                Birthday: c.birthday,
+              }))}
+            />
+            <NewContactDialog
+              trigger={
+                <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                  <Plus className="h-4 w-4" /> {t("contacts.new")}
+                </button>
+              }
+            />
+          </>
         }
       />
 

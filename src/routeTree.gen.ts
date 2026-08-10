@@ -27,6 +27,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AdminAiAgentsRouteImport } from './routes/admin.ai-agents'
 import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-responders'
 import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
 import { Route as AdminOrgStructureRouteImport } from './routes/admin.org-structure'
@@ -140,6 +141,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminAiAgentsRoute = AdminAiAgentsRouteImport.update({
+  id: '/ai-agents',
+  path: '/ai-agents',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAutoRespondersRoute = AdminAutoRespondersRouteImport.update({
   id: '/auto-responders',
   path: '/auto-responders',
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
@@ -304,6 +311,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
@@ -345,6 +353,7 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
@@ -387,6 +396,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/ai-agents'
     | '/admin/auto-responders'
     | '/admin/create-employee'
     | '/admin/org-structure'
@@ -427,6 +437,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/ai-agents'
     | '/admin/auto-responders'
     | '/admin/create-employee'
     | '/admin/org-structure'
@@ -467,6 +478,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/ai-agents'
     | '/admin/auto-responders'
     | '/admin/create-employee'
     | '/admin/org-structure'
@@ -650,6 +662,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/ai-agents': {
+      id: '/admin/ai-agents'
+      path: '/ai-agents'
+      fullPath: '/admin/ai-agents'
+      preLoaderRoute: typeof AdminAiAgentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/auto-responders': {
       id: '/admin/auto-responders'
       path: '/auto-responders'
@@ -794,12 +813,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAiAgentsRoute: typeof AdminAiAgentsRoute
   AdminAutoRespondersRoute: typeof AdminAutoRespondersRoute
   AdminCreateEmployeeRoute: typeof AdminCreateEmployeeRoute
   AdminOrgStructureRoute: typeof AdminOrgStructureRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAiAgentsRoute: AdminAiAgentsRoute,
   AdminAutoRespondersRoute: AdminAutoRespondersRoute,
   AdminCreateEmployeeRoute: AdminCreateEmployeeRoute,
   AdminOrgStructureRoute: AdminOrgStructureRoute,

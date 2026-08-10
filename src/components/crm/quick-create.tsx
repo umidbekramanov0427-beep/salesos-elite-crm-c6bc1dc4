@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import {
+  notifyTaskAssigned,
   useCompaniesRaw,
   useLeadsRaw,
   usePipelineStagesRaw,
@@ -392,14 +393,18 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
     if (!title.trim()) return;
     setBusy(true);
     try {
+      const finalAssigneeId = assigneeId || user?.id || null;
       const { error } = await supabase.from("tasks").insert({
         title: title.trim(),
-        assignee_id: assigneeId || user?.id || null,
+        assignee_id: finalAssigneeId,
         priority,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         created_by: user?.id ?? null,
       });
       if (error) throw error;
+      if (finalAssigneeId && finalAssigneeId !== user?.id) {
+        void notifyTaskAssigned(finalAssigneeId, title.trim());
+      }
       await qc.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(t("qc.taskCreated"));
       setOpen(false);

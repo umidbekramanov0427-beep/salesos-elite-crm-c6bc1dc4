@@ -1,7 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Globe, Loader2, Plus, Search } from "lucide-react";
-import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
+import {
+  PageHeader,
+  SectionCard,
+  StatCard,
+  Pill,
+  ExportButton,
+} from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { useCompaniesView } from "@/hooks/use-crm-data";
 import { NewCompanyDialog } from "@/components/crm/quick-create";
@@ -52,13 +58,29 @@ function CompaniesPage() {
         title={t("companies.title")}
         description={t("companies.desc")}
         actions={
-          <NewCompanyDialog
-            trigger={
-              <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                <Plus className="h-4 w-4" /> {t("companies.new")}
-              </button>
-            }
-          />
+          <>
+            <ExportButton
+              filename="companies"
+              rows={rows.map((c) => ({
+                Name: c.name,
+                Industry: c.industry,
+                Employees: c.employees,
+                Revenue: c.revenue,
+                City: c.city,
+                Owner: c.owner,
+                Contacts: c.contacts,
+                Deals: c.deals,
+                OpenValue: c.openValue,
+              }))}
+            />
+            <NewCompanyDialog
+              trigger={
+                <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                  <Plus className="h-4 w-4" /> {t("companies.new")}
+                </button>
+              }
+            />
+          </>
         }
       />
 

@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { downloadCsv } from "@/lib/export-csv";
 
 export function PageHeader({
   title,
@@ -133,5 +136,28 @@ export function Pill({
     >
       {children}
     </span>
+  );
+}
+
+// Client-side CSV export for any data table on the platform — opens
+// directly in Excel and can be imported into Google Sheets (no API
+// connection required, so it works everywhere without extra setup).
+export function ExportButton({
+  filename,
+  rows,
+}: {
+  filename: string;
+  rows: Record<string, unknown>[];
+}) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      disabled={rows.length === 0}
+      onClick={() => downloadCsv(filename, rows)}
+      className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <Download className="h-4 w-4" /> {t("common.exportCsv")}
+    </button>
   );
 }

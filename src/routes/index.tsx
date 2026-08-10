@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Crown, Loader2, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, SectionCard, StatCard } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard, StatCard, ExportButton } from "@/components/layout/Primitives";
 import { cn } from "@/lib/utils";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -301,6 +301,20 @@ function Leaderboard() {
               <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
               {t("common.refresh")}
             </button>
+            <ExportButton
+              filename="leaderboard"
+              rows={rows.map((r, i) => ({
+                Rank: i + 1,
+                Manager: r.name,
+                TotalLeads: r.totalLeads,
+                WonLeads: r.wonLeads,
+                Revenue: r.revenue,
+                Conversion: r.conversion,
+                Kpi: r.kpiPercent,
+                Bonus: Math.round(r.revenue * 0.05),
+                TargetCompletion: r.targetCompletion,
+              }))}
+            />
           </>
         }
       />

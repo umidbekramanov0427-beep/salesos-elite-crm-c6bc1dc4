@@ -259,6 +259,7 @@ function profileName(p: ProfileRow | undefined): string {
 /* ------------------------------------------------------------------ */
 
 export function useCrmBase() {
+  const { user } = useAuth();
   const companies = useCompaniesRaw();
   const contacts = useContactsRaw();
   const leads = useLeadsRaw();
@@ -281,11 +282,24 @@ export function useCrmBase() {
     stages.isError ||
     profiles.isError;
 
+  // Reps only work their own pipeline — leads/deals owned by other reps stay
+  // hidden from the leads/deals/pipeline views. Managers and super admins
+  // keep the full, company-wide view.
+  const scoped = user?.role === "rep";
+  const scopedLeads = useMemo(
+    () => (scoped ? (leads.data ?? []).filter((l) => l.owner_id === user!.id) : (leads.data ?? [])),
+    [leads.data, scoped, user],
+  );
+  const scopedDeals = useMemo(
+    () => (scoped ? (deals.data ?? []).filter((d) => d.owner_id === user!.id) : (deals.data ?? [])),
+    [deals.data, scoped, user],
+  );
+
   return {
     companies: companies.data ?? [],
     contacts: contacts.data ?? [],
-    leads: leads.data ?? [],
-    deals: deals.data ?? [],
+    leads: scopedLeads,
+    deals: scopedDeals,
     stages: stages.data ?? [],
     profiles: profiles.data ?? [],
     isLoading,
@@ -1243,6 +1257,67 @@ export function useMarkNotificationRead() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Notification preferences — per-user opt-in for in-app notifications.*/
+/* Readable by anyone (so the person creating a task can check whether */
+/* the assignee wants to be notified); writable only by the owner.     */
+/* ------------------------------------------------------------------ */
+
+export type NotificationPreferencesRow = Tables["notification_preferences"]["Row"];
+
+export function useNotificationPreferences() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["notification_preferences", user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<NotificationPreferencesRow> => {
+      const { data, error } = await supabase
+        .from("notification_preferences")
+        .select("*")
+        .eq("profile_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return (
+        data ?? { profile_id: user!.id, task_assigned: true, updated_at: new Date().toISOString() }
+      );
+    },
+  });
+}
+
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (patch: { task_assigned: boolean }) => {
+      const { error } = await supabase
+        .from("notification_preferences")
+        .upsert({ profile_id: user!.id, ...patch }, { onConflict: "profile_id" });
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["notification_preferences", user?.id] }),
+  });
+}
+
+// Called after a task is created with a real assignee — checks the
+// assignee's preference (defaulting to on) before writing the notification,
+// so the toggle in Settings actually controls something.
+export async function notifyTaskAssigned(assigneeId: string, taskTitle: string): Promise<void> {
+  const { data: prefs } = await supabase
+    .from("notification_preferences")
+    .select("task_assigned")
+    .eq("profile_id", assigneeId)
+    .maybeSingle();
+  if (prefs && prefs.task_assigned === false) return;
+  await supabase.from("notifications").insert({
+    user_id: assigneeId,
+    type: "task_assigned",
+    title: taskTitle,
+    body: "Sizga yangi vazifa biriktirildi.",
+    link: "/tasks",
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Business profile — a single shared row used as AI assistant context */
 /* ------------------------------------------------------------------ */
 
@@ -1640,6 +1715,48 @@ export const useAutoRespondersRaw = (opts?: Parameters<typeof autoRespondersReso
 export const useCreateAutoResponder = autoRespondersResource.useCreate;
 export const useUpdateAutoResponder = autoRespondersResource.useUpdate;
 export const useDeleteAutoResponder = autoRespondersResource.useRemove;
+
+/* ------------------------------------------------------------------ */
+/* AI Agents — two fixed presets (chat / call analysis). Config only:  */
+/* actually running one needs a live model API key wired up server-    */
+/* side, which this workspace does not have yet — the UI says so.      */
+/* ------------------------------------------------------------------ */
+
+export type AiAgentRow = Tables["ai_agents"]["Row"];
+
+export function useAiAgents() {
+  return useQuery({
+    queryKey: ["ai_agents"],
+    queryFn: async (): Promise<AiAgentRow[]> => {
+      const { data, error } = await supabase.from("ai_agents").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useUpdateAiAgent() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (patch: {
+      kind: "chat" | "call";
+      model?: string | undefined;
+      system_prompt?: string | undefined;
+      channels?: string[] | undefined;
+      active?: boolean | undefined;
+    }) => {
+      const row: Tables["ai_agents"]["Insert"] = { kind: patch.kind, updated_by: user?.id ?? null };
+      if (patch.model !== undefined) row.model = patch.model;
+      if (patch.system_prompt !== undefined) row.system_prompt = patch.system_prompt;
+      if (patch.channels !== undefined) row.channels = patch.channels;
+      if (patch.active !== undefined) row.active = patch.active;
+      const { error } = await supabase.from("ai_agents").upsert(row, { onConflict: "kind" });
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["ai_agents"] }),
+  });
+}
 
 /* ------------------------------------------------------------------ */
 /* Distinct funnel names — for the sidebar's expandable Funnels group. */

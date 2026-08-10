@@ -104,98 +104,115 @@ function LoginPage() {
             <BrandMark className="items-start text-left" />
           </div>
           <div className="relative">
-            <h2 className="text-2xl font-semibold leading-tight text-white">{t("login.title")}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/60">{t("login.subtitle")}</p>
+            <h2 className="text-4xl font-bold leading-tight text-white sm:text-5xl">
+              {t("login.title")}
+            </h2>
+            <p className="mt-4 text-base font-medium tracking-wide text-emerald-300/80 sm:text-lg">
+              {t("login.tagline")}
+            </p>
           </div>
 
           {/* A hand-drawn preview that mirrors the real Reyting (Leaderboard)
-              page's layout and labels — not a literal screenshot, but built
-              from the same columns/metrics so it represents the product
-              honestly. */}
-          <div className="relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-elevated">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <p className="text-xs font-semibold text-white/80">{t("lb.title")}</p>
-            </div>
+              page's podium + live-ranking table — not a literal screenshot,
+              but built from the same fields, framed as if inside a monitor
+              so the branding panel reads as "this is the real product". */}
+          <div className="relative">
+            <div className="rounded-t-2xl border border-white/10 bg-[#04070f] p-2.5 shadow-elevated">
+              <div className="mb-2 flex items-center gap-1.5 px-1">
+                <span className="h-2 w-2 rounded-full bg-white/20" />
+                <span className="h-2 w-2 rounded-full bg-white/20" />
+                <span className="h-2 w-2 rounded-full bg-white/20" />
+                <span className="ml-2 truncate rounded-md bg-white/[0.06] px-2 py-0.5 text-[9px] text-white/30">
+                  app.salesos.uz/reyting
+                </span>
+              </div>
 
-            <div className="grid grid-cols-4 gap-1.5">
-              {[
-                [t("lb.todayRevenue"), "12.4M", "text-emerald-400"],
-                [t("lb.avgConversion"), "31%", "text-teal-300"],
-                [t("lb.totalWonLeads"), "58", "text-blue-300"],
-                [t("lb.totalRevenue"), "142M", "text-white"],
-              ].map(([label, v, c]) => (
-                <div key={label} className="rounded-lg bg-white/[0.05] p-2">
-                  <p className="truncate text-[9px] font-medium text-white/40">{label}</p>
-                  <p className={cn("text-[13px] font-bold", c)}>{v}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex items-end justify-center gap-2">
-              {[
-                { i: 1, h: "h-12", ring: "ring-slate-300/70", medal: "bg-slate-300 text-slate-800" },
-                { i: 0, h: "h-16", ring: "ring-amber-400/80", medal: "bg-amber-400 text-amber-950" },
-                { i: 2, h: "h-9", ring: "ring-orange-700/70", medal: "bg-orange-700 text-orange-50" },
-              ].map((p) => (
-                <div key={p.i} className="flex flex-col items-center gap-1">
-                  <span
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white ring-2",
-                      p.ring,
-                    )}
-                  >
-                    {["AS", "DK", "NM"][p.i]}
+              <div className="rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <div className="mb-2.5 flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                   </span>
-                  <span
-                    className={cn(
-                      "flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold",
-                      p.medal,
-                    )}
-                  >
-                    {p.i + 1}
-                  </span>
-                  <div className={cn("w-9 rounded-t-md bg-gradient-to-t from-emerald-500/50 to-teal-300/60", p.h)} />
+                  <p className="text-xs font-semibold text-white/80">{t("lb.title")}</p>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
-              {[
-                { rank: 1, name: "Aizhan S.", target: 92, bonus: "1.8M" },
-                { rank: 2, name: "Doston K.", target: 74, bonus: "1.3M" },
-                { rank: 3, name: "Nodira M.", target: 58, bonus: "0.9M" },
-              ].map((r) => (
-                <div key={r.rank} className="flex items-center gap-2">
-                  <span className="w-3.5 shrink-0 text-[11px] font-bold text-amber-400">#{r.rank}</span>
-                  <span className="w-16 shrink-0 truncate text-[10px] text-white/70">{r.name}</span>
-                  <div className="h-1.5 flex-1 rounded-full bg-white/10">
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { initials: "MR", name: "Mavjuda R.", crown: true },
+                    { initials: "MR", name: "Munira R.", crown: false },
+                    { initials: "NI", name: "Nilufar I.", crown: false },
+                  ].map((p, i) => (
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-300"
-                      style={{ width: `${r.target}%` }}
-                    />
-                  </div>
-                  <span className="w-8 shrink-0 text-right text-[10px] font-semibold text-emerald-300">
-                    {r.bonus}
-                  </span>
+                      key={i}
+                      className={cn(
+                        "rounded-lg border p-2",
+                        p.crown
+                          ? "border-amber-400/50 bg-amber-400/[0.07]"
+                          : "border-white/10 bg-white/[0.04]",
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[9px] font-bold text-emerald-300">
+                          {p.initials}
+                        </span>
+                        <span className="truncate text-[10px] font-semibold text-white/80">
+                          {p.name}
+                        </span>
+                        {p.crown && <span className="ml-auto shrink-0 text-xs">👑</span>}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-1">
+                        <div>
+                          <p className="text-[7px] text-white/35">{t("lb.colRevenue")}</p>
+                          <p className="text-[9px] font-bold text-emerald-300">UZS 0</p>
+                        </div>
+                        <div>
+                          <p className="text-[7px] text-white/35">{t("lb.colWonLeads")}</p>
+                          <p className="text-[9px] font-bold text-white">0</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                <p className="mb-1.5 mt-3 text-[9px] font-semibold uppercase tracking-wide text-white/40">
+                  {t("lb.liveRanking2")}
+                </p>
+                <div className="space-y-1.5 border-t border-white/10 pt-2">
+                  {[
+                    { rank: 1, name: "Mavjuda R.", target: 92, bonus: "1.8M" },
+                    { rank: 2, name: "Munira R.", target: 74, bonus: "1.3M" },
+                    { rank: 3, name: "Nilufar I.", target: 58, bonus: "0.9M" },
+                  ].map((r) => (
+                    <div key={r.rank} className="flex items-center gap-2">
+                      <span className="w-4 shrink-0 text-[10px] font-bold text-amber-400">
+                        #{r.rank}
+                      </span>
+                      <span className="w-16 shrink-0 truncate text-[9px] text-white/65">
+                        {r.name}
+                      </span>
+                      <div className="h-1 flex-1 rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-300"
+                          style={{ width: `${r.target}%` }}
+                        />
+                      </div>
+                      <span className="w-8 shrink-0 text-right text-[9px] font-semibold text-emerald-300">
+                        {r.bonus}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+            {/* monitor stand */}
+            <div className="mx-auto h-3 w-14 bg-[#04070f]" />
+            <div className="mx-auto h-1.5 w-24 rounded-full bg-[#04070f]" />
           </div>
         </section>
 
         <section className="flex flex-col justify-center overflow-y-auto p-8 sm:p-10 lg:p-14">
-          <div className="mb-8 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 lg:hidden">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background shadow-soft">
-                <Logo className="h-6 w-6" />
-              </span>
-              <p className="text-sm font-semibold text-foreground">{t("app.name")}</p>
-            </div>
-            <div className="ml-auto flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 p-1">
+          <div className="mb-6 flex items-center justify-end">
+            <div className="flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 p-1">
               <Globe className="ml-1 h-3.5 w-3.5 shrink-0 text-primary" />
               {LANGS.map((l) => (
                 <button
@@ -215,116 +232,127 @@ function LoginPage() {
             </div>
           </div>
 
-          <h1 className="text-xl font-semibold text-foreground">{t("login.title")}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{t("login.subtitle")}</p>
-
-          {confirmNotice && (
-            <p className="mt-4 rounded-xl bg-info/10 px-3 py-2 text-sm font-medium text-info">
-              {t("login.confirmEmailNotice")}
-            </p>
-          )}
-
-          <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
-            {mode === "signup" && (
-              <label className="block">
-                <span className="text-[13px] font-medium text-muted-foreground">
-                  {t("login.fullName")}
-                </span>
-                <span className="relative mt-2 block">
-                  <input
-                    type="text"
-                    autoComplete="name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Aizhan Serikova"
-                    aria-invalid={!!errors.fullName}
-                    className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-background"
-                  />
-                </span>
-                {errors.fullName && (
-                  <span className="mt-1.5 block text-xs text-destructive">{errors.fullName}</span>
-                )}
-              </label>
-            )}
-
-            <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">
-                {t("login.email")}
+          <div className="mx-auto w-full max-w-sm">
+            <div className="mb-7 flex flex-col items-center text-center">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-background shadow-soft">
+                <Logo className="h-9 w-9" />
               </span>
-              <span className="relative mt-2 block">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="super@admin.com"
-                  aria-invalid={!!errors.email}
-                  className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-background"
-                />
-              </span>
-              {errors.email && (
-                <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
-              )}
-            </label>
+              <p className="mt-3 text-2xl font-bold text-foreground">SalesOS Elite CRM</p>
+            </div>
 
-            <label className="block">
-              <span className="text-[13px] font-medium text-muted-foreground">
-                {t("login.password")}
-              </span>
-              <span className="relative mt-2 block">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  aria-invalid={!!errors.password}
-                  className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-background"
-                />
-              </span>
-              {errors.password && (
-                <span className="mt-1.5 block text-xs text-destructive">{errors.password}</span>
-              )}
-            </label>
+            <h1 className="text-center text-xl font-semibold text-foreground">
+              {t("login.title")}
+            </h1>
+            <p className="mt-2 text-center text-sm text-muted-foreground">{t("login.subtitle")}</p>
 
-            {errors.form && (
-              <p
-                role="alert"
-                className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
-              >
-                {errors.form}
+            {confirmNotice && (
+              <p className="mt-4 rounded-xl bg-info/10 px-3 py-2 text-sm font-medium text-info">
+                {t("login.confirmEmailNotice")}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {busy
-                ? mode === "signin"
-                  ? t("login.signingIn")
-                  : t("login.creatingAccount")
-                : mode === "signin"
-                  ? t("login.submit")
-                  : t("login.signupSubmit")}
-            </button>
-          </form>
+            <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
+              {mode === "signup" && (
+                <label className="block">
+                  <span className="text-[13px] font-medium text-muted-foreground">
+                    {t("login.fullName")}
+                  </span>
+                  <span className="relative mt-2 block">
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Aizhan Serikova"
+                      aria-invalid={!!errors.fullName}
+                      className="h-14 w-full rounded-xl border border-border bg-surface px-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                    />
+                  </span>
+                  {errors.fullName && (
+                    <span className="mt-1.5 block text-xs text-destructive">{errors.fullName}</span>
+                  )}
+                </label>
+              )}
 
-          <button
-            type="button"
-            onClick={() => {
-              setMode((m) => (m === "signin" ? "signup" : "signin"));
-              setErrors({});
-              setConfirmNotice(false);
-            }}
-            className="mt-6 block w-full rounded-xl border border-dashed border-border px-3 py-2 text-center text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-foreground"
-          >
-            {mode === "signin" ? t("login.toggleToSignup") : t("login.toggleToSignin")}
-          </button>
+              <label className="block">
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  {t("login.email")}
+                </span>
+                <span className="relative mt-2 block">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="super@admin.com"
+                    aria-invalid={!!errors.email}
+                    className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                  />
+                </span>
+                {errors.email && (
+                  <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  {t("login.password")}
+                </span>
+                <span className="relative mt-2 block">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    aria-invalid={!!errors.password}
+                    className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                  />
+                </span>
+                {errors.password && (
+                  <span className="mt-1.5 block text-xs text-destructive">{errors.password}</span>
+                )}
+              </label>
+
+              {errors.form && (
+                <p
+                  role="alert"
+                  className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                >
+                  {errors.form}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {busy
+                  ? mode === "signin"
+                    ? t("login.signingIn")
+                    : t("login.creatingAccount")
+                  : mode === "signin"
+                    ? t("login.submit")
+                    : t("login.signupSubmit")}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode((m) => (m === "signin" ? "signup" : "signin"));
+                setErrors({});
+                setConfirmNotice(false);
+              }}
+              className="mt-6 block w-full rounded-xl border border-amber-400/40 bg-amber-400/15 px-3 py-2.5 text-center text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-400/25 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
+            >
+              {mode === "signin" ? t("login.toggleToSignup") : t("login.toggleToSignin")}
+            </button>
+          </div>
         </section>
       </div>
     </main>

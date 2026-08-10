@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agents: {
+        Row: {
+          active: boolean
+          channels: string[]
+          kind: string
+          model: string
+          provider: string
+          system_prompt: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          channels?: string[]
+          kind: string
+          model?: string
+          provider?: string
+          system_prompt?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          channels?: string[]
+          kind?: string
+          model?: string
+          provider?: string
+          system_prompt?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agents_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       amocrm_connection: {
         Row: {
           access_token: string
@@ -776,6 +817,32 @@ export type Database = {
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          profile_id: string
+          task_assigned: boolean
+          updated_at: string
+        }
+        Insert: {
+          profile_id: string
+          task_assigned?: boolean
+          updated_at?: string
+        }
+        Update: {
+          profile_id?: string
+          task_assigned?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
