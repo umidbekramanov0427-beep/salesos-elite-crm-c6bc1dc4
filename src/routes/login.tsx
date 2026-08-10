@@ -107,19 +107,52 @@ function LoginPage() {
             <h2 className="text-2xl font-semibold leading-tight text-white">{t("login.title")}</h2>
             <p className="mt-3 text-sm leading-relaxed text-white/60">{t("login.subtitle")}</p>
           </div>
-          <dl className="relative grid grid-cols-2 gap-4">
-            {[
-              ["240+", t("lb.title")],
-              ["3s", t("lb.live")],
-              ["10", t("lb.type")],
-              ["16", t("int.title")],
-            ].map(([v, k]) => (
-              <div key={k as string} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <dt className="text-lg font-semibold text-white">{v}</dt>
-                <dd className="text-[11px] text-white/50">{k}</dd>
-              </div>
-            ))}
-          </dl>
+
+          {/* A self-drawn preview of the product (not a real screenshot) so
+              the branding panel shows what SalesOS actually does, not just
+              abstract numbers. */}
+          <div className="relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-elevated">
+            <div className="mb-3 flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+              <span className="ml-2 h-5 flex-1 rounded-md bg-white/[0.07]" />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ["UZS 51M", "text-emerald-400"],
+                ["+18%", "text-teal-300"],
+                ["94%", "text-blue-300"],
+              ].map(([v, c]) => (
+                <div key={v} className="rounded-lg bg-white/[0.05] p-2.5">
+                  <p className={cn("text-sm font-bold", c)}>{v}</p>
+                  <div className="mt-1.5 h-1 w-full rounded-full bg-white/10" />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex h-14 items-end gap-1.5 rounded-lg bg-white/[0.03] p-2">
+              {[40, 65, 45, 80, 60, 95, 70].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-sm bg-gradient-to-t from-emerald-500/40 to-teal-300/70"
+                  style={{ height: `${h}%` }}
+                />
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-1.5">
+              {[70, 50, 35].map((w, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="h-4 w-4 shrink-0 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500" />
+                  <div className="h-1.5 flex-1 rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-white/25" style={{ width: `${w}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="p-8 sm:p-10">

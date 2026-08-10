@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import {
   AlertOctagon,
+  Bot,
   ChevronDown,
   Check,
-  KeyRound,
   Loader2,
+  Network,
   Pencil,
+  Plug,
   ShieldAlert,
   UserPlus,
   Workflow,
@@ -498,11 +500,9 @@ function AdminPanelContent() {
               {[
                 { icon: Users, label: t("admin.permissionsMatrix"), href: "/crm-stages" },
                 { icon: Workflow, label: t("admin.funnelsStages"), href: "/crm-stages" },
-                {
-                  icon: KeyRound,
-                  label: t("admin.apiKeys"),
-                  href: "/integrations",
-                },
+                { icon: Plug, label: t("int.title"), href: "/integrations" },
+                { icon: Network, label: t("admin.orgStructure"), href: "/admin/org-structure" },
+                { icon: Bot, label: t("admin.autoResponders"), href: "/admin/auto-responders" },
                 { icon: ScrollText, label: t("admin.featureFlags"), href: "/settings" },
               ].map((c) => (
                 <li key={c.label}>

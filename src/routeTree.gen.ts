@@ -27,7 +27,9 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-responders'
 import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
+import { Route as AdminOrgStructureRouteImport } from './routes/admin.org-structure'
 import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
@@ -138,9 +140,19 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminAutoRespondersRoute = AdminAutoRespondersRouteImport.update({
+  id: '/auto-responders',
+  path: '/auto-responders',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCreateEmployeeRoute = AdminCreateEmployeeRouteImport.update({
   id: '/create-employee',
   path: '/create-employee',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrgStructureRoute = AdminOrgStructureRouteImport.update({
+  id: '/org-structure',
+  path: '/org-structure',
   getParentRoute: () => AdminRoute,
 } as any)
 const AiAssistantChatRoute = AiAssistantChatRouteImport.update({
@@ -252,7 +264,9 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
@@ -290,7 +304,9 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
@@ -329,7 +345,9 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
@@ -369,7 +387,9 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/auto-responders'
     | '/admin/create-employee'
+    | '/admin/org-structure'
     | '/ai-assistant/chat'
     | '/crm/companies'
     | '/crm/contacts'
@@ -407,7 +427,9 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/auto-responders'
     | '/admin/create-employee'
+    | '/admin/org-structure'
     | '/ai-assistant/chat'
     | '/crm/companies'
     | '/crm/contacts'
@@ -445,7 +467,9 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/auto-responders'
     | '/admin/create-employee'
+    | '/admin/org-structure'
     | '/ai-assistant/chat'
     | '/crm/companies'
     | '/crm/contacts'
@@ -626,11 +650,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/auto-responders': {
+      id: '/admin/auto-responders'
+      path: '/auto-responders'
+      fullPath: '/admin/auto-responders'
+      preLoaderRoute: typeof AdminAutoRespondersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/create-employee': {
       id: '/admin/create-employee'
       path: '/create-employee'
       fullPath: '/admin/create-employee'
       preLoaderRoute: typeof AdminCreateEmployeeRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/org-structure': {
+      id: '/admin/org-structure'
+      path: '/org-structure'
+      fullPath: '/admin/org-structure'
+      preLoaderRoute: typeof AdminOrgStructureRouteImport
       parentRoute: typeof AdminRoute
     }
     '/ai-assistant/chat': {
@@ -756,11 +794,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAutoRespondersRoute: typeof AdminAutoRespondersRoute
   AdminCreateEmployeeRoute: typeof AdminCreateEmployeeRoute
+  AdminOrgStructureRoute: typeof AdminOrgStructureRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAutoRespondersRoute: AdminAutoRespondersRoute,
   AdminCreateEmployeeRoute: AdminCreateEmployeeRoute,
+  AdminOrgStructureRoute: AdminOrgStructureRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

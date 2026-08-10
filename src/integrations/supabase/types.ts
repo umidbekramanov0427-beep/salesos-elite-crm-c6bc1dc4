@@ -143,6 +143,53 @@ export type Database = {
           },
         ]
       }
+      auto_responders: {
+        Row: {
+          active: boolean
+          channels: string[]
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          name: string
+          target_field: string | null
+          trigger_text: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          channels?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          name: string
+          target_field?: string | null
+          trigger_text: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          channels?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          name?: string
+          target_field?: string | null
+          trigger_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_responders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           connected: boolean
