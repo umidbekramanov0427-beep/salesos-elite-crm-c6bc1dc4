@@ -1269,6 +1269,47 @@ export function useAnalyzeCall() {
   });
 }
 
+export type ManualCallUpload = {
+  file: File;
+  leadId: string | null;
+  phone: string;
+  direction: "in" | "out";
+  connected: boolean;
+};
+
+export function useUploadManualCall() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ManualCallUpload) => {
+      if (!user) throw new Error("Not signed in");
+      const ext = input.file.name.split(".").pop() || "mp3";
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("call-recordings")
+        .upload(path, input.file, { contentType: input.file.type || "audio/mpeg" });
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { data: pub } = supabase.storage.from("call-recordings").getPublicUrl(path);
+
+      const row: Tables["amocrm_calls"]["Insert"] = {
+        source: "manual",
+        created_by: user.id,
+        amocrm_note_id: null,
+        lead_id: input.leadId,
+        direction: input.direction,
+        phone: input.phone || null,
+        connected: input.connected,
+        recording_url: pub.publicUrl,
+        occurred_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from("amocrm_calls").insert(row);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["amocrm_calls"] }),
+  });
+}
+
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   const { user } = useAuth();
