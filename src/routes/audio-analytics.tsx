@@ -238,7 +238,7 @@ function AudioAnalytics() {
             ) : (
               <ul className="-m-6 divide-y divide-border">
                 {recent.slice(0, 20).map((c) => (
-                  <li key={c.id} className="flex items-center gap-3 px-6 py-4">
+                  <li key={c.id} className="flex flex-wrap items-center gap-3 px-6 py-4">
                     <span
                       className={
                         c.direction === "in"
@@ -260,22 +260,24 @@ function AudioAnalytics() {
                         {c.owner} · {c.occurredAt}
                       </p>
                     </div>
-                    <Pill tone={c.connected ? "success" : "neutral"}>
-                      {c.connected ? t("audio.connected") : t("audio.notConnected")}
-                    </Pill>
-                    <span className="w-16 shrink-0 text-right text-xs font-medium text-muted-foreground">
-                      {formatDuration(c.durationSeconds, t("audio.min"))}
-                    </span>
-                    {c.recordingUrl && (
-                      <a
-                        href={c.recordingUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent"
-                      >
-                        <Phone className="h-3.5 w-3.5" /> {t("audio.listen")}
-                      </a>
-                    )}
+                    <div className="ml-auto flex shrink-0 items-center gap-3">
+                      <Pill tone={c.connected ? "success" : "neutral"}>
+                        {c.connected ? t("audio.connected") : t("audio.notConnected")}
+                      </Pill>
+                      <span className="w-16 shrink-0 text-right text-xs font-medium text-muted-foreground">
+                        {formatDuration(c.durationSeconds, t("audio.min"))}
+                      </span>
+                      {c.recordingUrl && (
+                        <a
+                          href={c.recordingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+                        >
+                          <Phone className="h-3.5 w-3.5" /> {t("audio.listen")}
+                        </a>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
