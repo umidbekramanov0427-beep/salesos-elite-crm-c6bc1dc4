@@ -259,6 +259,7 @@ function profileName(p: ProfileRow | undefined): string {
 /* ------------------------------------------------------------------ */
 
 export function useCrmBase() {
+  const { user } = useAuth();
   const companies = useCompaniesRaw();
   const contacts = useContactsRaw();
   const leads = useLeadsRaw();
@@ -281,11 +282,24 @@ export function useCrmBase() {
     stages.isError ||
     profiles.isError;
 
+  // Reps only work their own pipeline — leads/deals owned by other reps stay
+  // hidden from the leads/deals/pipeline views. Managers and super admins
+  // keep the full, company-wide view.
+  const scoped = user?.role === "rep";
+  const scopedLeads = useMemo(
+    () => (scoped ? (leads.data ?? []).filter((l) => l.owner_id === user!.id) : (leads.data ?? [])),
+    [leads.data, scoped, user],
+  );
+  const scopedDeals = useMemo(
+    () => (scoped ? (deals.data ?? []).filter((d) => d.owner_id === user!.id) : (deals.data ?? [])),
+    [deals.data, scoped, user],
+  );
+
   return {
     companies: companies.data ?? [],
     contacts: contacts.data ?? [],
-    leads: leads.data ?? [],
-    deals: deals.data ?? [],
+    leads: scopedLeads,
+    deals: scopedDeals,
     stages: stages.data ?? [],
     profiles: profiles.data ?? [],
     isLoading,

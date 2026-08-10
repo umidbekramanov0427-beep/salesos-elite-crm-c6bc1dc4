@@ -159,8 +159,13 @@ function TaskDetailDialog({ task, onClose }: { task: TaskView; onClose: () => vo
 
 function Tasks() {
   const { t } = useI18n();
-  const { rows: tasks, isLoading } = useTasksView();
+  const { user } = useAuth();
+  const { rows: allTasks, isLoading } = useTasksView();
   const updateTask = useUpdateTask();
+  // Reps only see tasks assigned to them; managers and super admins see the
+  // full team board so they can oversee and reassign.
+  const tasks =
+    user?.role === "rep" ? allTasks.filter((task) => task.assigneeId === user.id) : allTasks;
   const [dragOverCol, setDragOverCol] = useState<TaskRow["status"] | null>(null);
   const [selected, setSelected] = useState<TaskView | null>(null);
 

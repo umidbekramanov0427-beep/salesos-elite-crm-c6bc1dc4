@@ -1,17 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { Filter, Pin, Plus, Search, Star, Upload, ChevronDown, Loader2 } from "lucide-react";
 import {
-  Download,
-  Filter,
-  Pin,
-  Plus,
-  Search,
-  Star,
-  Upload,
-  ChevronDown,
-  Loader2,
-} from "lucide-react";
-import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
+  PageHeader,
+  SectionCard,
+  StatCard,
+  Pill,
+  ExportButton,
+} from "@/components/layout/Primitives";
 import { SAVED_VIEWS } from "@/lib/crm-data";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -89,9 +85,22 @@ function LeadsPage() {
             <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
               <Upload className="h-4 w-4" /> {t("leads.import")}
             </button>
-            <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
-              <Download className="h-4 w-4" /> {t("leads.export")}
-            </button>
+            <ExportButton
+              filename="leads"
+              rows={rows.map((l) => ({
+                Name: l.name,
+                Company: l.company,
+                Owner: l.owner,
+                Stage: l.stage,
+                Email: l.email,
+                Phone: l.phone,
+                Score: l.score,
+                Temperature: l.temperature,
+                ExpectedRevenue: l.expectedRevenue,
+                Source: l.source,
+                Updated: l.updated,
+              }))}
+            />
             <NewLeadDialog
               trigger={
                 <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">

@@ -9,6 +9,7 @@ import {
   Network,
   Pencil,
   Plug,
+  Search,
   ShieldAlert,
   UserPlus,
   Workflow,
@@ -349,7 +350,7 @@ function AdminPanelContent() {
   const updateProfile = useUpdateProfile();
   const [savingId, setSavingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [confirmEditProfile, setConfirmEditProfile] = useState<ProfileRow | null>(null);
+  const [query, setQuery] = useState("");
   const [pendingChange, setPendingChange] = useState<{
     profile: ProfileRow;
     role: ProfileRow["role"];
@@ -363,6 +364,12 @@ function AdminPanelContent() {
 
   const employees = profiles ?? [];
   const adminCount = employees.filter((p) => p.role === "super_admin").length;
+  const q = query.trim().toLowerCase();
+  const filteredEmployees = q
+    ? employees.filter((p) =>
+        [p.full_name, p.email, p.department].some((v) => (v ?? "").toLowerCase().includes(q)),
+      )
+    : employees;
 
   async function applyRoleChange(profile: ProfileRow, role: ProfileRow["role"]) {
     setSavingId(profile.id);
@@ -416,6 +423,19 @@ function AdminPanelContent() {
           title={t("admin.employeeMgmt")}
           description={t("admin.employeeMgmtDesc")}
           className="xl:col-span-2"
+          actions={
+            employees.length > 0 && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("admin.searchEmployees")}
+                  className="h-10 w-52 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
+                />
+              </div>
+            )
+          }
         >
           {isLoading && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -427,7 +447,12 @@ function AdminPanelContent() {
               {t("admin.noSignups")}
             </p>
           )}
-          {employees.length > 0 && (
+          {!isLoading && employees.length > 0 && filteredEmployees.length === 0 && (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {t("admin.noEmployeesMatch")}
+            </p>
+          )}
+          {filteredEmployees.length > 0 && (
             <div className="-m-6 overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
@@ -439,7 +464,7 @@ function AdminPanelContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((p) => {
+                  {filteredEmployees.map((p) => {
                     const isEditing = editingId === p.id;
                     return (
                       <tr
@@ -476,9 +501,7 @@ function AdminPanelContent() {
                             <button
                               type="button"
                               aria-label={t("admin.editRole")}
-                              onClick={() =>
-                                isEditing ? setEditingId(null) : setConfirmEditProfile(p)
-                              }
+                              onClick={() => setEditingId(isEditing ? null : p.id)}
                               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             >
                               <Pencil className="h-3.5 w-3.5" />
@@ -540,23 +563,6 @@ function AdminPanelContent() {
       <div className="mt-8">
         <ErrorLogsSection />
       </div>
-
-      <ConfirmDialog
-        open={!!confirmEditProfile}
-        onOpenChange={(open) => !open && setConfirmEditProfile(null)}
-        title={t("admin.confirmEditTitle")}
-        description={
-          confirmEditProfile
-            ? t("admin.confirmEditDesc", {
-                name: confirmEditProfile.full_name || confirmEditProfile.email,
-              })
-            : undefined
-        }
-        onConfirm={() => {
-          if (confirmEditProfile) setEditingId(confirmEditProfile.id);
-          setConfirmEditProfile(null);
-        }}
-      />
 
       <ConfirmDialog
         open={!!pendingChange}
