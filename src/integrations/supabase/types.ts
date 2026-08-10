@@ -102,9 +102,10 @@ export type Database = {
       amocrm_calls: {
         Row: {
           ai_summary: string | null
-          amocrm_note_id: number
+          amocrm_note_id: number | null
           analyzed_at: string | null
           connected: boolean
+          created_by: string | null
           direction: string
           duration_seconds: number
           id: string
@@ -112,14 +113,16 @@ export type Database = {
           occurred_at: string
           phone: string | null
           recording_url: string | null
+          source: string
           synced_at: string
           transcript: string | null
         }
         Insert: {
           ai_summary?: string | null
-          amocrm_note_id: number
+          amocrm_note_id?: number | null
           analyzed_at?: string | null
           connected?: boolean
+          created_by?: string | null
           direction: string
           duration_seconds?: number
           id?: string
@@ -127,14 +130,16 @@ export type Database = {
           occurred_at: string
           phone?: string | null
           recording_url?: string | null
+          source?: string
           synced_at?: string
           transcript?: string | null
         }
         Update: {
           ai_summary?: string | null
-          amocrm_note_id?: number
+          amocrm_note_id?: number | null
           analyzed_at?: string | null
           connected?: boolean
+          created_by?: string | null
           direction?: string
           duration_seconds?: number
           id?: string
@@ -142,6 +147,7 @@ export type Database = {
           occurred_at?: string
           phone?: string | null
           recording_url?: string | null
+          source?: string
           synced_at?: string
           transcript?: string | null
         }
@@ -151,6 +157,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amocrm_calls_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

@@ -22,6 +22,10 @@ async function transcribeAudio(recordingUrl: string): Promise<string> {
   const form = new FormData();
   form.append("file", audioBlob, "call.mp3");
   form.append("model", "whisper-1");
+  // Most calls on this platform are in Uzbek; giving Whisper the language
+  // up front (instead of letting it auto-detect) measurably improves
+  // accuracy for lower-resource languages like Uzbek.
+  form.append("language", "uz");
 
   const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
