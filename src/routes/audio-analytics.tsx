@@ -1,14 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ExternalLink, Loader2, Phone, PhoneIncoming, PhoneOutgoing, Sparkles } from "lucide-react";
+import {
+  ChevronDown,
+  ExternalLink,
+  Loader2,
+  Phone,
+  PhoneIncoming,
+  PhoneOutgoing,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import {
   useAiAssistantChat,
   useAmoCrmLink,
+  useAnalyzeCall,
   useAudioAnalyticsView,
+  type AudioCallView,
   type RecoverableLeadView,
 } from "@/hooks/use-crm-data";
 
@@ -196,6 +207,115 @@ function RecoverableRow({
   );
 }
 
+function CallRow({ call }: { call: AudioCallView }) {
+  const { t } = useI18n();
+  const analyze = useAnalyzeCall();
+  const [expanded, setExpanded] = useState(false);
+
+  async function onAnalyze() {
+    try {
+      await analyze.mutateAsync(call.id);
+      setExpanded(true);
+      toast.success(t("audio.analyzed"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("audio.analyzeFailed"));
+    }
+  }
+
+  return (
+    <li className="px-6 py-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span
+          className={
+            call.direction === "in"
+              ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+              : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-mint text-mint-foreground"
+          }
+        >
+          {call.direction === "in" ? (
+            <PhoneIncoming className="h-4 w-4" />
+          ) : (
+            <PhoneOutgoing className="h-4 w-4" />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">
+            {call.company || call.leadName || call.phone || "—"}
+          </p>
+          <p className="truncate text-xs text-subtle">
+            {call.owner} · {call.occurredAt}
+          </p>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <Pill tone={call.connected ? "success" : "neutral"}>
+            {call.connected ? t("audio.connected") : t("audio.notConnected")}
+          </Pill>
+          <span className="w-16 shrink-0 text-right text-xs font-medium text-muted-foreground">
+            {formatDuration(call.durationSeconds, t("audio.min"))}
+          </span>
+          {call.recordingUrl && (
+            <a
+              href={call.recordingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+            >
+              <Phone className="h-3.5 w-3.5" /> {t("audio.listen")}
+            </a>
+          )}
+          {call.recordingUrl &&
+            (call.aiSummary ? (
+              <button
+                type="button"
+                onClick={() => setExpanded((e) => !e)}
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {t("audio.viewAnalysis")}
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void onAnalyze()}
+                disabled={analyze.isPending}
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-60"
+              >
+                {analyze.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {t("audio.analyze")}
+              </button>
+            ))}
+        </div>
+      </div>
+
+      {expanded && call.aiSummary && (
+        <div className="mt-3 space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            {t("audio.aiSummary")}
+          </p>
+          <p className="whitespace-pre-wrap text-sm text-foreground">{call.aiSummary}</p>
+          {call.transcript && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs font-medium text-subtle hover:text-foreground">
+                {t("audio.viewTranscript")}
+              </summary>
+              <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+                {call.transcript}
+              </p>
+            </details>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
 function AudioAnalytics() {
   const { t } = useI18n();
   const { recent, totals, perRep, recoverable, isLoading } = useAudioAnalyticsView();
@@ -238,47 +358,7 @@ function AudioAnalytics() {
             ) : (
               <ul className="-m-6 divide-y divide-border">
                 {recent.slice(0, 20).map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-center gap-3 px-6 py-4">
-                    <span
-                      className={
-                        c.direction === "in"
-                          ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                          : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-mint text-mint-foreground"
-                      }
-                    >
-                      {c.direction === "in" ? (
-                        <PhoneIncoming className="h-4 w-4" />
-                      ) : (
-                        <PhoneOutgoing className="h-4 w-4" />
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {c.company || c.leadName || c.phone || "—"}
-                      </p>
-                      <p className="truncate text-xs text-subtle">
-                        {c.owner} · {c.occurredAt}
-                      </p>
-                    </div>
-                    <div className="ml-auto flex shrink-0 items-center gap-3">
-                      <Pill tone={c.connected ? "success" : "neutral"}>
-                        {c.connected ? t("audio.connected") : t("audio.notConnected")}
-                      </Pill>
-                      <span className="w-16 shrink-0 text-right text-xs font-medium text-muted-foreground">
-                        {formatDuration(c.durationSeconds, t("audio.min"))}
-                      </span>
-                      {c.recordingUrl && (
-                        <a
-                          href={c.recordingUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent"
-                        >
-                          <Phone className="h-3.5 w-3.5" /> {t("audio.listen")}
-                        </a>
-                      )}
-                    </div>
-                  </li>
+                  <CallRow key={c.id} call={c} />
                 ))}
               </ul>
             )}

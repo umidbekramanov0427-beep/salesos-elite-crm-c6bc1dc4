@@ -101,7 +101,9 @@ export type Database = {
       }
       amocrm_calls: {
         Row: {
+          ai_summary: string | null
           amocrm_note_id: number
+          analyzed_at: string | null
           connected: boolean
           direction: string
           duration_seconds: number
@@ -111,9 +113,12 @@ export type Database = {
           phone: string | null
           recording_url: string | null
           synced_at: string
+          transcript: string | null
         }
         Insert: {
+          ai_summary?: string | null
           amocrm_note_id: number
+          analyzed_at?: string | null
           connected?: boolean
           direction: string
           duration_seconds?: number
@@ -123,9 +128,12 @@ export type Database = {
           phone?: string | null
           recording_url?: string | null
           synced_at?: string
+          transcript?: string | null
         }
         Update: {
+          ai_summary?: string | null
           amocrm_note_id?: number
+          analyzed_at?: string | null
           connected?: boolean
           direction?: string
           duration_seconds?: number
@@ -135,6 +143,7 @@ export type Database = {
           phone?: string | null
           recording_url?: string | null
           synced_at?: string
+          transcript?: string | null
         }
         Relationships: [
           {

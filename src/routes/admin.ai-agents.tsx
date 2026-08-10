@@ -26,16 +26,14 @@ export const Route = createFileRoute("/admin/ai-agents")({
   component: AiAgentsPage,
 });
 
-const MODELS = ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"] as const;
+const MODELS = ["deepseek-chat", "deepseek-reasoner"] as const;
 const MODEL_LABEL: Record<(typeof MODELS)[number], string> = {
-  "claude-sonnet-5": "Claude Sonnet 5",
-  "claude-opus-5": "Claude Opus 5",
-  "claude-haiku-4-5": "Claude Haiku 4.5",
+  "deepseek-chat": "DeepSeek Chat",
+  "deepseek-reasoner": "DeepSeek Reasoner",
 };
 const MODEL_HINT: Record<(typeof MODELS)[number], string> = {
-  "claude-sonnet-5": "Tavsiya etiladi — tez va sifatli javoblar uchun",
-  "claude-opus-5": "Eng aqlli, murakkab tahlil uchun (sekinroq va qimmatroq)",
-  "claude-haiku-4-5": "Eng tez va arzon, oddiy javoblar uchun",
+  "deepseek-chat": "Tavsiya etiladi — tez va sifatli javoblar uchun",
+  "deepseek-reasoner": "Chuqurroq mulohaza yuritadi, murakkab tahlil uchun (sekinroq)",
 };
 
 const CHANNELS = ["telegram_bot", "telegram", "whatsapp", "instagram"] as const;
@@ -66,14 +64,14 @@ function ConfigDialog({
 }) {
   const { t } = useI18n();
   const updateAgent = useUpdateAiAgent();
-  const [model, setModel] = useState<string>("claude-sonnet-5");
+  const [model, setModel] = useState<string>("deepseek-chat");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setModel(agent?.model ?? "claude-sonnet-5");
+    setModel(agent?.model ?? "deepseek-chat");
     setSystemPrompt(agent?.system_prompt ?? t(DEFAULTS[kind].promptKey));
     setChannels(agent?.channels ?? []);
   }, [open, agent, kind, t]);
