@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Globe, Loader2, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { useI18n, LANGS, LANG_SHORT } from "@/lib/i18n";
@@ -91,11 +91,11 @@ function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4 py-10">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-3 py-4 sm:px-6 sm:py-6">
       <div className="pointer-events-none absolute -left-32 -top-32 h-[420px] w-[420px] rounded-full bg-primary/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 -right-24 h-[460px] w-[460px] rounded-full bg-mint blur-3xl" />
 
-      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-background/70 shadow-soft backdrop-blur-xl lg:grid-cols-2">
+      <div className="relative grid w-full max-w-[1600px] overflow-hidden rounded-3xl border border-border bg-background/70 shadow-soft backdrop-blur-xl lg:h-[calc(100vh-3rem)] lg:grid-cols-2">
         <section className="relative hidden flex-col justify-between gap-8 overflow-hidden border-r border-border bg-gradient-to-br from-[#0B1120] via-[#0E1A2E] to-[#0B1120] p-10 lg:flex">
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
@@ -108,54 +108,86 @@ function LoginPage() {
             <p className="mt-3 text-sm leading-relaxed text-white/60">{t("login.subtitle")}</p>
           </div>
 
-          {/* A self-drawn preview of the product (not a real screenshot) so
-              the branding panel shows what SalesOS actually does, not just
-              abstract numbers. */}
+          {/* A hand-drawn preview that mirrors the real Reyting (Leaderboard)
+              page's layout and labels — not a literal screenshot, but built
+              from the same columns/metrics so it represents the product
+              honestly. */}
           <div className="relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-elevated">
-            <div className="mb-3 flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="ml-2 h-5 flex-1 rounded-md bg-white/[0.07]" />
+            <div className="mb-3 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              <p className="text-xs font-semibold text-white/80">{t("lb.title")}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {[
-                ["UZS 51M", "text-emerald-400"],
-                ["+18%", "text-teal-300"],
-                ["94%", "text-blue-300"],
-              ].map(([v, c]) => (
-                <div key={v} className="rounded-lg bg-white/[0.05] p-2.5">
-                  <p className={cn("text-sm font-bold", c)}>{v}</p>
-                  <div className="mt-1.5 h-1 w-full rounded-full bg-white/10" />
+                [t("lb.todayRevenue"), "12.4M", "text-emerald-400"],
+                [t("lb.avgConversion"), "31%", "text-teal-300"],
+                [t("lb.totalWonLeads"), "58", "text-blue-300"],
+                [t("lb.totalRevenue"), "142M", "text-white"],
+              ].map(([label, v, c]) => (
+                <div key={label} className="rounded-lg bg-white/[0.05] p-2">
+                  <p className="truncate text-[9px] font-medium text-white/40">{label}</p>
+                  <p className={cn("text-[13px] font-bold", c)}>{v}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-3 flex h-14 items-end gap-1.5 rounded-lg bg-white/[0.03] p-2">
-              {[40, 65, 45, 80, 60, 95, 70].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-sm bg-gradient-to-t from-emerald-500/40 to-teal-300/70"
-                  style={{ height: `${h}%` }}
-                />
+            <div className="mt-3 flex items-end justify-center gap-2">
+              {[
+                { i: 1, h: "h-12", ring: "ring-slate-300/70", medal: "bg-slate-300 text-slate-800" },
+                { i: 0, h: "h-16", ring: "ring-amber-400/80", medal: "bg-amber-400 text-amber-950" },
+                { i: 2, h: "h-9", ring: "ring-orange-700/70", medal: "bg-orange-700 text-orange-50" },
+              ].map((p) => (
+                <div key={p.i} className="flex flex-col items-center gap-1">
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white ring-2",
+                      p.ring,
+                    )}
+                  >
+                    {["AS", "DK", "NM"][p.i]}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold",
+                      p.medal,
+                    )}
+                  >
+                    {p.i + 1}
+                  </span>
+                  <div className={cn("w-9 rounded-t-md bg-gradient-to-t from-emerald-500/50 to-teal-300/60", p.h)} />
+                </div>
               ))}
             </div>
 
-            <div className="mt-3 space-y-1.5">
-              {[70, 50, 35].map((w, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="h-4 w-4 shrink-0 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500" />
+            <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+              {[
+                { rank: 1, name: "Aizhan S.", target: 92, bonus: "1.8M" },
+                { rank: 2, name: "Doston K.", target: 74, bonus: "1.3M" },
+                { rank: 3, name: "Nodira M.", target: 58, bonus: "0.9M" },
+              ].map((r) => (
+                <div key={r.rank} className="flex items-center gap-2">
+                  <span className="w-3.5 shrink-0 text-[11px] font-bold text-amber-400">#{r.rank}</span>
+                  <span className="w-16 shrink-0 truncate text-[10px] text-white/70">{r.name}</span>
                   <div className="h-1.5 flex-1 rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-white/25" style={{ width: `${w}%` }} />
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-300"
+                      style={{ width: `${r.target}%` }}
+                    />
                   </div>
+                  <span className="w-8 shrink-0 text-right text-[10px] font-semibold text-emerald-300">
+                    {r.bonus}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="p-8 sm:p-10">
+        <section className="flex flex-col justify-center overflow-y-auto p-8 sm:p-10 lg:p-14">
           <div className="mb-8 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 lg:hidden">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background shadow-soft">
@@ -163,7 +195,8 @@ function LoginPage() {
               </span>
               <p className="text-sm font-semibold text-foreground">{t("app.name")}</p>
             </div>
-            <div className="ml-auto flex items-center gap-1 rounded-xl border border-border p-1">
+            <div className="ml-auto flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 p-1">
+              <Globe className="ml-1 h-3.5 w-3.5 shrink-0 text-primary" />
               {LANGS.map((l) => (
                 <button
                   key={l}
@@ -268,7 +301,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {busy
