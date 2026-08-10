@@ -291,7 +291,9 @@ function LoginPage() {
                 <Logo className="h-11 w-11" />
               </span>
               <p className="mt-4 text-3xl font-bold text-foreground">SalesOS Elite CRM</p>
-              <p className="mt-2 text-base text-muted-foreground">{t("login.subtitle")}</p>
+              <p className="mt-2 text-base font-bold uppercase tracking-wide text-primary">
+                {t("login.subtitle")}
+              </p>
             </div>
 
             {confirmNotice && (
