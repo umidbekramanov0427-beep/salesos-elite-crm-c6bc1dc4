@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   Award,
+  Bell,
   Bot,
   Building2,
   Check,
@@ -45,12 +46,14 @@ import {
   useDeleteTag,
   useIntegrationSetting,
   useLinkTelegram,
+  useNotificationPreferences,
   usePipelineStagesRaw,
   useRenameTag,
   useSendTestReport,
   useSetTelegramBotUsername,
   useTagsSummary,
   useUpdateBusinessProfile,
+  useUpdateNotificationPreferences,
   useUpdateProfile,
   useUpdateStage,
   type StageRow,
@@ -62,6 +65,7 @@ import { BusinessProfileBot } from "@/components/settings/BusinessProfileBot";
 type SectionKey =
   | "profile"
   | "personalization"
+  | "notifications"
   | "business"
   | "stages"
   | "tags"
@@ -78,6 +82,7 @@ type SectionKey =
 const SECTION_KEYS: SectionKey[] = [
   "profile",
   "personalization",
+  "notifications",
   "business",
   "stages",
   "tags",
@@ -293,6 +298,90 @@ function PersonalizationSection() {
             </span>
           </button>
         </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function NotificationsSection() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const { data: prefs } = useNotificationPreferences();
+  const updatePrefs = useUpdateNotificationPreferences();
+  const taskAssigned = prefs?.task_assigned ?? true;
+
+  async function toggleTaskAssigned() {
+    try {
+      await updatePrefs.mutateAsync({ task_assigned: !taskAssigned });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.notifications.saveFailed"));
+    }
+  }
+
+  return (
+    <SectionCard
+      title={t("settings.nav.notifications")}
+      description={t("settings.notifications.desc")}
+    >
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-6 rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+              <Bell className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">
+                {t("settings.notifications.taskAssigned")}
+              </p>
+              <p className="text-xs text-subtle">{t("settings.notifications.taskAssignedDesc")}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={taskAssigned}
+            disabled={updatePrefs.isPending}
+            onClick={() => void toggleTaskAssigned()}
+            className={cn(
+              "relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors disabled:opacity-60",
+              taskAssigned ? "bg-primary" : "bg-muted",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute left-1 h-6 w-6 rounded-full bg-background shadow-soft transition-transform duration-200",
+                taskAssigned && "translate-x-6",
+              )}
+            />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-6 rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+              <Send className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">
+                {t("settings.notifications.telegramReport")}
+              </p>
+              <p className="text-xs text-subtle">
+                {user?.telegramLinked
+                  ? t("settings.notifications.telegramLinked")
+                  : t("settings.notifications.telegramNotLinked")}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/settings"
+            search={{ section: "telegram" }}
+            className="inline-flex h-9 shrink-0 items-center rounded-xl border border-border bg-background px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent"
+          >
+            {t("settings.notifications.manage")}
+          </Link>
+        </div>
+
+        <p className="text-xs text-subtle">{t("settings.notifications.moreComingSoon")}</p>
       </div>
     </SectionCard>
   );
@@ -1112,6 +1201,7 @@ function SettingsPage() {
   const NAV: { key: SectionKey; icon: LucideIcon; label: string; badge?: number | undefined }[] = [
     { key: "profile", icon: Users, label: t("settings.nav.profile") },
     { key: "personalization", icon: Palette, label: t("settings.nav.personalization") },
+    { key: "notifications", icon: Bell, label: t("settings.nav.notifications") },
     { key: "business", icon: Building2, label: t("settings.nav.business") },
     { key: "stages", icon: Workflow, label: t("settings.nav.stages"), badge: stages?.length },
     { key: "tags", icon: TagIcon, label: t("settings.nav.tags"), badge: tags.length },
@@ -1163,6 +1253,7 @@ function SettingsPage() {
         <div>
           {section === "profile" && <ProfileSection />}
           {section === "personalization" && <PersonalizationSection />}
+          {section === "notifications" && <NotificationsSection />}
           {section === "business" && <BusinessProfileSection />}
           {section === "stages" && <StagesSection />}
           {section === "tags" && <TagsSection />}

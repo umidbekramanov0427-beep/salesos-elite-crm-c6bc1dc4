@@ -780,6 +780,32 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          profile_id: string
+          task_assigned: boolean
+          updated_at: string
+        }
+        Insert: {
+          profile_id: string
+          task_assigned?: boolean
+          updated_at?: string
+        }
+        Update: {
+          profile_id?: string
+          task_assigned?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null

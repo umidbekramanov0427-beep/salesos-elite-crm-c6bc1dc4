@@ -1257,6 +1257,67 @@ export function useMarkNotificationRead() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Notification preferences — per-user opt-in for in-app notifications.*/
+/* Readable by anyone (so the person creating a task can check whether */
+/* the assignee wants to be notified); writable only by the owner.     */
+/* ------------------------------------------------------------------ */
+
+export type NotificationPreferencesRow = Tables["notification_preferences"]["Row"];
+
+export function useNotificationPreferences() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["notification_preferences", user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<NotificationPreferencesRow> => {
+      const { data, error } = await supabase
+        .from("notification_preferences")
+        .select("*")
+        .eq("profile_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return (
+        data ?? { profile_id: user!.id, task_assigned: true, updated_at: new Date().toISOString() }
+      );
+    },
+  });
+}
+
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (patch: { task_assigned: boolean }) => {
+      const { error } = await supabase
+        .from("notification_preferences")
+        .upsert({ profile_id: user!.id, ...patch }, { onConflict: "profile_id" });
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["notification_preferences", user?.id] }),
+  });
+}
+
+// Called after a task is created with a real assignee — checks the
+// assignee's preference (defaulting to on) before writing the notification,
+// so the toggle in Settings actually controls something.
+export async function notifyTaskAssigned(assigneeId: string, taskTitle: string): Promise<void> {
+  const { data: prefs } = await supabase
+    .from("notification_preferences")
+    .select("task_assigned")
+    .eq("profile_id", assigneeId)
+    .maybeSingle();
+  if (prefs && prefs.task_assigned === false) return;
+  await supabase.from("notifications").insert({
+    user_id: assigneeId,
+    type: "task_assigned",
+    title: taskTitle,
+    body: "Sizga yangi vazifa biriktirildi.",
+    link: "/tasks",
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Business profile — a single shared row used as AI assistant context */
 /* ------------------------------------------------------------------ */
 
