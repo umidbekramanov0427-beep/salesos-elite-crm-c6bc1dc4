@@ -187,6 +187,7 @@ const en: Dict = {
 
   "login.title": "Sign in to SalesOS Elite",
   "login.subtitle": "The Sales Operating System for high-performing revenue teams.",
+  "login.tagline": "Deep analytics • Precise steps • Steady results",
   "login.email": "Email",
   "login.password": "Password",
   "login.submit": "Sign in",
@@ -1243,6 +1244,7 @@ const ru: Dict = {
 
   "login.title": "Вход в SalesOS Elite",
   "login.subtitle": "Операционная система продаж для сильных команд.",
+  "login.tagline": "Глубокая аналитика • Точные шаги • Стабильный результат",
   "login.email": "Эл. почта",
   "login.password": "Пароль",
   "login.submit": "Войти",
@@ -2304,6 +2306,7 @@ const uz: Dict = {
 
   "login.title": "SalesOS Elite tizimiga kirish",
   "login.subtitle": "Yuqori natijali savdo jamoalari uchun operatsion tizim.",
+  "login.tagline": "Chuqur analitika • Aniq qadamlar • Barqaror natija",
   "login.email": "Email",
   "login.password": "Parol",
   "login.submit": "Kirish",
