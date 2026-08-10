@@ -208,7 +208,7 @@ const en: Dict = {
   "common.exportCsv": "Export to Excel",
 
   "login.title": "Sign in to SalesOS Elite",
-  "login.subtitle": "The Sales Operating System for high-performing revenue teams.",
+  "login.subtitle": "The operating system that delivers steady results",
   "login.tagline": "Deep analytics • Precise steps • Steady results",
   "login.email": "Email",
   "login.password": "Password",
@@ -1310,7 +1310,7 @@ const ru: Dict = {
   "common.exportCsv": "Скачать в Excel",
 
   "login.title": "Вход в SalesOS Elite",
-  "login.subtitle": "Операционная система продаж для сильных команд.",
+  "login.subtitle": "Операционная система, обеспечивающая стабильный результат",
   "login.tagline": "Глубокая аналитика • Точные шаги • Стабильный результат",
   "login.email": "Эл. почта",
   "login.password": "Пароль",
@@ -2417,7 +2417,7 @@ const uz: Dict = {
   "common.exportCsv": "Excelga yuklab olish",
 
   "login.title": "SalesOS Elite tizimiga kirish",
-  "login.subtitle": "Yuqori natijali savdo jamoalari uchun operatsion tizim.",
+  "login.subtitle": "Barqaror natijani ta'minlovchi operatsion tizim",
   "login.tagline": "Chuqur analitika • Aniq qadamlar • Barqaror natija",
   "login.email": "Email",
   "login.password": "Parol",
