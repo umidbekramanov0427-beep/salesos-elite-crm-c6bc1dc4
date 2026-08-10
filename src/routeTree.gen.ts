@@ -32,6 +32,7 @@ import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-res
 import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
 import { Route as AdminOrgStructureRouteImport } from './routes/admin.org-structure'
 import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
+import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analytics.analyze'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
@@ -166,6 +167,11 @@ const AiAssistantChatRoute = AiAssistantChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AiAssistantRoute,
 } as any)
+const AudioAnalyticsAnalyzeRoute = AudioAnalyticsAnalyzeRouteImport.update({
+  id: '/analyze',
+  path: '/analyze',
+  getParentRoute: () => AudioAnalyticsRoute,
+} as any)
 const CrmCompaniesRoute = CrmCompaniesRouteImport.update({
   id: '/crm/companies',
   path: '/crm/companies',
@@ -257,7 +263,7 @@ export interface FileRoutesByFullPath {
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/attendance': typeof AttendanceRoute
-  '/audio-analytics': typeof AudioAnalyticsRoute
+  '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
+  '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -298,7 +305,7 @@ export interface FileRoutesByTo {
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/attendance': typeof AttendanceRoute
-  '/audio-analytics': typeof AudioAnalyticsRoute
+  '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
@@ -316,6 +323,7 @@ export interface FileRoutesByTo {
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
+  '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -340,7 +348,7 @@ export interface FileRoutesById {
   '/ai-assistant': typeof AiAssistantRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/attendance': typeof AttendanceRoute
-  '/audio-analytics': typeof AudioAnalyticsRoute
+  '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
@@ -358,6 +366,7 @@ export interface FileRoutesById {
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
+  '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -401,6 +410,7 @@ export interface FileRouteTypes {
     | '/admin/create-employee'
     | '/admin/org-structure'
     | '/ai-assistant/chat'
+    | '/audio-analytics/analyze'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/admin/create-employee'
     | '/admin/org-structure'
     | '/ai-assistant/chat'
+    | '/audio-analytics/analyze'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '/admin/create-employee'
     | '/admin/org-structure'
     | '/ai-assistant/chat'
+    | '/audio-analytics/analyze'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -507,7 +519,7 @@ export interface RootRouteChildren {
   AiAssistantRoute: typeof AiAssistantRouteWithChildren
   AnalyticsRoute: typeof AnalyticsRoute
   AttendanceRoute: typeof AttendanceRoute
-  AudioAnalyticsRoute: typeof AudioAnalyticsRoute
+  AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   CrmStagesRoute: typeof CrmStagesRoute
   DashboardRoute: typeof DashboardRoute
   FunnelsRoute: typeof FunnelsRoute
@@ -697,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiAssistantChatRouteImport
       parentRoute: typeof AiAssistantRoute
     }
+    '/audio-analytics/analyze': {
+      id: '/audio-analytics/analyze'
+      path: '/analyze'
+      fullPath: '/audio-analytics/analyze'
+      preLoaderRoute: typeof AudioAnalyticsAnalyzeRouteImport
+      parentRoute: typeof AudioAnalyticsRoute
+    }
     '/crm/companies': {
       id: '/crm/companies'
       path: '/crm/companies'
@@ -840,6 +859,18 @@ const AiAssistantRouteWithChildren = AiAssistantRoute._addFileChildren(
   AiAssistantRouteChildren,
 )
 
+interface AudioAnalyticsRouteChildren {
+  AudioAnalyticsAnalyzeRoute: typeof AudioAnalyticsAnalyzeRoute
+}
+
+const AudioAnalyticsRouteChildren: AudioAnalyticsRouteChildren = {
+  AudioAnalyticsAnalyzeRoute: AudioAnalyticsAnalyzeRoute,
+}
+
+const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
+  AudioAnalyticsRouteChildren,
+)
+
 interface IntegrationsRouteChildren {
   IntegrationsAmocrmCallbackRoute: typeof IntegrationsAmocrmCallbackRoute
   IntegrationsAmocrmConnectRoute: typeof IntegrationsAmocrmConnectRoute
@@ -864,7 +895,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiAssistantRoute: AiAssistantRouteWithChildren,
   AnalyticsRoute: AnalyticsRoute,
   AttendanceRoute: AttendanceRoute,
-  AudioAnalyticsRoute: AudioAnalyticsRoute,
+  AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   CrmStagesRoute: CrmStagesRoute,
   DashboardRoute: DashboardRoute,
   FunnelsRoute: FunnelsRoute,

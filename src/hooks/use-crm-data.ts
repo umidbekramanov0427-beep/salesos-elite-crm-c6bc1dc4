@@ -522,9 +522,9 @@ export function useLeaderboardView(
 }
 
 /* ------------------------------------------------------------------ */
-/* View: Audio Analytics (real AmoCRM call activity — no transcription /  */
-/* sentiment yet, that needs a speech-to-text provider not connected      */
-/* to this workspace).                                                    */
+/* View: Audio Analytics (real AmoCRM call activity). Transcript + AI       */
+/* summary are populated on demand via useAnalyzeCall(), which needs both  */
+/* OPENAI_API_KEY (transcription) and DEEPSEEK_API_KEY (summary) set.      */
 /* ------------------------------------------------------------------ */
 
 export type AudioCallView = {
@@ -539,6 +539,8 @@ export type AudioCallView = {
   durationSeconds: number;
   recordingUrl: string | null;
   occurredAt: string;
+  transcript: string | null;
+  aiSummary: string | null;
 };
 
 export type RecoverableLeadView = {
@@ -575,6 +577,8 @@ export function useAudioAnalyticsView() {
           durationSeconds: c.duration_seconds,
           recordingUrl: c.recording_url,
           occurredAt: timeAgo(c.occurred_at),
+          transcript: c.transcript,
+          aiSummary: c.ai_summary,
         };
       }),
     [calls, leadsById],
@@ -1240,6 +1244,28 @@ export function useAiAssistantChat() {
       if (!res.ok) throw new Error(json.error ?? "AI assistant failed");
       return json.reply as string;
     },
+  });
+}
+
+export function useAnalyzeCall() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (callId: string): Promise<{ transcript: string; summary: string }> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/audio-analytics/analyze", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ callId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Call analysis failed");
+      return json;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["amocrm_calls"] }),
   });
 }
 
