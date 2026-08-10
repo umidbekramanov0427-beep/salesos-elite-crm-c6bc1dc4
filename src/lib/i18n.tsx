@@ -90,6 +90,25 @@ const en: Dict = {
   "admin.autoResponders": "Auto-responders",
   "admin.autoRespondersDesc":
     "Scripted auto-reply rules for messaging channels. Actually sending needs a connected channel.",
+  "admin.aiAgents": "AI agents",
+  "admin.aiAgentsDesc": "Configure AI agents for chats and calls.",
+  "admin.ai.notice":
+    "These settings save, but running an AI agent for real needs a connected model API key and messaging channel — neither is wired up in this workspace yet.",
+  "admin.ai.chatTitle": "AI agent for chats",
+  "admin.ai.chatDesc": "Configure an AI agent for automatic replies in messengers",
+  "admin.ai.callTitle": "AI agent for call analysis",
+  "admin.ai.callDesc": "Configure an AI agent to analyze phone calls",
+  "admin.ai.formDesc": "Choose a model and instructions.",
+  "admin.ai.model": "Model",
+  "admin.ai.selected": "Selected",
+  "admin.ai.systemPrompt": "Instructions (system prompt)",
+  "admin.ai.configure": "Configure",
+  "admin.ai.saved": "Saved",
+  "admin.ai.saveFailed": "Couldn't save",
+  "admin.ai.chatDefaultPrompt":
+    "You are SalesOS Elite CRM's customer-facing assistant. Reply warmly and briefly, and hand off to a manager when needed.",
+  "admin.ai.callDefaultPrompt":
+    "You are an assistant that analyzes call recordings. Briefly summarize the topic, the customer's mood, and the next step.",
   "admin.ar.new": "New rule",
   "admin.ar.channelNotice":
     "These rules save and activate already, but actually sending needs a connected WhatsApp/Telegram/Instagram channel — none is connected to this workspace yet.",
@@ -1163,6 +1182,25 @@ const ru: Dict = {
   "admin.autoResponders": "Автоответчики",
   "admin.autoRespondersDesc":
     "Сценарии автоответов для каналов сообщений. Для реальной отправки нужен подключённый канал.",
+  "admin.aiAgents": "AI-агенты",
+  "admin.aiAgentsDesc": "Настройте AI-агентов для чатов и звонков.",
+  "admin.ai.notice":
+    "Эти настройки сохраняются, но для реальной работы AI-агентов нужен подключённый ключ модели и канал сообщений — пока не подключено в этом workspace.",
+  "admin.ai.chatTitle": "AI-агент для чатов",
+  "admin.ai.chatDesc": "Настройка AI-агента для автоответов в мессенджерах",
+  "admin.ai.callTitle": "AI-агент для анализа звонков",
+  "admin.ai.callDesc": "Настройка AI-агента для анализа телефонных звонков",
+  "admin.ai.formDesc": "Выберите модель и инструкции.",
+  "admin.ai.model": "Модель",
+  "admin.ai.selected": "Выбрано",
+  "admin.ai.systemPrompt": "Инструкция (system prompt)",
+  "admin.ai.configure": "Настроить",
+  "admin.ai.saved": "Сохранено",
+  "admin.ai.saveFailed": "Не удалось сохранить",
+  "admin.ai.chatDefaultPrompt":
+    "Вы — помощник SalesOS Elite CRM, общающийся с клиентами. Отвечайте дружелюбно и кратко, при необходимости передавайте вопрос менеджеру.",
+  "admin.ai.callDefaultPrompt":
+    "Вы — помощник, анализирующий запись звонка. Кратко резюмируйте тему, настроение клиента и следующий шаг.",
   "admin.ar.new": "Новое правило",
   "admin.ar.channelNotice":
     "Эти правила уже сохраняются и включаются, но для реальной отправки нужен подключённый канал WhatsApp/Telegram/Instagram — сейчас ни один не подключён к этому воркспейсу.",
@@ -2237,6 +2275,25 @@ const uz: Dict = {
   "admin.autoResponders": "Avtojavob beruvchilar",
   "admin.autoRespondersDesc":
     "Xabar kanallari uchun skriptlangan avtojavob qoidalari. Haqiqiy yuborish uchun kanal ulanishi kerak.",
+  "admin.aiAgents": "AI agentlar",
+  "admin.aiAgentsDesc": "Chat va qo'ng'iroqlar uchun AI agentlarni sozlang.",
+  "admin.ai.notice":
+    "Bu sozlamalar saqlanadi, lekin AI agentlar haqiqatan ishlashi uchun platformaga ulangan AI model kaliti va xabar kanali kerak — hozircha bu workspace'da ulanmagan.",
+  "admin.ai.chatTitle": "Chatlar uchun AI agent",
+  "admin.ai.chatDesc": "Messengerlarda avtomatik javoblar uchun AI agentni sozlash",
+  "admin.ai.callTitle": "Qo'ng'iroqlarni tahlil qilish uchun AI agent",
+  "admin.ai.callDesc": "Telefon qo'ng'iroqlarini tahlil qilish uchun AI agentni sozlash",
+  "admin.ai.formDesc": "Model va ko'rsatmalarni tanlang.",
+  "admin.ai.model": "Model",
+  "admin.ai.selected": "Tanlangan",
+  "admin.ai.systemPrompt": "Ko'rsatma (system prompt)",
+  "admin.ai.configure": "Sozlash",
+  "admin.ai.saved": "Saqlandi",
+  "admin.ai.saveFailed": "Saqlab bo'lmadi",
+  "admin.ai.chatDefaultPrompt":
+    "Siz SalesOS Elite CRM'ning mijozlar bilan muloqot qiluvchi yordamchisisiz. Do'stona va qisqa javob bering, kerak bo'lsa savolni menejerga uzating.",
+  "admin.ai.callDefaultPrompt":
+    "Siz qo'ng'iroq yozuvini tahlil qiluvchi yordamchisiz. Asosiy mavzuni, mijoz kayfiyatini va keyingi qadamni qisqa xulosa qiling.",
   "admin.ar.new": "Yangi qoida",
   "admin.ar.channelNotice":
     "Bu qoidalar hozircha saqlanadi va yoqiladi, lekin haqiqiy yuborish uchun WhatsApp/Telegram/Instagram kanali ulanishi kerak — hozircha bu workspace'ga ulanmagan.",

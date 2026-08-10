@@ -1717,6 +1717,48 @@ export const useUpdateAutoResponder = autoRespondersResource.useUpdate;
 export const useDeleteAutoResponder = autoRespondersResource.useRemove;
 
 /* ------------------------------------------------------------------ */
+/* AI Agents — two fixed presets (chat / call analysis). Config only:  */
+/* actually running one needs a live model API key wired up server-    */
+/* side, which this workspace does not have yet — the UI says so.      */
+/* ------------------------------------------------------------------ */
+
+export type AiAgentRow = Tables["ai_agents"]["Row"];
+
+export function useAiAgents() {
+  return useQuery({
+    queryKey: ["ai_agents"],
+    queryFn: async (): Promise<AiAgentRow[]> => {
+      const { data, error } = await supabase.from("ai_agents").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useUpdateAiAgent() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (patch: {
+      kind: "chat" | "call";
+      model?: string | undefined;
+      system_prompt?: string | undefined;
+      channels?: string[] | undefined;
+      active?: boolean | undefined;
+    }) => {
+      const row: Tables["ai_agents"]["Insert"] = { kind: patch.kind, updated_by: user?.id ?? null };
+      if (patch.model !== undefined) row.model = patch.model;
+      if (patch.system_prompt !== undefined) row.system_prompt = patch.system_prompt;
+      if (patch.channels !== undefined) row.channels = patch.channels;
+      if (patch.active !== undefined) row.active = patch.active;
+      const { error } = await supabase.from("ai_agents").upsert(row, { onConflict: "kind" });
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["ai_agents"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Distinct funnel names — for the sidebar's expandable Funnels group. */
 /* ------------------------------------------------------------------ */
 
