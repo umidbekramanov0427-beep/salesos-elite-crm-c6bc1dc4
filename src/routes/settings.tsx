@@ -8,6 +8,7 @@ import {
   Building2,
   Check,
   Copy,
+  Globe,
   ListChecks,
   Loader2,
   LayoutGrid,
@@ -24,6 +25,7 @@ import {
   Trash2,
   TrendingUp,
   Users,
+  Wallet,
   Workflow,
   X,
   type LucideIcon,
@@ -223,20 +225,30 @@ function PersonalizationSection() {
       title={t("settings.nav.personalization")}
       description={t("settings.personalizationDesc")}
     >
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div>
-          <span className="text-[13px] font-medium text-muted-foreground">
-            {t("settings.currency")}
-          </span>
-          <div className="mt-2">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+              <Wallet className="h-4 w-4" />
+            </span>
+            <span className="text-[13px] font-semibold text-foreground">
+              {t("settings.currency")}
+            </span>
+          </div>
+          <div className="mt-3">
             <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
           </div>
         </div>
-        <div>
-          <span className="text-[13px] font-medium text-muted-foreground">
-            {t("settings.language")}
-          </span>
-          <div className="mt-2">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+              <Globe className="h-4 w-4" />
+            </span>
+            <span className="text-[13px] font-semibold text-foreground">
+              {t("settings.language")}
+            </span>
+          </div>
+          <div className="mt-3">
             <SegmentedControl
               value={lang}
               options={LANGS}
@@ -245,12 +257,17 @@ function PersonalizationSection() {
             />
           </div>
         </div>
-        <div className="flex items-start justify-between gap-6 sm:col-span-2">
-          <div>
-            <p className="text-[13px] font-medium text-muted-foreground">
-              {t("settings.appearance")}
-            </p>
-            <p className="mt-1 text-xs text-subtle">{t("settings.appearanceDesc")}</p>
+        <div className="flex items-center justify-between gap-6 rounded-xl border border-border bg-surface p-4 sm:col-span-2">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning-foreground">
+              {dark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">
+                {t("settings.appearance")}
+              </p>
+              <p className="text-xs text-subtle">{t("settings.appearanceDesc")}</p>
+            </div>
           </div>
           <button
             type="button"
@@ -258,7 +275,7 @@ function PersonalizationSection() {
             aria-checked={dark}
             onClick={() => setDark(!dark)}
             className={cn(
-              "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors",
+              "relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors",
               dark ? "bg-foreground" : "bg-warning/25",
             )}
           >
@@ -1120,10 +1137,10 @@ function SettingsPage() {
               key={item.key}
               onClick={() => setSection(item.key)}
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors",
                 section === item.key
-                  ? "bg-mint text-mint-foreground"
-                  : "text-muted-foreground hover:bg-accent",
+                  ? "bg-primary text-primary-foreground shadow-soft"
+                  : "text-muted-foreground hover:bg-mint-border hover:text-mint-foreground",
                 COMING_SOON.includes(item.key) && "opacity-70",
               )}
             >
