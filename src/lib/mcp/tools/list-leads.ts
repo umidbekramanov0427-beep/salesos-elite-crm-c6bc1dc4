@@ -1,5 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { requireToolOrgId } from "./org-scope";
 
 export default defineTool({
   name: "list_leads",
@@ -14,7 +15,8 @@ export default defineTool({
     limit: z.number().int().min(1).max(100).optional().describe("Max rows to return (default 25)."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ search, stage, temperature, owner, limit }) => {
+  handler: async ({ search, stage, temperature, owner, limit }, ctx) => {
+    const orgId = await requireToolOrgId(ctx);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let query = supabaseAdmin
@@ -22,6 +24,7 @@ export default defineTool({
       .select(
         "id, name, company_name, contact_id, stage_id, owner_id, temperature, priority, score, expected_revenue, next_follow_up",
       )
+      .eq("organization_id", orgId)
       .order("updated_at", { ascending: false })
       .limit(500);
     if (temperature) query = query.eq("temperature", temperature);
@@ -35,7 +38,7 @@ export default defineTool({
       ...new Set((leads ?? []).map((l) => l.contact_id).filter((v): v is string => !!v)),
     ];
     const [{ data: stages }, { data: owners }, { data: contacts }] = await Promise.all([
-      supabaseAdmin.from("pipeline_stages").select("id, name"),
+      supabaseAdmin.from("pipeline_stages").select("id, name").eq("organization_id", orgId),
       ownerIds.length
         ? supabaseAdmin.from("profiles").select("id, full_name, email").in("id", ownerIds)
         : Promise.resolve({ data: [] as { id: string; full_name: string; email: string }[] }),

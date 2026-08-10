@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Crown, Loader2, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, ExportButton } from "@/components/layout/Primitives";
 import { cn } from "@/lib/utils";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
+import { useAuth } from "@/lib/auth";
 import {
   useAiAssistantChat,
   useFunnelNames,
@@ -147,6 +148,12 @@ function Leaderboard() {
   const { t, lang } = useI18n();
   const { format } = useCurrency();
   const chat = useAiAssistantChat();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === "platform_owner") void navigate({ to: "/platform", replace: true });
+  }, [user, navigate]);
 
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({
     from: null,

@@ -9,6 +9,7 @@ import {
   KanbanSquare,
   Sparkles,
   Clock,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -17,6 +18,10 @@ export type NavItem = {
   to: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  // Only the platform operator (role: platform_owner) sees this item —
+  // they belong to no single company, so every other nav item (which
+  // shows a company's own CRM data) is hidden from them instead.
+  platformOwnerOnly?: boolean;
   badge?: string;
   group?: "analytics";
   // Tailwind text-color utility applied to the icon when the item is not
@@ -75,5 +80,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShieldCheck,
     adminOnly: true,
     iconColor: "text-red-500",
+  },
+  {
+    label: "Platform",
+    to: "/platform",
+    icon: Building2,
+    platformOwnerOnly: true,
+    iconColor: "text-fuchsia-500",
   },
 ];

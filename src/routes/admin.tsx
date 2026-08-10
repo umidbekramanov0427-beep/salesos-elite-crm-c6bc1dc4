@@ -84,6 +84,7 @@ function CreateEmployeeDialog() {
     rep: t("admin.roleRep"),
     manager: t("admin.roleManager"),
     super_admin: t("admin.roleAdmin"),
+    platform_owner: t("admin.rolePlatformOwner"),
   };
 
   function reset() {
@@ -361,6 +362,7 @@ function AdminPanelContent() {
     rep: t("admin.roleRep"),
     manager: t("admin.roleManager"),
     super_admin: t("admin.roleAdmin"),
+    platform_owner: t("admin.rolePlatformOwner"),
   };
 
   const employees = profiles ?? [];

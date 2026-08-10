@@ -6,10 +6,7 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
-export async function getRequestUserId(request: Request): Promise<string | null> {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.replace("Bearer ", "");
+export async function getUserIdFromToken(token: string): Promise<string | null> {
   if (token.split(".").length !== 3) return null;
 
   const SUPABASE_URL = process.env["SUPABASE_URL"];
@@ -39,8 +36,36 @@ export async function getRequestUserId(request: Request): Promise<string | null>
   return data.claims.sub;
 }
 
-/** Returns the caller's user id if they're a super_admin, otherwise null. */
-export async function requireSuperAdmin(request: Request): Promise<string | null> {
+export async function getRequestUserId(request: Request): Promise<string | null> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  return getUserIdFromToken(authHeader.replace("Bearer ", ""));
+}
+
+/** Returns the caller's user id + organization if they're a super_admin, otherwise null. */
+export async function requireSuperAdmin(
+  request: Request,
+): Promise<{ id: string; organizationId: string } | null> {
+  const userId = await getRequestUserId(request);
+  return userId ? requireSuperAdminForUser(userId) : null;
+}
+
+/** Same check as requireSuperAdmin, given a user id already resolved from a token. */
+export async function requireSuperAdminForUser(
+  userId: string,
+): Promise<{ id: string; organizationId: string } | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role, organization_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profile?.role !== "super_admin" || !profile.organization_id) return null;
+  return { id: userId, organizationId: profile.organization_id };
+}
+
+/** Returns the caller's user id if they're the platform owner, otherwise null. */
+export async function requirePlatformOwner(request: Request): Promise<string | null> {
   const userId = await getRequestUserId(request);
   if (!userId) return null;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -49,5 +74,5 @@ export async function requireSuperAdmin(request: Request): Promise<string | null
     .select("role")
     .eq("id", userId)
     .maybeSingle();
-  return profile?.role === "super_admin" ? userId : null;
+  return profile?.role === "platform_owner" ? userId : null;
 }

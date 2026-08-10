@@ -12,8 +12,8 @@ export const Route = createFileRoute("/admin/create-employee")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const adminId = await requireSuperAdmin(request);
-        if (!adminId) return Response.json({ error: "Unauthorized" }, { status: 403 });
+        const admin = await requireSuperAdmin(request);
+        if (!admin) return Response.json({ error: "Unauthorized" }, { status: 403 });
 
         const body = (await request.json().catch(() => ({}))) as Body;
         const email = body.email?.trim();
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/admin/create-employee")({
           email,
           password,
           email_confirm: true,
-          user_metadata: { full_name: fullName },
+          user_metadata: { full_name: fullName, organization_id: admin.organizationId },
         });
         if (error || !data.user) {
           return Response.json(

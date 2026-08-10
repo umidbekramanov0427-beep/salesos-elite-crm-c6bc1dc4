@@ -12,15 +12,18 @@ export const Route = createFileRoute("/telegram/send-test")({
 
         const { data: profile } = await supabaseAdmin
           .from("profiles")
-          .select("telegram_chat_id")
+          .select("telegram_chat_id, organization_id")
           .eq("id", userId)
           .maybeSingle();
         if (!profile?.telegram_chat_id) {
           return Response.json({ error: "Telegram not linked yet" }, { status: 400 });
         }
+        if (!profile.organization_id) {
+          return Response.json({ error: "No organization" }, { status: 400 });
+        }
 
         try {
-          const text = await buildDailyReportText();
+          const text = await buildDailyReportText(profile.organization_id);
           await sendTelegramMessage(profile.telegram_chat_id, text);
           return Response.json({ ok: true });
         } catch (err) {

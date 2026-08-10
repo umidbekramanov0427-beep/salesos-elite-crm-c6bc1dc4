@@ -23,6 +23,7 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -38,6 +39,7 @@ import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
 import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
 import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
 import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
@@ -120,6 +122,11 @@ const McpRoute = McpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformRoute = PlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -197,6 +204,12 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
   path: '/errors/log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformCreateOrganizationRoute =
+  PlatformCreateOrganizationRouteImport.update({
+    id: '/create-organization',
+    path: '/create-organization',
+    getParentRoute: () => PlatformRoute,
+  } as any)
 const TelegramLinkRoute = TelegramLinkRouteImport.update({
   id: '/telegram/link',
   path: '/telegram/link',
@@ -272,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -287,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -314,6 +329,7 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -329,6 +345,7 @@ export interface FileRoutesByTo {
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -357,6 +374,7 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -372,6 +390,7 @@ export interface FileRoutesById {
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -401,6 +420,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/platform'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -416,6 +436,7 @@ export interface FileRouteTypes {
     | '/crm/deals'
     | '/crm/pipeline'
     | '/errors/log'
+    | '/platform/create-organization'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -443,6 +464,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/platform'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -458,6 +480,7 @@ export interface FileRouteTypes {
     | '/crm/deals'
     | '/crm/pipeline'
     | '/errors/log'
+    | '/platform/create-organization'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -485,6 +508,7 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/platform'
     | '/settings'
     | '/tasks'
     | '/.mcp/list-tools'
@@ -500,6 +524,7 @@ export interface FileRouteTypes {
     | '/crm/deals'
     | '/crm/pipeline'
     | '/errors/log'
+    | '/platform/create-organization'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -528,6 +553,7 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
+  PlatformRoute: typeof PlatformRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -646,6 +672,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -750,6 +783,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/errors/log'
       preLoaderRoute: typeof ErrorsLogRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/platform/create-organization': {
+      id: '/platform/create-organization'
+      path: '/create-organization'
+      fullPath: '/platform/create-organization'
+      preLoaderRoute: typeof PlatformCreateOrganizationRouteImport
+      parentRoute: typeof PlatformRoute
     }
     '/telegram/link': {
       id: '/telegram/link'
@@ -889,6 +929,18 @@ const IntegrationsRouteWithChildren = IntegrationsRoute._addFileChildren(
   IntegrationsRouteChildren,
 )
 
+interface PlatformRouteChildren {
+  PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
+}
+
+const PlatformRouteChildren: PlatformRouteChildren = {
+  PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
+}
+
+const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
+  PlatformRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -904,6 +956,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
+  PlatformRoute: PlatformRouteWithChildren,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
