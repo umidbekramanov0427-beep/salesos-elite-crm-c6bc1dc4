@@ -13,6 +13,13 @@ create table public.organizations (
 
 alter table public.organizations enable row level security;
 
+-- Added here (not in the next migration) because current_user_org_id()
+-- below references this column — it must exist before that function can
+-- be created. The next migration backfills it and adds the not-null
+-- constraint for every other table.
+alter table public.profiles
+  add column if not exists organization_id uuid references public.organizations(id);
+
 -- Resolves the calling user's own organization (null for platform_owner,
 -- who doesn't belong to any single company). security definer so it can
 -- read profiles regardless of the caller's own RLS visibility, same

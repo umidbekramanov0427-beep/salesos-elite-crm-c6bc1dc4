@@ -11,9 +11,10 @@ insert into public.organizations (id, name)
 values ('00000000-0000-0000-0000-000000000001', 'Standart kompaniya');
 
 -- ---------------------------------------------------------------- --
--- profiles: nullable organization_id (platform_owner belongs to none)
+-- profiles: nullable organization_id (platform_owner belongs to none).
+-- Column itself was added in the previous migration (current_user_org_id()
+-- needed it to exist already); this just backfills + constrains it.
 -- ---------------------------------------------------------------- --
-alter table public.profiles add column organization_id uuid references public.organizations(id);
 update public.profiles set organization_id = '00000000-0000-0000-0000-000000000001';
 alter table public.profiles add constraint profiles_org_required_unless_owner
   check (role = 'platform_owner' or organization_id is not null);
