@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Bot,
   CalendarClock,
+  ExternalLink,
+  Headphones,
   Loader2,
   MessageCircle,
   Mail,
@@ -19,6 +21,9 @@ import { useAuth } from "@/lib/auth";
 import { useI18n, type Lang } from "@/lib/i18n";
 import {
   useAiAssistantChat,
+  useAmoCrmCallsRaw,
+  useAmoCrmLink,
+  useAnalyzeCall,
   useCreateLeadActivity,
   useCreateTask,
   useCrmLeads,
@@ -55,6 +60,100 @@ function LeadNotFound() {
 
 const TABS = ["Timeline", "Notes", "Tasks", "WhatsApp", "Telegram", "Email"] as const;
 
+function LeadCallsSection({ leadId }: { leadId: string }) {
+  const { t } = useI18n();
+  const { data: calls, isLoading } = useAmoCrmCallsRaw();
+  const analyze = useAnalyzeCall();
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const leadCalls = useMemo(
+    () => (calls ?? []).filter((c) => c.lead_id === leadId),
+    [calls, leadId],
+  );
+
+  async function onAnalyze(callId: string) {
+    setAnalyzingId(callId);
+    try {
+      await analyze.mutateAsync(callId);
+      setOpenId(callId);
+    } catch {
+      // surfaced via the mutation's own error state elsewhere
+    } finally {
+      setAnalyzingId(null);
+    }
+  }
+
+  return (
+    <SectionCard title={t("audio.title")} description={t("lead.calls.desc")}>
+      {isLoading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        </div>
+      )}
+      {!isLoading && leadCalls.length === 0 && (
+        <p className="text-sm text-subtle">{t("lead.calls.empty")}</p>
+      )}
+      <ul className="space-y-3">
+        {leadCalls.map((c) => {
+          const isOpen = openId === c.id;
+          return (
+            <li key={c.id} className="rounded-xl border border-border bg-surface p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Headphones className="h-4 w-4 text-subtle" />
+                  <span className="text-sm font-medium text-foreground">
+                    {timeAgo(c.occurred_at)}
+                  </span>
+                  <Pill tone={c.connected ? "success" : "neutral"}>
+                    {c.connected ? t("audio.connected") : t("audio.notConnected")}
+                  </Pill>
+                </div>
+                <div className="flex items-center gap-2">
+                  {c.recording_url && (
+                    <a
+                      href={c.recording_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      {t("audio.listen")}
+                    </a>
+                  )}
+                  {c.ai_summary ? (
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(isOpen ? null : c.id)}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      {t("audio.viewAnalysis")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void onAnalyze(c.id)}
+                      disabled={analyzingId === c.id || !c.recording_url}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                    >
+                      {analyzingId === c.id && <Loader2 className="h-3 w-3 animate-spin" />}
+                      {t("audio.analyze")}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {isOpen && c.ai_summary && (
+                <p className="mt-2 whitespace-pre-wrap rounded-lg bg-background p-2.5 text-xs text-muted-foreground">
+                  {c.ai_summary}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </SectionCard>
+  );
+}
+
 function LeadWorkspace() {
   const { t, lang } = useI18n();
   const { leadId } = Route.useParams();
@@ -70,6 +169,7 @@ function LeadWorkspace() {
   const { rows: allTasks } = useTasksView();
 
   const chat = useAiAssistantChat();
+  const amoCrmLinkFor = useAmoCrmLink();
   const [deepAnalysis, setDeepAnalysis] = useState<string | null>(null);
   const [deepAnalysisBusy, setDeepAnalysisBusy] = useState(false);
 
@@ -124,6 +224,8 @@ function LeadWorkspace() {
   }
   if (!lead) return <LeadNotFound />;
 
+  const amoLink = amoCrmLinkFor(lead.amocrmId);
+
   async function saveNote() {
     if (!noteText.trim() || !lead) return;
     await createActivity.mutateAsync({
@@ -173,6 +275,16 @@ function LeadWorkspace() {
         <div className="flex flex-wrap items-center gap-2">
           <Pill tone={lead.temperature === "Hot" ? "danger" : "warning"}>{lead.temperature}</Pill>
           <Pill tone={lead.stage === "Won" ? "success" : "info"}>{lead.stage}</Pill>
+          {amoLink && (
+            <a
+              href={amoLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-accent"
+            >
+              <ExternalLink className="h-4 w-4" /> {t("leadFilter.openInAmoCrm")}
+            </a>
+          )}
           {[
             { icon: Phone, label: t("lead.actionCall") },
             { icon: MessageCircle, label: t("lead.actionWhatsapp") },
@@ -382,6 +494,8 @@ function LeadWorkspace() {
               <div className="h-full rounded-full bg-success" style={{ width: `${lead.score}%` }} />
             </div>
           </SectionCard>
+
+          <LeadCallsSection leadId={lead.id} />
 
           <SectionCard title={t("lead.ai.title")} description={t("lead.ai.desc")}>
             <div className="rounded-xl bg-mint p-4 text-sm text-mint-foreground">
