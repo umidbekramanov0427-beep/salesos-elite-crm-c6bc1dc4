@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Loader2, MapPin, Search } from "lucide-react";
+import { Check, ChevronDown, Loader2, LocateFixed, MapPin, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ export function LocationPicker({ canEdit }: { canEdit: boolean }) {
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<NominatimResult | null>(null);
+  const [detecting, setDetecting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -54,6 +55,36 @@ export function LocationPicker({ canEdit }: { canEdit: boolean }) {
     }, 500);
     return () => clearTimeout(debounceRef.current);
   }, [query, open, canEdit]);
+
+  function detectCurrentLocation() {
+    if (!navigator.geolocation) {
+      toast.error(t("shell.detectFailed"));
+      return;
+    }
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+        )
+          .then((res) => res.json())
+          .then((json: { display_name?: string }) => {
+            const displayName = json.display_name ?? `${latitude}, ${longitude}`;
+            setQuery(displayName);
+            setResults([]);
+            setPicked({ display_name: displayName, lat: String(latitude), lon: String(longitude) });
+          })
+          .catch(() => toast.error(t("shell.detectFailed")))
+          .finally(() => setDetecting(false));
+      },
+      () => {
+        toast.error(t("shell.detectFailed"));
+        setDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
 
   async function save() {
     if (!picked) return;
@@ -101,6 +132,19 @@ export function LocationPicker({ canEdit }: { canEdit: boolean }) {
                 className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-2 text-sm outline-none focus:border-primary/40"
               />
             </div>
+            <button
+              type="button"
+              onClick={detectCurrentLocation}
+              disabled={detecting}
+              className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground transition-colors hover:bg-accent disabled:opacity-60"
+            >
+              {detecting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <LocateFixed className="h-3.5 w-3.5" />
+              )}
+              {t("shell.detectLocation")}
+            </button>
             {searching && (
               <div className="flex items-center gap-2 text-xs text-subtle">
                 <Loader2 className="h-3 w-3 animate-spin" /> {t("common.loading")}

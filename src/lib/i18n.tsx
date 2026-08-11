@@ -895,6 +895,8 @@ const en: Dict = {
   "shell.locationSearchPlaceholder": "Search an address (e.g. Tashkent, Yunusabad)",
   "shell.locationSaved": "Location saved",
   "shell.locationSaveFailed": "Failed to save the location",
+  "shell.detectLocation": "Detect my location",
+  "shell.detectFailed": "Couldn't detect your location — check location permission",
 
   "settings.moveUp": "Move up",
   "settings.moveDown": "Move down",
@@ -2038,6 +2040,8 @@ const ru: Dict = {
   "shell.locationSearchPlaceholder": "Поиск адреса (напр.: Ташкент, Юнусабад)",
   "shell.locationSaved": "Адрес сохранён",
   "shell.locationSaveFailed": "Не удалось сохранить адрес",
+  "shell.detectLocation": "Определить моё местоположение",
+  "shell.detectFailed": "Не удалось определить местоположение — проверьте разрешение геолокации",
 
   "settings.moveUp": "Переместить вверх",
   "settings.moveDown": "Переместить вниз",
@@ -3195,6 +3199,8 @@ const uz: Dict = {
   "shell.locationSearchPlaceholder": "Manzilni qidiring (masalan: Toshkent, Yunusobod)",
   "shell.locationSaved": "Manzil saqlandi",
   "shell.locationSaveFailed": "Manzilni saqlab bo'lmadi",
+  "shell.detectLocation": "Joriy joylashuvimni aniqlash",
+  "shell.detectFailed": "Joylashuvni aniqlab bo'lmadi — geolokatsiya ruxsatini tekshiring",
 
   "settings.moveUp": "Yuqoriga surish",
   "settings.moveDown": "Pastga surish",
