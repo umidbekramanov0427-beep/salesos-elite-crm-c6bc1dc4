@@ -234,6 +234,7 @@ const en: Dict = {
   "login.shortPassword": "Password must be at least 8 characters",
   "login.passwordMismatch": "Passwords don't match",
   "login.forgotPassword": "Forgot password?",
+  "login.recoveryLinkExpired": "This link has expired or was already used. Request a new one:",
   "login.forgotDesc": "Enter your email and we'll send a password reset link.",
   "login.sendResetLink": "Send reset link",
   "login.forgotSent": "A password reset link was sent to {email}. Check your inbox.",
@@ -1370,6 +1371,8 @@ const ru: Dict = {
   "login.shortPassword": "Пароль должен содержать минимум 8 символов",
   "login.passwordMismatch": "Пароли не совпадают",
   "login.forgotPassword": "Забыли пароль?",
+  "login.recoveryLinkExpired":
+    "Срок действия ссылки истёк или она уже использована. Запросите новую:",
   "login.forgotDesc": "Введите email — мы отправим ссылку для восстановления пароля.",
   "login.sendResetLink": "Отправить ссылку",
   "login.forgotSent": "Ссылка для восстановления пароля отправлена на {email}. Проверьте почту.",
@@ -2511,6 +2514,8 @@ const uz: Dict = {
   "login.shortPassword": "Parol kamida 8 ta belgidan iborat bo‘lsin",
   "login.passwordMismatch": "Parollar mos kelmadi",
   "login.forgotPassword": "Parolni unutdingizmi?",
+  "login.recoveryLinkExpired":
+    "Havola muddati tugagan yoki allaqachon ishlatilgan. Yangi havola so'rang:",
   "login.forgotDesc": "Email manzilingizni kiriting — parolni tiklash havolasini yuboramiz.",
   "login.sendResetLink": "Havola yuborish",
   "login.forgotSent":
