@@ -16,6 +16,12 @@ import {
   type LeaderboardManagerRow,
 } from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
+import {
+  AmountRangeFilter,
+  amountInRange,
+  EMPTY_AMOUNT_RANGE,
+  type AmountRangeValue,
+} from "@/components/filters/AmountRangeFilter";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -164,6 +170,7 @@ function Leaderboard() {
   const [stageId, setStageId] = useState<string | null>(null);
   const [funnel, setFunnel] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [revenueRange, setRevenueRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
   const [live, setLive] = useState(true);
 
   const { data: stageOptions } = usePipelineStagesRaw();
@@ -181,9 +188,18 @@ function Leaderboard() {
     }),
     [dateFilter, search, stageId, funnel, selectedTags],
   );
-  const { rows, isLoading, isFetching, refetch } = useLeaderboardView(filters, {
+  const {
+    rows: allRows,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useLeaderboardView(filters, {
     refetchInterval: live ? LIVE_REFRESH_MS : false,
   });
+  const rows = useMemo(
+    () => allRows.filter((r) => amountInRange(r.revenue, revenueRange)),
+    [allRows, revenueRange],
+  );
 
   const todayIso = useMemo(() => {
     const d = new Date();
@@ -364,6 +380,7 @@ function Leaderboard() {
             selected={selectedTags}
             onChange={setSelectedTags}
           />
+          <AmountRangeFilter value={revenueRange} onChange={setRevenueRange} />
         </div>
       </SectionCard>
 

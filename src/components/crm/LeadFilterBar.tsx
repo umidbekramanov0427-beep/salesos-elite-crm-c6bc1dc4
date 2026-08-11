@@ -3,6 +3,11 @@ import { LayoutGrid, List, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { CrmLeadView, ProfileRow, StageRow } from "@/hooks/use-crm-data";
+import {
+  AmountRangeFilter,
+  amountInRange,
+  type AmountRangeValue,
+} from "@/components/filters/AmountRangeFilter";
 
 export type LeadFilterState = {
   funnel: string | null;
@@ -10,6 +15,7 @@ export type LeadFilterState = {
   tags: string[];
   stageId: string | null;
   search: string;
+  amount: AmountRangeValue;
 };
 
 export const EMPTY_LEAD_FILTERS: LeadFilterState = {
@@ -18,6 +24,7 @@ export const EMPTY_LEAD_FILTERS: LeadFilterState = {
   tags: [],
   stageId: null,
   search: "",
+  amount: { min: null, max: null },
 };
 
 export function filterLeads(leads: CrmLeadView[], f: LeadFilterState): CrmLeadView[] {
@@ -27,6 +34,7 @@ export function filterLeads(leads: CrmLeadView[], f: LeadFilterState): CrmLeadVi
     if (f.ownerId && l.ownerId !== f.ownerId) return false;
     if (f.stageId && l.stageId !== f.stageId) return false;
     if (f.tags.length > 0 && !f.tags.some((tag) => l.tags.includes(tag))) return false;
+    if (!amountInRange(l.expectedRevenue, f.amount)) return false;
     if (q) {
       const haystack = `${l.name} ${l.company} ${l.phone} ${l.id} ${l.score}`.toLowerCase();
       if (!haystack.includes(q)) return false;
@@ -165,6 +173,8 @@ export function LeadFilterBar({
         selected={value.tags}
         onChange={(v) => onChange({ ...value, tags: v })}
       />
+
+      <AmountRangeFilter value={value.amount} onChange={(v) => onChange({ ...value, amount: v })} />
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />

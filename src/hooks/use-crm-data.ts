@@ -987,7 +987,13 @@ export type DashboardKpi = {
 // asked this KPI to reason in terms of, rather than a raw sum of deal value.
 const NORMAL_CONVERSION_RATE = 0.15;
 
-export type DashboardFilters = { from: string | null; to: string | null; funnel: string | null };
+export type DashboardFilters = {
+  from: string | null;
+  to: string | null;
+  funnel: string | null;
+  minAmount?: number | null;
+  maxAmount?: number | null;
+};
 
 export function useDashboardKpis(filters?: DashboardFilters) {
   const { data: deals } = useDealsRaw();
@@ -998,6 +1004,8 @@ export function useDashboardKpis(filters?: DashboardFilters) {
     const from = filters?.from ?? null;
     const to = filters?.to ?? null;
     const funnel = filters?.funnel ?? null;
+    const minAmount = filters?.minAmount ?? null;
+    const maxAmount = filters?.maxAmount ?? null;
 
     // The funnel filter narrows every card to that funnel's data; the date
     // range narrows which leads count toward lead-driven metrics (new
@@ -1008,13 +1016,19 @@ export function useDashboardKpis(filters?: DashboardFilters) {
       if (from && l.created_at < from) return false;
       if (to && l.created_at > to) return false;
       if (funnel && (l.funnel || "Direct Sales") !== funnel) return false;
+      if (minAmount != null && l.expected_revenue < minAmount) return false;
+      if (maxAmount != null && l.expected_revenue > maxAmount) return false;
       return true;
     });
     const leadsById = byId(leads);
     const dealRows = (deals ?? []).filter((d) => {
-      if (!funnel) return true;
-      const lead = d.lead_id ? leadsById.get(d.lead_id) : undefined;
-      return (lead?.funnel || "Direct Sales") === funnel;
+      if (funnel) {
+        const lead = d.lead_id ? leadsById.get(d.lead_id) : undefined;
+        if ((lead?.funnel || "Direct Sales") !== funnel) return false;
+      }
+      if (minAmount != null && Number(d.value) < minAmount) return false;
+      if (maxAmount != null && Number(d.value) > maxAmount) return false;
+      return true;
     });
     const stagesById = byId(stages);
     const startOfToday = new Date();
@@ -1071,7 +1085,16 @@ export function useDashboardKpis(filters?: DashboardFilters) {
       lostThisWeek: lostThisWeek.length,
       conversion,
     };
-  }, [deals, leads, stages, filters?.from, filters?.to, filters?.funnel]);
+  }, [
+    deals,
+    leads,
+    stages,
+    filters?.from,
+    filters?.to,
+    filters?.funnel,
+    filters?.minAmount,
+    filters?.maxAmount,
+  ]);
 }
 
 export type ActivityItem = {
