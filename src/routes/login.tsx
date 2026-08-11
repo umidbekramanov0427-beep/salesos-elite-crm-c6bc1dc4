@@ -60,10 +60,23 @@ function LoginPage() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [recoveryError, setRecoveryError] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [linkExpiredNotice, setLinkExpiredNotice] = useState(false);
 
   useEffect(() => {
     if (ready && user && !recoveryMode) void navigate({ to: "/", replace: true });
   }, [ready, user, recoveryMode, navigate]);
+
+  // Supabase redirects an expired/already-used recovery link back here with
+  // the error encoded in the URL hash rather than delivering a session —
+  // without this, the page just silently falls through to the normal
+  // sign-in form and the user sees a confusing "wrong email/password".
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("error=") && hash.includes("otp_expired")) {
+      setLinkExpiredNotice(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   async function onForgotSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -396,6 +409,24 @@ function LoginPage() {
               </div>
             ) : (
               <>
+                {linkExpiredNotice && (
+                  <div className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">
+                    <p>{t("login.recoveryLinkExpired")}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLinkExpiredNotice(false);
+                        setForgotEmail(email);
+                        setForgotOpen(true);
+                        setForgotSent(false);
+                        setForgotError("");
+                      }}
+                      className="mt-1.5 font-semibold text-primary hover:underline"
+                    >
+                      {t("login.forgotPassword")}
+                    </button>
+                  </div>
+                )}
                 <form onSubmit={onSubmit} noValidate className="space-y-5">
                   <label className="block">
                     <span className="text-[13px] font-medium text-muted-foreground">
