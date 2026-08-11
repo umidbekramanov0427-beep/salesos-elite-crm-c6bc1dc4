@@ -19,16 +19,28 @@ export async function sendTelegramMessage(chatId: number, text: string): Promise
   if (!res.ok) throw new Error(`Telegram sendMessage failed (${res.status}): ${await res.text()}`);
 }
 
-export async function buildDailyReportText(): Promise<string> {
+export async function buildDailyReportText(organizationId: string): Promise<string> {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
 
   const [profilesRes, dealsRes, sessionsRes, callsRes] = await Promise.all([
-    supabaseAdmin.from("profiles").select("id, full_name, email, role, monthly_target"),
-    supabaseAdmin.from("deals").select("owner_id, value, status, close_date"),
-    supabaseAdmin.from("work_sessions").select("profile_id, clock_in"),
-    supabaseAdmin.from("call_logs").select("profile_id, created_at"),
+    supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, role, monthly_target")
+      .eq("organization_id", organizationId),
+    supabaseAdmin
+      .from("deals")
+      .select("owner_id, value, status, close_date")
+      .eq("organization_id", organizationId),
+    supabaseAdmin
+      .from("work_sessions")
+      .select("profile_id, clock_in")
+      .eq("organization_id", organizationId),
+    supabaseAdmin
+      .from("call_logs")
+      .select("profile_id, created_at")
+      .eq("organization_id", organizationId),
   ]);
 
   const profiles = profilesRes.data ?? [];
@@ -94,23 +106,29 @@ export async function buildDailyReportText(): Promise<string> {
   return lines.join("\n");
 }
 
+/** Runs once daily across every active company, each getting its own report. */
 export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number; failed: number }> {
-  const text = await buildDailyReportText();
-  const { data: recipients } = await supabaseAdmin
-    .from("profiles")
-    .select("id, telegram_chat_id, role")
-    .not("telegram_chat_id", "is", null)
-    .in("role", ["super_admin", "manager"]);
+  const { data: orgs } = await supabaseAdmin.from("organizations").select("id").eq("active", true);
 
   let sent = 0;
   let failed = 0;
-  for (const r of recipients ?? []) {
-    if (!r.telegram_chat_id) continue;
-    try {
-      await sendTelegramMessage(r.telegram_chat_id, text);
-      sent++;
-    } catch {
-      failed++;
+  for (const org of orgs ?? []) {
+    const text = await buildDailyReportText(org.id);
+    const { data: recipients } = await supabaseAdmin
+      .from("profiles")
+      .select("id, telegram_chat_id, role")
+      .eq("organization_id", org.id)
+      .not("telegram_chat_id", "is", null)
+      .in("role", ["super_admin", "manager"]);
+
+    for (const r of recipients ?? []) {
+      if (!r.telegram_chat_id) continue;
+      try {
+        await sendTelegramMessage(r.telegram_chat_id, text);
+        sent++;
+      } catch {
+        failed++;
+      }
     }
   }
   return { sent, failed };

@@ -4,7 +4,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type AmoConnection = {
-  id: boolean;
+  organization_id: string;
   subdomain: string;
   access_token: string;
   refresh_token: string;
@@ -83,7 +83,7 @@ async function refreshTokens(conn: AmoConnection) {
       refresh_token: tokens.refresh_token,
       token_expires_at: expiresAt,
     })
-    .eq("id", true);
+    .eq("organization_id", conn.organization_id);
   if (error) throw error;
   return {
     ...conn,
@@ -93,11 +93,11 @@ async function refreshTokens(conn: AmoConnection) {
   };
 }
 
-export async function getConnection(): Promise<AmoConnection | null> {
+export async function getConnection(organizationId: string): Promise<AmoConnection | null> {
   const { data, error } = await supabaseAdmin
     .from("amocrm_connection")
     .select("*")
-    .eq("id", true)
+    .eq("organization_id", organizationId)
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -149,10 +149,11 @@ async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
   return all;
 }
 
-async function defaultStageId(): Promise<string | null> {
+async function defaultStageId(organizationId: string): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("pipeline_stages")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("key", "new")
     .maybeSingle();
   return data?.id ?? null;
@@ -190,17 +191,21 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
 
 export type SyncResult = { synced: number; callsSynced?: number; error?: string };
 
-/** Pulls every lead from AmoCRM and upserts it into public.leads, keyed by amocrm_id. */
-export async function syncLeadsFromAmo(): Promise<SyncResult> {
-  const conn0 = await getConnection();
+/** Pulls every lead from AmoCRM and upserts it into public.leads, keyed by (organization_id, amocrm_id). */
+export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResult> {
+  const conn0 = await getConnection(organizationId);
   if (!conn0) throw new Error("AmoCRM is not connected yet.");
   const conn = await ensureValidToken(conn0);
 
   try {
-    const [leads, stageId] = await Promise.all([fetchAllLeads(conn), defaultStageId()]);
+    const [leads, stageId] = await Promise.all([
+      fetchAllLeads(conn),
+      defaultStageId(organizationId),
+    ]);
 
     if (leads.length > 0) {
       const rows = leads.map((l) => ({
+        organization_id: organizationId,
         amocrm_id: l.id,
         name: l.name?.trim() || `AmoCRM lead #${l.id}`,
         company_name: "",
@@ -212,7 +217,9 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
         priority: "Normal" as const,
         tags: amoTagNames(l),
       }));
-      const { error } = await supabaseAdmin.from("leads").upsert(rows, { onConflict: "amocrm_id" });
+      const { error } = await supabaseAdmin
+        .from("leads")
+        .upsert(rows, { onConflict: "organization_id,amocrm_id" });
       if (error) throw error;
     }
 
@@ -228,7 +235,7 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
     await supabaseAdmin
       .from("amocrm_connection")
       .update({ last_synced_at: new Date().toISOString(), last_sync_error: null })
-      .eq("id", true);
+      .eq("organization_id", organizationId);
     await supabaseAdmin
       .from("integration_settings")
       .update({
@@ -238,6 +245,7 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
           lead_count: leads.length,
         },
       })
+      .eq("organization_id", organizationId)
       .eq("key", "amocrm");
 
     return { synced: leads.length, callsSynced };
@@ -246,7 +254,7 @@ export async function syncLeadsFromAmo(): Promise<SyncResult> {
     await supabaseAdmin
       .from("amocrm_connection")
       .update({ last_sync_error: message })
-      .eq("id", true);
+      .eq("organization_id", organizationId);
     return { synced: 0, error: message };
   }
 }
@@ -260,6 +268,7 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
   const { data: leadRows, error: leadsError } = await supabaseAdmin
     .from("leads")
     .select("id, amocrm_id")
+    .eq("organization_id", conn.organization_id)
     .in("amocrm_id", amoLeadIds);
   if (leadsError) throw leadsError;
   const leadIdByAmoId = new Map((leadRows ?? []).map((l) => [l.amocrm_id, l.id]));
@@ -267,6 +276,7 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
   const rows = notes.map((n) => {
     const duration = n.params?.duration ?? 0;
     return {
+      organization_id: conn.organization_id,
       amocrm_note_id: n.id,
       lead_id: leadIdByAmoId.get(n.entity_id) ?? null,
       direction: n.note_type === "call_in" ? "in" : "out",
@@ -280,20 +290,22 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
 
   const { error } = await supabaseAdmin
     .from("amocrm_calls")
-    .upsert(rows, { onConflict: "amocrm_note_id" });
+    .upsert(rows, { onConflict: "organization_id,amocrm_note_id" });
   if (error) throw error;
   return rows.length;
 }
 
 /** Upserts a single lead — used by the webhook handler for near-real-time updates. */
 export async function upsertSingleAmoLead(
+  organizationId: string,
   amoLeadId: number,
   name: string | null,
   price: number | null,
 ) {
-  const stageId = await defaultStageId();
+  const stageId = await defaultStageId(organizationId);
   const { error } = await supabaseAdmin.from("leads").upsert(
     {
+      organization_id: organizationId,
       amocrm_id: amoLeadId,
       name: name?.trim() || `AmoCRM lead #${amoLeadId}`,
       company_name: "",
@@ -304,7 +316,7 @@ export async function upsertSingleAmoLead(
       temperature: "Warm" as const,
       priority: "Normal" as const,
     },
-    { onConflict: "amocrm_id" },
+    { onConflict: "organization_id,amocrm_id" },
   );
   if (error) throw error;
 }

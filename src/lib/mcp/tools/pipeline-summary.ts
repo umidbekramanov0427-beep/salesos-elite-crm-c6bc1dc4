@@ -1,4 +1,5 @@
 import { defineTool } from "@lovable.dev/mcp-js";
+import { requireToolOrgId } from "./org-scope";
 
 export default defineTool({
   name: "pipeline_summary",
@@ -7,7 +8,8 @@ export default defineTool({
     "Summarize the sales pipeline: lead and deal counts, total and weighted value per stage.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async () => {
+  handler: async (_args, ctx) => {
+    const orgId = await requireToolOrgId(ctx);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [
@@ -18,9 +20,13 @@ export default defineTool({
       supabaseAdmin
         .from("pipeline_stages")
         .select("id, name")
+        .eq("organization_id", orgId)
         .order("position", { ascending: true }),
-      supabaseAdmin.from("leads").select("stage_id, expected_revenue"),
-      supabaseAdmin.from("deals").select("stage_id, value, probability"),
+      supabaseAdmin.from("leads").select("stage_id, expected_revenue").eq("organization_id", orgId),
+      supabaseAdmin
+        .from("deals")
+        .select("stage_id, value, probability")
+        .eq("organization_id", orgId),
     ]);
     if (stagesError) throw new Error(stagesError.message);
     if (leadsError) throw new Error(leadsError.message);

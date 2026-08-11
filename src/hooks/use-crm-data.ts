@@ -1151,12 +1151,15 @@ export function useTopPerformers(limit = 5) {
 export type IntegrationSettingRow = Database["public"]["Tables"]["integration_settings"]["Row"];
 
 export function useIntegrationSetting(key: string) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["integration_settings", key],
+    queryKey: ["integration_settings", key, user?.organizationId],
+    enabled: !!user?.organizationId,
     queryFn: async (): Promise<IntegrationSettingRow | null> => {
       const { data, error } = await supabase
         .from("integration_settings")
         .select("*")
+        .eq("organization_id", user!.organizationId!)
         .eq("key", key)
         .maybeSingle();
       if (error) throw error;
@@ -1222,6 +1225,49 @@ export function useCreateEmployee() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["profiles"] });
     },
+  });
+}
+
+export type OrganizationRow = Tables["organizations"]["Row"];
+
+export function useOrganizations() {
+  return useQuery({
+    queryKey: ["organizations"],
+    queryFn: async (): Promise<OrganizationRow[]> => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      admin_email: string;
+      admin_password: string;
+      admin_full_name: string;
+    }): Promise<{ organizationId: string }> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/platform/create-organization", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to create organization");
+      return json;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["organizations"] }),
   });
 }
 
@@ -1391,13 +1437,15 @@ export async function notifyTaskAssigned(assigneeId: string, taskTitle: string):
 export type BusinessProfileRow = Tables["business_profile"]["Row"];
 
 export function useBusinessProfile() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["business_profile"],
+    queryKey: ["business_profile", user?.organizationId],
+    enabled: !!user?.organizationId,
     queryFn: async (): Promise<BusinessProfileRow | null> => {
       const { data, error } = await supabase
         .from("business_profile")
         .select("*")
-        .eq("id", true)
+        .eq("organization_id", user!.organizationId!)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -1419,14 +1467,17 @@ export function useUpdateBusinessProfile() {
     ) => {
       const { data, error } = await supabase
         .from("business_profile")
-        .update({ ...patch, updated_by: user?.id ?? null })
-        .eq("id", true)
+        .upsert(
+          { organization_id: user!.organizationId!, ...patch, updated_by: user?.id ?? null },
+          { onConflict: "organization_id" },
+        )
         .select()
         .single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["business_profile"] }),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["business_profile", user?.organizationId] }),
   });
 }
 
@@ -1723,11 +1774,18 @@ export function useSendTestReport() {
 
 export function useSetTelegramBotUsername() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (username: string) => {
-      const { error } = await supabase
-        .from("integration_settings")
-        .upsert({ key: "telegram_bot", config: { username }, enabled: true });
+      const { error } = await supabase.from("integration_settings").upsert(
+        {
+          organization_id: user!.organizationId!,
+          key: "telegram_bot",
+          config: { username },
+          enabled: true,
+        },
+        { onConflict: "organization_id,key" },
+      );
       if (error) throw new Error(error.message);
     },
     onSuccess: () =>
@@ -1744,11 +1802,15 @@ export type OfficeLocationConfig = { label: string; address: string; lat: number
 
 export function useSetOfficeLocation() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (config: OfficeLocationConfig) => {
       const { error } = await supabase
         .from("integration_settings")
-        .upsert({ key: "office_location", config, enabled: true });
+        .upsert(
+          { organization_id: user!.organizationId!, key: "office_location", config, enabled: true },
+          { onConflict: "organization_id,key" },
+        );
       if (error) throw new Error(error.message);
     },
     onSuccess: () =>
@@ -1792,10 +1854,15 @@ export const useDeleteAutoResponder = autoRespondersResource.useRemove;
 export type AiAgentRow = Tables["ai_agents"]["Row"];
 
 export function useAiAgents() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["ai_agents"],
+    queryKey: ["ai_agents", user?.organizationId],
+    enabled: !!user?.organizationId,
     queryFn: async (): Promise<AiAgentRow[]> => {
-      const { data, error } = await supabase.from("ai_agents").select("*");
+      const { data, error } = await supabase
+        .from("ai_agents")
+        .select("*")
+        .eq("organization_id", user!.organizationId!);
       if (error) throw error;
       return data ?? [];
     },
@@ -1813,15 +1880,21 @@ export function useUpdateAiAgent() {
       channels?: string[] | undefined;
       active?: boolean | undefined;
     }) => {
-      const row: Tables["ai_agents"]["Insert"] = { kind: patch.kind, updated_by: user?.id ?? null };
+      const row: Tables["ai_agents"]["Insert"] = {
+        kind: patch.kind,
+        organization_id: user!.organizationId!,
+        updated_by: user?.id ?? null,
+      };
       if (patch.model !== undefined) row.model = patch.model;
       if (patch.system_prompt !== undefined) row.system_prompt = patch.system_prompt;
       if (patch.channels !== undefined) row.channels = patch.channels;
       if (patch.active !== undefined) row.active = patch.active;
-      const { error } = await supabase.from("ai_agents").upsert(row, { onConflict: "kind" });
+      const { error } = await supabase
+        .from("ai_agents")
+        .upsert(row, { onConflict: "organization_id,kind" });
       if (error) throw error;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["ai_agents"] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["ai_agents", user?.organizationId] }),
   });
 }
 

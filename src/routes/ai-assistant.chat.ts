@@ -34,11 +34,19 @@ export const Route = createFileRoute("/ai-assistant/chat")({
           );
         }
 
-        const { data: profile } = await supabaseAdmin
-          .from("business_profile")
-          .select("company_name, description, competitors, terminology, tone")
-          .eq("id", true)
+        const { data: caller } = await supabaseAdmin
+          .from("profiles")
+          .select("organization_id")
+          .eq("id", userId)
           .maybeSingle();
+
+        const { data: profile } = caller?.organization_id
+          ? await supabaseAdmin
+              .from("business_profile")
+              .select("company_name, description, competitors, terminology, tone")
+              .eq("organization_id", caller.organization_id)
+              .maybeSingle()
+          : { data: null };
 
         let systemPrompt =
           "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.";

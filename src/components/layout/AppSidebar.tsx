@@ -32,6 +32,7 @@ type Props = {
   collapsed: boolean;
   onToggle: () => void;
   isAdmin: boolean;
+  isPlatformOwner: boolean;
 };
 
 function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
@@ -372,11 +373,15 @@ function FunnelsNavGroup({
   );
 }
 
-export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
+export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Props) {
   const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const mainItems = NAV_ITEMS.filter(
-    (i) => (!i.adminOnly || isAdmin) && i.to !== "/settings" && i.to !== "/admin",
+    (i) =>
+      (!i.adminOnly || isAdmin) &&
+      !i.platformOwnerOnly &&
+      i.to !== "/settings" &&
+      i.to !== "/admin",
   );
   const topItems = mainItems.filter((i) => !i.group);
   const analyticsItems = mainItems.filter((i) => i.group === "analytics");
@@ -419,6 +424,37 @@ export function AppSidebar({ collapsed, onToggle, isAdmin }: Props) {
           </>
         )}
       </Link>
+    );
+  }
+
+  // Platform owner belongs to no single company, so none of the
+  // company-scoped widgets below (integrations status, business profile,
+  // monthly target, analytics nav) apply to them — a short, separate
+  // sidebar avoids rendering those against an empty organization.
+  if (isPlatformOwner) {
+    const platformItem = NAV_ITEMS.find((i) => i.to === "/platform")!;
+    return (
+      <aside
+        className={cn(
+          "sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",
+          collapsed ? "w-[76px]" : "w-[264px]",
+        )}
+      >
+        <div className="flex h-16 items-center gap-2.5 px-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
+            <Logo className="h-6 w-6" />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold text-foreground">{t("app.name")}</p>
+            </div>
+          )}
+        </div>
+        <nav className="flex-1 space-y-1.5 px-3 py-2">{renderItem(platformItem)}</nav>
+        <div className="border-t border-sidebar-border p-3">
+          <UserMenu collapsed={collapsed} isAdmin={false} />
+        </div>
+      </aside>
     );
   }
 

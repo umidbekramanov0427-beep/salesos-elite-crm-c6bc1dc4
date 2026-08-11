@@ -1,5 +1,6 @@
 import { defineTool, ToolError } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { requireToolOrgId } from "./org-scope";
 
 export default defineTool({
   name: "get_lead",
@@ -10,13 +11,15 @@ export default defineTool({
     lead_id: z.string().min(1).describe("Lead id (UUID)."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ lead_id }) => {
+  handler: async ({ lead_id }, ctx) => {
+    const orgId = await requireToolOrgId(ctx);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: lead, error } = await supabaseAdmin
       .from("leads")
       .select("*")
       .eq("id", lead_id)
+      .eq("organization_id", orgId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!lead) throw new ToolError(`No lead found with id "${lead_id}".`);

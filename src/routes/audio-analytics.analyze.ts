@@ -70,6 +70,15 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
         const userId = await getRequestUserId(request);
         if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+        const { data: caller } = await supabaseAdmin
+          .from("profiles")
+          .select("organization_id")
+          .eq("id", userId)
+          .maybeSingle();
+        if (!caller?.organization_id)
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        const organizationId = caller.organization_id;
+
         const body = (await request.json().catch(() => ({}))) as { callId?: string };
         if (!body.callId) return Response.json({ error: "callId is required." }, { status: 400 });
 
@@ -77,6 +86,7 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
           .from("amocrm_calls")
           .select("id, recording_url")
           .eq("id", body.callId)
+          .eq("organization_id", organizationId)
           .maybeSingle();
         if (!call) return Response.json({ error: "Call not found." }, { status: 404 });
         if (!call.recording_url) {
@@ -86,6 +96,7 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
         const { data: agent } = await supabaseAdmin
           .from("ai_agents")
           .select("system_prompt, active")
+          .eq("organization_id", organizationId)
           .eq("kind", "call")
           .maybeSingle();
         if (agent && agent.active === false) {

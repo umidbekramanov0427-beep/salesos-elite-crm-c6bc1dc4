@@ -1,5 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { requireToolOrgId } from "./org-scope";
 
 export default defineTool({
   name: "list_deals",
@@ -14,12 +15,14 @@ export default defineTool({
     min_value: z.number().optional().describe("Only deals worth at least this amount."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ stage, owner, min_value }) => {
+  handler: async ({ stage, owner, min_value }, ctx) => {
+    const orgId = await requireToolOrgId(ctx);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let query = supabaseAdmin
       .from("deals")
       .select("id, name, value, probability, stage_id, owner_id, status")
+      .eq("organization_id", orgId)
       .order("updated_at", { ascending: false })
       .limit(500);
     if (typeof min_value === "number") query = query.gte("value", min_value);
@@ -30,7 +33,7 @@ export default defineTool({
       ...new Set((deals ?? []).map((d) => d.owner_id).filter((v): v is string => !!v)),
     ];
     const [{ data: stages }, { data: owners }] = await Promise.all([
-      supabaseAdmin.from("pipeline_stages").select("id, name"),
+      supabaseAdmin.from("pipeline_stages").select("id, name").eq("organization_id", orgId),
       ownerIds.length
         ? supabaseAdmin.from("profiles").select("id, full_name, email").in("id", ownerIds)
         : Promise.resolve({ data: [] as { id: string; full_name: string; email: string }[] }),

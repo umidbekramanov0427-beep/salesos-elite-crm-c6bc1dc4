@@ -19,6 +19,7 @@ export type SessionUser = {
   name: string;
   initials: string;
   role: Profile["role"];
+  organizationId: string | null;
   department: string;
   position: string;
   phone: string | null;
@@ -38,11 +39,6 @@ type AuthValue = {
   // of redirecting straight into the app like a normal sign-in would.
   recoveryMode: boolean;
   signIn: (email: string, password: string) => Promise<AuthResult>;
-  signUp: (
-    email: string,
-    password: string,
-    fullName: string,
-  ) => Promise<AuthResult & { needsEmailConfirm?: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
@@ -65,6 +61,7 @@ function toSessionUser(profile: Profile): SessionUser {
     name: profile.full_name || profile.email,
     initials: initialsOf(profile.full_name, profile.email),
     role: profile.role,
+    organizationId: profile.organization_id,
     department: profile.department,
     position: profile.position,
     phone: profile.phone,
@@ -139,16 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: { data: { full_name: fullName.trim() } },
-    });
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, needsEmailConfirm: !data.session };
-  }, []);
-
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -180,23 +167,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       recoveryMode,
       signIn,
-      signUp,
       signOut,
       refreshProfile,
       resetPassword,
       updatePassword,
     }),
-    [
-      user,
-      ready,
-      recoveryMode,
-      signIn,
-      signUp,
-      signOut,
-      refreshProfile,
-      resetPassword,
-      updatePassword,
-    ],
+    [user, ready, recoveryMode, signIn, signOut, refreshProfile, resetPassword, updatePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

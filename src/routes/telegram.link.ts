@@ -17,17 +17,22 @@ export const Route = createFileRoute("/telegram/link")({
         if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
         const code = randomCode();
-        const { error } = await supabaseAdmin
+        const { data: caller, error } = await supabaseAdmin
           .from("profiles")
           .update({ telegram_link_code: code, telegram_chat_id: null })
-          .eq("id", userId);
+          .eq("id", userId)
+          .select("organization_id")
+          .single();
         if (error) return Response.json({ error: error.message }, { status: 400 });
 
-        const { data: botSetting } = await supabaseAdmin
-          .from("integration_settings")
-          .select("config")
-          .eq("key", "telegram_bot")
-          .maybeSingle();
+        const { data: botSetting } = caller.organization_id
+          ? await supabaseAdmin
+              .from("integration_settings")
+              .select("config")
+              .eq("organization_id", caller.organization_id)
+              .eq("key", "telegram_bot")
+              .maybeSingle()
+          : { data: null };
         const config = (botSetting?.config ?? {}) as { username?: string };
 
         return Response.json({ code, botUsername: config.username ?? null });

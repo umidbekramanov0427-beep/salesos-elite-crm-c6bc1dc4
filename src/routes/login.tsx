@@ -37,22 +37,18 @@ function signInErrorMessage(raw: string, t: (key: string) => string): string {
 }
 
 function LoginPage() {
-  const { user, ready, recoveryMode, signIn, signUp, resetPassword, updatePassword } = useAuth();
+  const { user, ready, recoveryMode, signIn, resetPassword, updatePassword } = useAuth();
   const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{
-    fullName?: string;
     email?: string;
     password?: string;
     form?: string;
   }>({});
   const [busy, setBusy] = useState(false);
-  const [confirmNotice, setConfirmNotice] = useState(false);
 
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -112,32 +108,21 @@ function LoginPage() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const next: typeof errors = {};
-    if (mode === "signup" && fullName.trim().length < 2) next.fullName = t("login.needFullName");
     if (!EMAIL_RE.test(email.trim())) next.email = t("login.invalidEmail");
     if (password.length < 8) next.password = t("login.shortPassword");
     setErrors(next);
     if (Object.keys(next).length) return;
 
     setBusy(true);
-    setConfirmNotice(false);
-    const result =
-      mode === "signin" ? await signIn(email, password) : await signUp(email, password, fullName);
+    const result = await signIn(email, password);
     setBusy(false);
 
     if (!result.ok) {
-      setErrors({ form: mode === "signin" ? signInErrorMessage(result.error, t) : result.error });
+      setErrors({ form: signInErrorMessage(result.error, t) });
       return;
     }
 
-    if (mode === "signup" && "needsEmailConfirm" in result && result.needsEmailConfirm) {
-      toast.success(t("login.signupSuccess"));
-      setConfirmNotice(true);
-      setMode("signin");
-      setPassword("");
-      return;
-    }
-
-    toast.success(mode === "signin" ? t("login.success") : t("login.signupSuccess"));
+    toast.success(t("login.success"));
     void navigate({ to: "/", replace: true });
   }
 
@@ -296,12 +281,6 @@ function LoginPage() {
               </p>
             </div>
 
-            {confirmNotice && (
-              <p className="mb-6 rounded-xl bg-info/10 px-3 py-2 text-sm font-medium text-info">
-                {t("login.confirmEmailNotice")}
-              </p>
-            )}
-
             {recoveryMode ? (
               <form onSubmit={onRecoverySubmit} noValidate className="space-y-5">
                 <p className="text-center text-sm text-muted-foreground">
@@ -418,30 +397,6 @@ function LoginPage() {
             ) : (
               <>
                 <form onSubmit={onSubmit} noValidate className="space-y-5">
-                  {mode === "signup" && (
-                    <label className="block">
-                      <span className="text-[13px] font-medium text-muted-foreground">
-                        {t("login.fullName")}
-                      </span>
-                      <span className="relative mt-2 block">
-                        <input
-                          type="text"
-                          autoComplete="name"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Aizhan Serikova"
-                          aria-invalid={!!errors.fullName}
-                          className="h-14 w-full rounded-xl border border-border bg-surface px-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
-                        />
-                      </span>
-                      {errors.fullName && (
-                        <span className="mt-1.5 block text-xs text-destructive">
-                          {errors.fullName}
-                        </span>
-                      )}
-                    </label>
-                  )}
-
                   <label className="block">
                     <span className="text-[13px] font-medium text-muted-foreground">
                       {t("login.email")}
@@ -484,22 +439,20 @@ function LoginPage() {
                         {errors.password}
                       </span>
                     )}
-                    {mode === "signin" && (
-                      <span className="mt-2 block text-right">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForgotEmail(email);
-                            setForgotOpen(true);
-                            setForgotSent(false);
-                            setForgotError("");
-                          }}
-                          className="text-[13px] font-medium text-primary hover:underline"
-                        >
-                          {t("login.forgotPassword")}
-                        </button>
-                      </span>
-                    )}
+                    <span className="mt-2 block text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotEmail(email);
+                          setForgotOpen(true);
+                          setForgotSent(false);
+                          setForgotError("");
+                        }}
+                        className="text-[13px] font-medium text-primary hover:underline"
+                      >
+                        {t("login.forgotPassword")}
+                      </button>
+                    </span>
                   </label>
 
                   {errors.form && (
@@ -517,27 +470,9 @@ function LoginPage() {
                     className="mx-auto flex h-14 w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
                   >
                     {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {busy
-                      ? mode === "signin"
-                        ? t("login.signingIn")
-                        : t("login.creatingAccount")
-                      : mode === "signin"
-                        ? t("login.submit")
-                        : t("login.signupSubmit")}
+                    {busy ? t("login.signingIn") : t("login.submit")}
                   </button>
                 </form>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode((m) => (m === "signin" ? "signup" : "signin"));
-                    setErrors({});
-                    setConfirmNotice(false);
-                  }}
-                  className="mt-6 block h-11 w-full rounded-xl border border-amber-400/40 bg-amber-400/15 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-400/25 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
-                >
-                  {mode === "signin" ? t("login.toggleToSignup") : t("login.toggleToSignin")}
-                </button>
               </>
             )}
           </div>

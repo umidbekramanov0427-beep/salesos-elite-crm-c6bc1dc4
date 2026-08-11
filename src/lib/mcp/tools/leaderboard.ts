@@ -1,5 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { requireToolOrgId } from "./org-scope";
 
 export default defineTool({
   name: "leaderboard_ranking",
@@ -17,7 +18,8 @@ export default defineTool({
       .describe("How many ranks to return (default 10)."),
   },
   annotations: { readOnlyHint: true, openWorldHint: false },
-  handler: async ({ search, limit }) => {
+  handler: async ({ search, limit }, ctx) => {
+    const orgId = await requireToolOrgId(ctx);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [
@@ -27,9 +29,16 @@ export default defineTool({
     ] = await Promise.all([
       supabaseAdmin
         .from("profiles")
-        .select("id, full_name, email, role, monthly_target, kpi_percent"),
-      supabaseAdmin.from("leads").select("owner_id, stage_id, expected_revenue"),
-      supabaseAdmin.from("pipeline_stages").select("id, is_won, is_lost"),
+        .select("id, full_name, email, role, monthly_target, kpi_percent")
+        .eq("organization_id", orgId),
+      supabaseAdmin
+        .from("leads")
+        .select("owner_id, stage_id, expected_revenue")
+        .eq("organization_id", orgId),
+      supabaseAdmin
+        .from("pipeline_stages")
+        .select("id, is_won, is_lost")
+        .eq("organization_id", orgId),
     ]);
     if (profilesError) throw new Error(profilesError.message);
     if (leadsError) throw new Error(leadsError.message);

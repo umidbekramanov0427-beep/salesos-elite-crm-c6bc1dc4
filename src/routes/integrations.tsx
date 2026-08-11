@@ -6,6 +6,7 @@ import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { useIntegrationSetting, useTriggerAmoCrmSync } from "@/hooks/use-crm-data";
 import {
   Dialog,
@@ -255,12 +256,18 @@ function AmoCrmCard() {
             </button>
           )}
           {isAdmin && !connected && (
-            <a
-              href="/integrations/amocrm/connect"
+            <button
+              type="button"
+              onClick={async () => {
+                const { data } = await supabase.auth.getSession();
+                const token = data.session?.access_token;
+                if (!token) return;
+                window.location.href = `/integrations/amocrm/connect?token=${encodeURIComponent(token)}`;
+              }}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
               <Plug className="h-4 w-4" /> {t("amocrm.connect")}
-            </a>
+            </button>
           )}
         </div>
       )}

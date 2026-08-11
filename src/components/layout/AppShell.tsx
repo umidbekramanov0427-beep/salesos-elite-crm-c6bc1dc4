@@ -28,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = user?.role === "super_admin";
+  const isPlatformOwner = user?.role === "platform_owner";
   const current = NAV_ITEMS.find((i) =>
     i.to === "/" ? pathname === "/" : pathname.startsWith(i.to),
   );
@@ -51,6 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         isAdmin={isAdmin}
+        isPlatformOwner={isPlatformOwner}
       />
 
       {mobileOpen && (
@@ -68,7 +70,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
             <nav className="space-y-1">
-              {NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin).map((item) => {
+              {NAV_ITEMS.filter((i) =>
+                isPlatformOwner
+                  ? i.platformOwnerOnly
+                  : (!i.adminOnly || isAdmin) && !i.platformOwnerOnly,
+              ).map((item) => {
                 const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
                 return (
                   <Link
