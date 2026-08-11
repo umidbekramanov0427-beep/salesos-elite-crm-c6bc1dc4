@@ -1,8 +1,14 @@
 import type { ReactNode } from "react";
-import { Download } from "lucide-react";
+import { ChevronDown, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import { downloadCsv } from "@/lib/export-csv";
+import { downloadCsv, exportAsPdf } from "@/lib/export-csv";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function PageHeader({
   title,
@@ -151,13 +157,25 @@ export function ExportButton({
 }) {
   const { t } = useI18n();
   return (
-    <button
-      type="button"
-      disabled={rows.length === 0}
-      onClick={() => downloadCsv(filename, rows)}
-      className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <Download className="h-4 w-4" /> {t("common.exportCsv")}
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={rows.length === 0}
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" /> {t("common.export")}
+          <ChevronDown className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => downloadCsv(filename, rows)}>
+          <FileSpreadsheet className="h-4 w-4" /> {t("common.exportCsv")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportAsPdf(filename, rows)}>
+          <FileText className="h-4 w-4" /> {t("common.exportPdf")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

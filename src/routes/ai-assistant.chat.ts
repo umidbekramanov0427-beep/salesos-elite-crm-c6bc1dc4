@@ -48,8 +48,32 @@ export const Route = createFileRoute("/ai-assistant/chat")({
               .maybeSingle()
           : { data: null };
 
+        const NAV_GUIDE = `- / — Leaderboard: live revenue ranking, KPI and bonus per rep
+- /dashboard — Dashboard: today's/monthly revenue, pipeline value, recent activity
+- /crm/leads — Leads register (search, filters, bulk actions)
+- /crm/leads/$leadId — a single lead's full workspace: info, timeline, notes, tasks, AmoCRM link, call history, AI analysis
+- /crm/contacts — Contacts
+- /crm/companies — Companies
+- /crm/deals — Deals
+- /crm-stages — CRM Stages: full lead register with stage history
+- /funnels — Funnels: pipeline visualization and stage conversion
+- /crm/pipeline — AmoCRM: drag-and-drop pipeline board synced from AmoCRM
+- /tasks — Important Tasks: company-wide task board
+- /lead-tasks — Lead Tasks: every open task grouped by its lead
+- /audio-analytics — Audio Analytics: call volume, connection rate, AI call summaries
+- /attendance — Attendance & Quotas: clock in/out, call logs, daily/monthly pacing
+- /inbox — Inbox: notifications and mentions
+- /analytics — Analytics: revenue trend and forecasting reports
+- /ai-assistant — this AI Assistant's own full-page chat
+- /integrations — Integrations: connect AmoCRM, Telegram bot, Google Docs/Forms, etc.
+- /settings — Settings: Profile, Personalization, Notifications, Business profile, Stages, Tags, Users, Telegram bot
+- /admin — Admin Panel (super_admin only): employee/role management, org structure, auto-responders, AI agents, error logs
+- /platform — Platform (platform_owner only): manage every company on the platform`;
+
         let systemPrompt =
-          "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.";
+          "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.\n\n" +
+          "When the user asks where to find something or how to do something in the app, name the exact page and, when useful, give the numbered steps to get there — for example: '1. Open Sozlamalar (Settings) in the sidebar. 2. Click Biznes profili. 3. Fill in the form and press Saqlash.' Always include the page's path in parentheses so it's unambiguous, e.g. (/settings). Only reference pages from this list — never invent a path that isn't here:\n" +
+          NAV_GUIDE;
         if (profile) {
           const context = [
             profile.company_name && `Company: ${profile.company_name}`,
