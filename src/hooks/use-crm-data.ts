@@ -1228,6 +1228,29 @@ export function useCreateEmployee() {
   });
 }
 
+export function useDeleteEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/delete-employee", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to delete employee");
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["profiles"] });
+    },
+  });
+}
+
 export type OrganizationRow = Tables["organizations"]["Row"];
 
 export function useOrganizations() {

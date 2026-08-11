@@ -12,6 +12,7 @@ import {
   Search,
   ShieldAlert,
   Sparkles,
+  Trash2,
   UserPlus,
   Workflow,
   ScrollText,
@@ -44,6 +45,7 @@ import {
   useProfilesRaw,
   useUpdateProfile,
   useCreateEmployee,
+  useDeleteEmployee,
   useErrorLogsRaw,
   useResolveErrorLog,
   type ErrorLogRow,
@@ -348,15 +350,19 @@ function AdminPanel() {
 
 function AdminPanelContent() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const { data: profiles, isLoading } = useProfilesRaw();
   const updateProfile = useUpdateProfile();
+  const deleteEmployee = useDeleteEmployee();
   const [savingId, setSavingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pendingChange, setPendingChange] = useState<{
     profile: ProfileRow;
     role: ProfileRow["role"];
   } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ProfileRow | null>(null);
 
   const roleLabel: Record<ProfileRow["role"], string> = {
     rep: t("admin.roleRep"),
@@ -384,6 +390,18 @@ function AdminPanelContent() {
     } finally {
       setSavingId(null);
       setEditingId(null);
+    }
+  }
+
+  async function applyDelete(profile: ProfileRow) {
+    setDeletingId(profile.id);
+    try {
+      await deleteEmployee.mutateAsync(profile.id);
+      toast.success(t("admin.employeeDeleted"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.employeeDeleteFailed"));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -464,6 +482,7 @@ function AdminPanelContent() {
                     <th className="px-6 py-3 font-medium">{t("admin.colDepartment")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colEmail")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colRole")}</th>
+                    <th className="px-6 py-3 font-medium" />
                   </tr>
                 </thead>
                 <tbody>
@@ -510,6 +529,23 @@ function AdminPanelContent() {
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {p.id !== user?.id && (
+                            <button
+                              type="button"
+                              aria-label={t("admin.deleteEmployee")}
+                              disabled={deletingId === p.id}
+                              onClick={() => setPendingDelete(p)}
+                              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                            >
+                              {deletingId === p.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -583,6 +619,23 @@ function AdminPanelContent() {
         onConfirm={() => {
           if (pendingChange) void applyRoleChange(pendingChange.profile, pendingChange.role);
           setPendingChange(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title={t("admin.confirmDeleteTitle")}
+        description={
+          pendingDelete
+            ? t("admin.confirmDeleteDesc", {
+                name: pendingDelete.full_name || pendingDelete.email,
+              })
+            : undefined
+        }
+        onConfirm={() => {
+          if (pendingDelete) void applyDelete(pendingDelete);
+          setPendingDelete(null);
         }}
       />
     </>
