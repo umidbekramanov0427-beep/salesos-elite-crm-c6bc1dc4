@@ -32,6 +32,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AdminAiAgentsRouteImport } from './routes/admin.ai-agents'
 import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-responders'
 import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
+import { Route as AdminDeleteEmployeeRouteImport } from './routes/admin.delete-employee'
 import { Route as AdminOrgStructureRouteImport } from './routes/admin.org-structure'
 import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
 import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analytics.analyze'
@@ -170,6 +171,11 @@ const AdminCreateEmployeeRoute = AdminCreateEmployeeRouteImport.update({
   path: '/create-employee',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDeleteEmployeeRoute = AdminDeleteEmployeeRouteImport.update({
+  id: '/delete-employee',
+  path: '/delete-employee',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminOrgStructureRoute = AdminOrgStructureRouteImport.update({
   id: '/org-structure',
   path: '/org-structure',
@@ -300,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
@@ -345,6 +352,7 @@ export interface FileRoutesByTo {
   '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
+  '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
@@ -438,6 +447,7 @@ export interface FileRouteTypes {
     | '/admin/ai-agents'
     | '/admin/auto-responders'
     | '/admin/create-employee'
+    | '/admin/delete-employee'
     | '/admin/org-structure'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/admin/ai-agents'
     | '/admin/auto-responders'
     | '/admin/create-employee'
+    | '/admin/delete-employee'
     | '/admin/org-structure'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/admin/ai-agents'
     | '/admin/auto-responders'
     | '/admin/create-employee'
+    | '/admin/delete-employee'
     | '/admin/org-structure'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
@@ -748,6 +760,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCreateEmployeeRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/delete-employee': {
+      id: '/admin/delete-employee'
+      path: '/delete-employee'
+      fullPath: '/admin/delete-employee'
+      preLoaderRoute: typeof AdminDeleteEmployeeRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/org-structure': {
       id: '/admin/org-structure'
       path: '/org-structure'
@@ -895,6 +914,7 @@ interface AdminRouteChildren {
   AdminAiAgentsRoute: typeof AdminAiAgentsRoute
   AdminAutoRespondersRoute: typeof AdminAutoRespondersRoute
   AdminCreateEmployeeRoute: typeof AdminCreateEmployeeRoute
+  AdminDeleteEmployeeRoute: typeof AdminDeleteEmployeeRoute
   AdminOrgStructureRoute: typeof AdminOrgStructureRoute
 }
 
@@ -902,6 +922,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAiAgentsRoute: AdminAiAgentsRoute,
   AdminAutoRespondersRoute: AdminAutoRespondersRoute,
   AdminCreateEmployeeRoute: AdminCreateEmployeeRoute,
+  AdminDeleteEmployeeRoute: AdminDeleteEmployeeRoute,
   AdminOrgStructureRoute: AdminOrgStructureRoute,
 }
 
