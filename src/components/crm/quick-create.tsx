@@ -80,6 +80,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
             email: email.trim() || null,
             phone: phone.trim() || null,
             owner_id: user?.id ?? null,
+            organization_id: user!.organizationId!,
           })
           .select()
           .single();
@@ -92,6 +93,7 @@ export function NewLeadDialog({ trigger }: { trigger: ReactNode }) {
         company_name: company.trim(),
         contact_id: contactId,
         owner_id: user?.id ?? null,
+        organization_id: user!.organizationId!,
         priority,
         expected_revenue: revenue ? Number(revenue) : 0,
         stage_id: newStage?.id ?? null,
@@ -227,6 +229,7 @@ export function NewCompanyDialog({ trigger }: { trigger: ReactNode }) {
         website: website.trim() || null,
         city: city.trim() || null,
         owner_id: user?.id ?? null,
+        organization_id: user!.organizationId!,
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["companies"] });
@@ -307,6 +310,7 @@ export function NewContactDialog({ trigger }: { trigger: ReactNode }) {
         email: email.trim() || null,
         phone: phone.trim() || null,
         owner_id: user?.id ?? null,
+        organization_id: user!.organizationId!,
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["contacts"] });
@@ -400,6 +404,7 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
         priority,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         created_by: user?.id ?? null,
+        organization_id: user!.organizationId!,
       });
       if (error) throw error;
       if (finalAssigneeId && finalAssigneeId !== user?.id) {
@@ -509,6 +514,7 @@ export function NewDealDialog({ trigger }: { trigger: ReactNode }) {
         stage_id: stage?.id ?? null,
         probability: stage?.probability ?? 10,
         owner_id: user?.id ?? null,
+        organization_id: user!.organizationId!,
       });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["deals"] });

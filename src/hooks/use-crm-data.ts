@@ -1340,6 +1340,7 @@ export function useUploadManualCall() {
 
       const row: Tables["amocrm_calls"]["Insert"] = {
         source: "manual",
+        organization_id: user.organizationId!,
         created_by: user.id,
         amocrm_note_id: null,
         lead_id: input.leadId,

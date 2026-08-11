@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://salesos-elite-crm.lovable.app/sitemap.xml

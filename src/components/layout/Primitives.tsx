@@ -102,7 +102,7 @@ export function SectionCard({
       {(title || actions) && (
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div>
-            {title && <h4 className="font-semibold text-foreground">{title}</h4>}
+            {title && <h2 className="font-semibold text-foreground">{title}</h2>}
             {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
           </div>
           {actions}
