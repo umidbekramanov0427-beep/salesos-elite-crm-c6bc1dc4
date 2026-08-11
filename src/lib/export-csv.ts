@@ -24,3 +24,46 @@ export function downloadCsv(filename: string, rows: Record<string, unknown>[]): 
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+function pdfCell(value: unknown): string {
+  const s = value == null ? "" : String(value);
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// PDF export via the browser's native print-to-PDF — no bundled PDF library
+// needed. Opens a clean, print-ready table in a new tab and triggers the
+// print dialog, where "Save as PDF" produces the file.
+export function exportAsPdf(filename: string, rows: Record<string, unknown>[]): void {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]!);
+  const title = filename.replace(/\.(pdf|csv)$/i, "");
+  const win = window.open("", "_blank");
+  if (!win) return;
+  win.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${pdfCell(title)}</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; color: #111; }
+  h1 { font-size: 16px; margin: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+  th { background: #f2f2f2; }
+  tr:nth-child(even) { background: #fafafa; }
+</style>
+</head>
+<body>
+  <h1>${pdfCell(title)}</h1>
+  <table>
+    <thead><tr>${headers.map((h) => `<th>${pdfCell(h)}</th>`).join("")}</tr></thead>
+    <tbody>
+      ${rows.map((row) => `<tr>${headers.map((h) => `<td>${pdfCell(row[h])}</td>`).join("")}</tr>`).join("\n")}
+    </tbody>
+  </table>
+</body>
+</html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+}

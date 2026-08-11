@@ -212,7 +212,7 @@ const en: Dict = {
   "shell.closeMenu": "Close menu",
 
   "common.refresh": "Refresh",
-  "common.export": "Export CSV",
+  "common.export": "Export",
   "common.generate": "Generate",
   "common.close": "Close",
   "common.cancel": "Cancel",
@@ -229,6 +229,7 @@ const en: Dict = {
   "common.loading": "Loading…",
   "common.none": "None",
   "common.exportCsv": "Export to Excel",
+  "common.exportPdf": "Export to PDF",
 
   "login.title": "Sign in to SalesOS Elite",
   "login.subtitle": "The operating system that delivers steady results",
@@ -1359,7 +1360,7 @@ const ru: Dict = {
   "shell.closeMenu": "Закрыть меню",
 
   "common.refresh": "Обновить",
-  "common.export": "Экспорт CSV",
+  "common.export": "Экспорт",
   "common.generate": "Сгенерировать",
   "common.close": "Закрыть",
   "common.cancel": "Отмена",
@@ -1376,6 +1377,7 @@ const ru: Dict = {
   "common.loading": "Загрузка…",
   "common.none": "Нет",
   "common.exportCsv": "Скачать в Excel",
+  "common.exportPdf": "Скачать в PDF",
 
   "login.title": "Вход в SalesOS Elite",
   "login.subtitle": "Операционная система, обеспечивающая стабильный результат",
@@ -2512,7 +2514,7 @@ const uz: Dict = {
   "shell.closeMenu": "Menyuni yopish",
 
   "common.refresh": "Yangilash",
-  "common.export": "CSV eksport",
+  "common.export": "Eksport",
   "common.generate": "Yaratish",
   "common.close": "Yopish",
   "common.cancel": "Bekor qilish",
@@ -2529,6 +2531,7 @@ const uz: Dict = {
   "common.loading": "Yuklanmoqda…",
   "common.none": "Yo'q",
   "common.exportCsv": "Excelga yuklab olish",
+  "common.exportPdf": "PDF sifatida yuklab olish",
 
   "login.title": "SalesOS Elite tizimiga kirish",
   "login.subtitle": "Barqaror natijani ta'minlovchi operatsion tizim",
