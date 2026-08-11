@@ -25,6 +25,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -130,6 +131,11 @@ const PlatformRoute = PlatformRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksRoute = TasksRouteImport.update({
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -422,6 +431,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/platform'
     | '/settings'
+    | '/sitemap.xml'
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/platform'
     | '/settings'
+    | '/sitemap.xml'
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/platform'
     | '/settings'
+    | '/sitemap.xml'
     | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -555,6 +567,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   PlatformRoute: typeof PlatformRouteWithChildren
   SettingsRoute: typeof SettingsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TasksRoute: typeof TasksRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -684,6 +697,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks': {
@@ -958,6 +978,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   PlatformRoute: PlatformRouteWithChildren,
   SettingsRoute: SettingsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TasksRoute: TasksRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:

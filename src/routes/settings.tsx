@@ -799,6 +799,7 @@ function StagesSection() {
       while (existingKeys.has(key)) key = `${base}-${n++}`;
       const nextPosition = sorted.length ? Math.max(...sorted.map((s) => s.position)) + 1 : 1;
       await createStage.mutateAsync({
+      organization_id: user!.organizationId!,
         key,
         name: newName.trim(),
         position: nextPosition,

@@ -203,8 +203,8 @@ function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined 
       await updateAgent.mutateAsync({
         kind,
         active: !(agent?.active ?? false),
-        model: agent?.model,
-        system_prompt: agent?.system_prompt,
+        model: agent?.model ?? undefined,
+        system_prompt: agent?.system_prompt ?? undefined,
         channels: agent?.channels,
       });
     } catch (err) {

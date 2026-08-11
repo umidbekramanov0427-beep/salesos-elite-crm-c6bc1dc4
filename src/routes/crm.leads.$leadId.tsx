@@ -142,6 +142,7 @@ function LeadWorkspace() {
       lead_id: lead.id,
       assignee_id: user?.id ?? null,
       created_by: user?.id ?? null,
+      organization_id: user!.organizationId!,
     });
     setTaskTitle("");
   }

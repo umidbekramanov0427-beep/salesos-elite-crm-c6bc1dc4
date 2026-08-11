@@ -26,20 +26,12 @@
           "type": "object",
           "properties": {
             "search": {
-              "description": "Free-text match on lead name, company or email.",
+              "description": "Free-text match on lead name or company.",
               "type": "string"
             },
             "stage": {
-              "description": "Pipeline stage filter.",
-              "type": "string",
-              "enum": [
-                "New Lead",
-                "Qualified",
-                "Demo",
-                "Proposal",
-                "Negotiation",
-                "Won"
-              ]
+              "description": "Pipeline stage name filter, e.g. Qualified, Demo, Won.",
+              "type": "string"
             },
             "temperature": {
               "type": "string",
@@ -66,7 +58,7 @@
       {
         "name": "get_lead",
         "title": "Get lead detail",
-        "description": "Get the full CRM workspace record for one lead: contact details, deal context, recent activity timeline, open tasks and AI suggestions.",
+        "description": "Get the full CRM workspace record for one lead: contact details, deal context, recent activity timeline and open tasks.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -79,7 +71,7 @@
             "lead_id": {
               "type": "string",
               "minLength": 1,
-              "description": "Lead id, e.g. L-8842."
+              "description": "Lead id (UUID)."
             }
           },
           "required": [
@@ -102,7 +94,7 @@
           "type": "object",
           "properties": {
             "stage": {
-              "description": "Deal stage filter, e.g. Negotiation, Proposal, Won.",
+              "description": "Deal stage name filter, e.g. Negotiation, Proposal, Won.",
               "type": "string"
             },
             "owner": {
@@ -136,7 +128,7 @@
       {
         "name": "leaderboard_ranking",
         "title": "Sales leaderboard",
-        "description": "Get the current SalesOS Elite sales leaderboard ranking for a metric and period, with AI-style performance insights.",
+        "description": "Get the current SalesOS Elite sales leaderboard ranking: revenue, conversion, KPI and target completion per manager, computed from real CRM leads.",
         "annotations": {
           "readOnlyHint": true,
           "openWorldHint": false
@@ -145,38 +137,8 @@
           "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
-            "metric": {
-              "description": "Ranking metric (default overall).",
-              "type": "string",
-              "enum": [
-                "overall",
-                "revenue",
-                "dealsClosed",
-                "calls",
-                "meetings",
-                "tasks",
-                "conversion",
-                "rating",
-                "responseTime",
-                "attendance"
-              ]
-            },
-            "period": {
-              "type": "string",
-              "enum": [
-                "Today",
-                "Week",
-                "Month",
-                "Quarter",
-                "Year"
-              ]
-            },
-            "department": {
-              "description": "Department filter, e.g. Enterprise, SMB.",
-              "type": "string"
-            },
-            "branch": {
-              "description": "Branch filter, e.g. Tashkent HQ, Almaty.",
+            "search": {
+              "description": "Filter managers by name.",
               "type": "string"
             },
             "limit": {
