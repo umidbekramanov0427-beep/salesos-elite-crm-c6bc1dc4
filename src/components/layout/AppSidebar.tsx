@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -19,6 +19,7 @@ import { LANGS, LANG_FLAGS, LANG_SHORT, useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import {
+  useDealsRaw,
   useFunnelNames,
   useIntegrationSetting,
   useMarkNotificationRead,
@@ -375,7 +376,26 @@ function FunnelsNavGroup({
 
 export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Props) {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const { data: myDeals } = useDealsRaw({ enabled: !collapsed });
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const monthlyTargetPct = useMemo(() => {
+    if (!user) return 0;
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const revenueMonth = (myDeals ?? [])
+      .filter(
+        (d) =>
+          d.owner_id === user.id &&
+          d.status === "won" &&
+          d.close_date &&
+          new Date(d.close_date) >= startOfMonth,
+      )
+      .reduce((sum, d) => sum + Number(d.value), 0);
+    const target = user.monthlyTarget || 1;
+    return Math.min(100, Math.round((revenueMonth / target) * 100));
+  }, [myDeals, user]);
   const mainItems = NAV_ITEMS.filter(
     (i) =>
       (!i.adminOnly || isAdmin) &&
@@ -516,9 +536,14 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         {!collapsed && (
           <div className="mb-3 rounded-xl bg-mint p-3">
             <p className="text-xs font-semibold text-foreground">{t("nav.monthlyTarget")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{t("nav.monthlyTargetHint")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("nav.monthlyTargetHint", { pct: monthlyTargetPct })}
+            </p>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-mint-border">
-              <div className="h-full rounded-full bg-success" style={{ width: "82%" }} />
+              <div
+                className="h-full rounded-full bg-success transition-[width]"
+                style={{ width: `${monthlyTargetPct}%` }}
+              />
             </div>
           </div>
         )}
