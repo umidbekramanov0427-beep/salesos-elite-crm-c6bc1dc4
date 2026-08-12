@@ -201,7 +201,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="block text-[13px] font-bold text-amber-700 dark:text-amber-300">
                     {user?.name ?? "…"}
                   </span>
-                  <span className="block text-[11px] text-subtle">{user?.position ?? ""}</span>
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
