@@ -20,9 +20,15 @@
 -- to the two new roles. That is the same trust model this app already
 -- ships with for org-mates, just applied consistently going forward.
 
--- 1. Migrate every existing row to the new roles.
+-- 1. Migrate every existing row to the new roles. The role-change guard
+--    trigger only allows a super_admin *session* to change roles — this
+--    migration runs from the SQL editor with no auth.uid(), so disable the
+--    trigger for this one bulk update, same as the "promote the operator"
+--    migration (20260811080000) did for the same reason.
+alter table public.profiles disable trigger guard_role_escalation;
 update public.profiles set role = 'rop' where role = 'manager';
 update public.profiles set role = 'sotuv_menejeri' where role = 'rep';
+alter table public.profiles enable trigger guard_role_escalation;
 
 -- 2. Redefine is_admin_or_manager() to check the new admin-ish roles.
 --    Keeping the function name avoids touching every policy that already
