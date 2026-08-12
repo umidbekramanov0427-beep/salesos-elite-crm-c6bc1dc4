@@ -61,12 +61,14 @@ export function BusinessProfileBot({
       const transcript = FIELD_ORDER.map(
         (k) => `Q: ${questions[k]}\nA: ${allAnswers[k] ?? ""}`,
       ).join("\n\n");
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `Below is a Q&A interview with a business owner filling out their CRM's business profile. Extract and clean up the answers into a strict JSON object with exactly these keys: company_name, description, competitors, terminology, tone. Each value must be a well-written string in ${LANG_NAME[lang]} based only on what the user actually said — don't invent facts they didn't mention. If the user gave no real answer for a field, use an empty string "" for it. Respond with ONLY the raw JSON object — no markdown fences, no extra commentary.\n\n${transcript}`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Below is a Q&A interview with a business owner filling out their CRM's business profile. Extract and clean up the answers into a strict JSON object with exactly these keys: company_name, description, competitors, terminology, tone. Each value must be a well-written string in ${LANG_NAME[lang]} based only on what the user actually said — don't invent facts they didn't mention. If the user gave no real answer for a field, use an empty string "" for it. Respond with ONLY the raw JSON object — no markdown fences, no extra commentary.\n\n${transcript}`,
+          },
+        ],
+      });
       let parsed: Partial<Record<FieldKey, string>> = {};
       try {
         const cleaned = reply

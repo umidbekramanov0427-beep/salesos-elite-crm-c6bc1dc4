@@ -11,6 +11,120 @@ function requireEnv(name: string): string {
   return value;
 }
 
+type LeadSnap = { stage_id: string | null; temperature: string; expected_revenue: number };
+type DealSnap = { stage_id: string | null; status: string; value: number };
+type TaskSnap = { status: string; due_date: string | null };
+type StageRow = { id: string; name: string; is_won: boolean; is_lost: boolean };
+
+// Reconstructs the latest-known state of every row of `entityType` at or
+// before `asOf`, straight from the audit trail — same idea as the
+// entities_as_of() RPC, but done in JS so it can run under the service-role
+// client (the RPC's internal current_user_org_id() check only resolves for
+// a real user session, not service-role calls, since auth.uid() is null there).
+async function reconstructAsOf<T>(orgId: string, entityType: string, asOf: string): Promise<T[]> {
+  const { data: rows } = await supabaseAdmin
+    .from("audit_logs")
+    .select("entity_id, action, meta, created_at")
+    .eq("organization_id", orgId)
+    .eq("entity_type", entityType)
+    .lte("created_at", asOf)
+    .order("created_at", { ascending: true });
+
+  const latest = new Map<string, { action: string; meta: { new?: T } }>();
+  for (const row of rows ?? []) {
+    latest.set(row.entity_id as string, row as { action: string; meta: { new?: T } });
+  }
+  const out: T[] = [];
+  for (const row of latest.values()) {
+    if (row.action !== "delete" && row.meta?.new) out.push(row.meta.new);
+  }
+  return out;
+}
+
+async function loadDataSnapshot(orgId: string, asOf: string | null): Promise<string> {
+  const { data: stages } = await supabaseAdmin
+    .from("pipeline_stages")
+    .select("id, name, is_won, is_lost")
+    .eq("organization_id", orgId);
+  const stageById = new Map((stages ?? []).map((s: StageRow) => [s.id, s]));
+
+  let leads: LeadSnap[];
+  let deals: DealSnap[];
+  let tasks: TaskSnap[];
+
+  if (asOf) {
+    [leads, deals, tasks] = await Promise.all([
+      reconstructAsOf<LeadSnap>(orgId, "leads", asOf),
+      reconstructAsOf<DealSnap>(orgId, "deals", asOf),
+      reconstructAsOf<TaskSnap>(orgId, "tasks", asOf),
+    ]);
+  } else {
+    const [leadsRes, dealsRes, tasksRes] = await Promise.all([
+      supabaseAdmin
+        .from("leads")
+        .select("stage_id, temperature, expected_revenue")
+        .eq("organization_id", orgId),
+      supabaseAdmin.from("deals").select("stage_id, status, value").eq("organization_id", orgId),
+      supabaseAdmin.from("tasks").select("status, due_date").eq("organization_id", orgId),
+    ]);
+    leads = leadsRes.data ?? [];
+    deals = dealsRes.data ?? [];
+    tasks = tasksRes.data ?? [];
+  }
+
+  const leadCountByStage = new Map<string, number>();
+  let leadRevenue = 0;
+  for (const l of leads) {
+    const stageName = (l.stage_id && stageById.get(l.stage_id)?.name) || "No stage";
+    leadCountByStage.set(stageName, (leadCountByStage.get(stageName) ?? 0) + 1);
+    leadRevenue += l.expected_revenue ?? 0;
+  }
+
+  let dealsWon = 0;
+  let dealsLost = 0;
+  let dealsOpen = 0;
+  let dealValueOpen = 0;
+  let dealValueWon = 0;
+  for (const d of deals) {
+    const stage = d.stage_id ? stageById.get(d.stage_id) : null;
+    if (stage?.is_won || d.status === "won") {
+      dealsWon++;
+      dealValueWon += d.value ?? 0;
+    } else if (stage?.is_lost || d.status === "lost") {
+      dealsLost++;
+    } else {
+      dealsOpen++;
+      dealValueOpen += d.value ?? 0;
+    }
+  }
+
+  const asOfMoment = asOf ? new Date(asOf) : new Date();
+  let tasksDone = 0;
+  let tasksOpen = 0;
+  let tasksOverdue = 0;
+  for (const t of tasks) {
+    if (t.status === "Done") {
+      tasksDone++;
+    } else {
+      tasksOpen++;
+      if (t.due_date && new Date(t.due_date) < asOfMoment) tasksOverdue++;
+    }
+  }
+
+  const lines = [
+    asOf
+      ? `CRM data snapshot as it stood on ${asOfMoment.toISOString().slice(0, 10)} (the user has selected this past date to review — answer using ONLY these historical numbers, not current live figures):`
+      : "Current live CRM data snapshot:",
+    `- Leads: ${leads.length} total, ${leadRevenue.toLocaleString("en-US")} total expected revenue. By stage: ${
+      [...leadCountByStage.entries()].map(([name, count]) => `${name} (${count})`).join(", ") ||
+      "none"
+    }`,
+    `- Deals: ${dealsOpen} open (value ${dealValueOpen.toLocaleString("en-US")}), ${dealsWon} won (value ${dealValueWon.toLocaleString("en-US")}), ${dealsLost} lost`,
+    `- Tasks: ${tasksOpen} open (${tasksOverdue} overdue), ${tasksDone} done`,
+  ];
+  return lines.join("\n");
+}
+
 export const Route = createFileRoute("/ai-assistant/chat")({
   server: {
     handlers: {
@@ -18,8 +132,12 @@ export const Route = createFileRoute("/ai-assistant/chat")({
         const userId = await getRequestUserId(request);
         if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-        const body = (await request.json().catch(() => ({}))) as { messages?: ChatMessage[] };
+        const body = (await request.json().catch(() => ({}))) as {
+          messages?: ChatMessage[];
+          asOf?: string | null;
+        };
         const messages = Array.isArray(body.messages) ? body.messages.slice(-20) : [];
+        const asOf = typeof body.asOf === "string" ? body.asOf : null;
         if (messages.length === 0) {
           return Response.json({ error: "No messages provided." }, { status: 400 });
         }
@@ -85,6 +203,15 @@ export const Route = createFileRoute("/ai-assistant/chat")({
             .filter(Boolean)
             .join("\n");
           if (context) systemPrompt += `\n\nBusiness context:\n${context}`;
+        }
+
+        if (caller?.organization_id) {
+          try {
+            const snapshot = await loadDataSnapshot(caller.organization_id, asOf);
+            systemPrompt += `\n\n${snapshot}`;
+          } catch {
+            // Snapshot is best-effort context; a failure here shouldn't block the chat.
+          }
         }
 
         const res = await fetch("https://api.deepseek.com/chat/completions", {
