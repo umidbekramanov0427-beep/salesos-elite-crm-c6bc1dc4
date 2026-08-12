@@ -24,12 +24,14 @@ import {
   useAmoCrmCallsRaw,
   useAmoCrmLink,
   useAnalyzeCall,
+  useAuditTrail,
   useCreateLeadActivity,
   useCreateTask,
   useCrmLeads,
   useLeadActivities,
   useTasksView,
 } from "@/hooks/use-crm-data";
+import { AuditTrailList } from "@/components/history/AuditTrailList";
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
@@ -58,7 +60,7 @@ function LeadNotFound() {
   );
 }
 
-const TABS = ["Timeline", "Notes", "Tasks", "WhatsApp", "Telegram", "Email"] as const;
+const TABS = ["Timeline", "Notes", "Tasks", "History", "WhatsApp", "Telegram", "Email"] as const;
 
 function LeadCallsSection({ leadId }: { leadId: string }) {
   const { t } = useI18n();
@@ -150,6 +152,24 @@ function LeadCallsSection({ leadId }: { leadId: string }) {
           );
         })}
       </ul>
+    </SectionCard>
+  );
+}
+
+function LeadHistorySection({ leadId }: { leadId: string }) {
+  const { t } = useI18n();
+  const { rows, isLoading } = useAuditTrail("leads", leadId);
+
+  return (
+    <SectionCard title={t("lead.tab.History")} description={t("history.desc")}>
+      {isLoading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        </div>
+      )}
+      {!isLoading && (
+        <AuditTrailList entries={rows} hideEntityLabel emptyLabel={t("history.empty")} />
+      )}
     </SectionCard>
   );
 }
@@ -475,6 +495,8 @@ function LeadWorkspace() {
               </ul>
             </SectionCard>
           )}
+
+          {tab === "History" && <LeadHistorySection leadId={lead.id} />}
 
           {(tab === "WhatsApp" || tab === "Telegram" || tab === "Email") && (
             <SectionCard title={t(`lead.tab.${tab}`)} description={t("lead.messaging.desc")}>
