@@ -19,6 +19,7 @@ export type SessionUser = {
   name: string;
   initials: string;
   role: Profile["role"];
+  managerId: string | null;
   organizationId: string | null;
   department: string;
   position: string;
@@ -61,6 +62,7 @@ function toSessionUser(profile: Profile): SessionUser {
     name: profile.full_name || profile.email,
     initials: initialsOf(profile.full_name, profile.email),
     role: profile.role,
+    managerId: profile.manager_id,
     organizationId: profile.organization_id,
     department: profile.department,
     position: profile.position,

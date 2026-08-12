@@ -11,9 +11,14 @@ function requireEnv(name: string): string {
   return value;
 }
 
-type LeadSnap = { stage_id: string | null; temperature: string; expected_revenue: number };
-type DealSnap = { stage_id: string | null; status: string; value: number };
-type TaskSnap = { status: string; due_date: string | null };
+type LeadSnap = {
+  stage_id: string | null;
+  temperature: string;
+  expected_revenue: number;
+  owner_id: string | null;
+};
+type DealSnap = { stage_id: string | null; status: string; value: number; owner_id: string | null };
+type TaskSnap = { status: string; due_date: string | null; assignee_id: string | null };
 type StageRow = { id: string; name: string; is_won: boolean; is_lost: boolean };
 
 // Reconstructs the latest-known state of every row of `entityType` at or
@@ -41,7 +46,33 @@ async function reconstructAsOf<T>(orgId: string, entityType: string, asOf: strin
   return out;
 }
 
-async function loadDataSnapshot(orgId: string, asOf: string | null): Promise<string> {
+// null = unrestricted (super_admin/platform_owner sees the whole company).
+// A rop only ever gets their own subordinates' data, a sotuv_menejeri only
+// their own — same scoping the rest of the app applies at the client-hook
+// layer, mirrored here since this snapshot is built with the service-role
+// client and bypasses RLS entirely.
+async function visibleOwnerIds(
+  orgId: string,
+  callerId: string,
+  role: string,
+): Promise<string[] | null> {
+  if (role === "super_admin" || role === "platform_owner") return null;
+  if (role === "rop") {
+    const { data: reports } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("manager_id", callerId);
+    return [callerId, ...(reports ?? []).map((r) => r.id)];
+  }
+  return [callerId];
+}
+
+async function loadDataSnapshot(
+  orgId: string,
+  asOf: string | null,
+  ownerIds: string[] | null,
+): Promise<string> {
   const { data: stages } = await supabaseAdmin
     .from("pipeline_stages")
     .select("id, name, is_won, is_lost")
@@ -62,14 +93,27 @@ async function loadDataSnapshot(orgId: string, asOf: string | null): Promise<str
     const [leadsRes, dealsRes, tasksRes] = await Promise.all([
       supabaseAdmin
         .from("leads")
-        .select("stage_id, temperature, expected_revenue")
+        .select("stage_id, temperature, expected_revenue, owner_id")
         .eq("organization_id", orgId),
-      supabaseAdmin.from("deals").select("stage_id, status, value").eq("organization_id", orgId),
-      supabaseAdmin.from("tasks").select("status, due_date").eq("organization_id", orgId),
+      supabaseAdmin
+        .from("deals")
+        .select("stage_id, status, value, owner_id")
+        .eq("organization_id", orgId),
+      supabaseAdmin
+        .from("tasks")
+        .select("status, due_date, assignee_id")
+        .eq("organization_id", orgId),
     ]);
     leads = leadsRes.data ?? [];
     deals = dealsRes.data ?? [];
     tasks = tasksRes.data ?? [];
+  }
+
+  if (ownerIds) {
+    const owners = new Set(ownerIds);
+    leads = leads.filter((l) => l.owner_id && owners.has(l.owner_id));
+    deals = deals.filter((d) => d.owner_id && owners.has(d.owner_id));
+    tasks = tasks.filter((t) => t.assignee_id && owners.has(t.assignee_id));
   }
 
   const leadCountByStage = new Map<string, number>();
@@ -154,7 +198,7 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 
         const { data: caller } = await supabaseAdmin
           .from("profiles")
-          .select("organization_id")
+          .select("organization_id, role")
           .eq("id", userId)
           .maybeSingle();
 
@@ -207,7 +251,8 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 
         if (caller?.organization_id) {
           try {
-            const snapshot = await loadDataSnapshot(caller.organization_id, asOf);
+            const ownerIds = await visibleOwnerIds(caller.organization_id, userId, caller.role);
+            const snapshot = await loadDataSnapshot(caller.organization_id, asOf, ownerIds);
             systemPrompt += `\n\n${snapshot}`;
           } catch {
             // Snapshot is best-effort context; a failure here shouldn't block the chat.

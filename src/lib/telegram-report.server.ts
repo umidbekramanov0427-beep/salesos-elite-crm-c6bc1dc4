@@ -119,7 +119,7 @@ export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number;
       .select("id, telegram_chat_id, role")
       .eq("organization_id", org.id)
       .not("telegram_chat_id", "is", null)
-      .in("role", ["super_admin", "manager"]);
+      .in("role", ["super_admin", "rop"]);
 
     for (const r of recipients ?? []) {
       if (!r.telegram_chat_id) continue;

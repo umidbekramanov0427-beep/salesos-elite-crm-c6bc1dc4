@@ -258,14 +258,36 @@ function profileName(p: ProfileRow | undefined): string {
 /* joined client-side (small workspace-scale data, no N+1 queries).    */
 /* ------------------------------------------------------------------ */
 
-export function useCrmBase() {
+// Which owner_id values the current user is allowed to see, for pages that
+// scope leads/deals/calls to "your own data" (sotuv_menejeri) or "your
+// team's data" (rop). Returns null for unrestricted roles (super_admin,
+// platform_owner) — callers should treat null as "don't filter".
+export function useVisibleOwnerIds(): Set<string> | null {
   const { user } = useAuth();
+  const { data: profiles } = useProfilesRaw();
+  return useMemo(() => {
+    if (!user) return new Set<string>();
+    if (user.role === "super_admin" || user.role === "platform_owner") return null;
+    if (user.role === "rop") {
+      const ids = new Set<string>([user.id]);
+      for (const p of profiles ?? []) {
+        if (p.manager_id === user.id) ids.add(p.id);
+      }
+      return ids;
+    }
+    // sotuv_menejeri (and any legacy role) only ever sees their own data.
+    return new Set<string>([user.id]);
+  }, [user, profiles]);
+}
+
+export function useCrmBase() {
   const companies = useCompaniesRaw();
   const contacts = useContactsRaw();
   const leads = useLeadsRaw();
   const deals = useDealsRaw();
   const stages = usePipelineStagesRaw();
   const profiles = useProfilesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
 
   const isLoading =
     companies.isLoading ||
@@ -282,17 +304,22 @@ export function useCrmBase() {
     stages.isError ||
     profiles.isError;
 
-  // Reps only work their own pipeline — leads/deals owned by other reps stay
-  // hidden from the leads/deals/pipeline views. Managers and super admins
-  // keep the full, company-wide view.
-  const scoped = user?.role === "rep";
+  // sotuv_menejeri only works their own pipeline; rop works their team's.
+  // Managers/reps are gone as roles, but the same scoping now applies to
+  // their replacements. Super admins keep the full, company-wide view.
   const scopedLeads = useMemo(
-    () => (scoped ? (leads.data ?? []).filter((l) => l.owner_id === user!.id) : (leads.data ?? [])),
-    [leads.data, scoped, user],
+    () =>
+      visibleOwnerIds
+        ? (leads.data ?? []).filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+        : (leads.data ?? []),
+    [leads.data, visibleOwnerIds],
   );
   const scopedDeals = useMemo(
-    () => (scoped ? (deals.data ?? []).filter((d) => d.owner_id === user!.id) : (deals.data ?? [])),
-    [deals.data, scoped, user],
+    () =>
+      visibleOwnerIds
+        ? (deals.data ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
+        : (deals.data ?? []),
+    [deals.data, visibleOwnerIds],
   );
 
   return {
@@ -356,7 +383,16 @@ export type CrmLeadView = {
 // names — the same shape either way.
 export function useCrmLeads(overrideLeads?: LeadRow[]) {
   const base = useCrmBase();
-  const sourceLeads = overrideLeads ?? base.leads;
+  const visibleOwnerIds = useVisibleOwnerIds();
+  // base.leads is already scoped, but an as-of-date override comes straight
+  // from the (unscoped) audit trail — apply the same ownership filter to it
+  // too, so time-travelling doesn't bypass the "own data only" restriction.
+  const sourceLeads = useMemo(() => {
+    if (!overrideLeads) return base.leads;
+    return visibleOwnerIds
+      ? overrideLeads.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : overrideLeads;
+  }, [overrideLeads, base.leads, visibleOwnerIds]);
 
   const rows = useMemo<CrmLeadView[]>(() => {
     const contactsById = byId(base.contacts);
@@ -488,7 +524,11 @@ export function useLeaderboardView(
   const rows = useMemo<LeaderboardManagerRow[]>(() => {
     const q = filters.search.trim().toLowerCase();
     const eligible = (profiles ?? []).filter(
-      (p) => p.role !== "super_admin" && (!q || profileName(p).toLowerCase().includes(q)),
+      (p) =>
+        p.role !== "super_admin" &&
+        p.role !== "platform_owner" &&
+        p.role !== "rop" &&
+        (!q || profileName(p).toLowerCase().includes(q)),
     );
     return eligible
       .map((p): LeaderboardManagerRow => {
@@ -561,12 +601,24 @@ export type RecoverableLeadView = {
 };
 
 export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
+  const { user } = useAuth();
   const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsRaw();
-  const calls = overrideCalls ?? liveCalls;
   const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
   const isLoading = callsLoading || leadsLoading;
 
   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
+
+  // leads (from useCrmLeads) are already scoped to what this user may see —
+  // a call whose lead isn't in that map belongs to someone else's lead and
+  // must be hidden too (call metadata, recordings and transcripts included).
+  // A call with no lead_id at all (a manual log) is only visible to whoever
+  // created it, for the same roles.
+  const calls = useMemo(() => {
+    const rows = overrideCalls ?? liveCalls ?? [];
+    if (!user) return [];
+    if (user.role === "super_admin" || user.role === "platform_owner") return rows;
+    return rows.filter((c) => (c.lead_id ? leadsById.has(c.lead_id) : c.created_by === user.id));
+  }, [overrideCalls, liveCalls, leadsById, user]);
 
   const recent = useMemo<AudioCallView[]>(
     () =>
@@ -844,7 +896,13 @@ export function useTasksView(overrideTasks?: TaskRow[]) {
   const tasks = useTasksRaw();
   const profiles = useProfilesRaw();
   const leads = useLeadsRaw();
-  const sourceTasks = overrideTasks ?? tasks.data;
+  const visibleOwnerIds = useVisibleOwnerIds();
+  const sourceTasks = useMemo(() => {
+    const rows = overrideTasks ?? tasks.data ?? [];
+    return visibleOwnerIds
+      ? rows.filter((t) => t.assignee_id && visibleOwnerIds.has(t.assignee_id))
+      : rows;
+  }, [overrideTasks, tasks.data, visibleOwnerIds]);
 
   const rows = useMemo<TaskView[]>(() => {
     const profilesById = byId(profiles.data);
@@ -933,9 +991,12 @@ const MONTH_LABELS = [
 
 export function useRevenueSeries() {
   const { data: deals } = useDealsRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
 
   return useMemo(() => {
-    const rows = deals ?? [];
+    const rows = visibleOwnerIds
+      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
+      : (deals ?? []);
     const now = new Date();
     const months: { label: string; revenue: number; pipeline: number }[] = [];
     for (let i = 7; i >= 0; i--) {
@@ -950,15 +1011,18 @@ export function useRevenueSeries() {
       months.push({ label: MONTH_LABELS[d.getMonth()]!, revenue, pipeline });
     }
     return months;
-  }, [deals]);
+  }, [deals, visibleOwnerIds]);
 }
 
 export function usePipelineStageStats() {
   const { data: deals } = useDealsRaw();
   const { data: stages } = usePipelineStagesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
 
   return useMemo(() => {
-    const rows = deals ?? [];
+    const rows = visibleOwnerIds
+      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
+      : (deals ?? []);
     return (stages ?? []).map((s) => {
       const inStage = rows.filter((d) => d.stage_id === s.id);
       return {
@@ -967,7 +1031,7 @@ export function usePipelineStageStats() {
         deals: inStage.length,
       };
     });
-  }, [deals, stages]);
+  }, [deals, stages, visibleOwnerIds]);
 }
 
 export function useFunnelFlow() {
@@ -1010,8 +1074,19 @@ export function useDashboardKpis(
   const { data: liveDeals } = useDealsRaw();
   const { data: liveLeads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
-  const deals = overrides?.deals ?? liveDeals;
-  const leads = overrides?.leads ?? liveLeads;
+  const visibleOwnerIds = useVisibleOwnerIds();
+  const deals = useMemo(() => {
+    const rows = overrides?.deals ?? liveDeals ?? [];
+    return visibleOwnerIds
+      ? rows.filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
+      : rows;
+  }, [overrides?.deals, liveDeals, visibleOwnerIds]);
+  const leads = useMemo(() => {
+    const rows = overrides?.leads ?? liveLeads ?? [];
+    return visibleOwnerIds
+      ? rows.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : rows;
+  }, [overrides?.leads, liveLeads, visibleOwnerIds]);
 
   return useMemo(() => {
     const from = filters?.from ?? null;
@@ -1311,6 +1386,9 @@ export function useCreateOrganization() {
       admin_email: string;
       admin_password: string;
       admin_full_name: string;
+      rop_email: string;
+      rop_password: string;
+      rop_full_name: string;
       phone?: string | undefined;
       plan?: string | undefined;
       trial_days?: number | undefined;
@@ -1799,6 +1877,7 @@ export function useLogCall() {
 
 export type AttendanceRow = {
   profileId: string;
+  managerId: string | null;
   name: string;
   initials: string;
   position: string;
@@ -1837,6 +1916,7 @@ export function useAttendanceView(
       );
       return {
         profileId: p.id,
+        managerId: p.manager_id,
         name: profileName(p),
         initials: initialsOf(p.full_name || p.email),
         position: p.position,
@@ -1878,6 +1958,7 @@ export type NormativeRow = {
 };
 
 export function useNormativesView() {
+  const { user } = useAuth();
   const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
   const { data: deals, isLoading: dealsLoading } = useDealsRaw();
 
@@ -1891,7 +1972,18 @@ export function useNormativesView() {
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const expectedPaceFraction = dayOfMonth / daysInMonth;
 
-    return (profiles ?? []).map((p): NormativeRow => {
+    // Super admins see the whole company. A ROP sees their own reports; a
+    // sotuv_menejeri sees every teammate under the same ROP (including
+    // themselves) so they can see who's ahead/behind, per spec — not the
+    // full company.
+    const roster = (profiles ?? []).filter((p) => {
+      if (p.role === "super_admin" || p.role === "platform_owner") return false;
+      if (!user || user.role === "super_admin" || user.role === "platform_owner") return true;
+      if (user.role === "rop") return p.manager_id === user.id;
+      return p.manager_id === user.managerId;
+    });
+
+    return roster.map((p): NormativeRow => {
       const won = dealRows.filter((d) => d.owner_id === p.id && d.status === "won" && d.close_date);
       const revenueToday = won
         .filter((d) => new Date(d.close_date!) >= startOfToday)
@@ -1919,7 +2011,7 @@ export function useNormativesView() {
         status,
       };
     });
-  }, [profiles, deals]);
+  }, [profiles, deals, user]);
 
   return { rows, isLoading: profilesLoading || dealsLoading };
 }
@@ -2097,11 +2189,15 @@ export function useUpdateAiAgent() {
 
 export function useFunnelNames() {
   const { data: leads, isLoading } = useLeadsRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
   const names = useMemo(() => {
     const set = new Set<string>();
-    for (const l of leads ?? []) set.add(l.funnel || "Direct Sales");
+    for (const l of leads ?? []) {
+      if (visibleOwnerIds && !(l.owner_id && visibleOwnerIds.has(l.owner_id))) continue;
+      set.add(l.funnel || "Direct Sales");
+    }
     return Array.from(set).sort();
-  }, [leads]);
+  }, [leads, visibleOwnerIds]);
   return { names, isLoading };
 }
 

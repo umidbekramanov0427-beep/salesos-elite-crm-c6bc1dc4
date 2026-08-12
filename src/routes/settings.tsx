@@ -224,6 +224,8 @@ function PersonalizationSection() {
   const { t, lang, setLang } = useI18n();
   const { unit, setUnit } = useCurrency();
   const { dark, setDark } = useTheme();
+  const { user } = useAuth();
+  const showCurrency = user?.role !== "sotuv_menejeri";
 
   return (
     <SectionCard
@@ -231,19 +233,21 @@ function PersonalizationSection() {
       description={t("settings.personalizationDesc")}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
-              <Wallet className="h-4 w-4" />
-            </span>
-            <span className="text-[13px] font-semibold text-foreground">
-              {t("settings.currency")}
-            </span>
+        {showCurrency && (
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+                <Wallet className="h-4 w-4" />
+              </span>
+              <span className="text-[13px] font-semibold text-foreground">
+                {t("settings.currency")}
+              </span>
+            </div>
+            <div className="mt-3">
+              <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
+            </div>
           </div>
-          <div className="mt-3">
-            <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
-          </div>
-        </div>
+        )}
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
@@ -390,7 +394,7 @@ function NotificationsSection() {
 function BusinessProfileSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "manager";
+  const canManage = user?.role === "super_admin" || user?.role === "rop";
   const { data: profile, isLoading } = useBusinessProfile();
   const updateProfile = useUpdateBusinessProfile();
 
@@ -757,7 +761,7 @@ function StageRowEditor({
 function StagesSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "manager";
+  const canManage = user?.role === "super_admin" || user?.role === "rop";
   const { data: stages, isLoading } = usePipelineStagesRaw();
   const { rows: leads } = useCrmLeads();
   const createStage = useCreateStage();
@@ -799,7 +803,7 @@ function StagesSection() {
       while (existingKeys.has(key)) key = `${base}-${n++}`;
       const nextPosition = sorted.length ? Math.max(...sorted.map((s) => s.position)) + 1 : 1;
       await createStage.mutateAsync({
-      organization_id: user!.organizationId!,
+        organization_id: user!.organizationId!,
         key,
         name: newName.trim(),
         position: nextPosition,
@@ -879,7 +883,7 @@ function StagesSection() {
 function TagsSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "manager";
+  const canManage = user?.role === "super_admin" || user?.role === "rop";
   const { tags, isLoading } = useTagsSummary();
   const renameTag = useRenameTag();
   const deleteTag = useDeleteTag();
@@ -1194,12 +1198,24 @@ function ComingSoonSection({ label }: { label: string }) {
 
 function SettingsPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const { section: sectionParam } = Route.useSearch();
   const { tags } = useTagsSummary();
   const { data: stages } = usePipelineStagesRaw();
-  const [section, setSection] = useState<SectionKey>(sectionParam ?? "profile");
+  const isSotuvMenejeri = user?.role === "sotuv_menejeri";
+  const [section, setSection] = useState<SectionKey>(
+    sectionParam &&
+      !(isSotuvMenejeri && sectionParam !== "profile" && sectionParam !== "personalization")
+      ? sectionParam
+      : "profile",
+  );
 
-  const NAV: { key: SectionKey; icon: LucideIcon; label: string; badge?: number | undefined }[] = [
+  const ALL_NAV: {
+    key: SectionKey;
+    icon: LucideIcon;
+    label: string;
+    badge?: number | undefined;
+  }[] = [
     { key: "profile", icon: Users, label: t("settings.nav.profile") },
     { key: "personalization", icon: Palette, label: t("settings.nav.personalization") },
     { key: "notifications", icon: Bell, label: t("settings.nav.notifications") },
@@ -1212,10 +1228,19 @@ function SettingsPage() {
     { key: "salesStages", icon: Workflow, label: t("settings.nav.salesStages") },
     { key: "scoreModifiers", icon: SlidersHorizontal, label: t("settings.nav.scoreModifiers") },
     { key: "skills", icon: Award, label: t("settings.nav.skills") },
-    { key: "qualificationGroups", icon: ListChecks, label: t("settings.nav.qualificationGroups") },
+    {
+      key: "qualificationGroups",
+      icon: ListChecks,
+      label: t("settings.nav.qualificationGroups"),
+    },
     { key: "leadCategories", icon: Thermometer, label: t("settings.nav.leadCategories") },
     { key: "conversion", icon: TrendingUp, label: t("settings.nav.conversion") },
   ];
+  // Sotuv menejeri only gets their own profile + language/appearance —
+  // everything else here is workspace-wide configuration.
+  const NAV = isSotuvMenejeri
+    ? ALL_NAV.filter((n) => n.key === "profile" || n.key === "personalization")
+    : ALL_NAV;
 
   return (
     <>

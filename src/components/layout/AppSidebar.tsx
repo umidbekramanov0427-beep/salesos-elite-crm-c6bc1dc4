@@ -543,7 +543,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
-        {!collapsed && (
+        {!collapsed && user?.role !== "sotuv_menejeri" && (
           <div className="mb-3 rounded-xl bg-mint p-3">
             <p className="text-xs font-semibold text-foreground">{t("nav.monthlyTarget")}</p>
             <p className="mt-1 text-xs text-muted-foreground">

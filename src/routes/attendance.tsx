@@ -214,7 +214,7 @@ function LogCallCard() {
 function AttendanceSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "manager";
+  const canManage = user?.role === "super_admin" || user?.role === "rop";
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSessions = useAsOfSnapshot<WorkSessionRow>("work_sessions", asOfDate);
   const asOfCalls = useAsOfSnapshot<CallLogRow>("call_logs", asOfDate);
@@ -225,7 +225,12 @@ function AttendanceSection() {
   const isLoading =
     rowsLoading || (asOfDate ? asOfSessions.isLoading || asOfCalls.isLoading : false);
 
-  const visible = canManage ? rows : rows.filter((r) => r.profileId === user?.id);
+  const visible =
+    user?.role === "super_admin" || user?.role === "platform_owner"
+      ? rows
+      : user?.role === "rop"
+        ? rows.filter((r) => r.managerId === user.id)
+        : rows.filter((r) => r.profileId === user?.id);
   const totalCalls = visible.reduce((s, r) => s + r.callsMade, 0);
   const totalConnected = visible.reduce((s, r) => s + r.callsConnected, 0);
   const totalCallMinutes = visible.reduce((s, r) => s + r.totalCallMinutes, 0);
@@ -440,7 +445,7 @@ function NormativesSection() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "manager";
+  const canManage = user?.role === "super_admin" || user?.role === "rop";
   const { rows, isLoading } = useNormativesView();
 
   const onTrack = rows.filter((r) => r.status === "onTrack").length;
