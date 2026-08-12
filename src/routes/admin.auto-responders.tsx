@@ -125,6 +125,7 @@ function RuleFormDialog({
           channels: form.channels,
           active: true,
           created_by: user?.id ?? null,
+          organization_id: user!.organizationId!,
         });
         toast.success(t("admin.ar.created"));
       }

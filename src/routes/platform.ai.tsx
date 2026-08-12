@@ -46,9 +46,7 @@ function PlatformAiPage() {
                   <p className="truncate text-sm font-medium text-foreground">
                     {a.organizations?.name ?? "—"} · {a.kind}
                   </p>
-                  <p className="truncate text-xs text-subtle">
-                    {a.provider} / {a.model}
-                  </p>
+                  <p className="truncate text-xs text-subtle">{a.model ?? "—"}</p>
                 </div>
                 <Pill tone={a.active ? "success" : "neutral"}>
                   {a.active ? t("platform.active") : t("platform.inactive")}
