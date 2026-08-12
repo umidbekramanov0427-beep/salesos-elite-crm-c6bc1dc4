@@ -29,9 +29,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = user?.role === "super_admin";
   const isPlatformOwner = user?.role === "platform_owner";
-  const current = NAV_ITEMS.find((i) =>
-    i.to === "/" ? pathname === "/" : pathname.startsWith(i.to),
-  );
+  // Exact match first: several /platform/* sub-pages share the "/platform"
+  // prefix, so a plain prefix search would always resolve to the bare
+  // "Platform" item instead of e.g. "Users" on /platform/users.
+  const current =
+    NAV_ITEMS.find((i) => i.to === pathname) ??
+    NAV_ITEMS.find((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to)));
 
   useEffect(() => setMobileOpen(false), [pathname]);
 
@@ -155,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
 
             <Link
-              to="/inbox"
+              to={isPlatformOwner ? "/platform/notifications" : "/inbox"}
               aria-label={t("shell.notifications")}
               className="relative rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >

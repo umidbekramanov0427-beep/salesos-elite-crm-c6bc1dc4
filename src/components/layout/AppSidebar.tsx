@@ -408,8 +408,17 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
   const settingsItem = NAV_ITEMS.find((i) => i.to === "/settings")!;
 
   function renderItem(item: (typeof NAV_ITEMS)[number]) {
-    const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+    // "/platform" has sibling sub-pages (/platform/users etc.) that share
+    // its prefix, so it needs the same exact-match treatment as "/" —
+    // otherwise both "Platform" and e.g. "Users" would show active at once.
+    const active =
+      item.to === "/"
+        ? pathname === "/"
+        : item.to === "/platform"
+          ? pathname === "/platform" || pathname.startsWith("/platform/organizations")
+          : pathname.startsWith(item.to);
     const isSettings = item.to === "/settings";
+    const isActivityLog = item.to === "/platform/activity";
     return (
       <Link
         key={item.to}
@@ -421,7 +430,8 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
             ? "bg-sidebar-active text-sidebar-active-foreground"
             : "bg-card text-sidebar-foreground shadow-soft",
           !active && isSettings && "hover:bg-primary/15 hover:text-primary",
-          !active && !isSettings && "hover:bg-accent",
+          !active && isActivityLog && "hover:bg-destructive/15 hover:text-destructive",
+          !active && !isSettings && !isActivityLog && "hover:bg-accent",
           collapsed && "justify-center px-0",
         )}
       >
@@ -452,7 +462,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
   // monthly target, analytics nav) apply to them — a short, separate
   // sidebar avoids rendering those against an empty organization.
   if (isPlatformOwner) {
-    const platformItem = NAV_ITEMS.find((i) => i.to === "/platform")!;
+    const platformItems = NAV_ITEMS.filter((i) => i.platformOwnerOnly);
     return (
       <aside
         className={cn(
@@ -470,7 +480,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
             </div>
           )}
         </div>
-        <nav className="flex-1 space-y-1.5 px-3 py-2">{renderItem(platformItem)}</nav>
+        <nav className="flex-1 space-y-1.5 px-3 py-2">{platformItems.map(renderItem)}</nav>
         <div className="border-t border-sidebar-border p-3">
           <UserMenu collapsed={collapsed} isAdmin={false} />
         </div>

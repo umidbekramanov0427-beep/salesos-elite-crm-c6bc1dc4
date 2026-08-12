@@ -1311,6 +1311,9 @@ export function useCreateOrganization() {
       admin_email: string;
       admin_password: string;
       admin_full_name: string;
+      phone?: string | undefined;
+      plan?: string | undefined;
+      trial_days?: number | undefined;
     }): Promise<{ organizationId: string }> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -1327,6 +1330,122 @@ export function useCreateOrganization() {
       return json;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["organizations"] }),
+  });
+}
+
+export function useUpdateOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<Pick<OrganizationRow, "name" | "phone" | "plan" | "active" | "trial_ends_at">>;
+    }) => {
+      const { error } = await supabase.from("organizations").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["organizations"] }),
+  });
+}
+
+export function useDeactivateExpiredTrials() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      await fetch("/platform/deactivate-expired-trials", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["organizations"] }),
+  });
+}
+
+// Cross-org visibility for the platform owner only — RLS on each of these
+// tables grants read access to is_platform_owner() (see migration
+// 20260812130000_owner_panel.sql); every other role's queries stay scoped
+// to their own organization_id as before.
+
+export type OwnerProfileRow = ProfileRow & { organizations: { name: string } | null };
+
+export function useAllProfiles() {
+  return useQuery({
+    queryKey: ["owner_all_profiles"],
+    queryFn: async (): Promise<OwnerProfileRow[]> => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*, organizations(name)")
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as OwnerProfileRow[];
+    },
+  });
+}
+
+export type OwnerAmoConnectionRow = {
+  organization_id: string;
+  subdomain: string;
+  connected_at: string;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+  organizations: { name: string } | null;
+};
+
+export function useAllAmoConnections() {
+  return useQuery({
+    queryKey: ["owner_all_amo_connections"],
+    queryFn: async (): Promise<OwnerAmoConnectionRow[]> => {
+      // Deliberately not selecting access_token/refresh_token — the owner
+      // overview only needs connection status, never the live OAuth secrets.
+      const { data, error } = await supabase
+        .from("amocrm_connection")
+        .select(
+          "organization_id, subdomain, connected_at, last_synced_at, last_sync_error, organizations(name)",
+        );
+      if (error) throw error;
+      return (data ?? []) as OwnerAmoConnectionRow[];
+    },
+  });
+}
+
+export type OwnerAiAgentRow = Tables["ai_agents"]["Row"] & {
+  organizations: { name: string } | null;
+};
+
+export function useAllAiAgents() {
+  return useQuery({
+    queryKey: ["owner_all_ai_agents"],
+    queryFn: async (): Promise<OwnerAiAgentRow[]> => {
+      const { data, error } = await supabase
+        .from("ai_agents")
+        .select("*, organizations(name)")
+        .order("organization_id", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as OwnerAiAgentRow[];
+    },
+  });
+}
+
+export type OwnerAuditLogRow = Tables["audit_logs"]["Row"] & {
+  organizations: { name: string } | null;
+};
+
+export function useAllAuditLogs() {
+  return useQuery({
+    queryKey: ["owner_all_audit_logs"],
+    queryFn: async (): Promise<OwnerAuditLogRow[]> => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("*, organizations(name)")
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data ?? []) as OwnerAuditLogRow[];
+    },
   });
 }
 
