@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, GripVertical, Loader2 } from "lucide-react";
-import { PageHeader, Pill } from "@/components/layout/Primitives";
+import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import {
   LeadFilterBar,
@@ -212,17 +212,6 @@ function PipelinePage() {
                           <span className="text-sm font-semibold text-foreground">
                             {format(l.expectedRevenue)}
                           </span>
-                          <Pill
-                            tone={
-                              l.temperature === "Hot"
-                                ? "danger"
-                                : l.temperature === "Warm"
-                                  ? "warning"
-                                  : "info"
-                            }
-                          >
-                            {l.temperature}
-                          </Pill>
                         </div>
                       </article>
                     );

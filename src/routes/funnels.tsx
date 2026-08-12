@@ -47,9 +47,6 @@ export const Route = createFileRoute("/funnels")({
 
 const funnelOf = (l: CrmLeadView) => l.funnel || "Direct Sales";
 
-const tempTone = (t: CrmLeadView["temperature"]) =>
-  t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info";
-
 const CARD_ACCENTS = [
   "before:bg-indigo-500",
   "before:bg-emerald-500",
@@ -244,7 +241,6 @@ function LeadGalleryCard({
         </a>
       )}
       <div className="flex items-center justify-between gap-2 pr-16">
-        <Pill tone={tempTone(lead.temperature)}>{lead.temperature}</Pill>
         <Pill tone={lead.stage === "Won" ? "success" : lead.stage === "Lost" ? "danger" : "info"}>
           {lead.stage}
         </Pill>
@@ -304,7 +300,6 @@ function LeadListRow({
           ))}
         </div>
       )}
-      <Pill tone={tempTone(lead.temperature)}>{lead.temperature}</Pill>
       <Pill tone={lead.stage === "Won" ? "success" : lead.stage === "Lost" ? "danger" : "info"}>
         {lead.stage}
       </Pill>
