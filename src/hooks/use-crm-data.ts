@@ -1957,3 +1957,156 @@ export function useFunnelNames() {
   }, [leads]);
   return { names, isLoading };
 }
+
+/* ------------------------------------------------------------------ */
+/* Audit / history — full change trail with time-travel, fed by the     */
+/* audit_row_change() triggers on leads/deals/tasks/companies/contacts/ */
+/* pipeline_stages/profiles. Each row stores the complete before/after  */
+/* row snapshot, so "state as of time X" is just the latest audit row   */
+/* at-or-before X — no diff replay needed.                              */
+/* ------------------------------------------------------------------ */
+
+export type AuditLogRow = Tables["audit_logs"]["Row"];
+export const AUDIT_ENTITY_TYPES = [
+  "leads",
+  "deals",
+  "tasks",
+  "companies",
+  "contacts",
+  "pipeline_stages",
+  "profiles",
+] as const;
+export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
+
+export type AuditEntryView = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  actorId: string | null;
+  actorName: string;
+  when: string;
+  createdAt: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  changedFields: string[];
+};
+
+const AUDIT_IGNORE_FIELDS = new Set(["updated_at", "created_at"]);
+
+function diffFields(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null,
+): string[] {
+  if (!before || !after) return [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  const changed: string[] = [];
+  for (const k of keys) {
+    if (AUDIT_IGNORE_FIELDS.has(k)) continue;
+    if (JSON.stringify(before[k]) !== JSON.stringify(after[k])) changed.push(k);
+  }
+  return changed;
+}
+
+function toAuditView(row: AuditLogRow, actorName: string): AuditEntryView {
+  const meta = (row.meta ?? {}) as {
+    old?: Record<string, unknown>;
+    new?: Record<string, unknown>;
+  };
+  return {
+    id: row.id,
+    action: row.action,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    actorId: row.actor_id,
+    actorName,
+    when: timeAgo(row.created_at),
+    createdAt: row.created_at,
+    before: meta.old ?? null,
+    after: meta.new ?? null,
+    changedFields: diffFields(meta.old ?? null, meta.new ?? null),
+  };
+}
+
+/** Full change history for one specific record (used on the lead detail page etc). */
+export function useAuditTrail(entityType: AuditEntityType, entityId: string | undefined) {
+  const { data: profiles } = useProfilesRaw();
+  const query = useQuery({
+    queryKey: ["audit_logs", entityType, entityId],
+    enabled: !!entityId,
+    queryFn: async (): Promise<AuditLogRow[]> => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .eq("entity_type", entityType)
+        .eq("entity_id", entityId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const rows = useMemo<AuditEntryView[]>(() => {
+    const profilesById = byId(profiles);
+    return (query.data ?? []).map((r) =>
+      toAuditView(r, r.actor_id ? profileName(profilesById.get(r.actor_id)) : "System"),
+    );
+  }, [query.data, profiles]);
+  return { rows, isLoading: query.isLoading };
+}
+
+/** Org-wide activity feed across every tracked table — the History page. */
+export function useOrgActivityFeed(limit = 200) {
+  const { user } = useAuth();
+  const { data: profiles } = useProfilesRaw();
+  const query = useQuery({
+    queryKey: ["audit_logs_feed", user?.organizationId, limit],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<AuditLogRow[]> => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .eq("organization_id", user!.organizationId!)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const rows = useMemo<AuditEntryView[]>(() => {
+    const profilesById = byId(profiles);
+    return (query.data ?? []).map((r) =>
+      toAuditView(r, r.actor_id ? profileName(profilesById.get(r.actor_id)) : "System"),
+    );
+  }, [query.data, profiles]);
+  return { rows, isLoading: query.isLoading, isError: query.isError };
+}
+
+// "Time travel": reconstructs a record's full state as of a past moment —
+// the latest audit_logs snapshot at or before that timestamp, since every
+// insert/update stores the complete row rather than just a diff.
+export function useRecordStateAt() {
+  return useMutation({
+    mutationFn: async (input: {
+      entityType: AuditEntityType;
+      entityId: string;
+      at: string;
+    }): Promise<Record<string, unknown> | null> => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("action, meta")
+        .eq("entity_type", input.entityType)
+        .eq("entity_id", input.entityId)
+        .lte("created_at", input.at)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const meta = (data.meta ?? {}) as {
+        old?: Record<string, unknown>;
+        new?: Record<string, unknown>;
+      };
+      return data.action === "delete" ? (meta.old ?? null) : (meta.new ?? null);
+    },
+  });
+}

@@ -18,6 +18,7 @@ import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FunnelsRouteImport } from './routes/funnels'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
@@ -96,6 +97,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const FunnelsRoute = FunnelsRouteImport.update({
   id: '/funnels',
   path: '/funnels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InboxRoute = InboxRouteImport.update({
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
+  '/history': typeof HistoryRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-tasks': typeof LeadTasksRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
+  '/history': typeof HistoryRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-tasks': typeof LeadTasksRoute
@@ -377,6 +385,7 @@ export interface FileRoutesById {
   '/crm-stages': typeof CrmStagesRoute
   '/dashboard': typeof DashboardRoute
   '/funnels': typeof FunnelsRoute
+  '/history': typeof HistoryRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-tasks': typeof LeadTasksRoute
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/crm-stages'
     | '/dashboard'
     | '/funnels'
+    | '/history'
     | '/inbox'
     | '/integrations'
     | '/lead-tasks'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/crm-stages'
     | '/dashboard'
     | '/funnels'
+    | '/history'
     | '/inbox'
     | '/integrations'
     | '/lead-tasks'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/crm-stages'
     | '/dashboard'
     | '/funnels'
+    | '/history'
     | '/inbox'
     | '/integrations'
     | '/lead-tasks'
@@ -560,6 +572,7 @@ export interface RootRouteChildren {
   CrmStagesRoute: typeof CrmStagesRoute
   DashboardRoute: typeof DashboardRoute
   FunnelsRoute: typeof FunnelsRoute
+  HistoryRoute: typeof HistoryRoute
   InboxRoute: typeof InboxRoute
   IntegrationsRoute: typeof IntegrationsRouteWithChildren
   LeadTasksRoute: typeof LeadTasksRoute
@@ -647,6 +660,13 @@ declare module '@tanstack/react-router' {
       path: '/funnels'
       fullPath: '/funnels'
       preLoaderRoute: typeof FunnelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inbox': {
@@ -972,6 +992,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmStagesRoute: CrmStagesRoute,
   DashboardRoute: DashboardRoute,
   FunnelsRoute: FunnelsRoute,
+  HistoryRoute: HistoryRoute,
   InboxRoute: InboxRoute,
   IntegrationsRoute: IntegrationsRouteWithChildren,
   LeadTasksRoute: LeadTasksRoute,
