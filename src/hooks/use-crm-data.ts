@@ -441,16 +441,17 @@ export type LeaderboardManagerRow = {
 
 export function useLeaderboardView(
   filters: LeaderboardFilters,
-  opts?: { refetchInterval?: number | false },
+  opts?: { refetchInterval?: number | false; overrideLeads?: LeadRow[] | undefined },
 ) {
   const refetchInterval = opts?.refetchInterval ?? false;
   const {
-    data: leads,
+    data: liveLeads,
     isLoading: leadsLoading,
     isFetching: leadsFetching,
     refetch: refetchLeads,
     dataUpdatedAt,
   } = useLeadsRaw({ refetchInterval });
+  const leads = opts?.overrideLeads ?? liveLeads;
   const {
     data: profiles,
     isLoading: profilesLoading,
@@ -559,8 +560,9 @@ export type RecoverableLeadView = {
   amocrmId: number | null;
 };
 
-export function useAudioAnalyticsView() {
-  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
+  const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+  const calls = overrideCalls ?? liveCalls;
   const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
   const isLoading = callsLoading || leadsLoading;
 
@@ -838,15 +840,16 @@ export type TaskView = {
   leadName: string | null;
 };
 
-export function useTasksView() {
+export function useTasksView(overrideTasks?: TaskRow[]) {
   const tasks = useTasksRaw();
   const profiles = useProfilesRaw();
   const leads = useLeadsRaw();
+  const sourceTasks = overrideTasks ?? tasks.data;
 
   const rows = useMemo<TaskView[]>(() => {
     const profilesById = byId(profiles.data);
     const leadsById = byId(leads.data);
-    return (tasks.data ?? []).map((t): TaskView => {
+    return (sourceTasks ?? []).map((t): TaskView => {
       const assignee = t.assignee_id ? profilesById.get(t.assignee_id) : undefined;
       const lead = t.lead_id ? leadsById.get(t.lead_id) : undefined;
       return {
@@ -864,7 +867,7 @@ export function useTasksView() {
         leadName: lead?.name ?? null,
       };
     });
-  }, [tasks.data, profiles.data, leads.data]);
+  }, [sourceTasks, profiles.data, leads.data]);
 
   return {
     rows,
@@ -1000,10 +1003,15 @@ export type DashboardFilters = {
   maxAmount?: number | null;
 };
 
-export function useDashboardKpis(filters?: DashboardFilters) {
-  const { data: deals } = useDealsRaw();
-  const { data: leads } = useLeadsRaw();
+export function useDashboardKpis(
+  filters?: DashboardFilters,
+  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
+) {
+  const { data: liveDeals } = useDealsRaw();
+  const { data: liveLeads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
+  const deals = overrides?.deals ?? liveDeals;
+  const leads = overrides?.leads ?? liveLeads;
 
   return useMemo(() => {
     const from = filters?.from ?? null;
@@ -1600,14 +1608,17 @@ export function useDeleteTag() {
 export type WorkSessionRow = Tables["work_sessions"]["Row"];
 export type CallLogRow = Tables["call_logs"]["Row"];
 
-function isToday(iso: string): boolean {
+function isSameDay(iso: string, ref: Date): boolean {
   const d = new Date(iso);
-  const now = new Date();
   return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
   );
+}
+
+function isToday(iso: string): boolean {
+  return isSameDay(iso, new Date());
 }
 
 export function useMyOpenSession() {
@@ -1675,23 +1686,30 @@ export type AttendanceRow = {
   totalCallMinutes: number;
 };
 
-export function useAttendanceView() {
+export function useAttendanceView(
+  asOf?: Date | null,
+  overrides?: { sessions?: WorkSessionRow[] | undefined; calls?: CallLogRow[] | undefined },
+) {
   const profiles = useProfilesRaw();
-  const sessions = useWorkSessionsRaw();
-  const calls = useCallLogsRaw();
+  const liveSessions = useWorkSessionsRaw();
+  const liveCalls = useCallLogsRaw();
+  const sessions = overrides?.sessions ?? liveSessions.data;
+  const calls = overrides?.calls ?? liveCalls.data;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- asOf?.getTime() is the stable key
+  const refDate = useMemo(() => asOf ?? new Date(), [asOf?.getTime()]);
 
   const rows = useMemo<AttendanceRow[]>(() => {
     return (profiles.data ?? []).map((p): AttendanceRow => {
-      const mySessions = (sessions.data ?? []).filter(
-        (s) => s.profile_id === p.id && isToday(s.clock_in),
+      const mySessions = (sessions ?? []).filter(
+        (s) => s.profile_id === p.id && isSameDay(s.clock_in, refDate),
       );
       const latest = mySessions[0] ?? null;
       const sessionMinutes = mySessions.reduce((sum, s) => {
         const end = s.clock_out ? new Date(s.clock_out).getTime() : Date.now();
         return sum + Math.max(0, (end - new Date(s.clock_in).getTime()) / 60000);
       }, 0);
-      const myCalls = (calls.data ?? []).filter(
-        (c) => c.profile_id === p.id && isToday(c.created_at),
+      const myCalls = (calls ?? []).filter(
+        (c) => c.profile_id === p.id && isSameDay(c.created_at, refDate),
       );
       return {
         profileId: p.id,
@@ -1706,11 +1724,11 @@ export function useAttendanceView() {
         totalCallMinutes: Math.round(myCalls.reduce((s, c) => s + c.duration_seconds, 0) / 60),
       };
     });
-  }, [profiles.data, sessions.data, calls.data]);
+  }, [profiles.data, sessions, calls, refDate]);
 
   return {
     rows,
-    isLoading: profiles.isLoading || sessions.isLoading || calls.isLoading,
+    isLoading: profiles.isLoading || liveSessions.isLoading || liveCalls.isLoading,
   };
 }
 
@@ -1980,6 +1998,9 @@ export const AUDIT_ENTITY_TYPES = [
   "contacts",
   "pipeline_stages",
   "profiles",
+  "amocrm_calls",
+  "work_sessions",
+  "call_logs",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

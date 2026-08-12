@@ -926,6 +926,9 @@ const en: Dict = {
   "history.entity.contacts": "Contact",
   "history.entity.pipeline_stages": "Pipeline stage",
   "history.entity.profiles": "Employee",
+  "history.entity.amocrm_calls": "Call",
+  "history.entity.work_sessions": "Work session",
+  "history.entity.call_logs": "Call log",
 
   "asOf.live": "Live",
   "asOf.backToLive": "Back to live",
@@ -2104,6 +2107,9 @@ const ru: Dict = {
   "history.entity.contacts": "Контакт",
   "history.entity.pipeline_stages": "Этап воронки",
   "history.entity.profiles": "Сотрудник",
+  "history.entity.amocrm_calls": "Звонок",
+  "history.entity.work_sessions": "Рабочая сессия",
+  "history.entity.call_logs": "Журнал звонков",
 
   "asOf.live": "Текущее",
   "asOf.backToLive": "Вернуться к текущему",
@@ -3296,6 +3302,9 @@ const uz: Dict = {
   "history.entity.contacts": "Kontakt",
   "history.entity.pipeline_stages": "Voronka bosqichi",
   "history.entity.profiles": "Xodim",
+  "history.entity.amocrm_calls": "Qo'ng'iroq",
+  "history.entity.work_sessions": "Ish smenasi",
+  "history.entity.call_logs": "Qo'ng'iroqlar jurnali",
 
   "asOf.live": "Joriy holat",
   "asOf.backToLive": "Joriy holatga qaytish",
