@@ -900,6 +900,9 @@ const en: Dict = {
   "shell.locationSaveFailed": "Failed to save the location",
   "shell.detectLocation": "Detect my location",
   "shell.detectFailed": "Couldn't detect your location — check location permission",
+  "amountFilter.min": "Min amount",
+  "amountFilter.max": "Max amount",
+  "amountFilter.to": "–",
 
   "settings.moveUp": "Move up",
   "settings.moveDown": "Move down",
@@ -2048,6 +2051,9 @@ const ru: Dict = {
   "shell.locationSaveFailed": "Не удалось сохранить адрес",
   "shell.detectLocation": "Определить моё местоположение",
   "shell.detectFailed": "Не удалось определить местоположение — проверьте разрешение геолокации",
+  "amountFilter.min": "Сумма от",
+  "amountFilter.max": "Сумма до",
+  "amountFilter.to": "–",
 
   "settings.moveUp": "Переместить вверх",
   "settings.moveDown": "Переместить вниз",
@@ -3210,6 +3216,9 @@ const uz: Dict = {
   "shell.locationSaveFailed": "Manzilni saqlab bo'lmadi",
   "shell.detectLocation": "Joriy joylashuvimni aniqlash",
   "shell.detectFailed": "Joylashuvni aniqlab bo'lmadi — geolokatsiya ruxsatini tekshiring",
+  "amountFilter.min": "Summa dan",
+  "amountFilter.max": "Summa gacha",
+  "amountFilter.to": "–",
 
   "settings.moveUp": "Yuqoriga surish",
   "settings.moveDown": "Pastga surish",

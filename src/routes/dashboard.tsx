@@ -29,6 +29,11 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { useDashboardKpis, useFunnelNames, useRevenueSeries } from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
+import {
+  AmountRangeFilter,
+  EMPTY_AMOUNT_RANGE,
+  type AmountRangeValue,
+} from "@/components/filters/AmountRangeFilter";
 
 const RevenueChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })),
@@ -79,14 +84,17 @@ function Dashboard() {
     label: t("lb.presetAll"),
   });
   const [funnel, setFunnel] = useState<string | null>(null);
+  const [amountRange, setAmountRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
   const { names: funnelNames } = useFunnelNames();
   const dashboardFilters = useMemo(
     () => ({
       from: dateFilter.from ? dateFilter.from.toISOString() : null,
       to: dateFilter.to ? dateFilter.to.toISOString() : null,
       funnel,
+      minAmount: amountRange.min,
+      maxAmount: amountRange.max,
     }),
-    [dateFilter, funnel],
+    [dateFilter, funnel, amountRange],
   );
   const kpis = useDashboardKpis(dashboardFilters);
   const revenueSeries = useRevenueSeries();
@@ -211,6 +219,7 @@ function Dashboard() {
               </option>
             ))}
           </select>
+          <AmountRangeFilter value={amountRange} onChange={setAmountRange} />
         </div>
       </SectionCard>
 
