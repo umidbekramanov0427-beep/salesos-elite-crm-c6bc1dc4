@@ -350,15 +350,20 @@ export type CrmLeadView = {
   amocrmId: number | null;
 };
 
-export function useCrmLeads() {
+// overrideLeads lets callers substitute a reconstructed "as of a past date"
+// snapshot (see useAsOfSnapshot) in place of the live leads table, while
+// still joining against the current contacts/profiles/stages for display
+// names — the same shape either way.
+export function useCrmLeads(overrideLeads?: LeadRow[]) {
   const base = useCrmBase();
+  const sourceLeads = overrideLeads ?? base.leads;
 
   const rows = useMemo<CrmLeadView[]>(() => {
     const contactsById = byId(base.contacts);
     const profilesById = byId(base.profiles);
     const stagesById = byId(base.stages);
 
-    return base.leads.map((l): CrmLeadView => {
+    return sourceLeads.map((l): CrmLeadView => {
       const contact = l.contact_id ? contactsById.get(l.contact_id) : undefined;
       const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
       const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
@@ -401,7 +406,7 @@ export function useCrmLeads() {
         amocrmId: l.amocrm_id,
       };
     });
-  }, [base.leads, base.contacts, base.profiles, base.stages]);
+  }, [sourceLeads, base.contacts, base.profiles, base.stages]);
 
   return { rows, ...base };
 }
@@ -2079,6 +2084,30 @@ export function useOrgActivityFeed(limit = 200) {
     );
   }, [query.data, profiles]);
   return { rows, isLoading: query.isLoading, isError: query.isError };
+}
+
+// "As of date": reconstructs an entire table's rows exactly as they stood
+// at a past moment, via the entities_as_of() SQL function — the latest
+// audit_logs snapshot at-or-before that timestamp for every entity_id,
+// excluding ones whose latest state by then was a delete. Pages pass the
+// result as an override to their normal live-data hook (e.g. useCrmLeads)
+// so the rest of the page's joins/rendering logic stays identical.
+export function useAsOfSnapshot<T>(entityType: AuditEntityType, asOf: Date | null) {
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ["entities_as_of", entityType, user?.organizationId, asOf?.toISOString() ?? null],
+    enabled: !!user?.organizationId && !!asOf,
+    queryFn: async (): Promise<T[]> => {
+      const { data, error } = await supabase.rpc("entities_as_of", {
+        p_organization_id: user!.organizationId!,
+        p_entity_type: entityType,
+        p_as_of: asOf!.toISOString(),
+      });
+      if (error) throw error;
+      return (data ?? []) as T[];
+    },
+  });
+  return { data: query.data, isLoading: query.isLoading, isError: query.isError };
 }
 
 // "Time travel": reconstructs a record's full state as of a past moment —
