@@ -44,6 +44,9 @@ function CreateOrgDialog() {
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [ropName, setRopName] = useState("");
+  const [ropEmail, setRopEmail] = useState("");
+  const [ropPassword, setRopPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [plan, setPlan] = useState<(typeof PLANS)[number]>("Basic");
   const [trialDays, setTrialDays] = useState("");
@@ -54,6 +57,9 @@ function CreateOrgDialog() {
     setAdminName("");
     setAdminEmail("");
     setAdminPassword("");
+    setRopName("");
+    setRopEmail("");
+    setRopPassword("");
     setPhone("");
     setPlan("Basic");
     setTrialDays("");
@@ -62,6 +68,7 @@ function CreateOrgDialog() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim() || !adminEmail.trim() || adminPassword.length < 8) return;
+    if (!ropEmail.trim() || ropPassword.length < 8) return;
     setConfirming(true);
   }
 
@@ -73,6 +80,9 @@ function CreateOrgDialog() {
         admin_email: adminEmail.trim(),
         admin_password: adminPassword,
         admin_full_name: adminName.trim(),
+        rop_email: ropEmail.trim(),
+        rop_password: ropPassword,
+        rop_full_name: ropName.trim(),
         phone: phone.trim() || undefined,
         plan,
         trial_days: trialDays ? Number(trialDays) : undefined,
@@ -141,6 +151,36 @@ function CreateOrgDialog() {
                 type="text"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-rop-name">{t("platform.ropName")}</Label>
+              <Input
+                id="org-rop-name"
+                value={ropName}
+                onChange={(e) => setRopName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-rop-email">{t("platform.ropEmail")}</Label>
+              <Input
+                id="org-rop-email"
+                type="email"
+                value={ropEmail}
+                onChange={(e) => setRopEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-rop-password">{t("platform.ropPassword")}</Label>
+              <Input
+                id="org-rop-password"
+                type="text"
+                value={ropPassword}
+                onChange={(e) => setRopPassword(e.target.value)}
                 minLength={8}
                 required
               />

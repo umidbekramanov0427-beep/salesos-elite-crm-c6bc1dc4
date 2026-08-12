@@ -215,7 +215,7 @@ async function fetchAllCompanies(conn: AmoConnection): Promise<Map<number, AmoCo
   return map;
 }
 
-type AmoUser = { id: number; email: string | null };
+type AmoUser = { id: number; email: string | null; name?: string | null };
 
 async function fetchAllUsers(conn: AmoConnection): Promise<AmoUser[]> {
   const all: AmoUser[] = [];
@@ -313,6 +313,11 @@ async function syncPipelineStages(
 }
 
 /** Matches AmoCRM users to existing profiles by email, returns amoUserId -> our profile id. */
+// Shared login password for every auto-provisioned sales rep account. Reps
+// log in with their AmoCRM email as username; nobody picks this password
+// individually, so it's a fixed, known value by design (per product spec).
+const SOTUV_MENEJERI_DEFAULT_PASSWORD = "12345678";
+
 async function syncUserMapping(
   organizationId: string,
   conn: AmoConnection,
@@ -327,8 +332,34 @@ async function syncUserMapping(
     const profileByEmail = new Map((profiles ?? []).map((p) => [p.email.toLowerCase(), p]));
     for (const amoUser of users) {
       if (!amoUser.email) continue;
-      const profile = profileByEmail.get(amoUser.email.toLowerCase());
-      if (!profile) continue;
+      const email = amoUser.email.toLowerCase();
+      let profile = profileByEmail.get(email);
+      if (!profile) {
+        // No CRM account for this AmoCRM user yet — auto-provision a sales
+        // rep account so they can log in with their AmoCRM email and the
+        // shared rep password, instead of silently staying unmapped.
+        const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: amoUser.email,
+          password: SOTUV_MENEJERI_DEFAULT_PASSWORD,
+          email_confirm: true,
+          user_metadata: {
+            full_name: amoUser.name?.trim() || amoUser.email,
+            role: "sotuv_menejeri",
+            organization_id: organizationId,
+          },
+        });
+        if (createError || !created.user) {
+          // Most likely an email collision with an existing auth user in a
+          // different organization — report it distinctly and keep going,
+          // don't let one failed provisioning attempt abort the whole sync.
+          console.error(
+            `[amocrm sync] Could not auto-provision rep account for ${amoUser.email}: ${createError?.message ?? "unknown error"}`,
+          );
+          continue;
+        }
+        profile = { id: created.user.id, email: amoUser.email };
+        profileByEmail.set(email, profile);
+      }
       map.set(amoUser.id, profile.id);
       await supabaseAdmin
         .from("profiles")

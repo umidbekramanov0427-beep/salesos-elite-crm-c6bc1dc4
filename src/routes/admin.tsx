@@ -67,7 +67,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPanel,
 });
 
-const ROLES: ProfileRow["role"][] = ["rep", "manager", "super_admin"];
+const ROLES: ProfileRow["role"][] = ["sotuv_menejeri", "rop", "super_admin"];
 
 function CreateEmployeeDialog() {
   const { t } = useI18n();
@@ -78,13 +78,15 @@ function CreateEmployeeDialog() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<ProfileRow["role"]>("rep");
+  const [role, setRole] = useState<ProfileRow["role"]>("sotuv_menejeri");
   const [department, setDepartment] = useState("Sales");
   const [busy, setBusy] = useState(false);
 
   const roleLabel: Record<ProfileRow["role"], string> = {
     rep: t("admin.roleRep"),
     manager: t("admin.roleManager"),
+    sotuv_menejeri: t("admin.roleRep"),
+    rop: t("admin.roleRop"),
     super_admin: t("admin.roleAdmin"),
     platform_owner: t("admin.rolePlatformOwner"),
   };
@@ -93,7 +95,7 @@ function CreateEmployeeDialog() {
     setFullName("");
     setEmail("");
     setPassword("");
-    setRole("rep");
+    setRole("sotuv_menejeri");
     setDepartment("Sales");
   }
 
@@ -367,6 +369,8 @@ function AdminPanelContent() {
   const roleLabel: Record<ProfileRow["role"], string> = {
     rep: t("admin.roleRep"),
     manager: t("admin.roleManager"),
+    sotuv_menejeri: t("admin.roleRep"),
+    rop: t("admin.roleRop"),
     super_admin: t("admin.roleAdmin"),
     platform_owner: t("admin.rolePlatformOwner"),
   };
@@ -435,7 +439,7 @@ function AdminPanelContent() {
         />
         <StatCard
           label={t("admin.managers")}
-          value={String(employees.filter((p) => p.role === "manager").length)}
+          value={String(employees.filter((p) => p.role === "rop").length)}
         />
       </div>
 
@@ -588,8 +592,8 @@ function AdminPanelContent() {
                 {t("admin.aboutRoleAdmin")}
               </li>
               <li>
-                <span className="font-medium text-foreground">{t("admin.roleManager")}</span> —{" "}
-                {t("admin.aboutRoleManager")}
+                <span className="font-medium text-foreground">{t("admin.roleRop")}</span> —{" "}
+                {t("admin.aboutRoleRop")}
               </li>
               <li>
                 <span className="font-medium text-foreground">{t("admin.roleRep")}</span> —{" "}

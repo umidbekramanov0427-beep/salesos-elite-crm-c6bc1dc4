@@ -1,0 +1,1621 @@
+From 6118bf97cc99d51d7e13209a1abd92916434f299 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 12 Aug 2026 16:30:51 +0000
+Subject: [PATCH] Redesign roles to Super Admin / ROP / Sotuv menejeri
+
+Replaces manager/rep with rop/sotuv_menejeri across auth, RLS-adjacent
+client scoping, and the UI. Company creation now sets both a Super
+Admin and a ROP account; ROP's reports are linked via profiles.manager_id
+(set by the platform owner). AmoCRM sync auto-provisions missing reps
+with their AmoCRM email as login and a shared password ("12345678").
+
+Scoping is enforced at the client-hook layer (useVisibleOwnerIds), the
+same trust model the app already used for the old "rep" role: sotuv
+menejeri sees only their own leads/deals/tasks/calls everywhere except
+Reyting (company-wide ranking, by design) and Normativ (same-ROP
+teammates); rop sees their own team only; super_admin is unrestricted.
+Also fixes two pre-existing RLS bugs on the same surface (stray
+ai_agents/auto_responders policies, a reopened notification_preferences
+leak) and a bug where the Leaderboard silently only showed the caller's
+own profile row due to an overly restrictive profiles_select policy.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HaeAXac6vZbVwSC7WZXabb
+---
+ src/components/layout/AppSidebar.tsx          |   2 +-
+ src/hooks/use-crm-data.ts                     | 142 +++++++++++---
+ src/integrations/supabase/types.ts            |   4 +-
+ src/lib/amocrm/client.server.ts               |  37 +++-
+ src/lib/auth.tsx                              |   2 +
+ src/lib/i18n.tsx                              |  21 ++-
+ src/lib/telegram-report.server.ts             |   2 +-
+ src/routeTree.gen.ts                          | 178 +++++++++---------
+ src/routes/admin.tsx                          |  16 +-
+ src/routes/ai-assistant.chat.ts               |  63 ++++++-
+ src/routes/attendance.tsx                     |  11 +-
+ src/routes/platform.create-organization.ts    |  33 +++-
+ src/routes/platform.index.tsx                 |  40 ++++
+ src/routes/settings.tsx                       |  63 +++++--
+ src/routes/tasks.tsx                          |   8 +-
+ ...150000_role_redesign_1_add_enum_values.sql |  10 +
+ ...20260812150100_role_redesign_2_migrate.sql |  89 +++++++++
+ 17 files changed, 551 insertions(+), 170 deletions(-)
+ create mode 100644 supabase/migrations/20260812150000_role_redesign_1_add_enum_values.sql
+ create mode 100644 supabase/migrations/20260812150100_role_redesign_2_migrate.sql
+
+diff --git a/src/components/layout/AppSidebar.tsx b/src/components/layout/AppSidebar.tsx
+index 78665da..bcb0f80 100644
+--- a/src/components/layout/AppSidebar.tsx
++++ b/src/components/layout/AppSidebar.tsx
+@@ -543,7 +543,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
+       </nav>
+ 
+       <div className="border-t border-sidebar-border p-3">
+-        {!collapsed && (
++        {!collapsed && user?.role !== "sotuv_menejeri" && (
+           <div className="mb-3 rounded-xl bg-mint p-3">
+             <p className="text-xs font-semibold text-foreground">{t("nav.monthlyTarget")}</p>
+             <p className="mt-1 text-xs text-muted-foreground">
+diff --git a/src/hooks/use-crm-data.ts b/src/hooks/use-crm-data.ts
+index 383f647..4893bec 100644
+--- a/src/hooks/use-crm-data.ts
++++ b/src/hooks/use-crm-data.ts
+@@ -258,14 +258,36 @@ function profileName(p: ProfileRow | undefined): string {
+ /* joined client-side (small workspace-scale data, no N+1 queries).    */
+ /* ------------------------------------------------------------------ */
+ 
+-export function useCrmBase() {
++// Which owner_id values the current user is allowed to see, for pages that
++// scope leads/deals/calls to "your own data" (sotuv_menejeri) or "your
++// team's data" (rop). Returns null for unrestricted roles (super_admin,
++// platform_owner) — callers should treat null as "don't filter".
++export function useVisibleOwnerIds(): Set<string> | null {
+   const { user } = useAuth();
++  const { data: profiles } = useProfilesRaw();
++  return useMemo(() => {
++    if (!user) return new Set<string>();
++    if (user.role === "super_admin" || user.role === "platform_owner") return null;
++    if (user.role === "rop") {
++      const ids = new Set<string>([user.id]);
++      for (const p of profiles ?? []) {
++        if (p.manager_id === user.id) ids.add(p.id);
++      }
++      return ids;
++    }
++    // sotuv_menejeri (and any legacy role) only ever sees their own data.
++    return new Set<string>([user.id]);
++  }, [user, profiles]);
++}
++
++export function useCrmBase() {
+   const companies = useCompaniesRaw();
+   const contacts = useContactsRaw();
+   const leads = useLeadsRaw();
+   const deals = useDealsRaw();
+   const stages = usePipelineStagesRaw();
+   const profiles = useProfilesRaw();
++  const visibleOwnerIds = useVisibleOwnerIds();
+ 
+   const isLoading =
+     companies.isLoading ||
+@@ -282,17 +304,22 @@ export function useCrmBase() {
+     stages.isError ||
+     profiles.isError;
+ 
+-  // Reps only work their own pipeline — leads/deals owned by other reps stay
+-  // hidden from the leads/deals/pipeline views. Managers and super admins
+-  // keep the full, company-wide view.
+-  const scoped = user?.role === "rep";
++  // sotuv_menejeri only works their own pipeline; rop works their team's.
++  // Managers/reps are gone as roles, but the same scoping now applies to
++  // their replacements. Super admins keep the full, company-wide view.
+   const scopedLeads = useMemo(
+-    () => (scoped ? (leads.data ?? []).filter((l) => l.owner_id === user!.id) : (leads.data ?? [])),
+-    [leads.data, scoped, user],
++    () =>
++      visibleOwnerIds
++        ? (leads.data ?? []).filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
++        : (leads.data ?? []),
++    [leads.data, visibleOwnerIds],
+   );
+   const scopedDeals = useMemo(
+-    () => (scoped ? (deals.data ?? []).filter((d) => d.owner_id === user!.id) : (deals.data ?? [])),
+-    [deals.data, scoped, user],
++    () =>
++      visibleOwnerIds
++        ? (deals.data ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
++        : (deals.data ?? []),
++    [deals.data, visibleOwnerIds],
+   );
+ 
+   return {
+@@ -356,7 +383,16 @@ export type CrmLeadView = {
+ // names — the same shape either way.
+ export function useCrmLeads(overrideLeads?: LeadRow[]) {
+   const base = useCrmBase();
+-  const sourceLeads = overrideLeads ?? base.leads;
++  const visibleOwnerIds = useVisibleOwnerIds();
++  // base.leads is already scoped, but an as-of-date override comes straight
++  // from the (unscoped) audit trail — apply the same ownership filter to it
++  // too, so time-travelling doesn't bypass the "own data only" restriction.
++  const sourceLeads = useMemo(() => {
++    if (!overrideLeads) return base.leads;
++    return visibleOwnerIds
++      ? overrideLeads.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
++      : overrideLeads;
++  }, [overrideLeads, base.leads, visibleOwnerIds]);
+ 
+   const rows = useMemo<CrmLeadView[]>(() => {
+     const contactsById = byId(base.contacts);
+@@ -488,7 +524,11 @@ export function useLeaderboardView(
+   const rows = useMemo<LeaderboardManagerRow[]>(() => {
+     const q = filters.search.trim().toLowerCase();
+     const eligible = (profiles ?? []).filter(
+-      (p) => p.role !== "super_admin" && (!q || profileName(p).toLowerCase().includes(q)),
++      (p) =>
++        p.role !== "super_admin" &&
++        p.role !== "platform_owner" &&
++        p.role !== "rop" &&
++        (!q || profileName(p).toLowerCase().includes(q)),
+     );
+     return eligible
+       .map((p): LeaderboardManagerRow => {
+@@ -561,13 +601,25 @@ export type RecoverableLeadView = {
+ };
+ 
+ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
++  const { user } = useAuth();
+   const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+-  const calls = overrideCalls ?? liveCalls;
+   const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
+   const isLoading = callsLoading || leadsLoading;
+ 
+   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
+ 
++  // leads (from useCrmLeads) are already scoped to what this user may see —
++  // a call whose lead isn't in that map belongs to someone else's lead and
++  // must be hidden too (call metadata, recordings and transcripts included).
++  // A call with no lead_id at all (a manual log) is only visible to whoever
++  // created it, for the same roles.
++  const calls = useMemo(() => {
++    const rows = overrideCalls ?? liveCalls ?? [];
++    if (!user) return [];
++    if (user.role === "super_admin" || user.role === "platform_owner") return rows;
++    return rows.filter((c) => (c.lead_id ? leadsById.has(c.lead_id) : c.created_by === user.id));
++  }, [overrideCalls, liveCalls, leadsById, user]);
++
+   const recent = useMemo<AudioCallView[]>(
+     () =>
+       (calls ?? []).map((c) => {
+@@ -844,7 +896,13 @@ export function useTasksView(overrideTasks?: TaskRow[]) {
+   const tasks = useTasksRaw();
+   const profiles = useProfilesRaw();
+   const leads = useLeadsRaw();
+-  const sourceTasks = overrideTasks ?? tasks.data;
++  const visibleOwnerIds = useVisibleOwnerIds();
++  const sourceTasks = useMemo(() => {
++    const rows = overrideTasks ?? tasks.data ?? [];
++    return visibleOwnerIds
++      ? rows.filter((t) => t.assignee_id && visibleOwnerIds.has(t.assignee_id))
++      : rows;
++  }, [overrideTasks, tasks.data, visibleOwnerIds]);
+ 
+   const rows = useMemo<TaskView[]>(() => {
+     const profilesById = byId(profiles.data);
+@@ -933,9 +991,12 @@ const MONTH_LABELS = [
+ 
+ export function useRevenueSeries() {
+   const { data: deals } = useDealsRaw();
++  const visibleOwnerIds = useVisibleOwnerIds();
+ 
+   return useMemo(() => {
+-    const rows = deals ?? [];
++    const rows = visibleOwnerIds
++      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
++      : (deals ?? []);
+     const now = new Date();
+     const months: { label: string; revenue: number; pipeline: number }[] = [];
+     for (let i = 7; i >= 0; i--) {
+@@ -950,15 +1011,18 @@ export function useRevenueSeries() {
+       months.push({ label: MONTH_LABELS[d.getMonth()]!, revenue, pipeline });
+     }
+     return months;
+-  }, [deals]);
++  }, [deals, visibleOwnerIds]);
+ }
+ 
+ export function usePipelineStageStats() {
+   const { data: deals } = useDealsRaw();
+   const { data: stages } = usePipelineStagesRaw();
++  const visibleOwnerIds = useVisibleOwnerIds();
+ 
+   return useMemo(() => {
+-    const rows = deals ?? [];
++    const rows = visibleOwnerIds
++      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
++      : (deals ?? []);
+     return (stages ?? []).map((s) => {
+       const inStage = rows.filter((d) => d.stage_id === s.id);
+       return {
+@@ -967,7 +1031,7 @@ export function usePipelineStageStats() {
+         deals: inStage.length,
+       };
+     });
+-  }, [deals, stages]);
++  }, [deals, stages, visibleOwnerIds]);
+ }
+ 
+ export function useFunnelFlow() {
+@@ -1010,8 +1074,19 @@ export function useDashboardKpis(
+   const { data: liveDeals } = useDealsRaw();
+   const { data: liveLeads } = useLeadsRaw();
+   const { data: stages } = usePipelineStagesRaw();
+-  const deals = overrides?.deals ?? liveDeals;
+-  const leads = overrides?.leads ?? liveLeads;
++  const visibleOwnerIds = useVisibleOwnerIds();
++  const deals = useMemo(() => {
++    const rows = overrides?.deals ?? liveDeals ?? [];
++    return visibleOwnerIds
++      ? rows.filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
++      : rows;
++  }, [overrides?.deals, liveDeals, visibleOwnerIds]);
++  const leads = useMemo(() => {
++    const rows = overrides?.leads ?? liveLeads ?? [];
++    return visibleOwnerIds
++      ? rows.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
++      : rows;
++  }, [overrides?.leads, liveLeads, visibleOwnerIds]);
+ 
+   return useMemo(() => {
+     const from = filters?.from ?? null;
+@@ -1311,6 +1386,9 @@ export function useCreateOrganization() {
+       admin_email: string;
+       admin_password: string;
+       admin_full_name: string;
++      rop_email: string;
++      rop_password: string;
++      rop_full_name: string;
+       phone?: string | undefined;
+       plan?: string | undefined;
+       trial_days?: number | undefined;
+@@ -1799,6 +1877,7 @@ export function useLogCall() {
+ 
+ export type AttendanceRow = {
+   profileId: string;
++  managerId: string | null;
+   name: string;
+   initials: string;
+   position: string;
+@@ -1837,6 +1916,7 @@ export function useAttendanceView(
+       );
+       return {
+         profileId: p.id,
++        managerId: p.manager_id,
+         name: profileName(p),
+         initials: initialsOf(p.full_name || p.email),
+         position: p.position,
+@@ -1878,6 +1958,7 @@ export type NormativeRow = {
+ };
+ 
+ export function useNormativesView() {
++  const { user } = useAuth();
+   const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+   const { data: deals, isLoading: dealsLoading } = useDealsRaw();
+ 
+@@ -1891,7 +1972,18 @@ export function useNormativesView() {
+     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+     const expectedPaceFraction = dayOfMonth / daysInMonth;
+ 
+-    return (profiles ?? []).map((p): NormativeRow => {
++    // Super admins see the whole company. A ROP sees their own reports; a
++    // sotuv_menejeri sees every teammate under the same ROP (including
++    // themselves) so they can see who's ahead/behind, per spec — not the
++    // full company.
++    const roster = (profiles ?? []).filter((p) => {
++      if (p.role === "super_admin" || p.role === "platform_owner") return false;
++      if (!user || user.role === "super_admin" || user.role === "platform_owner") return true;
++      if (user.role === "rop") return p.manager_id === user.id;
++      return p.manager_id === user.managerId;
++    });
++
++    return roster.map((p): NormativeRow => {
+       const won = dealRows.filter((d) => d.owner_id === p.id && d.status === "won" && d.close_date);
+       const revenueToday = won
+         .filter((d) => new Date(d.close_date!) >= startOfToday)
+@@ -1919,7 +2011,7 @@ export function useNormativesView() {
+         status,
+       };
+     });
+-  }, [profiles, deals]);
++  }, [profiles, deals, user]);
+ 
+   return { rows, isLoading: profilesLoading || dealsLoading };
+ }
+@@ -2097,11 +2189,15 @@ export function useUpdateAiAgent() {
+ 
+ export function useFunnelNames() {
+   const { data: leads, isLoading } = useLeadsRaw();
++  const visibleOwnerIds = useVisibleOwnerIds();
+   const names = useMemo(() => {
+     const set = new Set<string>();
+-    for (const l of leads ?? []) set.add(l.funnel || "Direct Sales");
++    for (const l of leads ?? []) {
++      if (visibleOwnerIds && !(l.owner_id && visibleOwnerIds.has(l.owner_id))) continue;
++      set.add(l.funnel || "Direct Sales");
++    }
+     return Array.from(set).sort();
+-  }, [leads]);
++  }, [leads, visibleOwnerIds]);
+   return { names, isLoading };
+ }
+ 
+diff --git a/src/integrations/supabase/types.ts b/src/integrations/supabase/types.ts
+index 90e08f0..9017e2f 100644
+--- a/src/integrations/supabase/types.ts
++++ b/src/integrations/supabase/types.ts
+@@ -1366,7 +1366,7 @@ export type Database = {
+       }
+     }
+     Enums: {
+-      app_role: "super_admin" | "manager" | "rep" | "platform_owner"
++      app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri"
+       deal_status: "open" | "won" | "lost"
+       lead_temperature: "Hot" | "Warm" | "Cold"
+       priority_level: "Urgent" | "High" | "Normal" | "Low"
+@@ -1498,7 +1498,7 @@ export type CompositeTypes<
+ export const Constants = {
+   public: {
+     Enums: {
+-      app_role: ["super_admin", "manager", "rep", "platform_owner"],
++      app_role: ["super_admin", "manager", "rep", "platform_owner", "rop", "sotuv_menejeri"],
+       deal_status: ["open", "won", "lost"],
+       lead_temperature: ["Hot", "Warm", "Cold"],
+       priority_level: ["Urgent", "High", "Normal", "Low"],
+diff --git a/src/lib/amocrm/client.server.ts b/src/lib/amocrm/client.server.ts
+index 25c3a02..1c52f2b 100644
+--- a/src/lib/amocrm/client.server.ts
++++ b/src/lib/amocrm/client.server.ts
+@@ -215,7 +215,7 @@ async function fetchAllCompanies(conn: AmoConnection): Promise<Map<number, AmoCo
+   return map;
+ }
+ 
+-type AmoUser = { id: number; email: string | null };
++type AmoUser = { id: number; email: string | null; name?: string | null };
+ 
+ async function fetchAllUsers(conn: AmoConnection): Promise<AmoUser[]> {
+   const all: AmoUser[] = [];
+@@ -313,6 +313,11 @@ async function syncPipelineStages(
+ }
+ 
+ /** Matches AmoCRM users to existing profiles by email, returns amoUserId -> our profile id. */
++// Shared login password for every auto-provisioned sales rep account. Reps
++// log in with their AmoCRM email as username; nobody picks this password
++// individually, so it's a fixed, known value by design (per product spec).
++const SOTUV_MENEJERI_DEFAULT_PASSWORD = "12345678";
++
+ async function syncUserMapping(
+   organizationId: string,
+   conn: AmoConnection,
+@@ -327,8 +332,34 @@ async function syncUserMapping(
+     const profileByEmail = new Map((profiles ?? []).map((p) => [p.email.toLowerCase(), p]));
+     for (const amoUser of users) {
+       if (!amoUser.email) continue;
+-      const profile = profileByEmail.get(amoUser.email.toLowerCase());
+-      if (!profile) continue;
++      const email = amoUser.email.toLowerCase();
++      let profile = profileByEmail.get(email);
++      if (!profile) {
++        // No CRM account for this AmoCRM user yet — auto-provision a sales
++        // rep account so they can log in with their AmoCRM email and the
++        // shared rep password, instead of silently staying unmapped.
++        const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
++          email: amoUser.email,
++          password: SOTUV_MENEJERI_DEFAULT_PASSWORD,
++          email_confirm: true,
++          user_metadata: {
++            full_name: amoUser.name?.trim() || amoUser.email,
++            role: "sotuv_menejeri",
++            organization_id: organizationId,
++          },
++        });
++        if (createError || !created.user) {
++          // Most likely an email collision with an existing auth user in a
++          // different organization — report it distinctly and keep going,
++          // don't let one failed provisioning attempt abort the whole sync.
++          console.error(
++            `[amocrm sync] Could not auto-provision rep account for ${amoUser.email}: ${createError?.message ?? "unknown error"}`,
++          );
++          continue;
++        }
++        profile = { id: created.user.id, email: amoUser.email };
++        profileByEmail.set(email, profile);
++      }
+       map.set(amoUser.id, profile.id);
+       await supabaseAdmin
+         .from("profiles")
+diff --git a/src/lib/auth.tsx b/src/lib/auth.tsx
+index 71c6b69..83cefa8 100644
+--- a/src/lib/auth.tsx
++++ b/src/lib/auth.tsx
+@@ -19,6 +19,7 @@ export type SessionUser = {
+   name: string;
+   initials: string;
+   role: Profile["role"];
++  managerId: string | null;
+   organizationId: string | null;
+   department: string;
+   position: string;
+@@ -61,6 +62,7 @@ function toSessionUser(profile: Profile): SessionUser {
+     name: profile.full_name || profile.email,
+     initials: initialsOf(profile.full_name, profile.email),
+     role: profile.role,
++    managerId: profile.manager_id,
+     organizationId: profile.organization_id,
+     department: profile.department,
+     position: profile.position,
+diff --git a/src/lib/i18n.tsx b/src/lib/i18n.tsx
+index c20fe77..f5ef777 100644
+--- a/src/lib/i18n.tsx
++++ b/src/lib/i18n.tsx
+@@ -73,6 +73,9 @@ const en: Dict = {
+   "platform.adminName": "Admin full name",
+   "platform.adminEmail": "Admin email",
+   "platform.adminPassword": "Admin password",
++  "platform.ropName": "ROP full name",
++  "platform.ropEmail": "ROP email",
++  "platform.ropPassword": "ROP password",
+   "platform.create": "Create",
+   "platform.created": "Company and its admin account were created",
+   "platform.createFailed": "Couldn't create the company",
+@@ -139,7 +142,7 @@ const en: Dict = {
+   "admin.admins": "admins",
+   "admin.activeRoles": "Active roles",
+   "admin.departments": "Departments",
+-  "admin.managers": "Managers",
++  "admin.managers": "ROPs",
+   "admin.employeeMgmt": "Employee & role management",
+   "admin.employeeMgmtDesc": "Sign-ups appear here automatically",
+   "admin.loadingEmployees": "Loading employees…",
+@@ -210,9 +213,11 @@ const en: Dict = {
+   "admin.rolePlatformOwner": "Platform owner",
+   "admin.roleManager": "Manager",
+   "admin.roleRep": "Sales rep",
++  "admin.roleRop": "ROP (Department head)",
+   "admin.aboutRoleAdmin": "full access, including role management.",
+   "admin.aboutRoleManager": "can edit any record, cannot change roles.",
+   "admin.aboutRoleRep": "can edit their own records.",
++  "admin.aboutRoleRop": "sees only their own team's results, cannot change roles.",
+   "admin.confirmEditTitle": "Do you really want to change this?",
+   "admin.confirmEditDesc": "You're about to edit {name}'s role. Continue?",
+   "admin.confirmSaveTitle": "Confirm this change",
+@@ -1313,6 +1318,9 @@ const ru: Dict = {
+   "platform.adminName": "Полное имя админа",
+   "platform.adminEmail": "Email админа",
+   "platform.adminPassword": "Пароль админа",
++  "platform.ropName": "ФИО РОПа",
++  "platform.ropEmail": "Email РОПа",
++  "platform.ropPassword": "Пароль РОПа",
+   "platform.create": "Создать",
+   "platform.created": "Компания и учётная запись админа созданы",
+   "platform.createFailed": "Не удалось создать компанию",
+@@ -1379,7 +1387,7 @@ const ru: Dict = {
+   "admin.admins": "админов",
+   "admin.activeRoles": "Активные роли",
+   "admin.departments": "Отделы",
+-  "admin.managers": "Менеджеры",
++  "admin.managers": "РОПы",
+   "admin.employeeMgmt": "Сотрудники и роли",
+   "admin.employeeMgmtDesc": "Новые регистрации появляются здесь автоматически",
+   "admin.loadingEmployees": "Загрузка сотрудников…",
+@@ -1450,9 +1458,11 @@ const ru: Dict = {
+   "admin.rolePlatformOwner": "Владелец платформы",
+   "admin.roleManager": "Менеджер",
+   "admin.roleRep": "Менеджер по продажам",
++  "admin.roleRop": "РОП (руководитель отдела)",
+   "admin.aboutRoleAdmin": "полный доступ, включая управление ролями.",
+   "admin.aboutRoleManager": "может редактировать любые записи, не может менять роли.",
+   "admin.aboutRoleRep": "может редактировать только свои записи.",
++  "admin.aboutRoleRop": "видит только результаты своей команды, не может менять роли.",
+   "admin.confirmEditTitle": "Вы действительно хотите это изменить?",
+   "admin.confirmEditDesc": "Вы собираетесь изменить роль {name}. Продолжить?",
+   "admin.confirmSaveTitle": "Подтвердите изменение",
+@@ -2554,6 +2564,9 @@ const uz: Dict = {
+   "platform.adminName": "Admin to'liq ismi",
+   "platform.adminEmail": "Admin email",
+   "platform.adminPassword": "Admin parol",
++  "platform.ropName": "ROP F.I.Sh.",
++  "platform.ropEmail": "ROP email",
++  "platform.ropPassword": "ROP paroli",
+   "platform.create": "Yaratish",
+   "platform.created": "Kompaniya va uning admin hisobi yaratildi",
+   "platform.createFailed": "Kompaniya yaratib bo'lmadi",
+@@ -2620,7 +2633,7 @@ const uz: Dict = {
+   "admin.admins": "admin",
+   "admin.activeRoles": "Faol rollar",
+   "admin.departments": "Bo‘limlar",
+-  "admin.managers": "Menejerlar",
++  "admin.managers": "ROPlar",
+   "admin.employeeMgmt": "Xodimlar va rollarni boshqarish",
+   "admin.employeeMgmtDesc": "Yangi ro‘yxatdan o‘tganlar bu yerda avtomatik chiqadi",
+   "admin.loadingEmployees": "Xodimlar yuklanmoqda…",
+@@ -2692,9 +2705,11 @@ const uz: Dict = {
+   "admin.rolePlatformOwner": "Platforma egasi",
+   "admin.roleManager": "Menejer",
+   "admin.roleRep": "Sotuv menejeri",
++  "admin.roleRop": "ROP | Bo'lim rahbari",
+   "admin.aboutRoleAdmin": "to‘liq huquq, rollarni boshqarishni ham qo‘shib.",
+   "admin.aboutRoleManager": "istalgan yozuvni tahrirlay oladi, rollarni o‘zgartira olmaydi.",
+   "admin.aboutRoleRep": "faqat o‘z yozuvlarini tahrirlay oladi.",
++  "admin.aboutRoleRop": "faqat o‘z jamoasi natijalarini ko‘radi, rollarni o‘zgartira olmaydi.",
+   "admin.confirmEditTitle": "Rostdan ham buni o‘zgartirmoqchimisiz?",
+   "admin.confirmEditDesc": "{name} xodimning rolini tahrirlamoqchisiz. Davom etamizmi?",
+   "admin.confirmSaveTitle": "O‘zgarishni tasdiqlang",
+diff --git a/src/lib/telegram-report.server.ts b/src/lib/telegram-report.server.ts
+index 66a1365..a478942 100644
+--- a/src/lib/telegram-report.server.ts
++++ b/src/lib/telegram-report.server.ts
+@@ -119,7 +119,7 @@ export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number;
+       .select("id, telegram_chat_id, role")
+       .eq("organization_id", org.id)
+       .not("telegram_chat_id", "is", null)
+-      .in("role", ["super_admin", "manager"]);
++      .in("role", ["super_admin", "rop"]);
+ 
+     for (const r of recipients ?? []) {
+       if (!r.telegram_chat_id) continue;
+diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
+index 69b19e1..1da3bd7 100644
+--- a/src/routeTree.gen.ts
++++ b/src/routeTree.gen.ts
+@@ -23,7 +23,6 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
+ import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
+ import { Route as LoginRouteImport } from './routes/login'
+ import { Route as McpRouteImport } from './routes/mcp'
+-import { Route as PlatformRouteImport } from './routes/platform'
+ import { Route as SettingsRouteImport } from './routes/settings'
+ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+ import { Route as TasksRouteImport } from './routes/tasks'
+@@ -41,6 +40,7 @@ import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
+ import { Route as CrmDealsRouteImport } from './routes/crm.deals'
+ import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+ import { Route as ErrorsLogRouteImport } from './routes/errors.log'
++import { Route as PlatformIndexRouteImport } from './routes/platform.index'
+ import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
+ import { Route as PlatformAiRouteImport } from './routes/platform.ai'
+ import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
+@@ -132,11 +132,6 @@ const McpRoute = McpRouteImport.update({
+   path: '/mcp',
+   getParentRoute: () => rootRouteImport,
+ } as any)
+-const PlatformRoute = PlatformRouteImport.update({
+-  id: '/platform',
+-  path: '/platform',
+-  getParentRoute: () => rootRouteImport,
+-} as any)
+ const SettingsRoute = SettingsRouteImport.update({
+   id: '/settings',
+   path: '/settings',
+@@ -224,47 +219,52 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
+   path: '/errors/log',
+   getParentRoute: () => rootRouteImport,
+ } as any)
++const PlatformIndexRoute = PlatformIndexRouteImport.update({
++  id: '/platform/',
++  path: '/platform/',
++  getParentRoute: () => rootRouteImport,
++} as any)
+ const PlatformActivityRoute = PlatformActivityRouteImport.update({
+-  id: '/activity',
+-  path: '/activity',
+-  getParentRoute: () => PlatformRoute,
++  id: '/platform/activity',
++  path: '/platform/activity',
++  getParentRoute: () => rootRouteImport,
+ } as any)
+ const PlatformAiRoute = PlatformAiRouteImport.update({
+-  id: '/ai',
+-  path: '/ai',
+-  getParentRoute: () => PlatformRoute,
++  id: '/platform/ai',
++  path: '/platform/ai',
++  getParentRoute: () => rootRouteImport,
+ } as any)
+ const PlatformCreateOrganizationRoute =
+   PlatformCreateOrganizationRouteImport.update({
+-    id: '/create-organization',
+-    path: '/create-organization',
+-    getParentRoute: () => PlatformRoute,
++    id: '/platform/create-organization',
++    path: '/platform/create-organization',
++    getParentRoute: () => rootRouteImport,
+   } as any)
+ const PlatformDeactivateExpiredTrialsRoute =
+   PlatformDeactivateExpiredTrialsRouteImport.update({
+-    id: '/deactivate-expired-trials',
+-    path: '/deactivate-expired-trials',
+-    getParentRoute: () => PlatformRoute,
++    id: '/platform/deactivate-expired-trials',
++    path: '/platform/deactivate-expired-trials',
++    getParentRoute: () => rootRouteImport,
+   } as any)
+ const PlatformErrorsRoute = PlatformErrorsRouteImport.update({
+-  id: '/errors',
+-  path: '/errors',
+-  getParentRoute: () => PlatformRoute,
++  id: '/platform/errors',
++  path: '/platform/errors',
++  getParentRoute: () => rootRouteImport,
+ } as any)
+ const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
+-  id: '/integrations',
+-  path: '/integrations',
+-  getParentRoute: () => PlatformRoute,
++  id: '/platform/integrations',
++  path: '/platform/integrations',
++  getParentRoute: () => rootRouteImport,
+ } as any)
+ const PlatformNotificationsRoute = PlatformNotificationsRouteImport.update({
+-  id: '/notifications',
+-  path: '/notifications',
+-  getParentRoute: () => PlatformRoute,
++  id: '/platform/notifications',
++  path: '/platform/notifications',
++  getParentRoute: () => rootRouteImport,
+ } as any)
+ const PlatformUsersRoute = PlatformUsersRouteImport.update({
+-  id: '/users',
+-  path: '/users',
+-  getParentRoute: () => PlatformRoute,
++  id: '/platform/users',
++  path: '/platform/users',
++  getParentRoute: () => rootRouteImport,
+ } as any)
+ const TelegramLinkRoute = TelegramLinkRouteImport.update({
+   id: '/telegram/link',
+@@ -327,9 +327,9 @@ const IntegrationsAmocrmWebhookRoute =
+   } as any)
+ const PlatformOrganizationsOrgIdRoute =
+   PlatformOrganizationsOrgIdRouteImport.update({
+-    id: '/organizations/$orgId',
+-    path: '/organizations/$orgId',
+-    getParentRoute: () => PlatformRoute,
++    id: '/platform/organizations/$orgId',
++    path: '/platform/organizations/$orgId',
++    getParentRoute: () => rootRouteImport,
+   } as any)
+ 
+ export interface FileRoutesByFullPath {
+@@ -347,7 +347,6 @@ export interface FileRoutesByFullPath {
+   '/lead-tasks': typeof LeadTasksRoute
+   '/login': typeof LoginRoute
+   '/mcp': typeof McpRoute
+-  '/platform': typeof PlatformRouteWithChildren
+   '/settings': typeof SettingsRoute
+   '/sitemap.xml': typeof SitemapDotxmlRoute
+   '/tasks': typeof TasksRoute
+@@ -377,6 +376,7 @@ export interface FileRoutesByFullPath {
+   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+   '/telegram/send-test': typeof TelegramSendTestRoute
+   '/telegram/webhook': typeof TelegramWebhookRoute
++  '/platform/': typeof PlatformIndexRoute
+   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
+@@ -401,7 +401,6 @@ export interface FileRoutesByTo {
+   '/lead-tasks': typeof LeadTasksRoute
+   '/login': typeof LoginRoute
+   '/mcp': typeof McpRoute
+-  '/platform': typeof PlatformRouteWithChildren
+   '/settings': typeof SettingsRoute
+   '/sitemap.xml': typeof SitemapDotxmlRoute
+   '/tasks': typeof TasksRoute
+@@ -431,6 +430,7 @@ export interface FileRoutesByTo {
+   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+   '/telegram/send-test': typeof TelegramSendTestRoute
+   '/telegram/webhook': typeof TelegramWebhookRoute
++  '/platform': typeof PlatformIndexRoute
+   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
+@@ -456,7 +456,6 @@ export interface FileRoutesById {
+   '/lead-tasks': typeof LeadTasksRoute
+   '/login': typeof LoginRoute
+   '/mcp': typeof McpRoute
+-  '/platform': typeof PlatformRouteWithChildren
+   '/settings': typeof SettingsRoute
+   '/sitemap.xml': typeof SitemapDotxmlRoute
+   '/tasks': typeof TasksRoute
+@@ -486,6 +485,7 @@ export interface FileRoutesById {
+   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
+   '/telegram/send-test': typeof TelegramSendTestRoute
+   '/telegram/webhook': typeof TelegramWebhookRoute
++  '/platform/': typeof PlatformIndexRoute
+   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
+   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
+@@ -512,7 +512,6 @@ export interface FileRouteTypes {
+     | '/lead-tasks'
+     | '/login'
+     | '/mcp'
+-    | '/platform'
+     | '/settings'
+     | '/sitemap.xml'
+     | '/tasks'
+@@ -542,6 +541,7 @@ export interface FileRouteTypes {
+     | '/telegram/send-daily-report'
+     | '/telegram/send-test'
+     | '/telegram/webhook'
++    | '/platform/'
+     | '/.mcp/invoke-tool/$tool'
+     | '/crm/leads/$leadId'
+     | '/integrations/amocrm/callback'
+@@ -566,7 +566,6 @@ export interface FileRouteTypes {
+     | '/lead-tasks'
+     | '/login'
+     | '/mcp'
+-    | '/platform'
+     | '/settings'
+     | '/sitemap.xml'
+     | '/tasks'
+@@ -596,6 +595,7 @@ export interface FileRouteTypes {
+     | '/telegram/send-daily-report'
+     | '/telegram/send-test'
+     | '/telegram/webhook'
++    | '/platform'
+     | '/.mcp/invoke-tool/$tool'
+     | '/crm/leads/$leadId'
+     | '/integrations/amocrm/callback'
+@@ -620,7 +620,6 @@ export interface FileRouteTypes {
+     | '/lead-tasks'
+     | '/login'
+     | '/mcp'
+-    | '/platform'
+     | '/settings'
+     | '/sitemap.xml'
+     | '/tasks'
+@@ -650,6 +649,7 @@ export interface FileRouteTypes {
+     | '/telegram/send-daily-report'
+     | '/telegram/send-test'
+     | '/telegram/webhook'
++    | '/platform/'
+     | '/.mcp/invoke-tool/$tool'
+     | '/crm/leads/$leadId'
+     | '/integrations/amocrm/callback'
+@@ -675,7 +675,6 @@ export interface RootRouteChildren {
+   LeadTasksRoute: typeof LeadTasksRoute
+   LoginRoute: typeof LoginRoute
+   McpRoute: typeof McpRoute
+-  PlatformRoute: typeof PlatformRouteWithChildren
+   SettingsRoute: typeof SettingsRoute
+   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+   TasksRoute: typeof TasksRoute
+@@ -686,12 +685,22 @@ export interface RootRouteChildren {
+   CrmDealsRoute: typeof CrmDealsRoute
+   CrmPipelineRoute: typeof CrmPipelineRoute
+   ErrorsLogRoute: typeof ErrorsLogRoute
++  PlatformActivityRoute: typeof PlatformActivityRoute
++  PlatformAiRoute: typeof PlatformAiRoute
++  PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
++  PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
++  PlatformErrorsRoute: typeof PlatformErrorsRoute
++  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
++  PlatformNotificationsRoute: typeof PlatformNotificationsRoute
++  PlatformUsersRoute: typeof PlatformUsersRoute
+   TelegramLinkRoute: typeof TelegramLinkRoute
+   TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
+   TelegramSendTestRoute: typeof TelegramSendTestRoute
+   TelegramWebhookRoute: typeof TelegramWebhookRoute
++  PlatformIndexRoute: typeof PlatformIndexRoute
+   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+   CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
++  PlatformOrganizationsOrgIdRoute: typeof PlatformOrganizationsOrgIdRoute
+   CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
+ }
+ 
+@@ -795,13 +804,6 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof McpRouteImport
+       parentRoute: typeof rootRouteImport
+     }
+-    '/platform': {
+-      id: '/platform'
+-      path: '/platform'
+-      fullPath: '/platform'
+-      preLoaderRoute: typeof PlatformRouteImport
+-      parentRoute: typeof rootRouteImport
+-    }
+     '/settings': {
+       id: '/settings'
+       path: '/settings'
+@@ -921,61 +923,68 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof ErrorsLogRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/platform/': {
++      id: '/platform/'
++      path: '/platform'
++      fullPath: '/platform/'
++      preLoaderRoute: typeof PlatformIndexRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+     '/platform/activity': {
+       id: '/platform/activity'
+-      path: '/activity'
++      path: '/platform/activity'
+       fullPath: '/platform/activity'
+       preLoaderRoute: typeof PlatformActivityRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/ai': {
+       id: '/platform/ai'
+-      path: '/ai'
++      path: '/platform/ai'
+       fullPath: '/platform/ai'
+       preLoaderRoute: typeof PlatformAiRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/create-organization': {
+       id: '/platform/create-organization'
+-      path: '/create-organization'
++      path: '/platform/create-organization'
+       fullPath: '/platform/create-organization'
+       preLoaderRoute: typeof PlatformCreateOrganizationRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/deactivate-expired-trials': {
+       id: '/platform/deactivate-expired-trials'
+-      path: '/deactivate-expired-trials'
++      path: '/platform/deactivate-expired-trials'
+       fullPath: '/platform/deactivate-expired-trials'
+       preLoaderRoute: typeof PlatformDeactivateExpiredTrialsRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/errors': {
+       id: '/platform/errors'
+-      path: '/errors'
++      path: '/platform/errors'
+       fullPath: '/platform/errors'
+       preLoaderRoute: typeof PlatformErrorsRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/integrations': {
+       id: '/platform/integrations'
+-      path: '/integrations'
++      path: '/platform/integrations'
+       fullPath: '/platform/integrations'
+       preLoaderRoute: typeof PlatformIntegrationsRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/notifications': {
+       id: '/platform/notifications'
+-      path: '/notifications'
++      path: '/platform/notifications'
+       fullPath: '/platform/notifications'
+       preLoaderRoute: typeof PlatformNotificationsRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/platform/users': {
+       id: '/platform/users'
+-      path: '/users'
++      path: '/platform/users'
+       fullPath: '/platform/users'
+       preLoaderRoute: typeof PlatformUsersRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+     '/telegram/link': {
+       id: '/telegram/link'
+@@ -1056,10 +1065,10 @@ declare module '@tanstack/react-router' {
+     }
+     '/platform/organizations/$orgId': {
+       id: '/platform/organizations/$orgId'
+-      path: '/organizations/$orgId'
++      path: '/platform/organizations/$orgId'
+       fullPath: '/platform/organizations/$orgId'
+       preLoaderRoute: typeof PlatformOrganizationsOrgIdRouteImport
+-      parentRoute: typeof PlatformRoute
++      parentRoute: typeof rootRouteImport
+     }
+   }
+ }
+@@ -1124,34 +1133,6 @@ const IntegrationsRouteWithChildren = IntegrationsRoute._addFileChildren(
+   IntegrationsRouteChildren,
+ )
+ 
+-interface PlatformRouteChildren {
+-  PlatformActivityRoute: typeof PlatformActivityRoute
+-  PlatformAiRoute: typeof PlatformAiRoute
+-  PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
+-  PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
+-  PlatformErrorsRoute: typeof PlatformErrorsRoute
+-  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
+-  PlatformNotificationsRoute: typeof PlatformNotificationsRoute
+-  PlatformUsersRoute: typeof PlatformUsersRoute
+-  PlatformOrganizationsOrgIdRoute: typeof PlatformOrganizationsOrgIdRoute
+-}
+-
+-const PlatformRouteChildren: PlatformRouteChildren = {
+-  PlatformActivityRoute: PlatformActivityRoute,
+-  PlatformAiRoute: PlatformAiRoute,
+-  PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
+-  PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
+-  PlatformErrorsRoute: PlatformErrorsRoute,
+-  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
+-  PlatformNotificationsRoute: PlatformNotificationsRoute,
+-  PlatformUsersRoute: PlatformUsersRoute,
+-  PlatformOrganizationsOrgIdRoute: PlatformOrganizationsOrgIdRoute,
+-}
+-
+-const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
+-  PlatformRouteChildren,
+-)
+-
+ const rootRouteChildren: RootRouteChildren = {
+   IndexRoute: IndexRoute,
+   AdminRoute: AdminRouteWithChildren,
+@@ -1167,7 +1148,6 @@ const rootRouteChildren: RootRouteChildren = {
+   LeadTasksRoute: LeadTasksRoute,
+   LoginRoute: LoginRoute,
+   McpRoute: McpRoute,
+-  PlatformRoute: PlatformRouteWithChildren,
+   SettingsRoute: SettingsRoute,
+   SitemapDotxmlRoute: SitemapDotxmlRoute,
+   TasksRoute: TasksRoute,
+@@ -1179,12 +1159,22 @@ const rootRouteChildren: RootRouteChildren = {
+   CrmDealsRoute: CrmDealsRoute,
+   CrmPipelineRoute: CrmPipelineRoute,
+   ErrorsLogRoute: ErrorsLogRoute,
++  PlatformActivityRoute: PlatformActivityRoute,
++  PlatformAiRoute: PlatformAiRoute,
++  PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
++  PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
++  PlatformErrorsRoute: PlatformErrorsRoute,
++  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
++  PlatformNotificationsRoute: PlatformNotificationsRoute,
++  PlatformUsersRoute: PlatformUsersRoute,
+   TelegramLinkRoute: TelegramLinkRoute,
+   TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,
+   TelegramSendTestRoute: TelegramSendTestRoute,
+   TelegramWebhookRoute: TelegramWebhookRoute,
++  PlatformIndexRoute: PlatformIndexRoute,
+   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+   CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
++  PlatformOrganizationsOrgIdRoute: PlatformOrganizationsOrgIdRoute,
+   CrmLeadsIndexRoute: CrmLeadsIndexRoute,
+ }
+ export const routeTree = rootRouteImport
+diff --git a/src/routes/admin.tsx b/src/routes/admin.tsx
+index c5fce2c..fa2803f 100644
+--- a/src/routes/admin.tsx
++++ b/src/routes/admin.tsx
+@@ -67,7 +67,7 @@ export const Route = createFileRoute("/admin")({
+   component: AdminPanel,
+ });
+ 
+-const ROLES: ProfileRow["role"][] = ["rep", "manager", "super_admin"];
++const ROLES: ProfileRow["role"][] = ["sotuv_menejeri", "rop", "super_admin"];
+ 
+ function CreateEmployeeDialog() {
+   const { t } = useI18n();
+@@ -78,13 +78,15 @@ function CreateEmployeeDialog() {
+   const [fullName, setFullName] = useState("");
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
+-  const [role, setRole] = useState<ProfileRow["role"]>("rep");
++  const [role, setRole] = useState<ProfileRow["role"]>("sotuv_menejeri");
+   const [department, setDepartment] = useState("Sales");
+   const [busy, setBusy] = useState(false);
+ 
+   const roleLabel: Record<ProfileRow["role"], string> = {
+     rep: t("admin.roleRep"),
+     manager: t("admin.roleManager"),
++    sotuv_menejeri: t("admin.roleRep"),
++    rop: t("admin.roleRop"),
+     super_admin: t("admin.roleAdmin"),
+     platform_owner: t("admin.rolePlatformOwner"),
+   };
+@@ -93,7 +95,7 @@ function CreateEmployeeDialog() {
+     setFullName("");
+     setEmail("");
+     setPassword("");
+-    setRole("rep");
++    setRole("sotuv_menejeri");
+     setDepartment("Sales");
+   }
+ 
+@@ -367,6 +369,8 @@ function AdminPanelContent() {
+   const roleLabel: Record<ProfileRow["role"], string> = {
+     rep: t("admin.roleRep"),
+     manager: t("admin.roleManager"),
++    sotuv_menejeri: t("admin.roleRep"),
++    rop: t("admin.roleRop"),
+     super_admin: t("admin.roleAdmin"),
+     platform_owner: t("admin.rolePlatformOwner"),
+   };
+@@ -435,7 +439,7 @@ function AdminPanelContent() {
+         />
+         <StatCard
+           label={t("admin.managers")}
+-          value={String(employees.filter((p) => p.role === "manager").length)}
++          value={String(employees.filter((p) => p.role === "rop").length)}
+         />
+       </div>
+ 
+@@ -588,8 +592,8 @@ function AdminPanelContent() {
+                 {t("admin.aboutRoleAdmin")}
+               </li>
+               <li>
+-                <span className="font-medium text-foreground">{t("admin.roleManager")}</span> —{" "}
+-                {t("admin.aboutRoleManager")}
++                <span className="font-medium text-foreground">{t("admin.roleRop")}</span> —{" "}
++                {t("admin.aboutRoleRop")}
+               </li>
+               <li>
+                 <span className="font-medium text-foreground">{t("admin.roleRep")}</span> —{" "}
+diff --git a/src/routes/ai-assistant.chat.ts b/src/routes/ai-assistant.chat.ts
+index 4a2096d..0737e71 100644
+--- a/src/routes/ai-assistant.chat.ts
++++ b/src/routes/ai-assistant.chat.ts
+@@ -11,9 +11,14 @@ function requireEnv(name: string): string {
+   return value;
+ }
+ 
+-type LeadSnap = { stage_id: string | null; temperature: string; expected_revenue: number };
+-type DealSnap = { stage_id: string | null; status: string; value: number };
+-type TaskSnap = { status: string; due_date: string | null };
++type LeadSnap = {
++  stage_id: string | null;
++  temperature: string;
++  expected_revenue: number;
++  owner_id: string | null;
++};
++type DealSnap = { stage_id: string | null; status: string; value: number; owner_id: string | null };
++type TaskSnap = { status: string; due_date: string | null; assignee_id: string | null };
+ type StageRow = { id: string; name: string; is_won: boolean; is_lost: boolean };
+ 
+ // Reconstructs the latest-known state of every row of `entityType` at or
+@@ -41,7 +46,33 @@ async function reconstructAsOf<T>(orgId: string, entityType: string, asOf: strin
+   return out;
+ }
+ 
+-async function loadDataSnapshot(orgId: string, asOf: string | null): Promise<string> {
++// null = unrestricted (super_admin/platform_owner sees the whole company).
++// A rop only ever gets their own subordinates' data, a sotuv_menejeri only
++// their own — same scoping the rest of the app applies at the client-hook
++// layer, mirrored here since this snapshot is built with the service-role
++// client and bypasses RLS entirely.
++async function visibleOwnerIds(
++  orgId: string,
++  callerId: string,
++  role: string,
++): Promise<string[] | null> {
++  if (role === "super_admin" || role === "platform_owner") return null;
++  if (role === "rop") {
++    const { data: reports } = await supabaseAdmin
++      .from("profiles")
++      .select("id")
++      .eq("organization_id", orgId)
++      .eq("manager_id", callerId);
++    return [callerId, ...(reports ?? []).map((r) => r.id)];
++  }
++  return [callerId];
++}
++
++async function loadDataSnapshot(
++  orgId: string,
++  asOf: string | null,
++  ownerIds: string[] | null,
++): Promise<string> {
+   const { data: stages } = await supabaseAdmin
+     .from("pipeline_stages")
+     .select("id, name, is_won, is_lost")
+@@ -62,16 +93,29 @@ async function loadDataSnapshot(orgId: string, asOf: string | null): Promise<str
+     const [leadsRes, dealsRes, tasksRes] = await Promise.all([
+       supabaseAdmin
+         .from("leads")
+-        .select("stage_id, temperature, expected_revenue")
++        .select("stage_id, temperature, expected_revenue, owner_id")
++        .eq("organization_id", orgId),
++      supabaseAdmin
++        .from("deals")
++        .select("stage_id, status, value, owner_id")
++        .eq("organization_id", orgId),
++      supabaseAdmin
++        .from("tasks")
++        .select("status, due_date, assignee_id")
+         .eq("organization_id", orgId),
+-      supabaseAdmin.from("deals").select("stage_id, status, value").eq("organization_id", orgId),
+-      supabaseAdmin.from("tasks").select("status, due_date").eq("organization_id", orgId),
+     ]);
+     leads = leadsRes.data ?? [];
+     deals = dealsRes.data ?? [];
+     tasks = tasksRes.data ?? [];
+   }
+ 
++  if (ownerIds) {
++    const owners = new Set(ownerIds);
++    leads = leads.filter((l) => l.owner_id && owners.has(l.owner_id));
++    deals = deals.filter((d) => d.owner_id && owners.has(d.owner_id));
++    tasks = tasks.filter((t) => t.assignee_id && owners.has(t.assignee_id));
++  }
++
+   const leadCountByStage = new Map<string, number>();
+   let leadRevenue = 0;
+   for (const l of leads) {
+@@ -154,7 +198,7 @@ export const Route = createFileRoute("/ai-assistant/chat")({
+ 
+         const { data: caller } = await supabaseAdmin
+           .from("profiles")
+-          .select("organization_id")
++          .select("organization_id, role")
+           .eq("id", userId)
+           .maybeSingle();
+ 
+@@ -207,7 +251,8 @@ export const Route = createFileRoute("/ai-assistant/chat")({
+ 
+         if (caller?.organization_id) {
+           try {
+-            const snapshot = await loadDataSnapshot(caller.organization_id, asOf);
++            const ownerIds = await visibleOwnerIds(caller.organization_id, userId, caller.role);
++            const snapshot = await loadDataSnapshot(caller.organization_id, asOf, ownerIds);
+             systemPrompt += `\n\n${snapshot}`;
+           } catch {
+             // Snapshot is best-effort context; a failure here shouldn't block the chat.
+diff --git a/src/routes/attendance.tsx b/src/routes/attendance.tsx
+index faa03b8..41efd3d 100644
+--- a/src/routes/attendance.tsx
++++ b/src/routes/attendance.tsx
+@@ -214,7 +214,7 @@ function LogCallCard() {
+ function AttendanceSection() {
+   const { t } = useI18n();
+   const { user } = useAuth();
+-  const canManage = user?.role === "super_admin" || user?.role === "manager";
++  const canManage = user?.role === "super_admin" || user?.role === "rop";
+   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+   const asOfSessions = useAsOfSnapshot<WorkSessionRow>("work_sessions", asOfDate);
+   const asOfCalls = useAsOfSnapshot<CallLogRow>("call_logs", asOfDate);
+@@ -225,7 +225,12 @@ function AttendanceSection() {
+   const isLoading =
+     rowsLoading || (asOfDate ? asOfSessions.isLoading || asOfCalls.isLoading : false);
+ 
+-  const visible = canManage ? rows : rows.filter((r) => r.profileId === user?.id);
++  const visible =
++    user?.role === "super_admin" || user?.role === "platform_owner"
++      ? rows
++      : user?.role === "rop"
++        ? rows.filter((r) => r.managerId === user.id)
++        : rows.filter((r) => r.profileId === user?.id);
+   const totalCalls = visible.reduce((s, r) => s + r.callsMade, 0);
+   const totalConnected = visible.reduce((s, r) => s + r.callsConnected, 0);
+   const totalCallMinutes = visible.reduce((s, r) => s + r.totalCallMinutes, 0);
+@@ -440,7 +445,7 @@ function NormativesSection() {
+   const { t } = useI18n();
+   const { format } = useCurrency();
+   const { user } = useAuth();
+-  const canManage = user?.role === "super_admin" || user?.role === "manager";
++  const canManage = user?.role === "super_admin" || user?.role === "rop";
+   const { rows, isLoading } = useNormativesView();
+ 
+   const onTrack = rows.filter((r) => r.status === "onTrack").length;
+diff --git a/src/routes/platform.create-organization.ts b/src/routes/platform.create-organization.ts
+index 22ce6bc..69c94e3 100644
+--- a/src/routes/platform.create-organization.ts
++++ b/src/routes/platform.create-organization.ts
+@@ -7,6 +7,9 @@ type Body = {
+   admin_email?: string;
+   admin_password?: string;
+   admin_full_name?: string;
++  rop_email?: string;
++  rop_password?: string;
++  rop_full_name?: string;
+   phone?: string;
+   plan?: string;
+   trial_days?: number;
+@@ -24,6 +27,9 @@ export const Route = createFileRoute("/platform/create-organization")({
+         const email = body.admin_email?.trim();
+         const password = body.admin_password;
+         const fullName = body.admin_full_name?.trim() ?? "";
++        const ropEmail = body.rop_email?.trim();
++        const ropPassword = body.rop_password;
++        const ropFullName = body.rop_full_name?.trim() ?? "";
+ 
+         if (!name || !email || !password || password.length < 8) {
+           return Response.json(
+@@ -33,6 +39,12 @@ export const Route = createFileRoute("/platform/create-organization")({
+             { status: 400 },
+           );
+         }
++        if (!ropEmail || !ropPassword || ropPassword.length < 8) {
++          return Response.json(
++            { error: "A ROP (department head) email and an 8+ character password are required." },
++            { status: 400 },
++          );
++        }
+ 
+         const phone = body.phone?.trim() || null;
+         const plan = body.plan?.trim() || "Basic";
+@@ -72,8 +84,27 @@ export const Route = createFileRoute("/platform/create-organization")({
+           );
+         }
+ 
++        const { data: ropData, error: ropError } = await supabaseAdmin.auth.admin.createUser({
++          email: ropEmail,
++          password: ropPassword,
++          email_confirm: true,
++          user_metadata: {
++            full_name: ropFullName,
++            role: "rop",
++            organization_id: org.id,
++          },
++        });
++        if (ropError || !ropData.user) {
++          await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
++          await supabaseAdmin.from("organizations").delete().eq("id", org.id);
++          return Response.json(
++            { error: ropError?.message ?? "Could not create the ROP account." },
++            { status: 400 },
++          );
++        }
++
+         return Response.json(
+-          { organizationId: org.id, adminId: userData.user.id },
++          { organizationId: org.id, adminId: userData.user.id, ropId: ropData.user.id },
+           { status: 200 },
+         );
+       },
+diff --git a/src/routes/platform.index.tsx b/src/routes/platform.index.tsx
+index 7177e9d..16c453f 100644
+--- a/src/routes/platform.index.tsx
++++ b/src/routes/platform.index.tsx
+@@ -44,6 +44,9 @@ function CreateOrgDialog() {
+   const [adminName, setAdminName] = useState("");
+   const [adminEmail, setAdminEmail] = useState("");
+   const [adminPassword, setAdminPassword] = useState("");
++  const [ropName, setRopName] = useState("");
++  const [ropEmail, setRopEmail] = useState("");
++  const [ropPassword, setRopPassword] = useState("");
+   const [phone, setPhone] = useState("");
+   const [plan, setPlan] = useState<(typeof PLANS)[number]>("Basic");
+   const [trialDays, setTrialDays] = useState("");
+@@ -54,6 +57,9 @@ function CreateOrgDialog() {
+     setAdminName("");
+     setAdminEmail("");
+     setAdminPassword("");
++    setRopName("");
++    setRopEmail("");
++    setRopPassword("");
+     setPhone("");
+     setPlan("Basic");
+     setTrialDays("");
+@@ -62,6 +68,7 @@ function CreateOrgDialog() {
+   function onSubmit(e: FormEvent) {
+     e.preventDefault();
+     if (!name.trim() || !adminEmail.trim() || adminPassword.length < 8) return;
++    if (!ropEmail.trim() || ropPassword.length < 8) return;
+     setConfirming(true);
+   }
+ 
+@@ -73,6 +80,9 @@ function CreateOrgDialog() {
+         admin_email: adminEmail.trim(),
+         admin_password: adminPassword,
+         admin_full_name: adminName.trim(),
++        rop_email: ropEmail.trim(),
++        rop_password: ropPassword,
++        rop_full_name: ropName.trim(),
+         phone: phone.trim() || undefined,
+         plan,
+         trial_days: trialDays ? Number(trialDays) : undefined,
+@@ -145,6 +155,36 @@ function CreateOrgDialog() {
+                 required
+               />
+             </div>
++            <div>
++              <Label htmlFor="org-rop-name">{t("platform.ropName")}</Label>
++              <Input
++                id="org-rop-name"
++                value={ropName}
++                onChange={(e) => setRopName(e.target.value)}
++                required
++              />
++            </div>
++            <div>
++              <Label htmlFor="org-rop-email">{t("platform.ropEmail")}</Label>
++              <Input
++                id="org-rop-email"
++                type="email"
++                value={ropEmail}
++                onChange={(e) => setRopEmail(e.target.value)}
++                required
++              />
++            </div>
++            <div>
++              <Label htmlFor="org-rop-password">{t("platform.ropPassword")}</Label>
++              <Input
++                id="org-rop-password"
++                type="text"
++                value={ropPassword}
++                onChange={(e) => setRopPassword(e.target.value)}
++                minLength={8}
++                required
++              />
++            </div>
+             <div>
+               <Label htmlFor="org-phone">{t("platform.orgPhone")}</Label>
+               <Input id="org-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+diff --git a/src/routes/settings.tsx b/src/routes/settings.tsx
+index 54c868a..d82bc51 100644
+--- a/src/routes/settings.tsx
++++ b/src/routes/settings.tsx
+@@ -224,6 +224,8 @@ function PersonalizationSection() {
+   const { t, lang, setLang } = useI18n();
+   const { unit, setUnit } = useCurrency();
+   const { dark, setDark } = useTheme();
++  const { user } = useAuth();
++  const showCurrency = user?.role !== "sotuv_menejeri";
+ 
+   return (
+     <SectionCard
+@@ -231,19 +233,21 @@ function PersonalizationSection() {
+       description={t("settings.personalizationDesc")}
+     >
+       <div className="grid gap-4 sm:grid-cols-2">
+-        <div className="rounded-xl border border-border bg-surface p-4">
+-          <div className="flex items-center gap-2.5">
+-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+-              <Wallet className="h-4 w-4" />
+-            </span>
+-            <span className="text-[13px] font-semibold text-foreground">
+-              {t("settings.currency")}
+-            </span>
+-          </div>
+-          <div className="mt-3">
+-            <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
++        {showCurrency && (
++          <div className="rounded-xl border border-border bg-surface p-4">
++            <div className="flex items-center gap-2.5">
++              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
++                <Wallet className="h-4 w-4" />
++              </span>
++              <span className="text-[13px] font-semibold text-foreground">
++                {t("settings.currency")}
++              </span>
++            </div>
++            <div className="mt-3">
++              <SegmentedControl value={unit} options={CURRENCIES} onChange={setUnit} />
++            </div>
+           </div>
+-        </div>
++        )}
+         <div className="rounded-xl border border-border bg-surface p-4">
+           <div className="flex items-center gap-2.5">
+             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+@@ -390,7 +394,7 @@ function NotificationsSection() {
+ function BusinessProfileSection() {
+   const { t } = useI18n();
+   const { user } = useAuth();
+-  const canManage = user?.role === "super_admin" || user?.role === "manager";
++  const canManage = user?.role === "super_admin" || user?.role === "rop";
+   const { data: profile, isLoading } = useBusinessProfile();
+   const updateProfile = useUpdateBusinessProfile();
+ 
+@@ -757,7 +761,7 @@ function StageRowEditor({
+ function StagesSection() {
+   const { t } = useI18n();
+   const { user } = useAuth();
+-  const canManage = user?.role === "super_admin" || user?.role === "manager";
++  const canManage = user?.role === "super_admin" || user?.role === "rop";
+   const { data: stages, isLoading } = usePipelineStagesRaw();
+   const { rows: leads } = useCrmLeads();
+   const createStage = useCreateStage();
+@@ -799,7 +803,7 @@ function StagesSection() {
+       while (existingKeys.has(key)) key = `${base}-${n++}`;
+       const nextPosition = sorted.length ? Math.max(...sorted.map((s) => s.position)) + 1 : 1;
+       await createStage.mutateAsync({
+-      organization_id: user!.organizationId!,
++        organization_id: user!.organizationId!,
+         key,
+         name: newName.trim(),
+         position: nextPosition,
+@@ -879,7 +883,7 @@ function StagesSection() {
+ function TagsSection() {
+   const { t } = useI18n();
+   const { user } = useAuth();
+-  const canManage = user?.role === "super_admin" || user?.role === "manager";
++  const canManage = user?.role === "super_admin" || user?.role === "rop";
+   const { tags, isLoading } = useTagsSummary();
+   const renameTag = useRenameTag();
+   const deleteTag = useDeleteTag();
+@@ -1194,12 +1198,24 @@ function ComingSoonSection({ label }: { label: string }) {
+ 
+ function SettingsPage() {
+   const { t } = useI18n();
++  const { user } = useAuth();
+   const { section: sectionParam } = Route.useSearch();
+   const { tags } = useTagsSummary();
+   const { data: stages } = usePipelineStagesRaw();
+-  const [section, setSection] = useState<SectionKey>(sectionParam ?? "profile");
++  const isSotuvMenejeri = user?.role === "sotuv_menejeri";
++  const [section, setSection] = useState<SectionKey>(
++    sectionParam &&
++      !(isSotuvMenejeri && sectionParam !== "profile" && sectionParam !== "personalization")
++      ? sectionParam
++      : "profile",
++  );
+ 
+-  const NAV: { key: SectionKey; icon: LucideIcon; label: string; badge?: number | undefined }[] = [
++  const ALL_NAV: {
++    key: SectionKey;
++    icon: LucideIcon;
++    label: string;
++    badge?: number | undefined;
++  }[] = [
+     { key: "profile", icon: Users, label: t("settings.nav.profile") },
+     { key: "personalization", icon: Palette, label: t("settings.nav.personalization") },
+     { key: "notifications", icon: Bell, label: t("settings.nav.notifications") },
+@@ -1212,10 +1228,19 @@ function SettingsPage() {
+     { key: "salesStages", icon: Workflow, label: t("settings.nav.salesStages") },
+     { key: "scoreModifiers", icon: SlidersHorizontal, label: t("settings.nav.scoreModifiers") },
+     { key: "skills", icon: Award, label: t("settings.nav.skills") },
+-    { key: "qualificationGroups", icon: ListChecks, label: t("settings.nav.qualificationGroups") },
++    {
++      key: "qualificationGroups",
++      icon: ListChecks,
++      label: t("settings.nav.qualificationGroups"),
++    },
+     { key: "leadCategories", icon: Thermometer, label: t("settings.nav.leadCategories") },
+     { key: "conversion", icon: TrendingUp, label: t("settings.nav.conversion") },
+   ];
++  // Sotuv menejeri only gets their own profile + language/appearance —
++  // everything else here is workspace-wide configuration.
++  const NAV = isSotuvMenejeri
++    ? ALL_NAV.filter((n) => n.key === "profile" || n.key === "personalization")
++    : ALL_NAV;
+ 
+   return (
+     <>
+diff --git a/src/routes/tasks.tsx b/src/routes/tasks.tsx
+index 3d69076..317a2e8 100644
+--- a/src/routes/tasks.tsx
++++ b/src/routes/tasks.tsx
+@@ -161,7 +161,6 @@ function TaskDetailDialog({ task, onClose }: { task: TaskView; onClose: () => vo
+ 
+ function Tasks() {
+   const { t } = useI18n();
+-  const { user } = useAuth();
+   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+   const asOfSnapshot = useAsOfSnapshot<TaskRow>("tasks", asOfDate);
+   const { rows: allTasks, isLoading: tasksLoading } = useTasksView(
+@@ -169,10 +168,9 @@ function Tasks() {
+   );
+   const isLoading = tasksLoading || (asOfDate ? asOfSnapshot.isLoading : false);
+   const updateTask = useUpdateTask();
+-  // Reps only see tasks assigned to them; managers and super admins see the
+-  // full team board so they can oversee and reassign.
+-  const tasks =
+-    user?.role === "rep" ? allTasks.filter((task) => task.assigneeId === user.id) : allTasks;
++  // useTasksView() already scopes rows to what this role may see (self for
++  // sotuv_menejeri, own team for rop, everyone for super_admin).
++  const tasks = allTasks;
+   const [dragOverCol, setDragOverCol] = useState<TaskRow["status"] | null>(null);
+   const [selected, setSelected] = useState<TaskView | null>(null);
+ 
+diff --git a/supabase/migrations/20260812150000_role_redesign_1_add_enum_values.sql b/supabase/migrations/20260812150000_role_redesign_1_add_enum_values.sql
+new file mode 100644
+index 0000000..e91464b
+--- /dev/null
++++ b/supabase/migrations/20260812150000_role_redesign_1_add_enum_values.sql
+@@ -0,0 +1,10 @@
++-- Role redesign step 1 of 2: add the two new app_role values. Postgres
++-- forbids using a brand-new enum value in the same transaction it was
++-- added in, so this has to be its own migration/run, committed before
++-- 20260812150100_role_redesign_2_migrate.sql (which uses these values)
++-- can run. 'manager' and 'rep' stay in the enum — Postgres can't drop
++-- enum values without a full type rebuild, and it's not worth the risk
++-- here; the app and every policy just stop referencing them.
++
++alter type public.app_role add value if not exists 'rop';
++alter type public.app_role add value if not exists 'sotuv_menejeri';
+diff --git a/supabase/migrations/20260812150100_role_redesign_2_migrate.sql b/supabase/migrations/20260812150100_role_redesign_2_migrate.sql
+new file mode 100644
+index 0000000..1cc2478
+--- /dev/null
++++ b/supabase/migrations/20260812150100_role_redesign_2_migrate.sql
+@@ -0,0 +1,89 @@
++-- Role redesign step 2 of 2: run this only after
++-- 20260812150000_role_redesign_1_add_enum_values.sql has been run and
++-- committed (Postgres won't let a new enum value be used in the same
++-- transaction it was added in).
++--
++-- Renames the role system from super_admin/manager/rep to
++-- super_admin/rop/sotuv_menejeri. 'manager' and 'rep' stay in the
++-- app_role enum (Postgres can't drop enum values without a full type
++-- rebuild) but nothing references them anymore after this migration.
++--
++-- Design note on RLS scope: leads/deals/amocrm_calls SELECT policies are
++-- deliberately left as-is (organization-wide, unchanged) rather than
++-- tightened to owner-only at the DB layer. The Reyting/leaderboard page
++-- needs every teammate's lead data to compute company-wide rankings, so a
++-- DB-level owner-only restriction would break it outright. "Sotuv
++-- menejeri sees only their own data" (Dashboard, Funnels detail, AmoCRM
++-- board, Audio tahlil) and "ROP sees only their team" are enforced at the
++-- client-hook layer instead, extending the exact scoping pattern already
++-- used for the old 'rep' role in useCrmBase() (src/hooks/use-crm-data.ts)
++-- to the two new roles. That is the same trust model this app already
++-- ships with for org-mates, just applied consistently going forward.
++
++-- 1. Migrate every existing row to the new roles.
++update public.profiles set role = 'rop' where role = 'manager';
++update public.profiles set role = 'sotuv_menejeri' where role = 'rep';
++
++-- 2. Redefine is_admin_or_manager() to check the new admin-ish roles.
++--    Keeping the function name avoids touching every policy that already
++--    calls it (leads_update/delete, deals_update/delete, audit_logs_select,
++--    ai_agents/auto_responders write policies, profiles_select, etc).
++create or replace function public.is_admin_or_manager()
++returns boolean
++language sql
++stable
++security definer
++set search_path = public
++as $$
++  select coalesce((select role from public.profiles where id = auth.uid()) in ('super_admin', 'rop'), false);
++$$;
++
++-- 3. handle_new_user(): accept the new roles, default fallback becomes
++--    sotuv_menejeri (was rep) so a role-less account still isn't admin.
++create or replace function public.handle_new_user()
++returns trigger
++language plpgsql security definer set search_path = public as $$
++declare
++  meta_role text := new.raw_user_meta_data ->> 'role';
++  meta_org text := new.raw_user_meta_data ->> 'organization_id';
++begin
++  insert into public.profiles (id, email, full_name, role, organization_id)
++  values (
++    new.id,
++    new.email,
++    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
++    case
++      when meta_role in ('super_admin', 'rop', 'sotuv_menejeri') then meta_role::public.app_role
++      else 'sotuv_menejeri'::public.app_role
++    end,
++    nullif(meta_org, '')::uuid
++  )
++  on conflict (id) do nothing;
++  return new;
++end; $$;
++
++-- 4. profiles_select: today a non-admin/manager can only read their own
++--    row, which silently breaks Reyting (it needs every teammate's name/
++--    avatar/kpi/target to build the ranking). leads/deals are already
++--    org-wide readable by everyone, so making profiles org-wide readable
++--    too just closes an inconsistency, not a new trust boundary.
++drop policy if exists "profiles_select" on public.profiles;
++create policy "profiles_select" on public.profiles for select to authenticated
++  using (
++    id = auth.uid()
++    or organization_id = public.current_user_org_id()
++    or public.is_platform_owner()
++  );
++
++-- 5. Fix two pre-existing RLS bugs on the exact surface this migration is
++--    already touching: migration 20260811174705 re-added overly-broad
++--    "FOR ALL ... USING (organization_id = ...)" policies on ai_agents and
++--    auto_responders (no role check at all, stacking as an OR alongside
++--    the correct super_admin-only policies and granting every org member
++--    full read/write on those tables), and reintroduced a
++--    "USING (true)" SELECT policy on notification_preferences (undoing
++--    the same-org fix from 20260811080000). Dropping all three restores
++--    the intended restrictions.
++drop policy if exists "Company members manage AI agents" on public.ai_agents;
++drop policy if exists "Company members manage auto responders" on public.auto_responders;
++drop policy if exists "Signed-in users can read notification preferences" on public.notification_preferences;
+-- 
+2.43.0
+

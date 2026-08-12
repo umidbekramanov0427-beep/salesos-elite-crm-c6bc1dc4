@@ -161,7 +161,6 @@ function TaskDetailDialog({ task, onClose }: { task: TaskView; onClose: () => vo
 
 function Tasks() {
   const { t } = useI18n();
-  const { user } = useAuth();
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<TaskRow>("tasks", asOfDate);
   const { rows: allTasks, isLoading: tasksLoading } = useTasksView(
@@ -169,10 +168,9 @@ function Tasks() {
   );
   const isLoading = tasksLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const updateTask = useUpdateTask();
-  // Reps only see tasks assigned to them; managers and super admins see the
-  // full team board so they can oversee and reassign.
-  const tasks =
-    user?.role === "rep" ? allTasks.filter((task) => task.assigneeId === user.id) : allTasks;
+  // useTasksView() already scopes rows to what this role may see (self for
+  // sotuv_menejeri, own team for rop, everyone for super_admin).
+  const tasks = allTasks;
   const [dragOverCol, setDragOverCol] = useState<TaskRow["status"] | null>(null);
   const [selected, setSelected] = useState<TaskView | null>(null);
 

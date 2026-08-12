@@ -7,6 +7,9 @@ type Body = {
   admin_email?: string;
   admin_password?: string;
   admin_full_name?: string;
+  rop_email?: string;
+  rop_password?: string;
+  rop_full_name?: string;
   phone?: string;
   plan?: string;
   trial_days?: number;
@@ -24,12 +27,21 @@ export const Route = createFileRoute("/platform/create-organization")({
         const email = body.admin_email?.trim();
         const password = body.admin_password;
         const fullName = body.admin_full_name?.trim() ?? "";
+        const ropEmail = body.rop_email?.trim();
+        const ropPassword = body.rop_password;
+        const ropFullName = body.rop_full_name?.trim() ?? "";
 
         if (!name || !email || !password || password.length < 8) {
           return Response.json(
             {
               error: "Company name, admin email and an 8+ character password are required.",
             },
+            { status: 400 },
+          );
+        }
+        if (!ropEmail || !ropPassword || ropPassword.length < 8) {
+          return Response.json(
+            { error: "A ROP (department head) email and an 8+ character password are required." },
             { status: 400 },
           );
         }
@@ -72,8 +84,27 @@ export const Route = createFileRoute("/platform/create-organization")({
           );
         }
 
+        const { data: ropData, error: ropError } = await supabaseAdmin.auth.admin.createUser({
+          email: ropEmail,
+          password: ropPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: ropFullName,
+            role: "rop",
+            organization_id: org.id,
+          },
+        });
+        if (ropError || !ropData.user) {
+          await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
+          await supabaseAdmin.from("organizations").delete().eq("id", org.id);
+          return Response.json(
+            { error: ropError?.message ?? "Could not create the ROP account." },
+            { status: 400 },
+          );
+        }
+
         return Response.json(
-          { organizationId: org.id, adminId: userData.user.id },
+          { organizationId: org.id, adminId: userData.user.id, ropId: ropData.user.id },
           { status: 200 },
         );
       },

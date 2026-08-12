@@ -23,7 +23,6 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
-import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TasksRouteImport } from './routes/tasks'
@@ -41,6 +40,7 @@ import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
 import { Route as PlatformAiRouteImport } from './routes/platform.ai'
 import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
@@ -132,11 +132,6 @@ const McpRoute = McpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlatformRoute = PlatformRouteImport.update({
-  id: '/platform',
-  path: '/platform',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -224,47 +219,52 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
   path: '/errors/log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
+  id: '/platform/',
+  path: '/platform/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlatformActivityRoute = PlatformActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
-  getParentRoute: () => PlatformRoute,
+  id: '/platform/activity',
+  path: '/platform/activity',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformAiRoute = PlatformAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
-  getParentRoute: () => PlatformRoute,
+  id: '/platform/ai',
+  path: '/platform/ai',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformCreateOrganizationRoute =
   PlatformCreateOrganizationRouteImport.update({
-    id: '/create-organization',
-    path: '/create-organization',
-    getParentRoute: () => PlatformRoute,
+    id: '/platform/create-organization',
+    path: '/platform/create-organization',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const PlatformDeactivateExpiredTrialsRoute =
   PlatformDeactivateExpiredTrialsRouteImport.update({
-    id: '/deactivate-expired-trials',
-    path: '/deactivate-expired-trials',
-    getParentRoute: () => PlatformRoute,
+    id: '/platform/deactivate-expired-trials',
+    path: '/platform/deactivate-expired-trials',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const PlatformErrorsRoute = PlatformErrorsRouteImport.update({
-  id: '/errors',
-  path: '/errors',
-  getParentRoute: () => PlatformRoute,
+  id: '/platform/errors',
+  path: '/platform/errors',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
-  id: '/integrations',
-  path: '/integrations',
-  getParentRoute: () => PlatformRoute,
+  id: '/platform/integrations',
+  path: '/platform/integrations',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformNotificationsRoute = PlatformNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => PlatformRoute,
+  id: '/platform/notifications',
+  path: '/platform/notifications',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformUsersRoute = PlatformUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => PlatformRoute,
+  id: '/platform/users',
+  path: '/platform/users',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TelegramLinkRoute = TelegramLinkRouteImport.update({
   id: '/telegram/link',
@@ -327,9 +327,9 @@ const IntegrationsAmocrmWebhookRoute =
   } as any)
 const PlatformOrganizationsOrgIdRoute =
   PlatformOrganizationsOrgIdRouteImport.update({
-    id: '/organizations/$orgId',
-    path: '/organizations/$orgId',
-    getParentRoute: () => PlatformRoute,
+    id: '/platform/organizations/$orgId',
+    path: '/platform/organizations/$orgId',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -347,7 +347,6 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
-  '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tasks': typeof TasksRoute
@@ -377,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
   '/telegram/webhook': typeof TelegramWebhookRoute
+  '/platform/': typeof PlatformIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -401,7 +401,6 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
-  '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tasks': typeof TasksRoute
@@ -431,6 +430,7 @@ export interface FileRoutesByTo {
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
   '/telegram/webhook': typeof TelegramWebhookRoute
+  '/platform': typeof PlatformIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -456,7 +456,6 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
-  '/platform': typeof PlatformRouteWithChildren
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tasks': typeof TasksRoute
@@ -486,6 +485,7 @@ export interface FileRoutesById {
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
   '/telegram/webhook': typeof TelegramWebhookRoute
+  '/platform/': typeof PlatformIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
@@ -512,7 +512,6 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
-    | '/platform'
     | '/settings'
     | '/sitemap.xml'
     | '/tasks'
@@ -542,6 +541,7 @@ export interface FileRouteTypes {
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
     | '/telegram/webhook'
+    | '/platform/'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -566,7 +566,6 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
-    | '/platform'
     | '/settings'
     | '/sitemap.xml'
     | '/tasks'
@@ -596,6 +595,7 @@ export interface FileRouteTypes {
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
     | '/telegram/webhook'
+    | '/platform'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -620,7 +620,6 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
-    | '/platform'
     | '/settings'
     | '/sitemap.xml'
     | '/tasks'
@@ -650,6 +649,7 @@ export interface FileRouteTypes {
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
     | '/telegram/webhook'
+    | '/platform/'
     | '/.mcp/invoke-tool/$tool'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
@@ -675,7 +675,6 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
-  PlatformRoute: typeof PlatformRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TasksRoute: typeof TasksRoute
@@ -686,12 +685,22 @@ export interface RootRouteChildren {
   CrmDealsRoute: typeof CrmDealsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   ErrorsLogRoute: typeof ErrorsLogRoute
+  PlatformActivityRoute: typeof PlatformActivityRoute
+  PlatformAiRoute: typeof PlatformAiRoute
+  PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
+  PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
+  PlatformErrorsRoute: typeof PlatformErrorsRoute
+  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
+  PlatformNotificationsRoute: typeof PlatformNotificationsRoute
+  PlatformUsersRoute: typeof PlatformUsersRoute
   TelegramLinkRoute: typeof TelegramLinkRoute
   TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
   TelegramSendTestRoute: typeof TelegramSendTestRoute
   TelegramWebhookRoute: typeof TelegramWebhookRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   CrmLeadsLeadIdRoute: typeof CrmLeadsLeadIdRoute
+  PlatformOrganizationsOrgIdRoute: typeof PlatformOrganizationsOrgIdRoute
   CrmLeadsIndexRoute: typeof CrmLeadsIndexRoute
 }
 
@@ -793,13 +802,6 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/platform': {
-      id: '/platform'
-      path: '/platform'
-      fullPath: '/platform'
-      preLoaderRoute: typeof PlatformRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -921,61 +923,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErrorsLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/': {
+      id: '/platform/'
+      path: '/platform'
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/platform/activity': {
       id: '/platform/activity'
-      path: '/activity'
+      path: '/platform/activity'
       fullPath: '/platform/activity'
       preLoaderRoute: typeof PlatformActivityRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/ai': {
       id: '/platform/ai'
-      path: '/ai'
+      path: '/platform/ai'
       fullPath: '/platform/ai'
       preLoaderRoute: typeof PlatformAiRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/create-organization': {
       id: '/platform/create-organization'
-      path: '/create-organization'
+      path: '/platform/create-organization'
       fullPath: '/platform/create-organization'
       preLoaderRoute: typeof PlatformCreateOrganizationRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/deactivate-expired-trials': {
       id: '/platform/deactivate-expired-trials'
-      path: '/deactivate-expired-trials'
+      path: '/platform/deactivate-expired-trials'
       fullPath: '/platform/deactivate-expired-trials'
       preLoaderRoute: typeof PlatformDeactivateExpiredTrialsRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/errors': {
       id: '/platform/errors'
-      path: '/errors'
+      path: '/platform/errors'
       fullPath: '/platform/errors'
       preLoaderRoute: typeof PlatformErrorsRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/integrations': {
       id: '/platform/integrations'
-      path: '/integrations'
+      path: '/platform/integrations'
       fullPath: '/platform/integrations'
       preLoaderRoute: typeof PlatformIntegrationsRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/notifications': {
       id: '/platform/notifications'
-      path: '/notifications'
+      path: '/platform/notifications'
       fullPath: '/platform/notifications'
       preLoaderRoute: typeof PlatformNotificationsRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/platform/users': {
       id: '/platform/users'
-      path: '/users'
+      path: '/platform/users'
       fullPath: '/platform/users'
       preLoaderRoute: typeof PlatformUsersRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
     '/telegram/link': {
       id: '/telegram/link'
@@ -1056,10 +1065,10 @@ declare module '@tanstack/react-router' {
     }
     '/platform/organizations/$orgId': {
       id: '/platform/organizations/$orgId'
-      path: '/organizations/$orgId'
+      path: '/platform/organizations/$orgId'
       fullPath: '/platform/organizations/$orgId'
       preLoaderRoute: typeof PlatformOrganizationsOrgIdRouteImport
-      parentRoute: typeof PlatformRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1124,34 +1133,6 @@ const IntegrationsRouteWithChildren = IntegrationsRoute._addFileChildren(
   IntegrationsRouteChildren,
 )
 
-interface PlatformRouteChildren {
-  PlatformActivityRoute: typeof PlatformActivityRoute
-  PlatformAiRoute: typeof PlatformAiRoute
-  PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
-  PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
-  PlatformErrorsRoute: typeof PlatformErrorsRoute
-  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
-  PlatformNotificationsRoute: typeof PlatformNotificationsRoute
-  PlatformUsersRoute: typeof PlatformUsersRoute
-  PlatformOrganizationsOrgIdRoute: typeof PlatformOrganizationsOrgIdRoute
-}
-
-const PlatformRouteChildren: PlatformRouteChildren = {
-  PlatformActivityRoute: PlatformActivityRoute,
-  PlatformAiRoute: PlatformAiRoute,
-  PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
-  PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
-  PlatformErrorsRoute: PlatformErrorsRoute,
-  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
-  PlatformNotificationsRoute: PlatformNotificationsRoute,
-  PlatformUsersRoute: PlatformUsersRoute,
-  PlatformOrganizationsOrgIdRoute: PlatformOrganizationsOrgIdRoute,
-}
-
-const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
-  PlatformRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -1167,7 +1148,6 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
-  PlatformRoute: PlatformRouteWithChildren,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TasksRoute: TasksRoute,
@@ -1179,12 +1159,22 @@ const rootRouteChildren: RootRouteChildren = {
   CrmDealsRoute: CrmDealsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   ErrorsLogRoute: ErrorsLogRoute,
+  PlatformActivityRoute: PlatformActivityRoute,
+  PlatformAiRoute: PlatformAiRoute,
+  PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
+  PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
+  PlatformErrorsRoute: PlatformErrorsRoute,
+  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
+  PlatformNotificationsRoute: PlatformNotificationsRoute,
+  PlatformUsersRoute: PlatformUsersRoute,
   TelegramLinkRoute: TelegramLinkRoute,
   TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,
   TelegramSendTestRoute: TelegramSendTestRoute,
   TelegramWebhookRoute: TelegramWebhookRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   CrmLeadsLeadIdRoute: CrmLeadsLeadIdRoute,
+  PlatformOrganizationsOrgIdRoute: PlatformOrganizationsOrgIdRoute,
   CrmLeadsIndexRoute: CrmLeadsIndexRoute,
 }
 export const routeTree = rootRouteImport
