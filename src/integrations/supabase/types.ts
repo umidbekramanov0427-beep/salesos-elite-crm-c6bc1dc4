@@ -1017,6 +1017,9 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          phone: string | null
+          plan: string
+          trial_ends_at: string | null
         }
         Insert: {
           active?: boolean
@@ -1024,6 +1027,9 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          phone?: string | null
+          plan?: string
+          trial_ends_at?: string | null
         }
         Update: {
           active?: boolean
@@ -1031,6 +1037,9 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          phone?: string | null
+          plan?: string
+          trial_ends_at?: string | null
         }
         Relationships: []
       }

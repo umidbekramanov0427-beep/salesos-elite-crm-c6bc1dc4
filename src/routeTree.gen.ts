@@ -41,7 +41,14 @@ import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
+import { Route as PlatformAiRouteImport } from './routes/platform.ai'
 import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
+import { Route as PlatformDeactivateExpiredTrialsRouteImport } from './routes/platform.deactivate-expired-trials'
+import { Route as PlatformErrorsRouteImport } from './routes/platform.errors'
+import { Route as PlatformIntegrationsRouteImport } from './routes/platform.integrations'
+import { Route as PlatformNotificationsRouteImport } from './routes/platform.notifications'
+import { Route as PlatformUsersRouteImport } from './routes/platform.users'
 import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
 import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
 import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
@@ -53,6 +60,7 @@ import { Route as IntegrationsAmocrmCallbackRouteImport } from './routes/integra
 import { Route as IntegrationsAmocrmConnectRouteImport } from './routes/integrations.amocrm.connect'
 import { Route as IntegrationsAmocrmSyncRouteImport } from './routes/integrations.amocrm.sync'
 import { Route as IntegrationsAmocrmWebhookRouteImport } from './routes/integrations.amocrm.webhook'
+import { Route as PlatformOrganizationsOrgIdRouteImport } from './routes/platform.organizations.$orgId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -216,12 +224,48 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
   path: '/errors/log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformActivityRoute = PlatformActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformAiRoute = PlatformAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => PlatformRoute,
+} as any)
 const PlatformCreateOrganizationRoute =
   PlatformCreateOrganizationRouteImport.update({
     id: '/create-organization',
     path: '/create-organization',
     getParentRoute: () => PlatformRoute,
   } as any)
+const PlatformDeactivateExpiredTrialsRoute =
+  PlatformDeactivateExpiredTrialsRouteImport.update({
+    id: '/deactivate-expired-trials',
+    path: '/deactivate-expired-trials',
+    getParentRoute: () => PlatformRoute,
+  } as any)
+const PlatformErrorsRoute = PlatformErrorsRouteImport.update({
+  id: '/errors',
+  path: '/errors',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformNotificationsRoute = PlatformNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformUsersRoute = PlatformUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => PlatformRoute,
+} as any)
 const TelegramLinkRoute = TelegramLinkRouteImport.update({
   id: '/telegram/link',
   path: '/telegram/link',
@@ -281,6 +325,12 @@ const IntegrationsAmocrmWebhookRoute =
     path: '/amocrm/webhook',
     getParentRoute: () => IntegrationsRoute,
   } as any)
+const PlatformOrganizationsOrgIdRoute =
+  PlatformOrganizationsOrgIdRouteImport.update({
+    id: '/organizations/$orgId',
+    path: '/organizations/$orgId',
+    getParentRoute: () => PlatformRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -315,7 +365,14 @@ export interface FileRoutesByFullPath {
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/platform/activity': typeof PlatformActivityRoute
+  '/platform/ai': typeof PlatformAiRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
+  '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
+  '/platform/errors': typeof PlatformErrorsRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/platform/notifications': typeof PlatformNotificationsRoute
+  '/platform/users': typeof PlatformUsersRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -326,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
   '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
   '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
+  '/platform/organizations/$orgId': typeof PlatformOrganizationsOrgIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -361,7 +419,14 @@ export interface FileRoutesByTo {
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/platform/activity': typeof PlatformActivityRoute
+  '/platform/ai': typeof PlatformAiRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
+  '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
+  '/platform/errors': typeof PlatformErrorsRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/platform/notifications': typeof PlatformNotificationsRoute
+  '/platform/users': typeof PlatformUsersRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -372,6 +437,7 @@ export interface FileRoutesByTo {
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
   '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
   '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
+  '/platform/organizations/$orgId': typeof PlatformOrganizationsOrgIdRoute
   '/crm/leads': typeof CrmLeadsIndexRoute
 }
 export interface FileRoutesById {
@@ -408,7 +474,14 @@ export interface FileRoutesById {
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/platform/activity': typeof PlatformActivityRoute
+  '/platform/ai': typeof PlatformAiRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
+  '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
+  '/platform/errors': typeof PlatformErrorsRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/platform/notifications': typeof PlatformNotificationsRoute
+  '/platform/users': typeof PlatformUsersRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -419,6 +492,7 @@ export interface FileRoutesById {
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
   '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
   '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
+  '/platform/organizations/$orgId': typeof PlatformOrganizationsOrgIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
 }
 export interface FileRouteTypes {
@@ -456,7 +530,14 @@ export interface FileRouteTypes {
     | '/crm/deals'
     | '/crm/pipeline'
     | '/errors/log'
+    | '/platform/activity'
+    | '/platform/ai'
     | '/platform/create-organization'
+    | '/platform/deactivate-expired-trials'
+    | '/platform/errors'
+    | '/platform/integrations'
+    | '/platform/notifications'
+    | '/platform/users'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -467,6 +548,7 @@ export interface FileRouteTypes {
     | '/integrations/amocrm/connect'
     | '/integrations/amocrm/sync'
     | '/integrations/amocrm/webhook'
+    | '/platform/organizations/$orgId'
     | '/crm/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -502,7 +584,14 @@ export interface FileRouteTypes {
     | '/crm/deals'
     | '/crm/pipeline'
     | '/errors/log'
+    | '/platform/activity'
+    | '/platform/ai'
     | '/platform/create-organization'
+    | '/platform/deactivate-expired-trials'
+    | '/platform/errors'
+    | '/platform/integrations'
+    | '/platform/notifications'
+    | '/platform/users'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -513,6 +602,7 @@ export interface FileRouteTypes {
     | '/integrations/amocrm/connect'
     | '/integrations/amocrm/sync'
     | '/integrations/amocrm/webhook'
+    | '/platform/organizations/$orgId'
     | '/crm/leads'
   id:
     | '__root__'
@@ -548,7 +638,14 @@ export interface FileRouteTypes {
     | '/crm/deals'
     | '/crm/pipeline'
     | '/errors/log'
+    | '/platform/activity'
+    | '/platform/ai'
     | '/platform/create-organization'
+    | '/platform/deactivate-expired-trials'
+    | '/platform/errors'
+    | '/platform/integrations'
+    | '/platform/notifications'
+    | '/platform/users'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -559,6 +656,7 @@ export interface FileRouteTypes {
     | '/integrations/amocrm/connect'
     | '/integrations/amocrm/sync'
     | '/integrations/amocrm/webhook'
+    | '/platform/organizations/$orgId'
     | '/crm/leads/'
   fileRoutesById: FileRoutesById
 }
@@ -823,11 +921,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErrorsLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/activity': {
+      id: '/platform/activity'
+      path: '/activity'
+      fullPath: '/platform/activity'
+      preLoaderRoute: typeof PlatformActivityRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/ai': {
+      id: '/platform/ai'
+      path: '/ai'
+      fullPath: '/platform/ai'
+      preLoaderRoute: typeof PlatformAiRouteImport
+      parentRoute: typeof PlatformRoute
+    }
     '/platform/create-organization': {
       id: '/platform/create-organization'
       path: '/create-organization'
       fullPath: '/platform/create-organization'
       preLoaderRoute: typeof PlatformCreateOrganizationRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/deactivate-expired-trials': {
+      id: '/platform/deactivate-expired-trials'
+      path: '/deactivate-expired-trials'
+      fullPath: '/platform/deactivate-expired-trials'
+      preLoaderRoute: typeof PlatformDeactivateExpiredTrialsRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/errors': {
+      id: '/platform/errors'
+      path: '/errors'
+      fullPath: '/platform/errors'
+      preLoaderRoute: typeof PlatformErrorsRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/integrations': {
+      id: '/platform/integrations'
+      path: '/integrations'
+      fullPath: '/platform/integrations'
+      preLoaderRoute: typeof PlatformIntegrationsRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/notifications': {
+      id: '/platform/notifications'
+      path: '/notifications'
+      fullPath: '/platform/notifications'
+      preLoaderRoute: typeof PlatformNotificationsRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/users': {
+      id: '/platform/users'
+      path: '/users'
+      fullPath: '/platform/users'
+      preLoaderRoute: typeof PlatformUsersRouteImport
       parentRoute: typeof PlatformRoute
     }
     '/telegram/link': {
@@ -907,6 +1054,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntegrationsAmocrmWebhookRouteImport
       parentRoute: typeof IntegrationsRoute
     }
+    '/platform/organizations/$orgId': {
+      id: '/platform/organizations/$orgId'
+      path: '/organizations/$orgId'
+      fullPath: '/platform/organizations/$orgId'
+      preLoaderRoute: typeof PlatformOrganizationsOrgIdRouteImport
+      parentRoute: typeof PlatformRoute
+    }
   }
 }
 
@@ -971,11 +1125,27 @@ const IntegrationsRouteWithChildren = IntegrationsRoute._addFileChildren(
 )
 
 interface PlatformRouteChildren {
+  PlatformActivityRoute: typeof PlatformActivityRoute
+  PlatformAiRoute: typeof PlatformAiRoute
   PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
+  PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
+  PlatformErrorsRoute: typeof PlatformErrorsRoute
+  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
+  PlatformNotificationsRoute: typeof PlatformNotificationsRoute
+  PlatformUsersRoute: typeof PlatformUsersRoute
+  PlatformOrganizationsOrgIdRoute: typeof PlatformOrganizationsOrgIdRoute
 }
 
 const PlatformRouteChildren: PlatformRouteChildren = {
+  PlatformActivityRoute: PlatformActivityRoute,
+  PlatformAiRoute: PlatformAiRoute,
   PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
+  PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
+  PlatformErrorsRoute: PlatformErrorsRoute,
+  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
+  PlatformNotificationsRoute: PlatformNotificationsRoute,
+  PlatformUsersRoute: PlatformUsersRoute,
+  PlatformOrganizationsOrgIdRoute: PlatformOrganizationsOrgIdRoute,
 }
 
 const PlatformRouteWithChildren = PlatformRoute._addFileChildren(

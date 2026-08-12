@@ -7,6 +7,9 @@ type Body = {
   admin_email?: string;
   admin_password?: string;
   admin_full_name?: string;
+  phone?: string;
+  plan?: string;
+  trial_days?: number;
 };
 
 export const Route = createFileRoute("/platform/create-organization")({
@@ -31,9 +34,17 @@ export const Route = createFileRoute("/platform/create-organization")({
           );
         }
 
+        const phone = body.phone?.trim() || null;
+        const plan = body.plan?.trim() || "Basic";
+        const trialDays =
+          typeof body.trial_days === "number" && body.trial_days > 0 ? body.trial_days : null;
+        const trialEndsAt = trialDays
+          ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
+          : null;
+
         const { data: org, error: orgError } = await supabaseAdmin
           .from("organizations")
-          .insert({ name, created_by: ownerId })
+          .insert({ name, created_by: ownerId, phone, plan, trial_ends_at: trialEndsAt })
           .select()
           .single();
         if (orgError || !org) {
