@@ -1036,6 +1036,8 @@ export type Database = {
       }
       pipeline_stages: {
         Row: {
+          amocrm_pipeline_id: number | null
+          amocrm_status_id: number | null
           color: string
           created_at: string
           id: string
@@ -1048,6 +1050,8 @@ export type Database = {
           probability: number
         }
         Insert: {
+          amocrm_pipeline_id?: number | null
+          amocrm_status_id?: number | null
           color?: string
           created_at?: string
           id?: string
@@ -1060,6 +1064,8 @@ export type Database = {
           probability?: number
         }
         Update: {
+          amocrm_pipeline_id?: number | null
+          amocrm_status_id?: number | null
           color?: string
           created_at?: string
           id?: string
@@ -1083,6 +1089,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          amocrm_user_id: number | null
           avatar_url: string | null
           branch: string | null
           created_at: string
@@ -1104,6 +1111,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amocrm_user_id?: number | null
           avatar_url?: string | null
           branch?: string | null
           created_at?: string
@@ -1125,6 +1133,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amocrm_user_id?: number | null
           avatar_url?: string | null
           branch?: string | null
           created_at?: string

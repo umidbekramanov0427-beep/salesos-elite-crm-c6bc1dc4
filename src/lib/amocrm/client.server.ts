@@ -1,6 +1,7 @@
-// Server-only. One-way sync: AmoCRM -> SalesOS Elite leads.
-// Never import this from a route file or component that ships to the client —
-// it touches AMOCRM_CLIENT_SECRET and the Supabase service-role key.
+// Server-only. One-way sync: AmoCRM -> SalesOS Elite leads, contacts,
+// companies and pipeline stages. Never import this from a route file or
+// component that ships to the client — it touches AMOCRM_CLIENT_SECRET and
+// the Supabase service-role key.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type AmoConnection = {
@@ -125,21 +126,39 @@ type AmoLead = {
   id: number;
   name: string | null;
   price: number | null;
+  status_id: number;
+  pipeline_id: number;
+  responsible_user_id: number | null;
   created_at: number;
-  _embedded?: { tags?: { id: number; name: string }[] };
+  _embedded?: {
+    tags?: { id: number; name: string }[];
+    contacts?: { id: number; is_main?: boolean }[];
+    companies?: { id: number }[];
+  };
 };
 
 function amoTagNames(lead: AmoLead): string[] {
   return (lead._embedded?.tags ?? []).map((t) => t.name).filter(Boolean);
 }
 
+/** First linked contact (preferring the one marked main), if any. */
+function amoMainContactId(lead: AmoLead): number | null {
+  const contacts = lead._embedded?.contacts ?? [];
+  return contacts.find((c) => c.is_main)?.id ?? contacts[0]?.id ?? null;
+}
+
+function amoMainCompanyId(lead: AmoLead): number | null {
+  return lead._embedded?.companies?.[0]?.id ?? null;
+}
+
 async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
   const all: AmoLead[] = [];
   let page = 1;
   for (;;) {
-    const data = (await amoFetch(conn, `/api/v4/leads?limit=250&page=${page}&with=tags`)) as {
-      _embedded?: { leads?: AmoLead[] };
-    } | null;
+    const data = (await amoFetch(
+      conn,
+      `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
+    )) as { _embedded?: { leads?: AmoLead[] } } | null;
     const leads = data?._embedded?.leads ?? [];
     if (leads.length === 0) break;
     all.push(...leads);
@@ -147,6 +166,180 @@ async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
     if (page > 200) break; // safety cap: 50k leads
   }
   return all;
+}
+
+type AmoCustomFieldValue = { field_code: string | null; values?: { value?: string }[] };
+type AmoContact = {
+  id: number;
+  name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  custom_fields_values?: AmoCustomFieldValue[] | null;
+};
+type AmoCompany = { id: number; name: string | null };
+
+function customField(entity: AmoContact, code: string): string | null {
+  const field = (entity.custom_fields_values ?? []).find((f) => f.field_code === code);
+  return field?.values?.[0]?.value ?? null;
+}
+
+async function fetchAllContacts(conn: AmoConnection): Promise<Map<number, AmoContact>> {
+  const map = new Map<number, AmoContact>();
+  let page = 1;
+  for (;;) {
+    const data = (await amoFetch(conn, `/api/v4/contacts?limit=250&page=${page}`)) as {
+      _embedded?: { contacts?: AmoContact[] };
+    } | null;
+    const contacts = data?._embedded?.contacts ?? [];
+    if (contacts.length === 0) break;
+    for (const c of contacts) map.set(c.id, c);
+    page += 1;
+    if (page > 200) break;
+  }
+  return map;
+}
+
+async function fetchAllCompanies(conn: AmoConnection): Promise<Map<number, AmoCompany>> {
+  const map = new Map<number, AmoCompany>();
+  let page = 1;
+  for (;;) {
+    const data = (await amoFetch(conn, `/api/v4/companies?limit=250&page=${page}`)) as {
+      _embedded?: { companies?: AmoCompany[] };
+    } | null;
+    const companies = data?._embedded?.companies ?? [];
+    if (companies.length === 0) break;
+    for (const c of companies) map.set(c.id, c);
+    page += 1;
+    if (page > 200) break;
+  }
+  return map;
+}
+
+type AmoUser = { id: number; email: string | null };
+
+async function fetchAllUsers(conn: AmoConnection): Promise<AmoUser[]> {
+  const all: AmoUser[] = [];
+  let page = 1;
+  for (;;) {
+    const data = (await amoFetch(conn, `/api/v4/users?limit=250&page=${page}`)) as {
+      _embedded?: { users?: AmoUser[] };
+    } | null;
+    const users = data?._embedded?.users ?? [];
+    if (users.length === 0) break;
+    all.push(...users);
+    page += 1;
+    if (page > 50) break;
+  }
+  return all;
+}
+
+type AmoStatus = { id: number; name: string; sort: number; pipeline_id: number };
+type AmoPipeline = { id: number; name: string; _embedded?: { statuses?: AmoStatus[] } };
+
+async function fetchPipelines(conn: AmoConnection): Promise<AmoPipeline[]> {
+  const data = (await amoFetch(conn, "/api/v4/leads/pipelines?with=statuses")) as {
+    _embedded?: { pipelines?: AmoPipeline[] };
+  } | null;
+  return data?._embedded?.pipelines ?? [];
+}
+
+// AmoCRM reserves these two status ids for "won"/"lost" in every pipeline —
+// a fixed, documented convention, not something specific to any account.
+const AMO_WON_STATUS_ID = 142;
+const AMO_LOST_STATUS_ID = 143;
+const STAGE_COLOR_ROTATION = ["bg-primary", "bg-info", "bg-warning", "bg-mint-border"] as const;
+
+/**
+ * Mirrors AmoCRM's real pipeline/status structure into pipeline_stages, one
+ * row per (organization, amocrm_status_id) — additive, so stages created by
+ * hand in Settings (which have no amocrm_status_id) are left untouched.
+ * Returns a status_id -> our stage_id lookup for lead upserts.
+ */
+async function syncPipelineStages(
+  organizationId: string,
+  conn: AmoConnection,
+): Promise<Map<number, string>> {
+  const pipelines = await fetchPipelines(conn);
+  const rows: {
+    organization_id: string;
+    amocrm_pipeline_id: number;
+    amocrm_status_id: number;
+    key: string;
+    name: string;
+    position: number;
+    color: string;
+    probability: number;
+    is_won: boolean;
+    is_lost: boolean;
+  }[] = [];
+
+  let index = 0;
+  for (const pipeline of pipelines) {
+    for (const status of pipeline._embedded?.statuses ?? []) {
+      const isWon = status.id === AMO_WON_STATUS_ID;
+      const isLost = status.id === AMO_LOST_STATUS_ID;
+      rows.push({
+        organization_id: organizationId,
+        amocrm_pipeline_id: pipeline.id,
+        amocrm_status_id: status.id,
+        key: `amo-${status.id}`,
+        name: status.name,
+        position: status.sort ?? index,
+        color: isWon
+          ? "bg-success"
+          : isLost
+            ? "bg-destructive"
+            : STAGE_COLOR_ROTATION[index % STAGE_COLOR_ROTATION.length]!,
+        probability: isWon ? 100 : isLost ? 0 : Math.min(90, 20 + index * 15),
+        is_won: isWon,
+        is_lost: isLost,
+      });
+      index += 1;
+    }
+  }
+  if (rows.length === 0) return new Map();
+
+  const { data, error } = await supabaseAdmin
+    .from("pipeline_stages")
+    .upsert(rows, { onConflict: "organization_id,amocrm_status_id" })
+    .select("id, amocrm_status_id");
+  if (error) throw error;
+
+  const map = new Map<number, string>();
+  for (const row of data ?? []) {
+    if (row.amocrm_status_id != null) map.set(row.amocrm_status_id, row.id);
+  }
+  return map;
+}
+
+/** Matches AmoCRM users to existing profiles by email, returns amoUserId -> our profile id. */
+async function syncUserMapping(
+  organizationId: string,
+  conn: AmoConnection,
+): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  try {
+    const [users, { data: profiles, error }] = await Promise.all([
+      fetchAllUsers(conn),
+      supabaseAdmin.from("profiles").select("id, email").eq("organization_id", organizationId),
+    ]);
+    if (error) throw error;
+    const profileByEmail = new Map((profiles ?? []).map((p) => [p.email.toLowerCase(), p]));
+    for (const amoUser of users) {
+      if (!amoUser.email) continue;
+      const profile = profileByEmail.get(amoUser.email.toLowerCase());
+      if (!profile) continue;
+      map.set(amoUser.id, profile.id);
+      await supabaseAdmin
+        .from("profiles")
+        .update({ amocrm_user_id: amoUser.id })
+        .eq("id", profile.id);
+    }
+  } catch {
+    // Owner matching is best-effort — a failure here shouldn't block the
+    // lead/company/contact sync, which is the primary purpose of a sync run.
+  }
+  return map;
 }
 
 async function defaultStageId(organizationId: string): Promise<string | null> {
@@ -198,25 +391,97 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
   const conn = await ensureValidToken(conn0);
 
   try {
-    const [leads, stageId] = await Promise.all([
-      fetchAllLeads(conn),
-      defaultStageId(organizationId),
-    ]);
+    const [leads, contactsById, companiesById, stageByStatusId, ownerByAmoUserId, fallbackStageId] =
+      await Promise.all([
+        fetchAllLeads(conn),
+        fetchAllContacts(conn),
+        fetchAllCompanies(conn),
+        syncPipelineStages(organizationId, conn),
+        syncUserMapping(organizationId, conn),
+        defaultStageId(organizationId),
+      ]);
+
+    // Upsert every referenced contact/company first so leads can link to
+    // their real internal ids instead of just carrying a name string.
+    const referencedContactIds = new Set<number>();
+    const referencedCompanyIds = new Set<number>();
+    for (const l of leads) {
+      const cId = amoMainContactId(l);
+      const coId = amoMainCompanyId(l);
+      if (cId) referencedContactIds.add(cId);
+      if (coId) referencedCompanyIds.add(coId);
+    }
+
+    const contactIdMap = new Map<number, string>();
+    if (referencedContactIds.size > 0) {
+      const contactRows = Array.from(referencedContactIds)
+        .map((id) => contactsById.get(id))
+        .filter((c): c is AmoContact => !!c)
+        .map((c) => ({
+          organization_id: organizationId,
+          amocrm_id: c.id,
+          full_name: c.name?.trim() || `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "—",
+          phone: customField(c, "PHONE"),
+          email: customField(c, "EMAIL"),
+        }));
+      if (contactRows.length > 0) {
+        const { data, error } = await supabaseAdmin
+          .from("contacts")
+          .upsert(contactRows, { onConflict: "organization_id,amocrm_id" })
+          .select("id, amocrm_id");
+        if (error) throw error;
+        for (const row of data ?? []) {
+          if (row.amocrm_id != null) contactIdMap.set(row.amocrm_id, row.id);
+        }
+      }
+    }
+
+    const companyIdMap = new Map<number, string>();
+    if (referencedCompanyIds.size > 0) {
+      const companyRows = Array.from(referencedCompanyIds)
+        .map((id) => companiesById.get(id))
+        .filter((c): c is AmoCompany => !!c)
+        .map((c) => ({
+          organization_id: organizationId,
+          amocrm_id: c.id,
+          name: c.name?.trim() || `AmoCRM company #${c.id}`,
+        }));
+      if (companyRows.length > 0) {
+        const { data, error } = await supabaseAdmin
+          .from("companies")
+          .upsert(companyRows, { onConflict: "organization_id,amocrm_id" })
+          .select("id, amocrm_id");
+        if (error) throw error;
+        for (const row of data ?? []) {
+          if (row.amocrm_id != null) companyIdMap.set(row.amocrm_id, row.id);
+        }
+      }
+    }
 
     if (leads.length > 0) {
-      const rows = leads.map((l) => ({
-        organization_id: organizationId,
-        amocrm_id: l.id,
-        name: l.name?.trim() || `AmoCRM lead #${l.id}`,
-        company_name: "",
-        source: "AmoCRM",
-        expected_revenue: l.price ?? 0,
-        budget: l.price ?? 0,
-        stage_id: stageId,
-        temperature: "Warm" as const,
-        priority: "Normal" as const,
-        tags: amoTagNames(l),
-      }));
+      const rows = leads.map((l) => {
+        const contactAmoId = amoMainContactId(l);
+        const companyAmoId = amoMainCompanyId(l);
+        const company = companyAmoId ? companiesById.get(companyAmoId) : undefined;
+        return {
+          organization_id: organizationId,
+          amocrm_id: l.id,
+          name: l.name?.trim() || `AmoCRM lead #${l.id}`,
+          company_name: company?.name?.trim() || "",
+          company_id: companyAmoId ? (companyIdMap.get(companyAmoId) ?? null) : null,
+          contact_id: contactAmoId ? (contactIdMap.get(contactAmoId) ?? null) : null,
+          source: "AmoCRM",
+          expected_revenue: l.price ?? 0,
+          budget: l.price ?? 0,
+          stage_id: stageByStatusId.get(l.status_id) ?? fallbackStageId,
+          owner_id: l.responsible_user_id
+            ? (ownerByAmoUserId.get(l.responsible_user_id) ?? null)
+            : null,
+          temperature: "Warm" as const,
+          priority: "Normal" as const,
+          tags: amoTagNames(l),
+        };
+      });
       const { error } = await supabaseAdmin
         .from("leads")
         .upsert(rows, { onConflict: "organization_id,amocrm_id" });
@@ -295,14 +560,51 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
   return rows.length;
 }
 
+/** Resolves a stage_id for a single AmoCRM status_id, falling back to the org's "new" stage. */
+export async function resolveStageId(
+  organizationId: string,
+  statusId: number | null,
+): Promise<string | null> {
+  if (statusId != null) {
+    const { data } = await supabaseAdmin
+      .from("pipeline_stages")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("amocrm_status_id", statusId)
+      .maybeSingle();
+    if (data?.id) return data.id;
+  }
+  return defaultStageId(organizationId);
+}
+
+/** Resolves an owner profile id for a single AmoCRM responsible_user_id, if that user was matched by email. */
+export async function resolveOwnerId(
+  organizationId: string,
+  amoUserId: number | null,
+): Promise<string | null> {
+  if (amoUserId == null) return null;
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("amocrm_user_id", amoUserId)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 /** Upserts a single lead — used by the webhook handler for near-real-time updates. */
 export async function upsertSingleAmoLead(
   organizationId: string,
   amoLeadId: number,
   name: string | null,
   price: number | null,
+  statusId: number | null,
+  responsibleUserId: number | null,
 ) {
-  const stageId = await defaultStageId(organizationId);
+  const [stageId, ownerId] = await Promise.all([
+    resolveStageId(organizationId, statusId),
+    resolveOwnerId(organizationId, responsibleUserId),
+  ]);
   const { error } = await supabaseAdmin.from("leads").upsert(
     {
       organization_id: organizationId,
@@ -313,6 +615,7 @@ export async function upsertSingleAmoLead(
       expected_revenue: price ?? 0,
       budget: price ?? 0,
       stage_id: stageId,
+      owner_id: ownerId,
       temperature: "Warm" as const,
       priority: "Normal" as const,
     },

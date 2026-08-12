@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getConnection, upsertSingleAmoLead } from "@/lib/amocrm/client.server";
 
 // AmoCRM posts form-encoded fields like leads[add][0][id], leads[update][0][name] ...
-const FIELD_PATTERN = /^leads\[(?:add|update)\]\[(\d+)\]\[(id|name|price)\]$/;
+const FIELD_PATTERN =
+  /^leads\[(?:add|update)\]\[(\d+)\]\[(id|name|price|status_id|responsible_user_id)\]$/;
 
 export const Route = createFileRoute("/integrations/amocrm/webhook")({
   server: {
@@ -19,13 +20,20 @@ export const Route = createFileRoute("/integrations/amocrm/webhook")({
           if (!conn) return new Response("ok", { status: 200 });
 
           const form = await request.formData();
-          const byIndex = new Map<string, { id?: string; name?: string; price?: string }>();
+          type Entry = {
+            id?: string;
+            name?: string;
+            price?: string;
+            status_id?: string;
+            responsible_user_id?: string;
+          };
+          const byIndex = new Map<string, Entry>();
 
           for (const [key, value] of form.entries()) {
             const match = FIELD_PATTERN.exec(key);
             if (!match) continue;
             const index = match[1]!;
-            const field = match[2] as "id" | "name" | "price";
+            const field = match[2] as keyof Entry;
             const entry = byIndex.get(index) ?? {};
             entry[field] = String(value);
             byIndex.set(index, entry);
@@ -38,6 +46,8 @@ export const Route = createFileRoute("/integrations/amocrm/webhook")({
               Number(entry.id),
               entry.name ?? null,
               entry.price ? Number(entry.price) : null,
+              entry.status_id ? Number(entry.status_id) : null,
+              entry.responsible_user_id ? Number(entry.responsible_user_id) : null,
             );
           }
         } catch (err) {
