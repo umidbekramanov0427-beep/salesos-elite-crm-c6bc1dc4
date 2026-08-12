@@ -25,7 +25,7 @@ import {
 
 const PLANS = ["Basic", "Pro", "Enterprise"] as const;
 
-export const Route = createFileRoute("/platform")({
+export const Route = createFileRoute("/platform/")({
   head: () => ({
     meta: [
       { title: "Platform — SalesOS Elite" },
