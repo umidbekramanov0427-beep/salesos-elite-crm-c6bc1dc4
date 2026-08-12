@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { useAiAssistantChat } from "@/hooks/use-crm-data";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/ai-assistant")({
@@ -94,6 +95,7 @@ function AiAssistantPage() {
   const chat = useAiAssistantChat();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
 
   const prompts = [
     t("ai.prompt1"),
@@ -113,7 +115,7 @@ function AiAssistantPage() {
     setMessages(next);
     setInput("");
     try {
-      const reply = await chat.mutateAsync(next);
+      const reply = await chat.mutateAsync({ messages: next, asOf: asOfDate });
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (err) {
       setMessages((m) => [
@@ -134,7 +136,12 @@ function AiAssistantPage() {
 
   return (
     <>
-      <PageHeader title={t("nav.aiAssistant")} description={t("ai.subtitle")} />
+      <PageHeader
+        title={t("nav.aiAssistant")}
+        description={t("ai.subtitle")}
+        actions={<AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />}
+      />
+      <AsOfBanner value={asOfDate} />
 
       <section className="surface-card flex h-[75vh] flex-col overflow-hidden">
         {messages.length === 0 ? (

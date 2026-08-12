@@ -334,12 +334,14 @@ function CoachButton({ row }: { row: NormativeRow }) {
     setOpen(true);
     if (tip) return;
     try {
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `Employee ${row.name} (${row.department}) is at ${row.monthlyPct}% of their monthly sales target (${format(row.revenueMonth)} of ${format(row.monthlyTarget)}), pacing at ${row.pacePct}% of where they should be by today. Give one short, specific, actionable coaching tip (2-3 sentences) to help them hit target this month.`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Employee ${row.name} (${row.department}) is at ${row.monthlyPct}% of their monthly sales target (${format(row.revenueMonth)} of ${format(row.monthlyTarget)}), pacing at ${row.pacePct}% of where they should be by today. Give one short, specific, actionable coaching tip (2-3 sentences) to help them hit target this month.`,
+          },
+        ],
+      });
       setTip(reply);
     } catch (err) {
       setTip(err instanceof Error ? err.message : t("normatives.coachFailed"));

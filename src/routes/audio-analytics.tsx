@@ -79,12 +79,14 @@ function DailyReportCard({
   async function generate() {
     setBusy(true);
     try {
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `Here are today's real sales call numbers: ${callsToday} calls made, ${connected} connected, connection rate ${connectionRate}%, average call duration ${avgDuration} seconds. Write a short daily report (3-5 sentences): what the numbers suggest went well today and what should improve, and one concrete thing to focus on tomorrow. Only reason from these numbers — don't invent call content you don't have. Respond in ${LANG_NAME[lang]}.`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Here are today's real sales call numbers: ${callsToday} calls made, ${connected} connected, connection rate ${connectionRate}%, average call duration ${avgDuration} seconds. Write a short daily report (3-5 sentences): what the numbers suggest went well today and what should improve, and one concrete thing to focus on tomorrow. Only reason from these numbers — don't invent call content you don't have. Respond in ${LANG_NAME[lang]}.`,
+          },
+        ],
+      });
       setReport(reply);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("audio.dailyReportFailed"));
@@ -141,12 +143,14 @@ function RecoverableRow({
   async function generate() {
     setBusy(true);
     try {
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `This lead is marked Lost but had ${lead.connectedCalls} real connected call(s) with our team, last call ${lead.lastCallAt}. Lead: ${lead.name} (${lead.company || "no company"}), owner: ${lead.owner}, tags: ${lead.tags.join(", ") || "none"}. In 2-3 sentences, suggest why this lead might be worth a second outreach and a concrete next step. Respond in ${LANG_NAME[lang]}.`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `This lead is marked Lost but had ${lead.connectedCalls} real connected call(s) with our team, last call ${lead.lastCallAt}. Lead: ${lead.name} (${lead.company || "no company"}), owner: ${lead.owner}, tags: ${lead.tags.join(", ") || "none"}. In 2-3 sentences, suggest why this lead might be worth a second outreach and a concrete next step. Respond in ${LANG_NAME[lang]}.`,
+          },
+        ],
+      });
       setSuggestion(reply);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("audio.suggestFailed"));

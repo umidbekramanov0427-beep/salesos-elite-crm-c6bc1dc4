@@ -1332,9 +1332,10 @@ export function useCreateOrganization() {
 
 export function useAiAssistantChat() {
   return useMutation({
-    mutationFn: async (
-      messages: { role: "user" | "assistant"; content: string }[],
-    ): Promise<string> => {
+    mutationFn: async (input: {
+      messages: { role: "user" | "assistant"; content: string }[];
+      asOf?: Date | null;
+    }): Promise<string> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       const res = await fetch("/ai-assistant/chat", {
@@ -1343,7 +1344,10 @@ export function useAiAssistantChat() {
           "content-type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({
+          messages: input.messages,
+          asOf: input.asOf ? input.asOf.toISOString() : null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "AI assistant failed");

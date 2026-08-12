@@ -205,12 +205,14 @@ function LeadWorkspace() {
         .slice(0, 10)
         .map((e) => `- [${e.type}] ${e.content}`)
         .join("\n");
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `Deep-analyze this CRM lead and write a thorough assessment of where the customer stands and what to do next.\n\nLead: ${lead.name} (${lead.company || "no company"})\nStage: ${lead.stage}\nTemperature: ${lead.temperature}\nScore: ${lead.score}\nTags: ${lead.tags.join(", ") || "none"}\nExpected revenue: ${lead.expectedRevenue}\nSource: ${lead.source || "unknown"}\nCreated: ${lead.created}, last contact: ${lead.lastContact}\n\nRecent activity:\n${events || "none recorded"}\n\nNotes:\n${notes || "none"}\n\nCover: overall customer status/intent, key signals from the activity so far, likely objections or risks, and 2-3 concrete next actions for the rep. Respond in ${LANG_NAME[lang]}.`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Deep-analyze this CRM lead and write a thorough assessment of where the customer stands and what to do next.\n\nLead: ${lead.name} (${lead.company || "no company"})\nStage: ${lead.stage}\nTemperature: ${lead.temperature}\nScore: ${lead.score}\nTags: ${lead.tags.join(", ") || "none"}\nExpected revenue: ${lead.expectedRevenue}\nSource: ${lead.source || "unknown"}\nCreated: ${lead.created}, last contact: ${lead.lastContact}\n\nRecent activity:\n${events || "none recorded"}\n\nNotes:\n${notes || "none"}\n\nCover: overall customer status/intent, key signals from the activity so far, likely objections or risks, and 2-3 concrete next actions for the rep. Respond in ${LANG_NAME[lang]}.`,
+          },
+        ],
+      });
       setDeepAnalysis(reply);
     } catch (err) {
       setDeepAnalysis(err instanceof Error ? err.message : t("lead.deepAnalysis.failed"));

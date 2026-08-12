@@ -257,12 +257,14 @@ function Leaderboard() {
             `${i + 1}. ${r.name}: revenue ${format(r.revenue)}, conversion ${pct(r.conversion)}, total leads ${r.totalLeads}, won leads ${r.wonLeads}, target completion ${pct(r.targetCompletion)}`,
         )
         .join("\n");
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `Here are the top-3 sales managers this period:\n${data}\n\nWrite a short summary (3-5 sentences) of what specifically these top performers are doing right, based on their numbers. Respond in ${LANG_NAME[lang]}.`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Here are the top-3 sales managers this period:\n${data}\n\nWrite a short summary (3-5 sentences) of what specifically these top performers are doing right, based on their numbers. Respond in ${LANG_NAME[lang]}.`,
+          },
+        ],
+      });
       setTopSummary(reply);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("lb.aiFailed"));
@@ -281,12 +283,14 @@ function Leaderboard() {
             `${r.name}: revenue ${format(r.revenue)}, conversion ${pct(r.conversion)}, total leads ${r.totalLeads}, won leads ${r.wonLeads}, lost leads ${r.lostLeads}, KPI ${pct(r.kpiPercent)}, target completion ${pct(r.targetCompletion)}`,
         )
         .join("\n");
-      const reply = await chat.mutateAsync([
-        {
-          role: "user",
-          content: `Here are the 3 lowest-performing sales managers this period:\n${data}\n\nWrite a short summary (3-5 sentences) of what's likely going wrong for each, and concrete feedback on what they should work on to improve. Respond in ${LANG_NAME[lang]}.`,
-        },
-      ]);
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Here are the 3 lowest-performing sales managers this period:\n${data}\n\nWrite a short summary (3-5 sentences) of what's likely going wrong for each, and concrete feedback on what they should work on to improve. Respond in ${LANG_NAME[lang]}.`,
+          },
+        ],
+      });
       setBottomSummary(reply);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("lb.aiFailed"));
