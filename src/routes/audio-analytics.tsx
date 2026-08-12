@@ -19,12 +19,15 @@ import {
   useAiAssistantChat,
   useAmoCrmLink,
   useAnalyzeCall,
+  useAsOfSnapshot,
   useAudioAnalyticsView,
   useCrmLeads,
   useUploadManualCall,
+  type AmoCrmCallRow,
   type AudioCallView,
   type RecoverableLeadView,
 } from "@/hooks/use-crm-data";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import {
   Dialog,
   DialogContent,
@@ -473,13 +476,28 @@ function UploadCallDialog({
 
 function AudioAnalytics() {
   const { t } = useI18n();
-  const { recent, totals, perRep, recoverable, isLoading } = useAudioAnalyticsView();
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfSnapshot = useAsOfSnapshot<AmoCrmCallRow>("amocrm_calls", asOfDate);
+  const {
+    recent,
+    totals,
+    perRep,
+    recoverable,
+    isLoading: viewLoading,
+  } = useAudioAnalyticsView(asOfDate ? (asOfSnapshot.data ?? []) : undefined);
+  const isLoading = viewLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const getAmoLink = useAmoCrmLink();
   const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
     <>
-      <PageHeader title={t("audio.title")} description={t("audio.desc")} />
+      <PageHeader
+        title={t("audio.title")}
+        description={t("audio.desc")}
+        actions={<AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />}
+      />
+
+      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">

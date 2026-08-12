@@ -21,6 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   useAiAssistantChat,
+  useAsOfSnapshot,
   useAttendanceView,
   useClockIn,
   useClockOut,
@@ -29,8 +30,11 @@ import {
   useLogCall,
   useMyOpenSession,
   useNormativesView,
+  type CallLogRow,
   type NormativeRow,
+  type WorkSessionRow,
 } from "@/hooks/use-crm-data";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 export const Route = createFileRoute("/attendance")({
   head: () => ({
@@ -211,7 +215,15 @@ function AttendanceSection() {
   const { t } = useI18n();
   const { user } = useAuth();
   const canManage = user?.role === "super_admin" || user?.role === "manager";
-  const { rows, isLoading } = useAttendanceView();
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfSessions = useAsOfSnapshot<WorkSessionRow>("work_sessions", asOfDate);
+  const asOfCalls = useAsOfSnapshot<CallLogRow>("call_logs", asOfDate);
+  const { rows, isLoading: rowsLoading } = useAttendanceView(
+    asOfDate,
+    asOfDate ? { sessions: asOfSessions.data ?? [], calls: asOfCalls.data ?? [] } : undefined,
+  );
+  const isLoading =
+    rowsLoading || (asOfDate ? asOfSessions.isLoading || asOfCalls.isLoading : false);
 
   const visible = canManage ? rows : rows.filter((r) => r.profileId === user?.id);
   const totalCalls = visible.reduce((s, r) => s + r.callsMade, 0);
@@ -220,14 +232,19 @@ function AttendanceSection() {
 
   return (
     <section className="surface-card p-6 sm:p-8">
-      <div className="mb-6 flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
-          <Clock className="h-5 w-5" />
-        </span>
-        <div>
-          <h2 className="text-lg font-bold text-foreground">{t("nav./attendance")}</h2>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
+            <Clock className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{t("nav./attendance")}</h2>
+          </div>
         </div>
+        <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
       </div>
+
+      <AsOfBanner value={asOfDate} />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <MyStatusCard />

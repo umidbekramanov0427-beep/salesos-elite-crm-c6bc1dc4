@@ -10,7 +10,6 @@ import {
   Sparkles,
   Clock,
   Building2,
-  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,13 +72,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Clock,
     group: "analytics",
     iconColor: "text-teal-500",
-  },
-  {
-    label: "History",
-    to: "/history",
-    icon: History,
-    group: "analytics",
-    iconColor: "text-slate-500",
   },
   { label: "Settings", to: "/settings", icon: Settings },
   {

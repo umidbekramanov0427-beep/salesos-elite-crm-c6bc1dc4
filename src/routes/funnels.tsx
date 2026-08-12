@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, ChevronRight, ExternalLink, Loader2, Workflow } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
@@ -9,11 +9,13 @@ import {
   EMPTY_LEAD_FILTERS,
   type LeadFilterState,
 } from "@/components/crm/LeadFilterBar";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
   useAmoCrmLink,
+  useAsOfSnapshot,
   useCrmLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
@@ -59,7 +61,14 @@ const CARD_ACCENTS = [
 
 function Funnels() {
   const { funnel: funnelParam } = Route.useSearch();
-  const { rows: leads, leads: rawLeads, isLoading } = useCrmLeads();
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
+  const {
+    rows: leads,
+    leads: rawLeads,
+    isLoading: leadsLoading,
+  } = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined);
+  const isLoading = leadsLoading || (asOfDate ? asOfSnapshot.isLoading : false);
 
   if (isLoading && leads.length === 0) {
     return (
@@ -69,10 +78,19 @@ function Funnels() {
     );
   }
 
+  const asOfControl = <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />;
+
   return funnelParam ? (
-    <FunnelDetail name={funnelParam} leads={leads} rawLeads={rawLeads} isLoading={isLoading} />
+    <FunnelDetail
+      name={funnelParam}
+      leads={leads}
+      rawLeads={rawLeads}
+      isLoading={isLoading}
+      asOfDate={asOfDate}
+      asOfControl={asOfControl}
+    />
   ) : (
-    <FunnelList leads={leads} isLoading={isLoading} />
+    <FunnelList leads={leads} isLoading={isLoading} asOfDate={asOfDate} asOfControl={asOfControl} />
   );
 }
 
@@ -103,7 +121,17 @@ function HeatBar({ leads }: { leads: CrmLeadView[] }) {
   );
 }
 
-function FunnelList({ leads, isLoading }: { leads: CrmLeadView[]; isLoading: boolean }) {
+function FunnelList({
+  leads,
+  isLoading,
+  asOfDate,
+  asOfControl,
+}: {
+  leads: CrmLeadView[];
+  isLoading: boolean;
+  asOfDate: Date | null;
+  asOfControl: ReactNode;
+}) {
   const { t } = useI18n();
   const { format } = useCurrency();
 
@@ -126,7 +154,13 @@ function FunnelList({ leads, isLoading }: { leads: CrmLeadView[]; isLoading: boo
 
   return (
     <>
-      <PageHeader title={t("funnels.title")} description={t("funnels.navigatorDesc")} />
+      <PageHeader
+        title={t("funnels.title")}
+        description={t("funnels.navigatorDesc")}
+        actions={asOfControl}
+      />
+
+      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -297,11 +331,15 @@ function FunnelDetail({
   leads: allLeads,
   rawLeads,
   isLoading,
+  asOfDate,
+  asOfControl,
 }: {
   name: string;
   leads: CrmLeadView[];
   rawLeads: LeadRow[];
   isLoading: boolean;
+  asOfDate: Date | null;
+  asOfControl: ReactNode;
 }) {
   const { t } = useI18n();
   const { format } = useCurrency();
@@ -347,7 +385,9 @@ function FunnelDetail({
         <ArrowLeft className="h-4 w-4" /> {t("funnels.backToFunnels")}
       </Link>
 
-      <PageHeader title={name} description={t("funnels.desc")} />
+      <PageHeader title={name} description={t("funnels.desc")} actions={asOfControl} />
+
+      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">

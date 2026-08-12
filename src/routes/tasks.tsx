@@ -4,6 +4,7 @@ import { Loader2, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import {
+  useAsOfSnapshot,
   useCreateTaskComment,
   useProfilesRaw,
   useTaskComments,
@@ -17,6 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, timeAgo } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -160,7 +162,12 @@ function TaskDetailDialog({ task, onClose }: { task: TaskView; onClose: () => vo
 function Tasks() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const { rows: allTasks, isLoading } = useTasksView();
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfSnapshot = useAsOfSnapshot<TaskRow>("tasks", asOfDate);
+  const { rows: allTasks, isLoading: tasksLoading } = useTasksView(
+    asOfDate ? (asOfSnapshot.data ?? []) : undefined,
+  );
+  const isLoading = tasksLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const updateTask = useUpdateTask();
   // Reps only see tasks assigned to them; managers and super admins see the
   // full team board so they can oversee and reassign.
@@ -192,6 +199,7 @@ function Tasks() {
   function onDrop(e: DragEvent, col: TaskRow["status"]) {
     e.preventDefault();
     setDragOverCol(null);
+    if (asOfDate) return;
     const id = e.dataTransfer.getData("text/plain");
     if (id) void moveTask(id, col);
   }
@@ -202,15 +210,22 @@ function Tasks() {
         title={t("tasks.title")}
         description={t("tasks.desc")}
         actions={
-          <NewTaskDialog
-            trigger={
-              <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> {t("tasks.newTask")}
-              </button>
-            }
-          />
+          <>
+            <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
+            {!asOfDate && (
+              <NewTaskDialog
+                trigger={
+                  <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90">
+                    <Plus className="h-4 w-4" /> {t("tasks.newTask")}
+                  </button>
+                }
+              />
+            )}
+          </>
         }
       />
+
+      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -246,10 +261,13 @@ function Tasks() {
                   {items.map((task) => (
                     <article
                       key={task.id}
-                      draggable
+                      draggable={!asOfDate}
                       onDragStart={(e) => onDragStart(e, task.id)}
                       onClick={() => setSelected(task)}
-                      className="cursor-grab rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-card active:cursor-grabbing"
+                      className={cn(
+                        "rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-card",
+                        asOfDate ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+                      )}
                     >
                       <div className="flex items-center justify-between">
                         <Pill

@@ -27,13 +27,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
-import { useDashboardKpis, useFunnelNames, useRevenueSeries } from "@/hooks/use-crm-data";
+import {
+  useAsOfSnapshot,
+  useDashboardKpis,
+  useFunnelNames,
+  useRevenueSeries,
+  type DealRow,
+  type LeadRow,
+} from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import {
   AmountRangeFilter,
   EMPTY_AMOUNT_RANGE,
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 const RevenueChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })),
@@ -85,6 +93,9 @@ function Dashboard() {
   });
   const [funnel, setFunnel] = useState<string | null>(null);
   const [amountRange, setAmountRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfLeads = useAsOfSnapshot<LeadRow>("leads", asOfDate);
+  const asOfDeals = useAsOfSnapshot<DealRow>("deals", asOfDate);
   const { names: funnelNames } = useFunnelNames();
   const dashboardFilters = useMemo(
     () => ({
@@ -96,7 +107,10 @@ function Dashboard() {
     }),
     [dateFilter, funnel, amountRange],
   );
-  const kpis = useDashboardKpis(dashboardFilters);
+  const kpis = useDashboardKpis(
+    dashboardFilters,
+    asOfDate ? { leads: asOfLeads.data ?? [], deals: asOfDeals.data ?? [] } : undefined,
+  );
   const revenueSeries = useRevenueSeries();
   const spark = useMemo(() => revenueSeries.map((r) => r.revenue), [revenueSeries]);
 
@@ -220,8 +234,11 @@ function Dashboard() {
             ))}
           </select>
           <AmountRangeFilter value={amountRange} onChange={setAmountRange} />
+          <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
         </div>
       </SectionCard>
+
+      <AsOfBanner value={asOfDate} />
 
       <section className="mint-card grid gap-4 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div className="min-w-0">

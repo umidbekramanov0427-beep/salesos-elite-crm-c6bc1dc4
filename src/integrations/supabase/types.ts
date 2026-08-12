@@ -1351,6 +1351,10 @@ export type Database = {
       }
       is_admin_or_manager: { Args: never; Returns: boolean }
       is_platform_owner: { Args: never; Returns: boolean }
+      entities_as_of: {
+        Args: { p_organization_id: string; p_entity_type: string; p_as_of: string }
+        Returns: Json[]
+      }
     }
     Enums: {
       app_role: "super_admin" | "manager" | "rep" | "platform_owner"

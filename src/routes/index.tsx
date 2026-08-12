@@ -9,11 +9,13 @@ import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
 import {
   useAiAssistantChat,
+  useAsOfSnapshot,
   useFunnelNames,
   useLeaderboardView,
   usePipelineStagesRaw,
   useTagsSummary,
   type LeaderboardManagerRow,
+  type LeadRow,
 } from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import {
@@ -22,6 +24,7 @@ import {
   EMPTY_AMOUNT_RANGE,
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -172,6 +175,8 @@ function Leaderboard() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [revenueRange, setRevenueRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
   const [live, setLive] = useState(true);
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
 
   const { data: stageOptions } = usePipelineStagesRaw();
   const { names: funnelNames } = useFunnelNames();
@@ -190,12 +195,14 @@ function Leaderboard() {
   );
   const {
     rows: allRows,
-    isLoading,
+    isLoading: rowsLoading,
     isFetching,
     refetch,
   } = useLeaderboardView(filters, {
-    refetchInterval: live ? LIVE_REFRESH_MS : false,
+    refetchInterval: asOfDate ? false : live ? LIVE_REFRESH_MS : false,
+    overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
   });
+  const isLoading = rowsLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const rows = useMemo(
     () => allRows.filter((r) => amountInRange(r.revenue, revenueRange)),
     [allRows, revenueRange],
@@ -298,8 +305,9 @@ function Leaderboard() {
             <button
               type="button"
               onClick={() => setLive((v) => !v)}
+              disabled={!!asOfDate}
               className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors",
+                "inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                 live
                   ? "border-success/30 bg-success/10 text-success"
                   : "border-border bg-background text-muted-foreground hover:bg-accent",
@@ -381,8 +389,13 @@ function Leaderboard() {
             onChange={setSelectedTags}
           />
           <AmountRangeFilter value={revenueRange} onChange={setRevenueRange} />
+          <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
         </div>
       </SectionCard>
+
+      <div className="mt-4">
+        <AsOfBanner value={asOfDate} />
+      </div>
 
       {isLoading && (
         <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">

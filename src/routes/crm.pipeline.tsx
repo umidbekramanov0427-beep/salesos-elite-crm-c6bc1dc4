@@ -9,15 +9,18 @@ import {
   EMPTY_LEAD_FILTERS,
   type LeadFilterState,
 } from "@/components/crm/LeadFilterBar";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
   useAmoCrmLink,
+  useAsOfSnapshot,
   useCrmLeads,
   useProfilesRaw,
   useTagsSummary,
   useUpdateLead,
+  type LeadRow,
 } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/crm/pipeline")({
@@ -50,7 +53,14 @@ function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): str
 function PipelinePage() {
   const { t } = useI18n();
   const { format } = useCurrency();
-  const { rows: leads, stages, isLoading } = useCrmLeads();
+  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
+  const {
+    rows: leads,
+    stages,
+    isLoading: leadsLoading,
+  } = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined);
+  const isLoading = leadsLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const updateLead = useUpdateLead();
   const { data: profiles } = useProfilesRaw();
   const { tags: tagSummary } = useTagsSummary();
@@ -76,7 +86,7 @@ function PipelinePage() {
   }, [stages, filteredLeads]);
 
   const move = (stageId: string) => {
-    if (!dragged) return;
+    if (!dragged || asOfDate) return;
     setBoard((b) => {
       const next: Record<string, string[]> = {};
       for (const k of Object.keys(b)) next[k] = (b[k] ?? []).filter((id) => id !== dragged);
@@ -92,7 +102,7 @@ function PipelinePage() {
     <>
       <PageHeader title={t("pipeline.title")} description={t("pipeline.desc")} />
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <LeadFilterBar
           value={filters}
           onChange={setFilters}
@@ -101,7 +111,10 @@ function PipelinePage() {
           tags={tagSummary.map((tg) => tg.name)}
           stages={stages}
         />
+        <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
       </div>
+
+      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -151,10 +164,11 @@ function PipelinePage() {
                     return (
                       <article
                         key={l.id}
-                        draggable
+                        draggable={!asOfDate}
                         onDragStart={() => setDragged(l.id)}
                         className={cn(
-                          "group relative cursor-grab rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:cursor-grabbing",
+                          "group relative rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card",
+                          asOfDate ? "cursor-default" : "cursor-grab active:cursor-grabbing",
                           dragged === l.id && "opacity-50",
                         )}
                       >

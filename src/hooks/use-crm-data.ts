@@ -350,15 +350,20 @@ export type CrmLeadView = {
   amocrmId: number | null;
 };
 
-export function useCrmLeads() {
+// overrideLeads lets callers substitute a reconstructed "as of a past date"
+// snapshot (see useAsOfSnapshot) in place of the live leads table, while
+// still joining against the current contacts/profiles/stages for display
+// names — the same shape either way.
+export function useCrmLeads(overrideLeads?: LeadRow[]) {
   const base = useCrmBase();
+  const sourceLeads = overrideLeads ?? base.leads;
 
   const rows = useMemo<CrmLeadView[]>(() => {
     const contactsById = byId(base.contacts);
     const profilesById = byId(base.profiles);
     const stagesById = byId(base.stages);
 
-    return base.leads.map((l): CrmLeadView => {
+    return sourceLeads.map((l): CrmLeadView => {
       const contact = l.contact_id ? contactsById.get(l.contact_id) : undefined;
       const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
       const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
@@ -401,7 +406,7 @@ export function useCrmLeads() {
         amocrmId: l.amocrm_id,
       };
     });
-  }, [base.leads, base.contacts, base.profiles, base.stages]);
+  }, [sourceLeads, base.contacts, base.profiles, base.stages]);
 
   return { rows, ...base };
 }
@@ -436,16 +441,17 @@ export type LeaderboardManagerRow = {
 
 export function useLeaderboardView(
   filters: LeaderboardFilters,
-  opts?: { refetchInterval?: number | false },
+  opts?: { refetchInterval?: number | false; overrideLeads?: LeadRow[] | undefined },
 ) {
   const refetchInterval = opts?.refetchInterval ?? false;
   const {
-    data: leads,
+    data: liveLeads,
     isLoading: leadsLoading,
     isFetching: leadsFetching,
     refetch: refetchLeads,
     dataUpdatedAt,
   } = useLeadsRaw({ refetchInterval });
+  const leads = opts?.overrideLeads ?? liveLeads;
   const {
     data: profiles,
     isLoading: profilesLoading,
@@ -554,8 +560,9 @@ export type RecoverableLeadView = {
   amocrmId: number | null;
 };
 
-export function useAudioAnalyticsView() {
-  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
+  const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+  const calls = overrideCalls ?? liveCalls;
   const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
   const isLoading = callsLoading || leadsLoading;
 
@@ -833,15 +840,16 @@ export type TaskView = {
   leadName: string | null;
 };
 
-export function useTasksView() {
+export function useTasksView(overrideTasks?: TaskRow[]) {
   const tasks = useTasksRaw();
   const profiles = useProfilesRaw();
   const leads = useLeadsRaw();
+  const sourceTasks = overrideTasks ?? tasks.data;
 
   const rows = useMemo<TaskView[]>(() => {
     const profilesById = byId(profiles.data);
     const leadsById = byId(leads.data);
-    return (tasks.data ?? []).map((t): TaskView => {
+    return (sourceTasks ?? []).map((t): TaskView => {
       const assignee = t.assignee_id ? profilesById.get(t.assignee_id) : undefined;
       const lead = t.lead_id ? leadsById.get(t.lead_id) : undefined;
       return {
@@ -859,7 +867,7 @@ export function useTasksView() {
         leadName: lead?.name ?? null,
       };
     });
-  }, [tasks.data, profiles.data, leads.data]);
+  }, [sourceTasks, profiles.data, leads.data]);
 
   return {
     rows,
@@ -995,10 +1003,15 @@ export type DashboardFilters = {
   maxAmount?: number | null;
 };
 
-export function useDashboardKpis(filters?: DashboardFilters) {
-  const { data: deals } = useDealsRaw();
-  const { data: leads } = useLeadsRaw();
+export function useDashboardKpis(
+  filters?: DashboardFilters,
+  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
+) {
+  const { data: liveDeals } = useDealsRaw();
+  const { data: liveLeads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
+  const deals = overrides?.deals ?? liveDeals;
+  const leads = overrides?.leads ?? liveLeads;
 
   return useMemo(() => {
     const from = filters?.from ?? null;
@@ -1596,14 +1609,17 @@ export function useDeleteTag() {
 export type WorkSessionRow = Tables["work_sessions"]["Row"];
 export type CallLogRow = Tables["call_logs"]["Row"];
 
-function isToday(iso: string): boolean {
+function isSameDay(iso: string, ref: Date): boolean {
   const d = new Date(iso);
-  const now = new Date();
   return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
   );
+}
+
+function isToday(iso: string): boolean {
+  return isSameDay(iso, new Date());
 }
 
 export function useMyOpenSession() {
@@ -1671,23 +1687,30 @@ export type AttendanceRow = {
   totalCallMinutes: number;
 };
 
-export function useAttendanceView() {
+export function useAttendanceView(
+  asOf?: Date | null,
+  overrides?: { sessions?: WorkSessionRow[] | undefined; calls?: CallLogRow[] | undefined },
+) {
   const profiles = useProfilesRaw();
-  const sessions = useWorkSessionsRaw();
-  const calls = useCallLogsRaw();
+  const liveSessions = useWorkSessionsRaw();
+  const liveCalls = useCallLogsRaw();
+  const sessions = overrides?.sessions ?? liveSessions.data;
+  const calls = overrides?.calls ?? liveCalls.data;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- asOf?.getTime() is the stable key
+  const refDate = useMemo(() => asOf ?? new Date(), [asOf?.getTime()]);
 
   const rows = useMemo<AttendanceRow[]>(() => {
     return (profiles.data ?? []).map((p): AttendanceRow => {
-      const mySessions = (sessions.data ?? []).filter(
-        (s) => s.profile_id === p.id && isToday(s.clock_in),
+      const mySessions = (sessions ?? []).filter(
+        (s) => s.profile_id === p.id && isSameDay(s.clock_in, refDate),
       );
       const latest = mySessions[0] ?? null;
       const sessionMinutes = mySessions.reduce((sum, s) => {
         const end = s.clock_out ? new Date(s.clock_out).getTime() : Date.now();
         return sum + Math.max(0, (end - new Date(s.clock_in).getTime()) / 60000);
       }, 0);
-      const myCalls = (calls.data ?? []).filter(
-        (c) => c.profile_id === p.id && isToday(c.created_at),
+      const myCalls = (calls ?? []).filter(
+        (c) => c.profile_id === p.id && isSameDay(c.created_at, refDate),
       );
       return {
         profileId: p.id,
@@ -1702,11 +1725,11 @@ export function useAttendanceView() {
         totalCallMinutes: Math.round(myCalls.reduce((s, c) => s + c.duration_seconds, 0) / 60),
       };
     });
-  }, [profiles.data, sessions.data, calls.data]);
+  }, [profiles.data, sessions, calls, refDate]);
 
   return {
     rows,
-    isLoading: profiles.isLoading || sessions.isLoading || calls.isLoading,
+    isLoading: profiles.isLoading || liveSessions.isLoading || liveCalls.isLoading,
   };
 }
 
@@ -1976,6 +1999,9 @@ export const AUDIT_ENTITY_TYPES = [
   "contacts",
   "pipeline_stages",
   "profiles",
+  "amocrm_calls",
+  "work_sessions",
+  "call_logs",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
@@ -2080,6 +2106,30 @@ export function useOrgActivityFeed(limit = 200) {
     );
   }, [query.data, profiles]);
   return { rows, isLoading: query.isLoading, isError: query.isError };
+}
+
+// "As of date": reconstructs an entire table's rows exactly as they stood
+// at a past moment, via the entities_as_of() SQL function — the latest
+// audit_logs snapshot at-or-before that timestamp for every entity_id,
+// excluding ones whose latest state by then was a delete. Pages pass the
+// result as an override to their normal live-data hook (e.g. useCrmLeads)
+// so the rest of the page's joins/rendering logic stays identical.
+export function useAsOfSnapshot<T>(entityType: AuditEntityType, asOf: Date | null) {
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ["entities_as_of", entityType, user?.organizationId, asOf?.toISOString() ?? null],
+    enabled: !!user?.organizationId && !!asOf,
+    queryFn: async (): Promise<T[]> => {
+      const { data, error } = await supabase.rpc("entities_as_of", {
+        p_organization_id: user!.organizationId!,
+        p_entity_type: entityType,
+        p_as_of: asOf!.toISOString(),
+      });
+      if (error) throw error;
+      return (data ?? []) as T[];
+    },
+  });
+  return { data: query.data, isLoading: query.isLoading, isError: query.isError };
 }
 
 // "Time travel": reconstructs a record's full state as of a past moment —
