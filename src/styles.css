@@ -124,9 +124,12 @@
   --background: oklch(0.16 0.014 264.7);
   --surface: oklch(0.19 0.016 264.7);
   --foreground: oklch(0.97 0.003 247.9);
-  --card: oklch(0.2 0.017 264.7);
+  /* Was oklch(0.2 ...) -- only 0.01 lighter than --surface, so cards were
+     visually indistinguishable from the page background. Matches light
+     mode's own surface-to-card gap (0.955 -> 1.0, +0.045) instead. */
+  --card: oklch(0.235 0.018 264.7);
   --card-foreground: oklch(0.97 0.003 247.9);
-  --popover: oklch(0.2 0.017 264.7);
+  --popover: oklch(0.235 0.018 264.7);
   --popover-foreground: oklch(0.97 0.003 247.9);
   --primary: oklch(0.66 0.17 152);
   --primary-foreground: oklch(1 0 0);
