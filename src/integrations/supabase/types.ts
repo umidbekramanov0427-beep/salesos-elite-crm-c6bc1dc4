@@ -1126,6 +1126,8 @@ export type Database = {
           team: string | null
           telegram_chat_id: number | null
           telegram_link_code: string | null
+          telegram_onboarding_answers: Json | null
+          telegram_onboarding_step: number | null
           updated_at: string
         }
         Insert: {
@@ -1148,6 +1150,8 @@ export type Database = {
           team?: string | null
           telegram_chat_id?: number | null
           telegram_link_code?: string | null
+          telegram_onboarding_answers?: Json | null
+          telegram_onboarding_step?: number | null
           updated_at?: string
         }
         Update: {
@@ -1170,6 +1174,8 @@ export type Database = {
           team?: string | null
           telegram_chat_id?: number | null
           telegram_link_code?: string | null
+          telegram_onboarding_answers?: Json | null
+          telegram_onboarding_step?: number | null
           updated_at?: string
         }
         Relationships: [
