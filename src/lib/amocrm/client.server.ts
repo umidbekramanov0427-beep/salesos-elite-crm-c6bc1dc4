@@ -269,11 +269,19 @@ function amoMainCompanyId(lead: AmoLead): number | null {
 }
 
 async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
-  return fetchAllPaged(
+  const leads = await fetchAllPaged(
     conn,
     (page) => `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
     (data) => (data as { _embedded?: { leads?: AmoLead[] } } | null)?._embedded?.leads ?? [],
   );
+  // AmoCRM's page-based pagination isn't a stable snapshot — a lead can
+  // shift across the page boundary between two concurrent page requests
+  // (see PAGE_FETCH_CONCURRENCY above) and come back on both pages. That
+  // duplicate then hits the leads upsert below twice in the same batch,
+  // which Postgres rejects outright ("ON CONFLICT DO UPDATE command cannot
+  // affect row a second time") and aborts the *entire* sync — not just
+  // that one lead. Dedupe by id, keeping the last (freshest) copy.
+  return Array.from(new Map(leads.map((l) => [l.id, l])).values());
 }
 
 type AmoCustomFieldValue = { field_code: string | null; values?: { value?: string }[] };
@@ -492,12 +500,15 @@ type AmoCallNote = {
 
 /** Pulls every call-type note (from a connected telephony integration) across all leads. */
 async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
-  return fetchAllPaged(
+  const notes = await fetchAllPaged(
     conn,
     (page) =>
       `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&limit=250&page=${page}`,
     (data) => (data as { _embedded?: { notes?: AmoCallNote[] } } | null)?._embedded?.notes ?? [],
   );
+  // Same page-boundary duplication risk as fetchAllLeads above, and the
+  // notes upsert below has the same onConflict-target vulnerability.
+  return Array.from(new Map(notes.map((n) => [n.id, n])).values());
 }
 
 export type SyncResult = { synced: number; callsSynced?: number; error?: string };
