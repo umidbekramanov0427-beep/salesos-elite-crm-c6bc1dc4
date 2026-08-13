@@ -300,24 +300,30 @@ function customField(entity: AmoContact, code: string): string | null {
   return field?.values?.[0]?.value ?? null;
 }
 
-async function fetchAllContacts(conn: AmoConnection): Promise<Map<number, AmoContact>> {
-  const contacts = await fetchAllPaged(
-    conn,
-    (page) => `/api/v4/contacts?limit=250&page=${page}`,
-    (data) =>
-      (data as { _embedded?: { contacts?: AmoContact[] } } | null)?._embedded?.contacts ?? [],
-  );
-  return new Map(contacts.map((c) => [c.id, c]));
-}
+// Fetching every contact/company in the account (fetchAllContacts/
+// fetchAllCompanies used to page through the whole address book,
+// unbounded) was the same class of bug as the call-notes hang fixed
+// above — an account with tens of thousands of contacts made this the
+// dominant cost of a sync, even though only the handful referenced by
+// this run's leads is ever used. Fetch exactly those ids instead.
+const ENTITY_ID_CHUNK = 100;
 
-async function fetchAllCompanies(conn: AmoConnection): Promise<Map<number, AmoCompany>> {
-  const companies = await fetchAllPaged(
-    conn,
-    (page) => `/api/v4/companies?limit=250&page=${page}`,
-    (data) =>
-      (data as { _embedded?: { companies?: AmoCompany[] } } | null)?._embedded?.companies ?? [],
-  );
-  return new Map(companies.map((c) => [c.id, c]));
+async function fetchEntitiesByIds<T extends { id: number }>(
+  conn: AmoConnection,
+  entity: "contacts" | "companies",
+  ids: number[],
+): Promise<Map<number, T>> {
+  const map = new Map<number, T>();
+  for (let i = 0; i < ids.length; i += ENTITY_ID_CHUNK) {
+    const chunk = ids.slice(i, i + ENTITY_ID_CHUNK);
+    const idParams = chunk.map((id) => `filter[id][]=${id}`).join("&");
+    const data = (await amoFetch(conn, `/api/v4/${entity}?limit=250&${idParams}`)) as {
+      _embedded?: Record<string, T[]>;
+    } | null;
+    const items = data?._embedded?.[entity] ?? [];
+    for (const item of items) map.set(item.id, item);
+  }
+  return map;
 }
 
 type AmoUser = { id: number; email: string | null; name?: string | null };
@@ -550,18 +556,16 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
   const conn = await ensureValidToken(conn0);
 
   try {
-    const [leads, contactsById, companiesById, stageByStatusId, ownerByAmoUserId, fallbackStageId] =
-      await Promise.all([
-        fetchAllLeads(conn),
-        fetchAllContacts(conn),
-        fetchAllCompanies(conn),
-        syncPipelineStages(organizationId, conn),
-        syncUserMapping(organizationId, conn),
-        defaultStageId(organizationId),
-      ]);
+    const [leads, stageByStatusId, ownerByAmoUserId, fallbackStageId] = await Promise.all([
+      fetchAllLeads(conn),
+      syncPipelineStages(organizationId, conn),
+      syncUserMapping(organizationId, conn),
+      defaultStageId(organizationId),
+    ]);
 
-    // Upsert every referenced contact/company first so leads can link to
-    // their real internal ids instead of just carrying a name string.
+    // Only fetch the contacts/companies this batch of leads actually
+    // references, not the whole account's address book (see
+    // fetchEntitiesByIds above).
     const referencedContactIds = new Set<number>();
     const referencedCompanyIds = new Set<number>();
     for (const l of leads) {
@@ -570,6 +574,11 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       if (cId) referencedContactIds.add(cId);
       if (coId) referencedCompanyIds.add(coId);
     }
+
+    const [contactsById, companiesById] = await Promise.all([
+      fetchEntitiesByIds<AmoContact>(conn, "contacts", Array.from(referencedContactIds)),
+      fetchEntitiesByIds<AmoCompany>(conn, "companies", Array.from(referencedCompanyIds)),
+    ]);
 
     const contactIdMap = new Map<number, string>();
     if (referencedContactIds.size > 0) {
