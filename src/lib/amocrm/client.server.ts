@@ -377,6 +377,16 @@ function pipelineStatusKey(pipelineId: number, statusId: number): string {
   return `${pipelineId}:${statusId}`;
 }
 
+type PipelineStageSync = {
+  stageByStatusId: Map<string, string>;
+  // AmoCRM's own pipeline name (e.g. "Продажи", "Retail") — leads.funnel
+  // used to be left at its column default ('Direct Sales') for every
+  // AmoCRM-synced lead because nothing set it, which collapsed every real
+  // pipeline into one funnel in the UI. Keyed by amocrm_pipeline_id so
+  // syncLeadsFromAmo can stamp each lead with its real funnel name.
+  pipelineNameById: Map<number, string>;
+};
+
 /**
  * Mirrors AmoCRM's real pipeline/status structure into pipeline_stages, one
  * row per (organization, amocrm_pipeline_id, amocrm_status_id) — additive,
@@ -385,19 +395,23 @@ function pipelineStatusKey(pipelineId: number, statusId: number): string {
  * lookup for lead upserts — status ids alone aren't unique across
  * pipelines (won/lost are id 142/143 in every pipeline), so a lookup keyed
  * on status id alone would collapse every pipeline's "Won" stage into
- * whichever one was upserted last.
+ * whichever one was upserted last — plus each pipeline's own name.
  */
 async function syncPipelineStages(
   organizationId: string,
   conn: AmoConnection,
-): Promise<Map<string, string>> {
+): Promise<PipelineStageSync> {
   const pipelines = await fetchPipelines(conn);
+  const pipelineNameById = new Map<number, string>(
+    pipelines.map((p) => [p.id, p.name?.trim() || "Direct Sales"]),
+  );
   const rows: {
     organization_id: string;
     amocrm_pipeline_id: number;
     amocrm_status_id: number;
     key: string;
     name: string;
+    pipeline_name: string;
     position: number;
     color: string;
     probability: number;
@@ -420,6 +434,7 @@ async function syncPipelineStages(
         // this org's (organization_id, key) uniqueness.
         key: `amo-${pipeline.id}-${status.id}`,
         name: status.name,
+        pipeline_name: pipelineNameById.get(pipeline.id) ?? "Direct Sales",
         position: status.sort ?? index,
         color: isWon
           ? "bg-success"
@@ -433,7 +448,7 @@ async function syncPipelineStages(
       index += 1;
     }
   }
-  if (rows.length === 0) return new Map();
+  if (rows.length === 0) return { stageByStatusId: new Map(), pipelineNameById };
 
   const { data, error } = await supabaseAdmin
     .from("pipeline_stages")
@@ -444,13 +459,13 @@ async function syncPipelineStages(
     .select("id, amocrm_pipeline_id, amocrm_status_id");
   if (error) throw error;
 
-  const map = new Map<string, string>();
+  const stageByStatusId = new Map<string, string>();
   for (const row of data ?? []) {
     if (row.amocrm_pipeline_id != null && row.amocrm_status_id != null) {
-      map.set(pipelineStatusKey(row.amocrm_pipeline_id, row.amocrm_status_id), row.id);
+      stageByStatusId.set(pipelineStatusKey(row.amocrm_pipeline_id, row.amocrm_status_id), row.id);
     }
   }
-  return map;
+  return { stageByStatusId, pipelineNameById };
 }
 
 /** Matches AmoCRM users to existing profiles by email, returns amoUserId -> our profile id. */
@@ -599,11 +614,12 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
   const conn = await ensureValidToken(conn0);
 
   try {
-    const [stageByStatusId, ownerByAmoUserId, fallbackStageId] = await Promise.all([
-      syncPipelineStages(organizationId, conn),
-      syncUserMapping(organizationId, conn),
-      defaultStageId(organizationId),
-    ]);
+    const [{ stageByStatusId, pipelineNameById }, ownerByAmoUserId, fallbackStageId] =
+      await Promise.all([
+        syncPipelineStages(organizationId, conn),
+        syncUserMapping(organizationId, conn),
+        defaultStageId(organizationId),
+      ]);
 
     // Leads used to be fetched into one array for the whole account (up to
     // thousands of objects, each carrying embedded tags/contacts/companies
@@ -709,6 +725,13 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           source: "AmoCRM",
           expected_revenue: l.price ?? 0,
           budget: l.price ?? 0,
+          // Was never set here before, so every AmoCRM-synced lead sat at
+          // leads.funnel's column default ('Direct Sales') regardless of
+          // which real AmoCRM pipeline it came from — collapsing every
+          // pipeline into one funnel everywhere the app groups/filters by
+          // funnel (Voronkalar, the pipeline board, Reyting's funnel
+          // filter, ...).
+          funnel: pipelineNameById.get(l.pipeline_id) ?? "Direct Sales",
           stage_id:
             stageByStatusId.get(pipelineStatusKey(l.pipeline_id, l.status_id)) ?? fallbackStageId,
           owner_id: l.responsible_user_id

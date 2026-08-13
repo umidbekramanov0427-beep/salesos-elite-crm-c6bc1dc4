@@ -73,6 +73,16 @@ function PipelinePage() {
     return Array.from(set).sort();
   }, [leads]);
   const filteredLeads = useMemo(() => filterLeads(leads, filters), [leads, filters]);
+  // Without this, selecting a funnel only narrowed which leads showed up
+  // inside each column — every AmoCRM pipeline's stage columns still
+  // rendered side by side regardless of the filter, since each stage now
+  // carries the AmoCRM pipeline it actually belongs to (see pipeline_name),
+  // an org with several pipelines got one long, mixed-together board
+  // instead of one funnel's own stages.
+  const visibleStages = useMemo(() => {
+    if (!filters.funnel) return stages;
+    return stages.filter((s) => (s.pipeline_name || "Direct Sales") === filters.funnel);
+  }, [stages, filters.funnel]);
 
   const [board, setBoard] = useState<Record<string, string[]>>({});
   const [dragged, setDragged] = useState<string | null>(null);
@@ -80,10 +90,10 @@ function PipelinePage() {
 
   useEffect(() => {
     const next: Record<string, string[]> = {};
-    for (const s of stages)
+    for (const s of visibleStages)
       next[s.id] = filteredLeads.filter((l) => l.stageId === s.id).map((l) => l.id);
     setBoard(next);
-  }, [stages, filteredLeads]);
+  }, [visibleStages, filteredLeads]);
 
   const move = (stageId: string) => {
     if (!dragged || asOfDate) return;
@@ -124,7 +134,7 @@ function PipelinePage() {
 
       <div className="overflow-x-auto pb-4">
         <div className="flex min-w-max gap-5">
-          {stages.map((s) => {
+          {visibleStages.map((s) => {
             const ids = board[s.id] ?? [];
             const items = ids.map((id) => filteredLeads.find((l) => l.id === id)!).filter(Boolean);
             const value = items.reduce((sum, l) => sum + l.expectedRevenue, 0);
