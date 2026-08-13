@@ -1354,7 +1354,16 @@ export function useTriggerAmoCrmSync() {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json: { synced: number; error?: string };
+      try {
+        json = JSON.parse(text);
+      } catch {
+        // Platform-level failure (timeout, crash) returned a non-JSON body
+        // — surface the raw text rather than letting JSON.parse's own
+        // error ("Unexpected token ... is not valid JSON") stand in for it.
+        throw new Error(text || `Sync failed (${res.status})`);
+      }
       if (!res.ok) throw new Error(json.error ?? "Sync failed");
       return json;
     },
