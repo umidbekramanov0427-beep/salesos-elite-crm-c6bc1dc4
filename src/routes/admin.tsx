@@ -38,7 +38,7 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { cn, roleTone, timeAgo } from "@/lib/utils";
+import { cn, describeError, roleTone, timeAgo } from "@/lib/utils";
 import {
   useProfilesRaw,
   useUpdateProfile,
@@ -120,7 +120,7 @@ function CreateEmployeeDialog({ ropOptions }: { ropOptions: ProfileRow[] }) {
       reset();
       setOpen(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.employeeCreateFailed"));
+      toast.error(describeError(err, t("admin.employeeCreateFailed")));
     } finally {
       setBusy(false);
       setConfirming(false);
@@ -258,7 +258,7 @@ function ErrorLogRowItem({ log }: { log: ErrorLogRow }) {
     try {
       await resolveLog.mutateAsync({ id: log.id, patch: { resolved: true } });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.errors.resolveFailed"));
+      toast.error(describeError(err, t("admin.errors.resolveFailed")));
     }
   }
 
@@ -416,7 +416,7 @@ function AdminPanelContent() {
       await updateProfile.mutateAsync({ id: profile.id, patch: { role } });
       toast.success(t("admin.roleUpdated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.roleUpdateFailed"));
+      toast.error(describeError(err, t("admin.roleUpdateFailed")));
     } finally {
       setSavingId(null);
       setEditingId(null);
@@ -432,7 +432,7 @@ function AdminPanelContent() {
       });
       toast.success(t("admin.org.updated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.org.updateFailed"));
+      toast.error(describeError(err, t("admin.org.updateFailed")));
     } finally {
       setSavingId(null);
     }
@@ -444,7 +444,7 @@ function AdminPanelContent() {
       await deleteEmployee.mutateAsync(profile.id);
       toast.success(t("admin.employeeDeleted"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.employeeDeleteFailed"));
+      toast.error(describeError(err, t("admin.employeeDeleteFailed")));
     } finally {
       setDeletingId(null);
     }
