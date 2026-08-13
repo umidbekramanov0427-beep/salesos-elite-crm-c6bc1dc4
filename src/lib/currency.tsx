@@ -11,7 +11,7 @@ const STORAGE_KEY = "salesos.currency";
 type CurrencyValue = {
   unit: CurrencyUnit;
   setUnit: (u: CurrencyUnit) => void;
-  format: (usdAmount: number) => string;
+  format: (nativeAmount: number) => string;
 };
 
 const CurrencyContext = createContext<CurrencyValue | null>(null);
@@ -30,20 +30,28 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, u);
   }, []);
 
+  // Every amount flowing through this app now comes straight from AmoCRM's
+  // lead price field, which is denominated in the org's own currency (UZS
+  // for an Uzbek business) -- there's no USD-native source data anymore.
+  // This used to treat every stored amount as USD and multiply by
+  // UZS_PER_USD for UZS display, which took a real e.g. 5,000,000 so'm
+  // deal and displayed it as 64,500,000,000,000 so'm. UZS display is now
+  // the raw AmoCRM amount as-is; USD display converts it down for anyone
+  // who prefers to see figures in dollars.
   const format = useCallback(
-    (usdAmount: number) => {
-      if (unit === "UZS") {
-        return new Intl.NumberFormat("uz-UZ", {
+    (nativeAmount: number) => {
+      if (unit === "USD") {
+        return new Intl.NumberFormat("en-US", {
           style: "currency",
-          currency: "UZS",
+          currency: "USD",
           maximumFractionDigits: 0,
-        }).format(usdAmount * UZS_PER_USD);
+        }).format(nativeAmount / UZS_PER_USD);
       }
-      return new Intl.NumberFormat("en-US", {
+      return new Intl.NumberFormat("uz-UZ", {
         style: "currency",
-        currency: "USD",
+        currency: "UZS",
         maximumFractionDigits: 0,
-      }).format(usdAmount);
+      }).format(nativeAmount);
     },
     [unit],
   );
