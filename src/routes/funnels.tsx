@@ -268,6 +268,24 @@ function LeadGalleryCard({
   );
 }
 
+// Column order is deliberately most- to least-important, left to right:
+// who the lead is, where it sits in the pipeline, its tags, who owns it,
+// how much it's worth, whether it's still open, then the AmoCRM deep link.
+function LeadListHeader() {
+  const { t } = useI18n();
+  return (
+    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
+      <th className="px-3 py-2 font-medium">{t("funnels.colName")}</th>
+      <th className="px-3 py-2 font-medium">{t("funnels.colStage")}</th>
+      <th className="px-3 py-2 font-medium">{t("funnels.colTags")}</th>
+      <th className="px-3 py-2 font-medium">{t("funnels.colOwner")}</th>
+      <th className="px-3 py-2 text-right font-medium">{t("funnels.colAmount")}</th>
+      <th className="px-3 py-2 font-medium">{t("funnels.colStatus")}</th>
+      <th className="px-3 py-2 text-right font-medium">{t("funnels.colAction")}</th>
+    </tr>
+  );
+}
+
 function LeadListRow({
   lead,
   getAmoLink,
@@ -278,46 +296,56 @@ function LeadListRow({
   const { t } = useI18n();
   const { format } = useCurrency();
   const amoLink = getAmoLink(lead.amocrmId);
+  const status = lead.stageIsWon
+    ? { tone: "success" as const, label: t("funnels.statusWon") }
+    : lead.stageIsLost
+      ? { tone: "danger" as const, label: t("funnels.statusLost") }
+      : { tone: "info" as const, label: t("funnels.statusOpen") };
 
   return (
-    <Link
-      to="/crm/leads/$leadId"
-      params={{ leadId: lead.id }}
-      className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 hover:bg-surface"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {lead.company || lead.name}
-        </p>
-        <p className="truncate text-xs text-subtle">
-          {lead.owner} · {t("leadFilter.created")} {lead.created}
-        </p>
-      </div>
-      {lead.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {lead.tags.slice(0, 2).map((tag) => (
-            <TagChip key={tag} tag={tag} size="xs" />
-          ))}
-        </div>
-      )}
-      <Pill tone={lead.stage === "Won" ? "success" : lead.stage === "Lost" ? "danger" : "info"}>
-        {lead.stage}
-      </Pill>
-      <span className="w-24 shrink-0 text-right text-sm font-semibold text-foreground">
+    <tr className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent">
+      <td className="max-w-[16rem] px-3 py-3">
+        <Link to="/crm/leads/$leadId" params={{ leadId: lead.id }} className="block min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground hover:text-primary">
+            {lead.company || lead.name}
+          </p>
+          {lead.company && <p className="truncate text-xs text-subtle">{lead.name}</p>}
+        </Link>
+      </td>
+      <td className="px-3 py-3">
+        <Pill tone="neutral">{lead.stage}</Pill>
+      </td>
+      <td className="max-w-[12rem] px-3 py-3">
+        {lead.tags.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {lead.tags.slice(0, 3).map((tag) => (
+              <TagChip key={tag} tag={tag} size="xs" />
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs text-subtle">—</span>
+        )}
+      </td>
+      <td className="px-3 py-3 text-sm text-foreground">{lead.owner}</td>
+      <td className="px-3 py-3 text-right text-sm font-semibold text-foreground">
         {format(lead.expectedRevenue)}
-      </span>
-      {amoLink && (
-        <a
-          href={amoLink}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-foreground/90 px-1.5 py-0.5 text-[10px] font-bold text-background hover:opacity-80"
-        >
-          {t("leadFilter.openInAmoCrm")} <ExternalLink className="h-2.5 w-2.5" />
-        </a>
-      )}
-    </Link>
+      </td>
+      <td className="px-3 py-3">
+        <Pill tone={status.tone}>{status.label}</Pill>
+      </td>
+      <td className="px-3 py-3 text-right">
+        {amoLink && (
+          <a
+            href={amoLink}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md bg-foreground/90 px-1.5 py-0.5 text-[10px] font-bold text-background hover:opacity-80"
+          >
+            {t("leadFilter.openInAmoCrm")} <ExternalLink className="h-2.5 w-2.5" />
+          </a>
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -435,10 +463,17 @@ function FunnelDetail({
               ))}
             </div>
           ) : (
-            <div className="space-y-2">
-              {gallery.map((lead) => (
-                <LeadListRow key={lead.id} lead={lead} getAmoLink={getAmoLink} />
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <LeadListHeader />
+                </thead>
+                <tbody>
+                  {gallery.map((lead) => (
+                    <LeadListRow key={lead.id} lead={lead} getAmoLink={getAmoLink} />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </SectionCard>

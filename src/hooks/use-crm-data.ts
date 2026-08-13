@@ -413,6 +413,14 @@ export type CrmLeadView = {
   address: string;
   stage: string;
   stageId: string;
+  // Comparing `stage` (a free-text stage name) against the literal string
+  // "Won"/"Lost" only works for the original demo-seeded stages — an
+  // AmoCRM-synced stage keeps AmoCRM's own status name (e.g. "Успешно
+  // реализовано"), so that comparison silently never matches for real
+  // AmoCRM data. These come straight from pipeline_stages.is_won/is_lost
+  // instead, which stay correct regardless of what the stage is named.
+  stageIsWon: boolean;
+  stageIsLost: boolean;
   funnel: string;
   nextFollowUp: string;
   lastContact: string;
@@ -478,6 +486,8 @@ export function useCrmLeads(overrideLeads?: LeadRow[]) {
         address: l.address ?? "",
         stage: stage?.name ?? "New Lead",
         stageId: l.stage_id ?? "",
+        stageIsWon: stage?.is_won ?? false,
+        stageIsLost: stage?.is_lost ?? false,
         funnel: l.funnel ?? "",
         nextFollowUp: formatFollowUp(l.next_follow_up),
         lastContact: timeAgo(l.last_contact_at),
