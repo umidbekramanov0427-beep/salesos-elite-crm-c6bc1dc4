@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import {
   AlertOctagon,
@@ -641,23 +641,33 @@ function AdminPanelContent() {
                 {
                   icon: Lock,
                   label: t("admin.permissionsMatrix"),
-                  href: "/crm-stages#permissions",
+                  to: "/crm-stages" as const,
+                  hash: "permissions",
                   important: true,
                 },
-                { icon: Workflow, label: t("admin.funnelsStages"), href: "/crm-stages" },
-                { icon: Plug, label: t("int.title"), href: "/integrations" },
-                { icon: Bot, label: t("admin.autoResponders"), href: "/admin/auto-responders" },
-                { icon: Sparkles, label: t("admin.aiAgents"), href: "/admin/ai-agents" },
-                { icon: ShieldCheck, label: t("admin.securityCenter"), href: "/admin/security" },
+                { icon: Workflow, label: t("admin.funnelsStages"), to: "/crm-stages" as const },
+                { icon: Plug, label: t("int.title"), to: "/integrations" as const },
+                {
+                  icon: Bot,
+                  label: t("admin.autoResponders"),
+                  to: "/admin/auto-responders" as const,
+                },
+                { icon: Sparkles, label: t("admin.aiAgents"), to: "/admin/ai-agents" as const },
+                {
+                  icon: ShieldCheck,
+                  label: t("admin.securityCenter"),
+                  to: "/admin/security" as const,
+                },
                 {
                   icon: ListFilter,
                   label: t("admin.amocrmImport"),
-                  href: "/admin/amocrm-import",
+                  to: "/admin/amocrm-import" as const,
                 },
               ].map((c) => (
                 <li key={c.label}>
-                  <a
-                    href={c.href}
+                  <Link
+                    to={c.to}
+                    {...("hash" in c ? { hash: c.hash } : {})}
                     className={cn(
                       "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
                       c.important
@@ -672,7 +682,7 @@ function AdminPanelContent() {
                       )}
                     />
                     {c.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

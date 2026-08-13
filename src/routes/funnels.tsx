@@ -19,7 +19,6 @@ import {
   useCrmLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
-  useTagsSummary,
   type CrmLeadView,
   type LeadRow,
 } from "@/hooks/use-crm-data";
@@ -372,7 +371,6 @@ function FunnelDetail({
 
   const { data: profiles } = useProfilesRaw();
   const { data: stages } = usePipelineStagesRaw();
-  const { tags: tagSummary } = useTagsSummary();
   const getAmoLink = useAmoCrmLink();
 
   const funnelNames = useMemo(() => {
@@ -383,6 +381,19 @@ function FunnelDetail({
 
   const leads = useMemo(() => allLeads.filter((l) => funnelOf(l) === name), [allLeads, name]);
   const rawById = useMemo(() => new Map(rawLeads.map((r) => [r.id, r])), [rawLeads]);
+
+  // Egalar/teglar filtrlari shu voronkadagi lidlarga tegishli bo'lishi
+  // kerak -- butun akkaunt bo'yicha emas, aks holda boshqa voronkalarning
+  // egalari/teglari ham ko'rinib, ishlatib bo'lmaydigan variantlar chiqadi.
+  const funnelOwners = useMemo(() => {
+    const ownerIds = new Set(leads.map((l) => l.ownerId).filter(Boolean));
+    return (profiles ?? []).filter((p) => ownerIds.has(p.id));
+  }, [leads, profiles]);
+  const funnelTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of leads) for (const tag of l.tags) set.add(tag);
+    return Array.from(set).sort();
+  }, [leads]);
 
   const gallery = useMemo(() => {
     const filtered = filterLeads(leads, { ...filters, funnel: null });
@@ -447,8 +458,8 @@ function FunnelDetail({
                 setFilters(next);
               }}
               funnels={funnelNames}
-              owners={profiles ?? []}
-              tags={tagSummary.map((tg) => tg.name)}
+              owners={funnelOwners}
+              tags={funnelTags}
               stages={stages ?? []}
               view={view}
               onViewChange={setView}
