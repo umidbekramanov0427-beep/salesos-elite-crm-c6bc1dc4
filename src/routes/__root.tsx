@@ -15,6 +15,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { installGlobalErrorLogging, logClientError } from "../lib/error-log";
 import { AppShell } from "../components/layout/AppShell";
+import { LogoLoader } from "../components/LogoLoader";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { I18nProvider, useI18n } from "../lib/i18n";
 import { CurrencyProvider } from "../lib/currency";
@@ -163,7 +164,7 @@ function AuthGate() {
   if (!ready || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+        <LogoLoader className="h-16 w-16" />
       </div>
     );
   }
