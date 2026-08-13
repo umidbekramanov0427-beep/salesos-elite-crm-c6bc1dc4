@@ -161,11 +161,13 @@ export function LeadFilterBar({
         className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <option value="">{t("leadFilter.allStages")}</option>
-        {stages.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
+        {stages
+          .filter((s) => !value.funnel || (s.pipeline_name || "Direct Sales") === value.funnel)
+          .map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
       </select>
 
       <TagMultiSelect
