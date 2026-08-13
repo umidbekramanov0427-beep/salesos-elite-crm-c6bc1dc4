@@ -283,21 +283,9 @@ function amoMainCompanyId(lead: AmoLead): number | null {
   return lead._embedded?.companies?.[0]?.id ?? null;
 }
 
-async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
-  const leads = await fetchAllPaged(
-    conn,
-    (page) => `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
-    (data) => (data as { _embedded?: { leads?: AmoLead[] } } | null)?._embedded?.leads ?? [],
-  );
-  // AmoCRM's page-based pagination isn't a stable snapshot — a lead can
-  // shift across the page boundary between two concurrent page requests
-  // (see PAGE_FETCH_CONCURRENCY above) and come back on both pages. That
-  // duplicate then hits the leads upsert below twice in the same batch,
-  // which Postgres rejects outright ("ON CONFLICT DO UPDATE command cannot
-  // affect row a second time") and aborts the *entire* sync — not just
-  // that one lead. Dedupe by id, keeping the last (freshest) copy.
-  return Array.from(new Map(leads.map((l) => [l.id, l])).values());
-}
+// Leads are fetched and upserted one page at a time by syncLeadsFromAmo
+// below (not via fetchAllPaged) so peak memory stays bounded to a single
+// page regardless of account size — see the comment on that loop.
 
 type AmoCustomFieldValue = { field_code: string | null; values?: { value?: string }[] };
 type AmoContact = {
@@ -574,16 +562,16 @@ type AmoCallNote = {
 
 // A full-history call-notes pull is the single biggest unbounded cost in a
 // sync — an account with years of call history can have far more notes
-// than leads, and fetching all of it was almost certainly what pushed
-// syncs on large accounts past the platform's request execution time
-// limit: the whole sync (leads, contacts, companies, pipeline stages, then
-// this) is one request, so a call-notes fetch that runs long enough gets
-// the entire sync silently killed with no response ever reaching the
-// browser — a spinner stuck forever, not an error. Recent call history is
-// what Audio Analytics actually needs; cap the window and the page count
-// so one sync run can never run away like that again.
-const CALL_NOTES_LOOKBACK_DAYS = 90;
-const CALL_NOTES_MAX_PAGES = 40; // ~10k notes at limit=250
+// than leads. Unlike the leads loop above, this still builds one array for
+// the whole window before upserting, and Lovable's own Worker logs showed
+// a sync on this account got killed with "Worker exceeded memory limit" —
+// a platform-level kill that bypasses the try/catch around this call in
+// syncLeadsFromAmo entirely, so keeping this small is the only real
+// defense. Recent call history is what Audio Analytics actually needs;
+// cap the window and the page count so this can never be the thing that
+// pushes a sync over the memory limit.
+const CALL_NOTES_LOOKBACK_DAYS = 30;
+const CALL_NOTES_MAX_PAGES = 20; // ~5k notes at limit=250
 
 async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
   const sinceUnix = Math.floor(Date.now() / 1000) - CALL_NOTES_LOOKBACK_DAYS * 86400;
@@ -594,8 +582,11 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
     (data) => (data as { _embedded?: { notes?: AmoCallNote[] } } | null)?._embedded?.notes ?? [],
     CALL_NOTES_MAX_PAGES,
   );
-  // Same page-boundary duplication risk as fetchAllLeads above (see
-  // dedupeByKey for why the upsert below is also defended independently).
+  // AmoCRM's page-based pagination isn't a stable snapshot — a note can
+  // shift across the page boundary between two concurrent page requests
+  // (see PAGE_FETCH_CONCURRENCY) and come back on both pages, which would
+  // otherwise hit the upsert below twice in the same batch (see
+  // dedupeByKey for why that's also defended independently there).
   return Array.from(new Map(notes.map((n) => [n.id, n])).values());
 }
 
@@ -608,88 +599,103 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
   const conn = await ensureValidToken(conn0);
 
   try {
-    const [leads, stageByStatusId, ownerByAmoUserId, fallbackStageId] = await Promise.all([
-      fetchAllLeads(conn),
+    const [stageByStatusId, ownerByAmoUserId, fallbackStageId] = await Promise.all([
       syncPipelineStages(organizationId, conn),
       syncUserMapping(organizationId, conn),
       defaultStageId(organizationId),
     ]);
 
-    // Only fetch the contacts/companies this batch of leads actually
-    // references, not the whole account's address book (see
-    // fetchEntitiesByIds above).
-    const referencedContactIds = new Set<number>();
-    const referencedCompanyIds = new Set<number>();
-    for (const l of leads) {
-      const cId = amoMainContactId(l);
-      const coId = amoMainCompanyId(l);
-      if (cId) referencedContactIds.add(cId);
-      if (coId) referencedCompanyIds.add(coId);
-    }
+    // Leads used to be fetched into one array for the whole account (up to
+    // thousands of objects, each carrying embedded tags/contacts/companies
+    // JSON via `with=...`) before any of it was written. Lovable's own
+    // Worker logs showed that alone was enough to exceed the platform's
+    // memory limit and kill the request with a 502 ("Worker exceeded
+    // memory limit") — a different failure than the execution-time limit
+    // the earlier concurrency fixes addressed. Stream one page at a time
+    // instead: fetch, resolve just that page's own referenced
+    // contacts/companies, upsert, then let it be garbage collected before
+    // fetching the next page — peak memory stays bounded to a single page
+    // no matter how many leads the account has.
+    let totalSynced = 0;
+    let page = 1;
+    for (;;) {
+      const pageData = (await amoFetch(
+        conn,
+        `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
+      )) as { _embedded?: { leads?: AmoLead[] } } | null;
+      const pageLeads = dedupeByKey(pageData?._embedded?.leads ?? [], (l) => String(l.id));
+      if (pageLeads.length === 0) break;
 
-    const [contactsById, companiesById] = await Promise.all([
-      fetchEntitiesByIds<AmoContact>(conn, "contacts", Array.from(referencedContactIds)),
-      fetchEntitiesByIds<AmoCompany>(conn, "companies", Array.from(referencedCompanyIds)),
-    ]);
+      // Only fetch the contacts/companies this page's leads actually
+      // reference, not the whole account's address book (see
+      // fetchEntitiesByIds above).
+      const referencedContactIds = new Set<number>();
+      const referencedCompanyIds = new Set<number>();
+      for (const l of pageLeads) {
+        const cId = amoMainContactId(l);
+        const coId = amoMainCompanyId(l);
+        if (cId) referencedContactIds.add(cId);
+        if (coId) referencedCompanyIds.add(coId);
+      }
 
-    const contactIdMap = new Map<number, string>();
-    if (referencedContactIds.size > 0) {
-      const contactRows = Array.from(referencedContactIds)
-        .map((id) => contactsById.get(id))
-        .filter((c): c is AmoContact => !!c)
-        .map((c) => ({
-          organization_id: organizationId,
-          amocrm_id: c.id,
-          full_name: c.name?.trim() || `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "—",
-          phone: customField(c, "PHONE"),
-          email: customField(c, "EMAIL"),
-        }));
-      if (contactRows.length > 0) {
-        const { data, error } = await supabaseAdmin
-          .from("contacts")
-          .upsert(
-            dedupeByKey(contactRows, (r) => String(r.amocrm_id)),
-            {
-              onConflict: "organization_id,amocrm_id",
-            },
-          )
-          .select("id, amocrm_id");
-        if (error) throw error;
-        for (const row of data ?? []) {
-          if (row.amocrm_id != null) contactIdMap.set(row.amocrm_id, row.id);
+      const [contactsById, companiesById] = await Promise.all([
+        fetchEntitiesByIds<AmoContact>(conn, "contacts", Array.from(referencedContactIds)),
+        fetchEntitiesByIds<AmoCompany>(conn, "companies", Array.from(referencedCompanyIds)),
+      ]);
+
+      const contactIdMap = new Map<number, string>();
+      if (referencedContactIds.size > 0) {
+        const contactRows = Array.from(referencedContactIds)
+          .map((id) => contactsById.get(id))
+          .filter((c): c is AmoContact => !!c)
+          .map((c) => ({
+            organization_id: organizationId,
+            amocrm_id: c.id,
+            full_name: c.name?.trim() || `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "—",
+            phone: customField(c, "PHONE"),
+            email: customField(c, "EMAIL"),
+          }));
+        if (contactRows.length > 0) {
+          const { data, error } = await supabaseAdmin
+            .from("contacts")
+            .upsert(
+              dedupeByKey(contactRows, (r) => String(r.amocrm_id)),
+              { onConflict: "organization_id,amocrm_id" },
+            )
+            .select("id, amocrm_id");
+          if (error) throw error;
+          for (const row of data ?? []) {
+            if (row.amocrm_id != null) contactIdMap.set(row.amocrm_id, row.id);
+          }
         }
       }
-    }
 
-    const companyIdMap = new Map<number, string>();
-    if (referencedCompanyIds.size > 0) {
-      const companyRows = Array.from(referencedCompanyIds)
-        .map((id) => companiesById.get(id))
-        .filter((c): c is AmoCompany => !!c)
-        .map((c) => ({
-          organization_id: organizationId,
-          amocrm_id: c.id,
-          name: c.name?.trim() || `AmoCRM company #${c.id}`,
-        }));
-      if (companyRows.length > 0) {
-        const { data, error } = await supabaseAdmin
-          .from("companies")
-          .upsert(
-            dedupeByKey(companyRows, (r) => String(r.amocrm_id)),
-            {
-              onConflict: "organization_id,amocrm_id",
-            },
-          )
-          .select("id, amocrm_id");
-        if (error) throw error;
-        for (const row of data ?? []) {
-          if (row.amocrm_id != null) companyIdMap.set(row.amocrm_id, row.id);
+      const companyIdMap = new Map<number, string>();
+      if (referencedCompanyIds.size > 0) {
+        const companyRows = Array.from(referencedCompanyIds)
+          .map((id) => companiesById.get(id))
+          .filter((c): c is AmoCompany => !!c)
+          .map((c) => ({
+            organization_id: organizationId,
+            amocrm_id: c.id,
+            name: c.name?.trim() || `AmoCRM company #${c.id}`,
+          }));
+        if (companyRows.length > 0) {
+          const { data, error } = await supabaseAdmin
+            .from("companies")
+            .upsert(
+              dedupeByKey(companyRows, (r) => String(r.amocrm_id)),
+              { onConflict: "organization_id,amocrm_id" },
+            )
+            .select("id, amocrm_id");
+          if (error) throw error;
+          for (const row of data ?? []) {
+            if (row.amocrm_id != null) companyIdMap.set(row.amocrm_id, row.id);
+          }
         }
       }
-    }
 
-    if (leads.length > 0) {
-      const rows = leads.map((l) => {
+      const rows = pageLeads.map((l) => {
         const contactAmoId = amoMainContactId(l);
         const companyAmoId = amoMainCompanyId(l);
         const company = companyAmoId ? companiesById.get(companyAmoId) : undefined;
@@ -715,11 +721,13 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       });
       const { error } = await supabaseAdmin.from("leads").upsert(
         dedupeByKey(rows, (r) => String(r.amocrm_id)),
-        {
-          onConflict: "organization_id,amocrm_id",
-        },
+        { onConflict: "organization_id,amocrm_id" },
       );
       if (error) throw error;
+
+      totalSynced += pageLeads.length;
+      if (pageLeads.length < 250) break; // short page — this was the last one
+      page += 1;
     }
 
     let callsSynced = 0;
@@ -741,13 +749,13 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
         config: {
           subdomain: conn.subdomain,
           last_synced_at: new Date().toISOString(),
-          lead_count: leads.length,
+          lead_count: totalSynced,
         },
       })
       .eq("organization_id", organizationId)
       .eq("key", "amocrm");
 
-    return { synced: leads.length, callsSynced };
+    return { synced: totalSynced, callsSynced };
   } catch (err) {
     const message = describeError(err);
     await supabaseAdmin
