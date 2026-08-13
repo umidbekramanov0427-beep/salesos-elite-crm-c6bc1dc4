@@ -149,6 +149,14 @@ function dedupeByKey<T>(rows: T[], keyFn: (row: T) => string): T[] {
 // concurrency level that's always safe.
 const RATE_LIMIT_MAX_RETRIES = 6;
 
+// 5xx (including Cloudflare's 522 "connection timed out", seen in practice
+// in front of AmoCRM) are transient upstream blips, not something wrong on
+// our end — without a retry here, one flaky response anywhere in a sync
+// aborted the whole run and threw away everything already fetched in that
+// request. A shorter retry budget than the 429 case since these aren't
+// "back off, you're going too fast" signals — just try again shortly.
+const SERVER_ERROR_MAX_RETRIES = 3;
+
 async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise<unknown> {
   const res = await fetch(`https://${conn.subdomain}${path}`, {
     headers: { authorization: `Bearer ${conn.access_token}` },
@@ -157,6 +165,10 @@ async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise
     const retryAfterHeader = Number(res.headers.get("retry-after"));
     const delayMs = (retryAfterHeader > 0 ? retryAfterHeader : attempt) * 1000;
     await sleep(delayMs);
+    return amoFetch(conn, path, attempt + 1);
+  }
+  if (res.status >= 500 && attempt <= SERVER_ERROR_MAX_RETRIES) {
+    await sleep(attempt * 1000);
     return amoFetch(conn, path, attempt + 1);
   }
   if (res.status === 204) return null;
