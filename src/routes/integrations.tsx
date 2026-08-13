@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, Plug, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   useAmoConnectionStatus,
   useIntegrationSetting,
+  usePipelineStagesRaw,
   useTriggerAmoCrmSync,
 } from "@/hooks/use-crm-data";
 import {
@@ -201,6 +202,7 @@ function AmoCrmCard() {
   const { user } = useAuth();
   const { data: setting, isLoading } = useIntegrationSetting("amocrm");
   const { data: connectionStatus } = useAmoConnectionStatus();
+  const { data: stages } = usePipelineStagesRaw();
   const sync = useTriggerAmoCrmSync();
   const isAdmin = user?.role === "super_admin";
 
@@ -212,76 +214,90 @@ function AmoCrmCard() {
       lead_count?: number;
     } | null) ?? {};
 
+  const amoStages = (stages ?? []).filter((s) => s.amocrm_status_id != null);
+  const pipelineCount = new Set(amoStages.map((s) => s.amocrm_pipeline_id)).size;
+
   return (
-    <SectionCard title="AmoCRM" description={t("amocrm.desc")}>
+    <SectionCard title={t("amocrm.settingsTitle")} description={t("amocrm.desc")}>
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Pill tone={connected ? "success" : "neutral"}>
-                {connected ? t("common.connected") : t("common.notConnected")}
-              </Pill>
-              {connected && config.subdomain && (
-                <span className="text-xs text-subtle">{config.subdomain}</span>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Pill tone={connected ? "success" : "neutral"}>
+                  {connected ? t("common.connected") : t("common.notConnected")}
+                </Pill>
+                {connected && config.subdomain && (
+                  <span className="text-xs text-subtle">{config.subdomain}</span>
+                )}
+              </div>
+              {connected && (
+                <p className="mt-2 text-xs text-subtle">
+                  {t("amocrm.lastSync")}:{" "}
+                  {config.last_synced_at
+                    ? new Date(config.last_synced_at).toLocaleString()
+                    : t("amocrm.never")}
+                </p>
+              )}
+              {!isAdmin && <p className="mt-2 text-xs text-subtle">{t("amocrm.adminOnly")}</p>}
+              {isAdmin && connectionStatus?.last_sync_error && (
+                <p className="mt-2 max-w-md text-xs text-destructive">
+                  {t("amocrm.lastError")}: {connectionStatus.last_sync_error}
+                </p>
               )}
             </div>
-            {connected && (
-              <p className="mt-2 text-xs text-subtle">
-                {t("amocrm.lastSync")}:{" "}
-                {config.last_synced_at
-                  ? new Date(config.last_synced_at).toLocaleString()
-                  : t("amocrm.never")}
-                {typeof config.lead_count === "number"
-                  ? ` · ${t("amocrm.leadsCount", { count: config.lead_count })}`
-                  : ""}
-              </p>
+
+            {isAdmin && connected && (
+              <button
+                type="button"
+                onClick={() =>
+                  sync.mutate(undefined, {
+                    onSuccess: () => toast.success(t("amocrm.syncStarted")),
+                    onError: (err) =>
+                      toast.error(err instanceof Error ? err.message : t("amocrm.syncFailed")),
+                  })
+                }
+                disabled={sync.isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {sync.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {t("amocrm.syncNow")}
+              </button>
             )}
-            {!isAdmin && <p className="mt-2 text-xs text-subtle">{t("amocrm.adminOnly")}</p>}
-            {isAdmin && connectionStatus?.last_sync_error && (
-              <p className="mt-2 max-w-md text-xs text-destructive">
-                {t("amocrm.lastError")}: {connectionStatus.last_sync_error}
-              </p>
+            {isAdmin && !connected && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const { data } = await supabase.auth.getSession();
+                  const token = data.session?.access_token;
+                  if (!token) return;
+                  window.location.href = `/integrations/amocrm/connect?token=${encodeURIComponent(token)}`;
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                <Plug className="h-4 w-4" /> {t("amocrm.connect")}
+              </button>
             )}
           </div>
 
-          {isAdmin && connected && (
-            <button
-              type="button"
-              onClick={() =>
-                sync.mutate(undefined, {
-                  onSuccess: () => toast.success(t("amocrm.syncStarted")),
-                  onError: (err) =>
-                    toast.error(err instanceof Error ? err.message : t("amocrm.syncFailed")),
-                })
-              }
-              disabled={sync.isPending}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {sync.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              {t("amocrm.syncNow")}
-            </button>
-          )}
-          {isAdmin && !connected && (
-            <button
-              type="button"
-              onClick={async () => {
-                const { data } = await supabase.auth.getSession();
-                const token = data.session?.access_token;
-                if (!token) return;
-                window.location.href = `/integrations/amocrm/connect?token=${encodeURIComponent(token)}`;
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              <Plug className="h-4 w-4" /> {t("amocrm.connect")}
-            </button>
+          {connected && (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatCard label={t("amocrm.statPipelines")} value={String(pipelineCount)} />
+              <StatCard label={t("amocrm.statStages")} value={String(amoStages.length)} />
+              <StatCard
+                label={t("amocrm.statLeads")}
+                value={String(config.lead_count ?? 0)}
+                tone="mint"
+              />
+            </div>
           )}
         </div>
       )}

@@ -962,6 +962,10 @@ const en: Dict = {
   "errorpage.goHome": "Go home",
 
   "amocrm.desc": "One-way lead sync — AmoCRM to SalesOS",
+  "amocrm.settingsTitle": "AmoCRM settings",
+  "amocrm.statPipelines": "Pipelines",
+  "amocrm.statStages": "Stages",
+  "amocrm.statLeads": "Leads",
   "amocrm.lastSync": "Last sync",
   "amocrm.never": "Never",
   "amocrm.leadsCount": "{count} leads",
@@ -2231,6 +2235,10 @@ const ru: Dict = {
   "errorpage.goHome": "На главную",
 
   "amocrm.desc": "Односторонняя синхронизация лидов — AmoCRM в SalesOS",
+  "amocrm.settingsTitle": "Настройки AmoCRM",
+  "amocrm.statPipelines": "Воронки",
+  "amocrm.statStages": "Этапы",
+  "amocrm.statLeads": "Лиды",
   "amocrm.lastSync": "Последняя синхронизация",
   "amocrm.never": "Никогда",
   "amocrm.leadsCount": "лидов: {count}",
@@ -3513,6 +3521,10 @@ const uz: Dict = {
   "errorpage.goHome": "Bosh sahifaga",
 
   "amocrm.desc": "Bir tomonlama lid sinxronizatsiyasi — AmoCRM'dan SalesOS'ga",
+  "amocrm.settingsTitle": "AmoCRM sozlamalari",
+  "amocrm.statPipelines": "Voronkalar",
+  "amocrm.statStages": "Bosqichlar",
+  "amocrm.statLeads": "Lidlar",
   "amocrm.lastSync": "Oxirgi sinxronizatsiya",
   "amocrm.never": "Hech qachon",
   "amocrm.leadsCount": "{count} ta lid",
