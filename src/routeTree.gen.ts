@@ -63,6 +63,7 @@ import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
 import { Route as IntegrationsAmocrmCallbackRouteImport } from './routes/integrations.amocrm.callback'
 import { Route as IntegrationsAmocrmConnectRouteImport } from './routes/integrations.amocrm.connect'
 import { Route as IntegrationsAmocrmSyncRouteImport } from './routes/integrations.amocrm.sync'
+import { Route as IntegrationsAmocrmSyncAllRouteImport } from './routes/integrations.amocrm.sync-all'
 import { Route as IntegrationsAmocrmWebhookRouteImport } from './routes/integrations.amocrm.webhook'
 import { Route as PlatformOrganizationsOrgIdRouteImport } from './routes/platform.organizations.$orgId'
 
@@ -344,6 +345,12 @@ const IntegrationsAmocrmSyncRoute = IntegrationsAmocrmSyncRouteImport.update({
   path: '/amocrm/sync',
   getParentRoute: () => IntegrationsRoute,
 } as any)
+const IntegrationsAmocrmSyncAllRoute =
+  IntegrationsAmocrmSyncAllRouteImport.update({
+    id: '/amocrm/sync-all',
+    path: '/amocrm/sync-all',
+    getParentRoute: () => IntegrationsRoute,
+  } as any)
 const IntegrationsAmocrmWebhookRoute =
   IntegrationsAmocrmWebhookRouteImport.update({
     id: '/amocrm/webhook',
@@ -411,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
   '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
+  '/integrations/amocrm/sync-all': typeof IntegrationsAmocrmSyncAllRoute
   '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
   '/platform/organizations/$orgId': typeof PlatformOrganizationsOrgIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
@@ -469,6 +477,7 @@ export interface FileRoutesByTo {
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
   '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
+  '/integrations/amocrm/sync-all': typeof IntegrationsAmocrmSyncAllRoute
   '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
   '/platform/organizations/$orgId': typeof PlatformOrganizationsOrgIdRoute
   '/crm/leads': typeof CrmLeadsIndexRoute
@@ -528,6 +537,7 @@ export interface FileRoutesById {
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
   '/integrations/amocrm/sync': typeof IntegrationsAmocrmSyncRoute
+  '/integrations/amocrm/sync-all': typeof IntegrationsAmocrmSyncAllRoute
   '/integrations/amocrm/webhook': typeof IntegrationsAmocrmWebhookRoute
   '/platform/organizations/$orgId': typeof PlatformOrganizationsOrgIdRoute
   '/crm/leads/': typeof CrmLeadsIndexRoute
@@ -588,6 +598,7 @@ export interface FileRouteTypes {
     | '/integrations/amocrm/callback'
     | '/integrations/amocrm/connect'
     | '/integrations/amocrm/sync'
+    | '/integrations/amocrm/sync-all'
     | '/integrations/amocrm/webhook'
     | '/platform/organizations/$orgId'
     | '/crm/leads/'
@@ -646,6 +657,7 @@ export interface FileRouteTypes {
     | '/integrations/amocrm/callback'
     | '/integrations/amocrm/connect'
     | '/integrations/amocrm/sync'
+    | '/integrations/amocrm/sync-all'
     | '/integrations/amocrm/webhook'
     | '/platform/organizations/$orgId'
     | '/crm/leads'
@@ -704,6 +716,7 @@ export interface FileRouteTypes {
     | '/integrations/amocrm/callback'
     | '/integrations/amocrm/connect'
     | '/integrations/amocrm/sync'
+    | '/integrations/amocrm/sync-all'
     | '/integrations/amocrm/webhook'
     | '/platform/organizations/$orgId'
     | '/crm/leads/'
@@ -1137,6 +1150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntegrationsAmocrmSyncRouteImport
       parentRoute: typeof IntegrationsRoute
     }
+    '/integrations/amocrm/sync-all': {
+      id: '/integrations/amocrm/sync-all'
+      path: '/amocrm/sync-all'
+      fullPath: '/integrations/amocrm/sync-all'
+      preLoaderRoute: typeof IntegrationsAmocrmSyncAllRouteImport
+      parentRoute: typeof IntegrationsRoute
+    }
     '/integrations/amocrm/webhook': {
       id: '/integrations/amocrm/webhook'
       path: '/amocrm/webhook'
@@ -1200,6 +1220,7 @@ interface IntegrationsRouteChildren {
   IntegrationsAmocrmCallbackRoute: typeof IntegrationsAmocrmCallbackRoute
   IntegrationsAmocrmConnectRoute: typeof IntegrationsAmocrmConnectRoute
   IntegrationsAmocrmSyncRoute: typeof IntegrationsAmocrmSyncRoute
+  IntegrationsAmocrmSyncAllRoute: typeof IntegrationsAmocrmSyncAllRoute
   IntegrationsAmocrmWebhookRoute: typeof IntegrationsAmocrmWebhookRoute
 }
 
@@ -1207,6 +1228,7 @@ const IntegrationsRouteChildren: IntegrationsRouteChildren = {
   IntegrationsAmocrmCallbackRoute: IntegrationsAmocrmCallbackRoute,
   IntegrationsAmocrmConnectRoute: IntegrationsAmocrmConnectRoute,
   IntegrationsAmocrmSyncRoute: IntegrationsAmocrmSyncRoute,
+  IntegrationsAmocrmSyncAllRoute: IntegrationsAmocrmSyncAllRoute,
   IntegrationsAmocrmWebhookRoute: IntegrationsAmocrmWebhookRoute,
 }
 
