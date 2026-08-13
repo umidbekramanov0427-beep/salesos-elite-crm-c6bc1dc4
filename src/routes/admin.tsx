@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Check,
   Loader2,
+  Lock,
   Pencil,
   Plug,
   Search,
@@ -636,9 +637,10 @@ function AdminPanelContent() {
             <ul className="space-y-3">
               {[
                 {
-                  icon: Users,
+                  icon: Lock,
                   label: t("admin.permissionsMatrix"),
                   href: "/crm-stages#permissions",
+                  important: true,
                 },
                 { icon: Workflow, label: t("admin.funnelsStages"), href: "/crm-stages" },
                 { icon: Plug, label: t("int.title"), href: "/integrations" },
@@ -648,9 +650,19 @@ function AdminPanelContent() {
                 <li key={c.label}>
                   <a
                     href={c.href}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
+                      c.important
+                        ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                        : "border-border bg-surface hover:bg-accent",
+                    )}
                   >
-                    <c.icon className="h-4 w-4 text-muted-foreground" />
+                    <c.icon
+                      className={cn(
+                        "h-4 w-4",
+                        c.important ? "text-destructive" : "text-muted-foreground",
+                      )}
+                    />
                     {c.label}
                   </a>
                 </li>

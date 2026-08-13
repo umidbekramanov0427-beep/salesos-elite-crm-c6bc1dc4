@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Filter, GripVertical, Loader2, Search } from "lucide-react";
+import { Filter, GripVertical, Loader2, Lock, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
@@ -270,8 +270,15 @@ function CrmStages() {
 
         <SectionCard
           id="permissions"
+          className="border-2 border-destructive/30"
           title={t("stages.permissions")}
           description={t("stages.permissionsDesc")}
+          actions={
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+              <Lock className="h-3.5 w-3.5" />
+              {t("stages.permissionsImportant")}
+            </span>
+          }
         >
           <PermissionsTable />
         </SectionCard>
