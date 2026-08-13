@@ -15,7 +15,6 @@ import {
   Trash2,
   UserPlus,
   Workflow,
-  ScrollText,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -564,13 +563,16 @@ function AdminPanelContent() {
           <SectionCard title={t("admin.controls")}>
             <ul className="space-y-3">
               {[
-                { icon: Users, label: t("admin.permissionsMatrix"), href: "/crm-stages" },
+                {
+                  icon: Users,
+                  label: t("admin.permissionsMatrix"),
+                  href: "/crm-stages#permissions",
+                },
                 { icon: Workflow, label: t("admin.funnelsStages"), href: "/crm-stages" },
                 { icon: Plug, label: t("int.title"), href: "/integrations" },
                 { icon: Network, label: t("admin.orgStructure"), href: "/admin/org-structure" },
                 { icon: Bot, label: t("admin.autoResponders"), href: "/admin/auto-responders" },
                 { icon: Sparkles, label: t("admin.aiAgents"), href: "/admin/ai-agents" },
-                { icon: ScrollText, label: t("admin.featureFlags"), href: "/settings" },
               ].map((c) => (
                 <li key={c.label}>
                   <a

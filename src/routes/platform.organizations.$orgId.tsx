@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, ShieldAlert, Trash2, UserPlus, Users2 } from "lucid
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EditUserDialog } from "@/components/EditUserDialog";
 import {
   Dialog,
   DialogContent,
@@ -474,6 +475,7 @@ function OrgDetailPage() {
                   <p className="truncate text-xs text-subtle">{p.email}</p>
                 </div>
                 <Pill tone="info">{p.role}</Pill>
+                <EditUserDialog profile={p} />
                 <button
                   type="button"
                   aria-label={t("admin.deleteEmployee")}

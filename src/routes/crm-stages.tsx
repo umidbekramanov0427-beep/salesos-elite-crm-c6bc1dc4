@@ -183,7 +183,11 @@ function CrmStages() {
           </ul>
         </SectionCard>
 
-        <SectionCard title={t("stages.permissions")} description={t("stages.permissionsDesc")}>
+        <SectionCard
+          id="permissions"
+          title={t("stages.permissions")}
+          description={t("stages.permissionsDesc")}
+        >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
