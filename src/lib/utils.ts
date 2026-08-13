@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Supabase client errors (PostgrestError) carry a `.message` string but
+// aren't `instanceof Error` — a bare `err instanceof Error` check (the
+// pattern used all over this codebase's catch blocks) silently swaps the
+// real reason for a generic fallback on every DB-originated failure. Use
+// this wherever a caught error reaches the user (toasts, etc).
+export function describeError(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = (err as { message: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return fallback;
+}
+
 /** Color-codes a role badge consistently everywhere a role Pill is shown. */
 export function roleTone(role: string): "gold" | "blue" | "success" | "danger" | "neutral" {
   switch (role) {
