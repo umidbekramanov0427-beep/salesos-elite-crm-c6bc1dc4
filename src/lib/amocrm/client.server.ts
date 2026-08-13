@@ -127,6 +127,20 @@ function describeError(err: unknown): string {
   return "Unknown sync error";
 }
 
+// A single upsert() call that contains two rows with the same onConflict-key
+// value makes Postgres reject the whole statement with "ON CONFLICT DO
+// UPDATE command cannot affect row a second time" — and since every sync
+// write happens in one batch, that aborts the entire sync, not just the
+// offending row. leads/contacts/companies are each already deduped
+// upstream by construction, but pipeline_stages never was (nothing stops
+// AmoCRM's own API from listing the same status twice inside one
+// pipeline), and staying defensive here for all of them is cheap insurance
+// against the whole sync ever going dark on this error again. Keeps the
+// last occurrence, same as every other last-write-wins dedup in this file.
+function dedupeByKey<T>(rows: T[], keyFn: (row: T) => string): T[] {
+  return Array.from(new Map(rows.map((r) => [keyFn(r), r])).values());
+}
+
 // AmoCRM enforces a per-integration rate limit (undocumented exact number,
 // commonly reported around 7 req/s) — fetching several list endpoints
 // concurrently (see fetchAllPaged below) can burst past it and get 429s
@@ -417,7 +431,10 @@ async function syncPipelineStages(
 
   const { data, error } = await supabaseAdmin
     .from("pipeline_stages")
-    .upsert(rows, { onConflict: "organization_id,amocrm_pipeline_id,amocrm_status_id" })
+    .upsert(
+      dedupeByKey(rows, (r) => `${r.amocrm_pipeline_id}:${r.amocrm_status_id}`),
+      { onConflict: "organization_id,amocrm_pipeline_id,amocrm_status_id" },
+    )
     .select("id, amocrm_pipeline_id, amocrm_status_id");
   if (error) throw error;
 
@@ -542,8 +559,8 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
     (data) => (data as { _embedded?: { notes?: AmoCallNote[] } } | null)?._embedded?.notes ?? [],
     CALL_NOTES_MAX_PAGES,
   );
-  // Same page-boundary duplication risk as fetchAllLeads above, and the
-  // notes upsert below has the same onConflict-target vulnerability.
+  // Same page-boundary duplication risk as fetchAllLeads above (see
+  // dedupeByKey for why the upsert below is also defended independently).
   return Array.from(new Map(notes.map((n) => [n.id, n])).values());
 }
 
@@ -595,7 +612,12 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       if (contactRows.length > 0) {
         const { data, error } = await supabaseAdmin
           .from("contacts")
-          .upsert(contactRows, { onConflict: "organization_id,amocrm_id" })
+          .upsert(
+            dedupeByKey(contactRows, (r) => String(r.amocrm_id)),
+            {
+              onConflict: "organization_id,amocrm_id",
+            },
+          )
           .select("id, amocrm_id");
         if (error) throw error;
         for (const row of data ?? []) {
@@ -617,7 +639,12 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       if (companyRows.length > 0) {
         const { data, error } = await supabaseAdmin
           .from("companies")
-          .upsert(companyRows, { onConflict: "organization_id,amocrm_id" })
+          .upsert(
+            dedupeByKey(companyRows, (r) => String(r.amocrm_id)),
+            {
+              onConflict: "organization_id,amocrm_id",
+            },
+          )
           .select("id, amocrm_id");
         if (error) throw error;
         for (const row of data ?? []) {
@@ -651,9 +678,12 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           tags: amoTagNames(l),
         };
       });
-      const { error } = await supabaseAdmin
-        .from("leads")
-        .upsert(rows, { onConflict: "organization_id,amocrm_id" });
+      const { error } = await supabaseAdmin.from("leads").upsert(
+        dedupeByKey(rows, (r) => String(r.amocrm_id)),
+        {
+          onConflict: "organization_id,amocrm_id",
+        },
+      );
       if (error) throw error;
     }
 
@@ -722,9 +752,12 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
     };
   });
 
-  const { error } = await supabaseAdmin
-    .from("amocrm_calls")
-    .upsert(rows, { onConflict: "organization_id,amocrm_note_id" });
+  const { error } = await supabaseAdmin.from("amocrm_calls").upsert(
+    dedupeByKey(rows, (r) => String(r.amocrm_note_id)),
+    {
+      onConflict: "organization_id,amocrm_note_id",
+    },
+  );
   if (error) throw error;
   return rows.length;
 }
