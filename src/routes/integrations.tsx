@@ -283,7 +283,15 @@ function AmoCrmCard() {
   const sync = useTriggerAmoCrmSync();
   const isAdmin = user?.role === "super_admin";
 
-  const connected = setting?.enabled ?? false;
+  // integration_settings.enabled is set true by the OAuth callback but
+  // nothing clears it if the amocrm_connection row is later removed (token
+  // revoked, row deleted, etc.) — the two can drift, and when they do, this
+  // stayed stuck showing "Sinxronlash" instead of "Ulash" with no way back
+  // to reconnect. amocrm_connection is the actual source of truth for
+  // whether a live connection exists; only fall back to the settings flag
+  // for non-admins, who don't get connectionStatus loaded at all (RLS/query
+  // gates it to super_admin) but also never see these buttons anyway.
+  const connected = isAdmin ? !!connectionStatus : (setting?.enabled ?? false);
   const config =
     (setting?.config as {
       subdomain?: string;
