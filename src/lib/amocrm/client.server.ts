@@ -122,6 +122,38 @@ async function amoFetch(conn: AmoConnection, path: string) {
   return await res.json();
 }
 
+// AmoCRM's list endpoints don't return a total count, so pagination has to
+// keep requesting pages until one comes back empty. Doing that one page at
+// a time was the dominant cost of a sync for any account with more than a
+// few hundred records — each page is its own network round-trip to
+// AmoCRM. Requesting a small batch of pages concurrently cuts that wall-
+// clock time roughly by the batch size, while staying well under AmoCRM's
+// per-integration rate limit (~7 req/s).
+const PAGE_FETCH_CONCURRENCY = 4;
+
+async function fetchAllPaged<T>(
+  conn: AmoConnection,
+  pathForPage: (page: number) => string,
+  extractItems: (data: unknown) => T[],
+): Promise<T[]> {
+  const all: T[] = [];
+  let page = 1;
+  let done = false;
+  while (!done) {
+    const pages = Array.from({ length: PAGE_FETCH_CONCURRENCY }, (_, i) => page + i);
+    const results = await Promise.all(
+      pages.map((p) => amoFetch(conn, pathForPage(p)).then(extractItems)),
+    );
+    for (const items of results) {
+      all.push(...items);
+      if (items.length === 0) done = true;
+    }
+    page += PAGE_FETCH_CONCURRENCY;
+    if (page > 800) break; // safety cap: ~200k records at limit=250
+  }
+  return all;
+}
+
 async function amoWriteFetch(
   conn: AmoConnection,
   path: string,
@@ -203,20 +235,11 @@ function amoMainCompanyId(lead: AmoLead): number | null {
 }
 
 async function fetchAllLeads(conn: AmoConnection): Promise<AmoLead[]> {
-  const all: AmoLead[] = [];
-  let page = 1;
-  for (;;) {
-    const data = (await amoFetch(
-      conn,
-      `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
-    )) as { _embedded?: { leads?: AmoLead[] } } | null;
-    const leads = data?._embedded?.leads ?? [];
-    if (leads.length === 0) break;
-    all.push(...leads);
-    page += 1;
-    if (page > 200) break; // safety cap: 50k leads
-  }
-  return all;
+  return fetchAllPaged(
+    conn,
+    (page) => `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
+    (data) => (data as { _embedded?: { leads?: AmoLead[] } } | null)?._embedded?.leads ?? [],
+  );
 }
 
 type AmoCustomFieldValue = { field_code: string | null; values?: { value?: string }[] };
@@ -235,53 +258,33 @@ function customField(entity: AmoContact, code: string): string | null {
 }
 
 async function fetchAllContacts(conn: AmoConnection): Promise<Map<number, AmoContact>> {
-  const map = new Map<number, AmoContact>();
-  let page = 1;
-  for (;;) {
-    const data = (await amoFetch(conn, `/api/v4/contacts?limit=250&page=${page}`)) as {
-      _embedded?: { contacts?: AmoContact[] };
-    } | null;
-    const contacts = data?._embedded?.contacts ?? [];
-    if (contacts.length === 0) break;
-    for (const c of contacts) map.set(c.id, c);
-    page += 1;
-    if (page > 200) break;
-  }
-  return map;
+  const contacts = await fetchAllPaged(
+    conn,
+    (page) => `/api/v4/contacts?limit=250&page=${page}`,
+    (data) =>
+      (data as { _embedded?: { contacts?: AmoContact[] } } | null)?._embedded?.contacts ?? [],
+  );
+  return new Map(contacts.map((c) => [c.id, c]));
 }
 
 async function fetchAllCompanies(conn: AmoConnection): Promise<Map<number, AmoCompany>> {
-  const map = new Map<number, AmoCompany>();
-  let page = 1;
-  for (;;) {
-    const data = (await amoFetch(conn, `/api/v4/companies?limit=250&page=${page}`)) as {
-      _embedded?: { companies?: AmoCompany[] };
-    } | null;
-    const companies = data?._embedded?.companies ?? [];
-    if (companies.length === 0) break;
-    for (const c of companies) map.set(c.id, c);
-    page += 1;
-    if (page > 200) break;
-  }
-  return map;
+  const companies = await fetchAllPaged(
+    conn,
+    (page) => `/api/v4/companies?limit=250&page=${page}`,
+    (data) =>
+      (data as { _embedded?: { companies?: AmoCompany[] } } | null)?._embedded?.companies ?? [],
+  );
+  return new Map(companies.map((c) => [c.id, c]));
 }
 
 type AmoUser = { id: number; email: string | null; name?: string | null };
 
 async function fetchAllUsers(conn: AmoConnection): Promise<AmoUser[]> {
-  const all: AmoUser[] = [];
-  let page = 1;
-  for (;;) {
-    const data = (await amoFetch(conn, `/api/v4/users?limit=250&page=${page}`)) as {
-      _embedded?: { users?: AmoUser[] };
-    } | null;
-    const users = data?._embedded?.users ?? [];
-    if (users.length === 0) break;
-    all.push(...users);
-    page += 1;
-    if (page > 50) break;
-  }
-  return all;
+  return fetchAllPaged(
+    conn,
+    (page) => `/api/v4/users?limit=250&page=${page}`,
+    (data) => (data as { _embedded?: { users?: AmoUser[] } } | null)?._embedded?.users ?? [],
+  );
 }
 
 type AmoStatus = { id: number; name: string; sort: number; pipeline_id: number };
@@ -377,7 +380,10 @@ async function syncUserMapping(
   try {
     const [users, { data: profiles, error }] = await Promise.all([
       fetchAllUsers(conn),
-      supabaseAdmin.from("profiles").select("id, email").eq("organization_id", organizationId),
+      supabaseAdmin
+        .from("profiles")
+        .select("id, email, amocrm_user_id")
+        .eq("organization_id", organizationId),
     ]);
     if (error) throw error;
     const profileByEmail = new Map((profiles ?? []).map((p) => [p.email.toLowerCase(), p]));
@@ -408,14 +414,18 @@ async function syncUserMapping(
           );
           continue;
         }
-        profile = { id: created.user.id, email: amoUser.email };
+        profile = { id: created.user.id, email: amoUser.email, amocrm_user_id: null };
         profileByEmail.set(email, profile);
       }
       map.set(amoUser.id, profile.id);
-      await supabaseAdmin
-        .from("profiles")
-        .update({ amocrm_user_id: amoUser.id })
-        .eq("id", profile.id);
+      // Skip the write when the mapping is already correct — on every
+      // sync after the first, this avoids a DB round-trip per AmoCRM user.
+      if (profile.amocrm_user_id !== amoUser.id) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ amocrm_user_id: amoUser.id })
+          .eq("id", profile.id);
+      }
     }
   } catch {
     // Owner matching is best-effort — a failure here shouldn't block the
@@ -448,20 +458,12 @@ type AmoCallNote = {
 
 /** Pulls every call-type note (from a connected telephony integration) across all leads. */
 async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
-  const all: AmoCallNote[] = [];
-  let page = 1;
-  for (;;) {
-    const data = (await amoFetch(
-      conn,
+  return fetchAllPaged(
+    conn,
+    (page) =>
       `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&limit=250&page=${page}`,
-    )) as { _embedded?: { notes?: AmoCallNote[] } } | null;
-    const notes = data?._embedded?.notes ?? [];
-    if (notes.length === 0) break;
-    all.push(...notes);
-    page += 1;
-    if (page > 200) break; // safety cap
-  }
-  return all;
+    (data) => (data as { _embedded?: { notes?: AmoCallNote[] } } | null)?._embedded?.notes ?? [],
+  );
 }
 
 export type SyncResult = { synced: number; callsSynced?: number; error?: string };
