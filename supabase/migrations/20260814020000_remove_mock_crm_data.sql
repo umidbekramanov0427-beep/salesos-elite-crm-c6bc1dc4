@@ -173,6 +173,11 @@ begin
   drop table mock_lead_ids;
 end $$;
 
+-- deals: AmoCRM has no "deal" concept distinct from a lead, so this
+-- table is never written by the sync at all -- every row in it is
+-- leftover demo content.
+delete from public.deals;
+
 select 'leads' as t, count(*) from public.leads
 union all select 'contacts', count(*) from public.contacts
 union all select 'companies', count(*) from public.companies
