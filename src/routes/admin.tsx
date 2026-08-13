@@ -365,7 +365,7 @@ function AdminPanel() {
   const { user } = useAuth();
   const { t } = useI18n();
 
-  if (user && user.role !== "super_admin") {
+  if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
       <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -405,7 +405,9 @@ function AdminPanelContent() {
 
   const employees = profiles ?? [];
   const ropOptions = employees.filter((p) => p.role === "rop");
-  const adminCount = employees.filter((p) => p.role === "super_admin").length;
+  const adminCount = employees.filter(
+    (p) => p.role === "super_admin" || p.role === "platform_owner",
+  ).length;
   const q = query.trim().toLowerCase();
   const filteredEmployees = q
     ? employees.filter((p) =>

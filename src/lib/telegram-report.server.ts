@@ -48,7 +48,9 @@ export async function buildDailyReportText(organizationId: string): Promise<stri
   const sessions = sessionsRes.data ?? [];
   const calls = callsRes.data ?? [];
 
-  const reps = profiles.filter((p) => p.role !== "super_admin" || profiles.length === 1);
+  const reps = profiles.filter(
+    (p) => (p.role !== "super_admin" && p.role !== "platform_owner") || profiles.length === 1,
+  );
 
   let revenueToday = 0;
   let revenueMonth = 0;

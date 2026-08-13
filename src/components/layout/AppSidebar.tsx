@@ -399,7 +399,10 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
   const mainItems = NAV_ITEMS.filter(
     (i) =>
       (!i.adminOnly || isAdmin) &&
-      !i.platformOwnerOnly &&
+      // A platform owner who also belongs to an org (see the render branch
+      // below) gets the platform-only items folded into their regular nav
+      // instead of a separate, stripped-down sidebar.
+      (!i.platformOwnerOnly || isPlatformOwner) &&
       i.to !== "/settings" &&
       i.to !== "/admin",
   );
@@ -457,11 +460,14 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
     );
   }
 
-  // Platform owner belongs to no single company, so none of the
-  // company-scoped widgets below (integrations status, business profile,
-  // monthly target, analytics nav) apply to them — a short, separate
-  // sidebar avoids rendering those against an empty organization.
-  if (isPlatformOwner) {
+  // A platform owner with no organization of their own has nothing for
+  // the company-scoped widgets below (integrations status, business
+  // profile, monthly target, analytics nav) to show, so they get a short,
+  // separate sidebar instead. A platform owner who *is* also a member of
+  // an organization (this session's whole setup) runs it day to day and
+  // falls through to the regular sidebar below instead, with the
+  // platform-only items folded into its main nav (see mainItems above).
+  if (isPlatformOwner && !user?.organizationId) {
     const platformItems = NAV_ITEMS.filter((i) => i.platformOwnerOnly);
     return (
       <aside

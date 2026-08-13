@@ -281,7 +281,7 @@ function AmoCrmCard() {
   const { data: connectionStatus } = useAmoConnectionStatus();
   const { data: stages } = usePipelineStagesRaw();
   const sync = useTriggerAmoCrmSync();
-  const isAdmin = user?.role === "super_admin";
+  const isAdmin = user?.role === "super_admin" || user?.role === "platform_owner";
 
   // integration_settings.enabled is set true by the OAuth callback but
   // nothing clears it if the amocrm_connection row is later removed (token

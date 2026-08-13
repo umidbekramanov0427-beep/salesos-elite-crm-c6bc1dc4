@@ -391,7 +391,8 @@ function NotificationsSection() {
 function BusinessProfileSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
   const { data: profile, isLoading } = useBusinessProfile();
   const updateProfile = useUpdateBusinessProfile();
 
@@ -758,7 +759,8 @@ function StageRowEditor({
 function StagesSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
   const { data: stages, isLoading } = usePipelineStagesRaw();
   const { rows: leads } = useCrmLeads();
   const createStage = useCreateStage();
@@ -880,7 +882,8 @@ function StagesSection() {
 function TagsSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
   const { tags, isLoading } = useTagsSummary();
   const renameTag = useRenameTag();
   const deleteTag = useDeleteTag();
@@ -1010,7 +1013,7 @@ function TagsSection() {
 function UsersSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const isAdmin = user?.role === "super_admin";
+  const isAdmin = user?.role === "super_admin" || user?.role === "platform_owner";
   return (
     <SectionCard title={t("settings.users.title")} description={t("settings.users.desc")}>
       {isAdmin ? (
@@ -1030,7 +1033,7 @@ function UsersSection() {
 function TelegramSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const isAdmin = user?.role === "super_admin";
+  const isAdmin = user?.role === "super_admin" || user?.role === "platform_owner";
   const { data: botSetting } = useIntegrationSetting("telegram_bot");
   const setBotUsername = useSetTelegramBotUsername();
   const linkTelegram = useLinkTelegram();
@@ -1211,7 +1214,8 @@ const LIST_SECTION_HAS_VALUE = new Set<SettingListType>(["score_modifiers", "con
 function GenericListSection({ label, listType }: { label: string; listType: SettingListType }) {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
   const withValue = LIST_SECTION_HAS_VALUE.has(listType);
   const { data: items, isLoading } = useSettingList(listType);
   const createItem = useCreateSettingListItem();
