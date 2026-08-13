@@ -1320,6 +1320,30 @@ export function useAmoCrmLink() {
   };
 }
 
+export type AmoConnectionStatus = {
+  subdomain: string;
+  connected_at: string;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+};
+
+/** The connected org's own AmoCRM sync status/error — super_admin only (RLS). */
+export function useAmoConnectionStatus() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["amocrm_connection_status", user?.organizationId],
+    enabled: !!user?.organizationId && user.role === "super_admin",
+    queryFn: async (): Promise<AmoConnectionStatus | null> => {
+      const { data, error } = await supabase
+        .from("amocrm_connection")
+        .select("subdomain, connected_at, last_synced_at, last_sync_error")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useTriggerAmoCrmSync() {
   const qc = useQueryClient();
   return useMutation({
@@ -1334,10 +1358,11 @@ export function useTriggerAmoCrmSync() {
       if (!res.ok) throw new Error(json.error ?? "Sync failed");
       return json;
     },
-    onSuccess: () => {
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["leads"] });
       void qc.invalidateQueries({ queryKey: ["amocrm_calls"] });
       void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] });
+      void qc.invalidateQueries({ queryKey: ["amocrm_connection_status"] });
     },
   });
 }

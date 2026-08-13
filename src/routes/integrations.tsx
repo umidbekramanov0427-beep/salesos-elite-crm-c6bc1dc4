@@ -7,7 +7,11 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useIntegrationSetting, useTriggerAmoCrmSync } from "@/hooks/use-crm-data";
+import {
+  useAmoConnectionStatus,
+  useIntegrationSetting,
+  useTriggerAmoCrmSync,
+} from "@/hooks/use-crm-data";
 import {
   Dialog,
   DialogContent,
@@ -196,6 +200,7 @@ function AmoCrmCard() {
   const { t } = useI18n();
   const { user } = useAuth();
   const { data: setting, isLoading } = useIntegrationSetting("amocrm");
+  const { data: connectionStatus } = useAmoConnectionStatus();
   const sync = useTriggerAmoCrmSync();
   const isAdmin = user?.role === "super_admin";
 
@@ -236,13 +241,22 @@ function AmoCrmCard() {
               </p>
             )}
             {!isAdmin && <p className="mt-2 text-xs text-subtle">{t("amocrm.adminOnly")}</p>}
+            {isAdmin && connectionStatus?.last_sync_error && (
+              <p className="mt-2 max-w-md text-xs text-destructive">
+                {t("amocrm.lastError")}: {connectionStatus.last_sync_error}
+              </p>
+            )}
           </div>
 
           {isAdmin && connected && (
             <button
               type="button"
               onClick={() =>
-                sync.mutate(undefined, { onSuccess: () => toast.success(t("amocrm.syncStarted")) })
+                sync.mutate(undefined, {
+                  onSuccess: () => toast.success(t("amocrm.syncStarted")),
+                  onError: (err) =>
+                    toast.error(err instanceof Error ? err.message : t("amocrm.syncFailed")),
+                })
               }
               disabled={sync.isPending}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
