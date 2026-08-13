@@ -42,9 +42,12 @@ import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
+import { Route as PlatformAddEmployeeRouteImport } from './routes/platform.add-employee'
 import { Route as PlatformAiRouteImport } from './routes/platform.ai'
 import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
 import { Route as PlatformDeactivateExpiredTrialsRouteImport } from './routes/platform.deactivate-expired-trials'
+import { Route as PlatformDeleteOrganizationRouteImport } from './routes/platform.delete-organization'
+import { Route as PlatformDeleteUserRouteImport } from './routes/platform.delete-user'
 import { Route as PlatformErrorsRouteImport } from './routes/platform.errors'
 import { Route as PlatformIntegrationsRouteImport } from './routes/platform.integrations'
 import { Route as PlatformNotificationsRouteImport } from './routes/platform.notifications'
@@ -229,6 +232,11 @@ const PlatformActivityRoute = PlatformActivityRouteImport.update({
   path: '/platform/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformAddEmployeeRoute = PlatformAddEmployeeRouteImport.update({
+  id: '/platform/add-employee',
+  path: '/platform/add-employee',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlatformAiRoute = PlatformAiRouteImport.update({
   id: '/platform/ai',
   path: '/platform/ai',
@@ -246,6 +254,17 @@ const PlatformDeactivateExpiredTrialsRoute =
     path: '/platform/deactivate-expired-trials',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PlatformDeleteOrganizationRoute =
+  PlatformDeleteOrganizationRouteImport.update({
+    id: '/platform/delete-organization',
+    path: '/platform/delete-organization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PlatformDeleteUserRoute = PlatformDeleteUserRouteImport.update({
+  id: '/platform/delete-user',
+  path: '/platform/delete-user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlatformErrorsRoute = PlatformErrorsRouteImport.update({
   id: '/platform/errors',
   path: '/platform/errors',
@@ -365,9 +384,12 @@ export interface FileRoutesByFullPath {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
   '/platform/activity': typeof PlatformActivityRoute
+  '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
+  '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
+  '/platform/delete-user': typeof PlatformDeleteUserRoute
   '/platform/errors': typeof PlatformErrorsRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/platform/notifications': typeof PlatformNotificationsRoute
@@ -419,9 +441,12 @@ export interface FileRoutesByTo {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
   '/platform/activity': typeof PlatformActivityRoute
+  '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
+  '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
+  '/platform/delete-user': typeof PlatformDeleteUserRoute
   '/platform/errors': typeof PlatformErrorsRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/platform/notifications': typeof PlatformNotificationsRoute
@@ -474,9 +499,12 @@ export interface FileRoutesById {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/errors/log': typeof ErrorsLogRoute
   '/platform/activity': typeof PlatformActivityRoute
+  '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
+  '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
+  '/platform/delete-user': typeof PlatformDeleteUserRoute
   '/platform/errors': typeof PlatformErrorsRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/platform/notifications': typeof PlatformNotificationsRoute
@@ -530,9 +558,12 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/errors/log'
     | '/platform/activity'
+    | '/platform/add-employee'
     | '/platform/ai'
     | '/platform/create-organization'
     | '/platform/deactivate-expired-trials'
+    | '/platform/delete-organization'
+    | '/platform/delete-user'
     | '/platform/errors'
     | '/platform/integrations'
     | '/platform/notifications'
@@ -584,9 +615,12 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/errors/log'
     | '/platform/activity'
+    | '/platform/add-employee'
     | '/platform/ai'
     | '/platform/create-organization'
     | '/platform/deactivate-expired-trials'
+    | '/platform/delete-organization'
+    | '/platform/delete-user'
     | '/platform/errors'
     | '/platform/integrations'
     | '/platform/notifications'
@@ -638,9 +672,12 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/errors/log'
     | '/platform/activity'
+    | '/platform/add-employee'
     | '/platform/ai'
     | '/platform/create-organization'
     | '/platform/deactivate-expired-trials'
+    | '/platform/delete-organization'
+    | '/platform/delete-user'
     | '/platform/errors'
     | '/platform/integrations'
     | '/platform/notifications'
@@ -686,9 +723,12 @@ export interface RootRouteChildren {
   CrmPipelineRoute: typeof CrmPipelineRoute
   ErrorsLogRoute: typeof ErrorsLogRoute
   PlatformActivityRoute: typeof PlatformActivityRoute
+  PlatformAddEmployeeRoute: typeof PlatformAddEmployeeRoute
   PlatformAiRoute: typeof PlatformAiRoute
   PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
   PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
+  PlatformDeleteOrganizationRoute: typeof PlatformDeleteOrganizationRoute
+  PlatformDeleteUserRoute: typeof PlatformDeleteUserRoute
   PlatformErrorsRoute: typeof PlatformErrorsRoute
   PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
   PlatformNotificationsRoute: typeof PlatformNotificationsRoute
@@ -937,6 +977,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/add-employee': {
+      id: '/platform/add-employee'
+      path: '/platform/add-employee'
+      fullPath: '/platform/add-employee'
+      preLoaderRoute: typeof PlatformAddEmployeeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/platform/ai': {
       id: '/platform/ai'
       path: '/platform/ai'
@@ -956,6 +1003,20 @@ declare module '@tanstack/react-router' {
       path: '/platform/deactivate-expired-trials'
       fullPath: '/platform/deactivate-expired-trials'
       preLoaderRoute: typeof PlatformDeactivateExpiredTrialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/delete-organization': {
+      id: '/platform/delete-organization'
+      path: '/platform/delete-organization'
+      fullPath: '/platform/delete-organization'
+      preLoaderRoute: typeof PlatformDeleteOrganizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/delete-user': {
+      id: '/platform/delete-user'
+      path: '/platform/delete-user'
+      fullPath: '/platform/delete-user'
+      preLoaderRoute: typeof PlatformDeleteUserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform/errors': {
@@ -1160,9 +1221,12 @@ const rootRouteChildren: RootRouteChildren = {
   CrmPipelineRoute: CrmPipelineRoute,
   ErrorsLogRoute: ErrorsLogRoute,
   PlatformActivityRoute: PlatformActivityRoute,
+  PlatformAddEmployeeRoute: PlatformAddEmployeeRoute,
   PlatformAiRoute: PlatformAiRoute,
   PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
   PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
+  PlatformDeleteOrganizationRoute: PlatformDeleteOrganizationRoute,
+  PlatformDeleteUserRoute: PlatformDeleteUserRoute,
   PlatformErrorsRoute: PlatformErrorsRoute,
   PlatformIntegrationsRoute: PlatformIntegrationsRoute,
   PlatformNotificationsRoute: PlatformNotificationsRoute,

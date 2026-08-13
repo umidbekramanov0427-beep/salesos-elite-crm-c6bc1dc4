@@ -1364,6 +1364,7 @@ export type Database = {
         Args: { p_organization_id: string; p_entity_type: string; p_as_of: string }
         Returns: Json[]
       }
+      delete_organization_data: { Args: { target_org_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri"

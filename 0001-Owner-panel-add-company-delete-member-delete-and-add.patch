@@ -1,0 +1,1097 @@
+From 62b85e179f56ad23e480c996aea338163db0a47e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 13 Aug 2026 06:13:41 +0000
+Subject: [PATCH] Owner panel: add company delete, member delete, and
+ add-employee
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Platform panel could only create and deactivate companies — nothing
+in it could be deleted or added after the fact. Adds three server
+routes (platform-owner gated, mirroring the existing employee-delete
+pattern) plus UI wiring:
+
+- Delete any user, from any company, from the Users page or a company's
+  detail page.
+- Add a new ROP/Sotuv menejeri/Super Admin to an existing company from
+  its detail page, not just at company-creation time.
+- Permanently delete a company, with a type-the-name-to-confirm danger
+  zone. None of the organization_id foreign keys actually cascade (every
+  "ON DELETE CASCADE" added on an already-existing column in a later
+  migration was silently a no-op), so this ships a
+  delete_organization_data() SQL function that clears every dependent
+  table itself before removing the organization row; the server route
+  deletes member auth accounts separately via the Auth Admin API.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HaeAXac6vZbVwSC7WZXabb
+---
+ src/hooks/use-crm-data.ts                     |  76 +++++
+ src/integrations/supabase/types.ts            |   1 +
+ src/lib/i18n.tsx                              |  30 ++
+ src/routeTree.gen.ts                          |  64 ++++
+ src/routes/platform.add-employee.ts           |  67 ++++
+ src/routes/platform.delete-organization.ts    |  58 ++++
+ src/routes/platform.delete-user.ts            |  43 +++
+ src/routes/platform.organizations.$orgId.tsx  | 286 +++++++++++++++++-
+ src/routes/platform.users.tsx                 |  57 +++-
+ .../20260813090000_owner_panel_crud.sql       |  58 ++++
+ 10 files changed, 734 insertions(+), 6 deletions(-)
+ create mode 100644 src/routes/platform.add-employee.ts
+ create mode 100644 src/routes/platform.delete-organization.ts
+ create mode 100644 src/routes/platform.delete-user.ts
+ create mode 100644 supabase/migrations/20260813090000_owner_panel_crud.sql
+
+diff --git a/src/hooks/use-crm-data.ts b/src/hooks/use-crm-data.ts
+index 4893bec..d5dd666 100644
+--- a/src/hooks/use-crm-data.ts
++++ b/src/hooks/use-crm-data.ts
+@@ -1443,6 +1443,82 @@ export function useDeactivateExpiredTrials() {
+   });
+ }
+ 
++/** Platform owner: delete any company member's account, from any organization. */
++export function useDeleteUserAsOwner() {
++  const qc = useQueryClient();
++  return useMutation({
++    mutationFn: async (id: string): Promise<void> => {
++      const { data: sessionData } = await supabase.auth.getSession();
++      const token = sessionData.session?.access_token;
++      const res = await fetch("/platform/delete-user", {
++        method: "POST",
++        headers: {
++          "content-type": "application/json",
++          ...(token ? { Authorization: `Bearer ${token}` } : {}),
++        },
++        body: JSON.stringify({ id }),
++      });
++      const json = await res.json();
++      if (!res.ok) throw new Error(json.error ?? "Failed to delete user");
++    },
++    onSuccess: () => void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] }),
++  });
++}
++
++/** Platform owner: add a ROP/Sotuv menejeri/Super Admin account to an existing company. */
++export function useAddOrgEmployee() {
++  const qc = useQueryClient();
++  return useMutation({
++    mutationFn: async (input: {
++      organization_id: string;
++      email: string;
++      password: string;
++      full_name: string;
++      role: "super_admin" | "rop" | "sotuv_menejeri";
++    }): Promise<{ id: string }> => {
++      const { data: sessionData } = await supabase.auth.getSession();
++      const token = sessionData.session?.access_token;
++      const res = await fetch("/platform/add-employee", {
++        method: "POST",
++        headers: {
++          "content-type": "application/json",
++          ...(token ? { Authorization: `Bearer ${token}` } : {}),
++        },
++        body: JSON.stringify(input),
++      });
++      const json = await res.json();
++      if (!res.ok) throw new Error(json.error ?? "Failed to add employee");
++      return json;
++    },
++    onSuccess: () => void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] }),
++  });
++}
++
++/** Platform owner: permanently delete a company and every row/account tied to it. */
++export function useDeleteOrganization() {
++  const qc = useQueryClient();
++  return useMutation({
++    mutationFn: async (id: string): Promise<void> => {
++      const { data: sessionData } = await supabase.auth.getSession();
++      const token = sessionData.session?.access_token;
++      const res = await fetch("/platform/delete-organization", {
++        method: "POST",
++        headers: {
++          "content-type": "application/json",
++          ...(token ? { Authorization: `Bearer ${token}` } : {}),
++        },
++        body: JSON.stringify({ id }),
++      });
++      const json = await res.json();
++      if (!res.ok) throw new Error(json.error ?? "Failed to delete company");
++    },
++    onSuccess: () => {
++      void qc.invalidateQueries({ queryKey: ["organizations"] });
++      void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] });
++    },
++  });
++}
++
+ // Cross-org visibility for the platform owner only — RLS on each of these
+ // tables grants read access to is_platform_owner() (see migration
+ // 20260812130000_owner_panel.sql); every other role's queries stay scoped
+diff --git a/src/integrations/supabase/types.ts b/src/integrations/supabase/types.ts
+index 9017e2f..4cc0dce 100644
+--- a/src/integrations/supabase/types.ts
++++ b/src/integrations/supabase/types.ts
+@@ -1364,6 +1364,7 @@ export type Database = {
+         Args: { p_organization_id: string; p_entity_type: string; p_as_of: string }
+         Returns: Json[]
+       }
++      delete_organization_data: { Args: { target_org_id: string }; Returns: undefined }
+     }
+     Enums: {
+       app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri"
+diff --git a/src/lib/i18n.tsx b/src/lib/i18n.tsx
+index f5ef777..6a8c9c3 100644
+--- a/src/lib/i18n.tsx
++++ b/src/lib/i18n.tsx
+@@ -113,6 +113,16 @@ const en: Dict = {
+   "platform.confirmDeactivateTitle": "Deactivate this company?",
+   "platform.confirmActivateTitle": "Activate this company?",
+   "platform.confirmActiveDesc": 'This changes access for everyone at "{name}".',
++  "platform.dangerZone": "Danger zone",
++  "platform.dangerZoneDesc": "Permanently delete this company. This cannot be undone.",
++  "platform.deleteOrgWarning":
++    'Deleting "{name}" permanently removes every lead, deal, contact, task, call and user account that belongs to it. There is no way to undo this.',
++  "platform.typeToConfirm": 'Type "{name}" to confirm',
++  "platform.deleteOrgButton": "Delete this company forever",
++  "platform.confirmDeleteOrgTitle": "Delete this company permanently?",
++  "platform.confirmDeleteOrgDesc": 'This will permanently delete "{name}" and everything in it.',
++  "platform.orgDeleted": "Company deleted",
++  "platform.orgDeleteFailed": "Couldn't delete the company",
+   "platform.deactivate": "Deactivate",
+   "platform.activate": "Activate",
+   "platform.usersTitle": "Users",
+@@ -1358,6 +1368,16 @@ const ru: Dict = {
+   "platform.confirmDeactivateTitle": "Деактивировать эту компанию?",
+   "platform.confirmActivateTitle": "Активировать эту компанию?",
+   "platform.confirmActiveDesc": "Это изменит доступ для всех в «{name}».",
++  "platform.dangerZone": "Опасная зона",
++  "platform.dangerZoneDesc": "Удалить эту компанию навсегда. Это действие нельзя отменить.",
++  "platform.deleteOrgWarning":
++    "Удаление «{name}» безвозвратно удалит все лиды, сделки, контакты, задачи, звонки и учётные записи, относящиеся к этой компании. Отменить это нельзя.",
++  "platform.typeToConfirm": "Введите «{name}» для подтверждения",
++  "platform.deleteOrgButton": "Удалить эту компанию навсегда",
++  "platform.confirmDeleteOrgTitle": "Удалить компанию навсегда?",
++  "platform.confirmDeleteOrgDesc": "Это безвозвратно удалит «{name}» и всё, что в ней есть.",
++  "platform.orgDeleted": "Компания удалена",
++  "platform.orgDeleteFailed": "Не удалось удалить компанию",
+   "platform.deactivate": "Деактивировать",
+   "platform.activate": "Активировать",
+   "platform.usersTitle": "Пользователи",
+@@ -2604,6 +2624,16 @@ const uz: Dict = {
+   "platform.confirmDeactivateTitle": "Shu kompaniyani faolsizlantirasizmi?",
+   "platform.confirmActivateTitle": "Shu kompaniyani faollashtirasizmi?",
+   "platform.confirmActiveDesc": '"{name}"dagi hamma uchun kirish huquqi o\'zgaradi.',
++  "platform.dangerZone": "Xavfli hudud",
++  "platform.dangerZoneDesc": "Bu kompaniyani butunlay o'chiring. Bu amalni qaytarib bo'lmaydi.",
++  "platform.deleteOrgWarning":
++    "\"{name}\"ni o'chirish uning barcha lidlari, tushumlari, kontaktlari, vazifalari, qo'ng'iroqlari va foydalanuvchi hisoblarini butunlay va qaytarib bo'lmaydigan tarzda o'chiradi.",
++  "platform.typeToConfirm": 'Tasdiqlash uchun "{name}" deb yozing',
++  "platform.deleteOrgButton": "Bu kompaniyani butunlay o'chirish",
++  "platform.confirmDeleteOrgTitle": "Kompaniyani butunlay o'chirasizmi?",
++  "platform.confirmDeleteOrgDesc": '"{name}" va undagi hamma narsa butunlay o\'chiriladi.',
++  "platform.orgDeleted": "Kompaniya o'chirildi",
++  "platform.orgDeleteFailed": "Kompaniyani o'chirib bo'lmadi",
+   "platform.deactivate": "Faolsizlantirish",
+   "platform.activate": "Faollashtirish",
+   "platform.usersTitle": "Foydalanuvchilar",
+diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
+index 1da3bd7..096f00f 100644
+--- a/src/routeTree.gen.ts
++++ b/src/routeTree.gen.ts
+@@ -42,9 +42,12 @@ import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+ import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+ import { Route as PlatformIndexRouteImport } from './routes/platform.index'
+ import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
++import { Route as PlatformAddEmployeeRouteImport } from './routes/platform.add-employee'
+ import { Route as PlatformAiRouteImport } from './routes/platform.ai'
+ import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
+ import { Route as PlatformDeactivateExpiredTrialsRouteImport } from './routes/platform.deactivate-expired-trials'
++import { Route as PlatformDeleteOrganizationRouteImport } from './routes/platform.delete-organization'
++import { Route as PlatformDeleteUserRouteImport } from './routes/platform.delete-user'
+ import { Route as PlatformErrorsRouteImport } from './routes/platform.errors'
+ import { Route as PlatformIntegrationsRouteImport } from './routes/platform.integrations'
+ import { Route as PlatformNotificationsRouteImport } from './routes/platform.notifications'
+@@ -229,6 +232,11 @@ const PlatformActivityRoute = PlatformActivityRouteImport.update({
+   path: '/platform/activity',
+   getParentRoute: () => rootRouteImport,
+ } as any)
++const PlatformAddEmployeeRoute = PlatformAddEmployeeRouteImport.update({
++  id: '/platform/add-employee',
++  path: '/platform/add-employee',
++  getParentRoute: () => rootRouteImport,
++} as any)
+ const PlatformAiRoute = PlatformAiRouteImport.update({
+   id: '/platform/ai',
+   path: '/platform/ai',
+@@ -246,6 +254,17 @@ const PlatformDeactivateExpiredTrialsRoute =
+     path: '/platform/deactivate-expired-trials',
+     getParentRoute: () => rootRouteImport,
+   } as any)
++const PlatformDeleteOrganizationRoute =
++  PlatformDeleteOrganizationRouteImport.update({
++    id: '/platform/delete-organization',
++    path: '/platform/delete-organization',
++    getParentRoute: () => rootRouteImport,
++  } as any)
++const PlatformDeleteUserRoute = PlatformDeleteUserRouteImport.update({
++  id: '/platform/delete-user',
++  path: '/platform/delete-user',
++  getParentRoute: () => rootRouteImport,
++} as any)
+ const PlatformErrorsRoute = PlatformErrorsRouteImport.update({
+   id: '/platform/errors',
+   path: '/platform/errors',
+@@ -365,9 +384,12 @@ export interface FileRoutesByFullPath {
+   '/crm/pipeline': typeof CrmPipelineRoute
+   '/errors/log': typeof ErrorsLogRoute
+   '/platform/activity': typeof PlatformActivityRoute
++  '/platform/add-employee': typeof PlatformAddEmployeeRoute
+   '/platform/ai': typeof PlatformAiRoute
+   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
+   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
++  '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
++  '/platform/delete-user': typeof PlatformDeleteUserRoute
+   '/platform/errors': typeof PlatformErrorsRoute
+   '/platform/integrations': typeof PlatformIntegrationsRoute
+   '/platform/notifications': typeof PlatformNotificationsRoute
+@@ -419,9 +441,12 @@ export interface FileRoutesByTo {
+   '/crm/pipeline': typeof CrmPipelineRoute
+   '/errors/log': typeof ErrorsLogRoute
+   '/platform/activity': typeof PlatformActivityRoute
++  '/platform/add-employee': typeof PlatformAddEmployeeRoute
+   '/platform/ai': typeof PlatformAiRoute
+   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
+   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
++  '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
++  '/platform/delete-user': typeof PlatformDeleteUserRoute
+   '/platform/errors': typeof PlatformErrorsRoute
+   '/platform/integrations': typeof PlatformIntegrationsRoute
+   '/platform/notifications': typeof PlatformNotificationsRoute
+@@ -474,9 +499,12 @@ export interface FileRoutesById {
+   '/crm/pipeline': typeof CrmPipelineRoute
+   '/errors/log': typeof ErrorsLogRoute
+   '/platform/activity': typeof PlatformActivityRoute
++  '/platform/add-employee': typeof PlatformAddEmployeeRoute
+   '/platform/ai': typeof PlatformAiRoute
+   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
+   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
++  '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
++  '/platform/delete-user': typeof PlatformDeleteUserRoute
+   '/platform/errors': typeof PlatformErrorsRoute
+   '/platform/integrations': typeof PlatformIntegrationsRoute
+   '/platform/notifications': typeof PlatformNotificationsRoute
+@@ -530,9 +558,12 @@ export interface FileRouteTypes {
+     | '/crm/pipeline'
+     | '/errors/log'
+     | '/platform/activity'
++    | '/platform/add-employee'
+     | '/platform/ai'
+     | '/platform/create-organization'
+     | '/platform/deactivate-expired-trials'
++    | '/platform/delete-organization'
++    | '/platform/delete-user'
+     | '/platform/errors'
+     | '/platform/integrations'
+     | '/platform/notifications'
+@@ -584,9 +615,12 @@ export interface FileRouteTypes {
+     | '/crm/pipeline'
+     | '/errors/log'
+     | '/platform/activity'
++    | '/platform/add-employee'
+     | '/platform/ai'
+     | '/platform/create-organization'
+     | '/platform/deactivate-expired-trials'
++    | '/platform/delete-organization'
++    | '/platform/delete-user'
+     | '/platform/errors'
+     | '/platform/integrations'
+     | '/platform/notifications'
+@@ -638,9 +672,12 @@ export interface FileRouteTypes {
+     | '/crm/pipeline'
+     | '/errors/log'
+     | '/platform/activity'
++    | '/platform/add-employee'
+     | '/platform/ai'
+     | '/platform/create-organization'
+     | '/platform/deactivate-expired-trials'
++    | '/platform/delete-organization'
++    | '/platform/delete-user'
+     | '/platform/errors'
+     | '/platform/integrations'
+     | '/platform/notifications'
+@@ -686,9 +723,12 @@ export interface RootRouteChildren {
+   CrmPipelineRoute: typeof CrmPipelineRoute
+   ErrorsLogRoute: typeof ErrorsLogRoute
+   PlatformActivityRoute: typeof PlatformActivityRoute
++  PlatformAddEmployeeRoute: typeof PlatformAddEmployeeRoute
+   PlatformAiRoute: typeof PlatformAiRoute
+   PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
+   PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
++  PlatformDeleteOrganizationRoute: typeof PlatformDeleteOrganizationRoute
++  PlatformDeleteUserRoute: typeof PlatformDeleteUserRoute
+   PlatformErrorsRoute: typeof PlatformErrorsRoute
+   PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
+   PlatformNotificationsRoute: typeof PlatformNotificationsRoute
+@@ -937,6 +977,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof PlatformActivityRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/platform/add-employee': {
++      id: '/platform/add-employee'
++      path: '/platform/add-employee'
++      fullPath: '/platform/add-employee'
++      preLoaderRoute: typeof PlatformAddEmployeeRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+     '/platform/ai': {
+       id: '/platform/ai'
+       path: '/platform/ai'
+@@ -958,6 +1005,20 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof PlatformDeactivateExpiredTrialsRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/platform/delete-organization': {
++      id: '/platform/delete-organization'
++      path: '/platform/delete-organization'
++      fullPath: '/platform/delete-organization'
++      preLoaderRoute: typeof PlatformDeleteOrganizationRouteImport
++      parentRoute: typeof rootRouteImport
++    }
++    '/platform/delete-user': {
++      id: '/platform/delete-user'
++      path: '/platform/delete-user'
++      fullPath: '/platform/delete-user'
++      preLoaderRoute: typeof PlatformDeleteUserRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+     '/platform/errors': {
+       id: '/platform/errors'
+       path: '/platform/errors'
+@@ -1160,9 +1221,12 @@ const rootRouteChildren: RootRouteChildren = {
+   CrmPipelineRoute: CrmPipelineRoute,
+   ErrorsLogRoute: ErrorsLogRoute,
+   PlatformActivityRoute: PlatformActivityRoute,
++  PlatformAddEmployeeRoute: PlatformAddEmployeeRoute,
+   PlatformAiRoute: PlatformAiRoute,
+   PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
+   PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
++  PlatformDeleteOrganizationRoute: PlatformDeleteOrganizationRoute,
++  PlatformDeleteUserRoute: PlatformDeleteUserRoute,
+   PlatformErrorsRoute: PlatformErrorsRoute,
+   PlatformIntegrationsRoute: PlatformIntegrationsRoute,
+   PlatformNotificationsRoute: PlatformNotificationsRoute,
+diff --git a/src/routes/platform.add-employee.ts b/src/routes/platform.add-employee.ts
+new file mode 100644
+index 0000000..811d90e
+--- /dev/null
++++ b/src/routes/platform.add-employee.ts
+@@ -0,0 +1,67 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { requirePlatformOwner } from "@/lib/auth.server";
++import { supabaseAdmin } from "@/integrations/supabase/client.server";
++
++const ALLOWED_ROLES = new Set(["super_admin", "rop", "sotuv_menejeri"]);
++
++type Body = {
++  organization_id?: string;
++  email?: string;
++  password?: string;
++  full_name?: string;
++  role?: string;
++};
++
++export const Route = createFileRoute("/platform/add-employee")({
++  server: {
++    handlers: {
++      POST: async ({ request }) => {
++        const ownerId = await requirePlatformOwner(request);
++        if (!ownerId) return Response.json({ error: "Unauthorized" }, { status: 403 });
++
++        const body = (await request.json().catch(() => ({}))) as Body;
++        const organizationId = body.organization_id?.trim();
++        const email = body.email?.trim();
++        const password = body.password;
++        const fullName = body.full_name?.trim() ?? "";
++        const role = body.role;
++
++        if (!organizationId || !email || !password || password.length < 8) {
++          return Response.json(
++            { error: "Company, email and an 8+ character password are required." },
++            { status: 400 },
++          );
++        }
++        if (!role || !ALLOWED_ROLES.has(role)) {
++          return Response.json({ error: "A valid role is required." }, { status: 400 });
++        }
++
++        const { data: org } = await supabaseAdmin
++          .from("organizations")
++          .select("id")
++          .eq("id", organizationId)
++          .maybeSingle();
++        if (!org) return Response.json({ error: "Company not found." }, { status: 404 });
++
++        const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
++          email,
++          password,
++          email_confirm: true,
++          user_metadata: {
++            full_name: fullName,
++            role,
++            organization_id: organizationId,
++          },
++        });
++        if (userError || !userData.user) {
++          return Response.json(
++            { error: userError?.message ?? "Could not create the account." },
++            { status: 400 },
++          );
++        }
++
++        return Response.json({ id: userData.user.id }, { status: 200 });
++      },
++    },
++  },
++});
+diff --git a/src/routes/platform.delete-organization.ts b/src/routes/platform.delete-organization.ts
+new file mode 100644
+index 0000000..c85ce30
+--- /dev/null
++++ b/src/routes/platform.delete-organization.ts
+@@ -0,0 +1,58 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { requirePlatformOwner } from "@/lib/auth.server";
++import { supabaseAdmin } from "@/integrations/supabase/client.server";
++
++type Body = {
++  id?: string;
++};
++
++export const Route = createFileRoute("/platform/delete-organization")({
++  server: {
++    handlers: {
++      POST: async ({ request }) => {
++        const ownerId = await requirePlatformOwner(request);
++        if (!ownerId) return Response.json({ error: "Unauthorized" }, { status: 403 });
++
++        const body = (await request.json().catch(() => ({}))) as Body;
++        const id = body.id?.trim();
++        if (!id) return Response.json({ error: "Company id is required." }, { status: 400 });
++
++        const { data: org } = await supabaseAdmin
++          .from("organizations")
++          .select("id")
++          .eq("id", id)
++          .maybeSingle();
++        if (!org) return Response.json({ error: "Company not found." }, { status: 404 });
++
++        // Delete every member's auth account first (cascades to their
++        // profiles row) via the same Auth Admin API path
++        // admin.delete-employee.ts already uses — proven, not raw SQL
++        // against the auth schema.
++        const { data: members } = await supabaseAdmin
++          .from("profiles")
++          .select("id")
++          .eq("organization_id", id);
++        for (const member of members ?? []) {
++          const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(member.id);
++          if (deleteUserError) {
++            return Response.json(
++              { error: `Failed to remove a company member: ${deleteUserError.message}` },
++              { status: 400 },
++            );
++          }
++        }
++
++        // Everything else (leads, deals, contacts, tasks, calls, audit
++        // trail, settings, and finally the organization row itself) in one
++        // transaction — see the migration for why this can't just be a
++        // plain `delete from organizations`.
++        const { error: dataError } = await supabaseAdmin.rpc("delete_organization_data", {
++          target_org_id: id,
++        });
++        if (dataError) return Response.json({ error: dataError.message }, { status: 400 });
++
++        return Response.json({ ok: true }, { status: 200 });
++      },
++    },
++  },
++});
+diff --git a/src/routes/platform.delete-user.ts b/src/routes/platform.delete-user.ts
+new file mode 100644
+index 0000000..8a13692
+--- /dev/null
++++ b/src/routes/platform.delete-user.ts
+@@ -0,0 +1,43 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { requirePlatformOwner } from "@/lib/auth.server";
++import { supabaseAdmin } from "@/integrations/supabase/client.server";
++
++type Body = {
++  id?: string;
++};
++
++export const Route = createFileRoute("/platform/delete-user")({
++  server: {
++    handlers: {
++      POST: async ({ request }) => {
++        const ownerId = await requirePlatformOwner(request);
++        if (!ownerId) return Response.json({ error: "Unauthorized" }, { status: 403 });
++
++        const body = (await request.json().catch(() => ({}))) as Body;
++        const id = body.id?.trim();
++        if (!id) return Response.json({ error: "User id is required." }, { status: 400 });
++        if (id === ownerId) {
++          return Response.json({ error: "You cannot delete your own account." }, { status: 400 });
++        }
++
++        const { data: target } = await supabaseAdmin
++          .from("profiles")
++          .select("role")
++          .eq("id", id)
++          .maybeSingle();
++        if (!target) return Response.json({ error: "User not found." }, { status: 404 });
++        if (target.role === "platform_owner") {
++          return Response.json(
++            { error: "Platform owner accounts can't be deleted here." },
++            { status: 400 },
++          );
++        }
++
++        const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
++        if (error) return Response.json({ error: error.message }, { status: 400 });
++
++        return Response.json({ ok: true }, { status: 200 });
++      },
++    },
++  },
++});
+diff --git a/src/routes/platform.organizations.$orgId.tsx b/src/routes/platform.organizations.$orgId.tsx
+index 4ad8765..eb54a69 100644
+--- a/src/routes/platform.organizations.$orgId.tsx
++++ b/src/routes/platform.organizations.$orgId.tsx
+@@ -1,9 +1,24 @@
+-import { useEffect, useState } from "react";
+-import { createFileRoute, Link } from "@tanstack/react-router";
+-import { ArrowLeft, Loader2, ShieldAlert, Users2 } from "lucide-react";
++import { useEffect, useState, type FormEvent } from "react";
++import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
++import { ArrowLeft, Loader2, ShieldAlert, Trash2, UserPlus, Users2 } from "lucide-react";
+ import { toast } from "sonner";
+ import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+ import { ConfirmDialog } from "@/components/ConfirmDialog";
++import {
++  Dialog,
++  DialogContent,
++  DialogFooter,
++  DialogHeader,
++  DialogTitle,
++  DialogTrigger,
++} from "@/components/ui/dialog";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+ import { useAuth } from "@/lib/auth";
+@@ -15,9 +30,16 @@ import {
+   useAllProfiles,
+   useAllAmoConnections,
+   useAllAiAgents,
++  useAddOrgEmployee,
++  useDeleteUserAsOwner,
++  useDeleteOrganization,
++  type OwnerProfileRow,
++  type OrganizationRow,
+ } from "@/hooks/use-crm-data";
+ 
+ const PLANS = ["Basic", "Pro", "Enterprise"] as const;
++const ORG_ROLES = ["sotuv_menejeri", "rop", "super_admin"] as const;
++type OrgRole = (typeof ORG_ROLES)[number];
+ 
+ export const Route = createFileRoute("/platform/organizations/$orgId")({
+   head: () => ({
+@@ -26,6 +48,212 @@ export const Route = createFileRoute("/platform/organizations/$orgId")({
+   component: OrgDetailPage,
+ });
+ 
++function AddOrgEmployeeDialog({ orgId }: { orgId: string }) {
++  const { t } = useI18n();
++  const addEmployee = useAddOrgEmployee();
++  const [open, setOpen] = useState(false);
++  const [confirming, setConfirming] = useState(false);
++  const [fullName, setFullName] = useState("");
++  const [email, setEmail] = useState("");
++  const [password, setPassword] = useState("");
++  const [role, setRole] = useState<OrgRole>("sotuv_menejeri");
++  const [busy, setBusy] = useState(false);
++
++  const roleLabel: Record<OrgRole, string> = {
++    sotuv_menejeri: t("admin.roleRep"),
++    rop: t("admin.roleRop"),
++    super_admin: t("admin.roleAdmin"),
++  };
++
++  function reset() {
++    setFullName("");
++    setEmail("");
++    setPassword("");
++    setRole("sotuv_menejeri");
++  }
++
++  function onSubmit(e: FormEvent) {
++    e.preventDefault();
++    if (!email.trim() || password.length < 8) return;
++    setConfirming(true);
++  }
++
++  async function submit() {
++    setBusy(true);
++    try {
++      await addEmployee.mutateAsync({
++        organization_id: orgId,
++        email: email.trim(),
++        password,
++        full_name: fullName.trim(),
++        role,
++      });
++      toast.success(t("admin.employeeCreated"));
++      reset();
++      setOpen(false);
++    } catch (err) {
++      toast.error(err instanceof Error ? err.message : t("admin.employeeCreateFailed"));
++    } finally {
++      setBusy(false);
++      setConfirming(false);
++    }
++  }
++
++  return (
++    <>
++      <Dialog
++        open={open}
++        onOpenChange={(v) => {
++          setOpen(v);
++          if (!v) reset();
++        }}
++      >
++        <DialogTrigger asChild>
++          <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
++            <UserPlus className="h-4 w-4" /> {t("admin.addEmployee")}
++          </button>
++        </DialogTrigger>
++        <DialogContent>
++          <DialogHeader>
++            <DialogTitle>{t("admin.addEmployee")}</DialogTitle>
++          </DialogHeader>
++          <form onSubmit={onSubmit} className="space-y-4">
++            <div>
++              <Label htmlFor="org-emp-name">{t("admin.newEmployeeName")}</Label>
++              <Input
++                id="org-emp-name"
++                value={fullName}
++                onChange={(e) => setFullName(e.target.value)}
++                required
++              />
++            </div>
++            <div>
++              <Label htmlFor="org-emp-email">{t("admin.colEmail")}</Label>
++              <Input
++                id="org-emp-email"
++                type="email"
++                value={email}
++                onChange={(e) => setEmail(e.target.value)}
++                required
++              />
++            </div>
++            <div>
++              <Label htmlFor="org-emp-password">{t("admin.newEmployeePassword")}</Label>
++              <Input
++                id="org-emp-password"
++                type="text"
++                value={password}
++                onChange={(e) => setPassword(e.target.value)}
++                minLength={8}
++                required
++              />
++            </div>
++            <div>
++              <Label>{t("admin.colRole")}</Label>
++              <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
++                <SelectTrigger className="h-10">
++                  <SelectValue />
++                </SelectTrigger>
++                <SelectContent>
++                  {ORG_ROLES.map((r) => (
++                    <SelectItem key={r} value={r}>
++                      {roleLabel[r]}
++                    </SelectItem>
++                  ))}
++                </SelectContent>
++              </Select>
++            </div>
++            <DialogFooter>
++              <button
++                type="submit"
++                disabled={busy}
++                className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
++              >
++                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
++                {t("admin.addEmployee")}
++              </button>
++            </DialogFooter>
++          </form>
++        </DialogContent>
++      </Dialog>
++
++      <ConfirmDialog
++        open={confirming}
++        onOpenChange={setConfirming}
++        title={t("admin.confirmCreateTitle")}
++        description={t("admin.confirmCreateDesc", {
++          name: fullName.trim() || email.trim(),
++          role: roleLabel[role],
++        })}
++        onConfirm={() => void submit()}
++      />
++    </>
++  );
++}
++
++function DeleteOrgDangerZone({ org }: { org: OrganizationRow }) {
++  const { t } = useI18n();
++  const navigate = useNavigate();
++  const deleteOrg = useDeleteOrganization();
++  const [confirmText, setConfirmText] = useState("");
++  const [confirming, setConfirming] = useState(false);
++  const [busy, setBusy] = useState(false);
++
++  async function submit() {
++    setBusy(true);
++    try {
++      await deleteOrg.mutateAsync(org.id);
++      toast.success(t("platform.orgDeleted"));
++      void navigate({ to: "/platform" });
++    } catch (err) {
++      toast.error(err instanceof Error ? err.message : t("platform.orgDeleteFailed"));
++      setBusy(false);
++    }
++  }
++
++  return (
++    <SectionCard title={t("platform.dangerZone")} description={t("platform.dangerZoneDesc")}>
++      <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
++        <p className="text-sm text-muted-foreground">
++          {t("platform.deleteOrgWarning", { name: org.name })}
++        </p>
++        <div>
++          <Label htmlFor="delete-confirm-name">
++            {t("platform.typeToConfirm", { name: org.name })}
++          </Label>
++          <Input
++            id="delete-confirm-name"
++            value={confirmText}
++            onChange={(e) => setConfirmText(e.target.value)}
++            placeholder={org.name}
++          />
++        </div>
++        <button
++          type="button"
++          disabled={confirmText.trim() !== org.name || busy}
++          onClick={() => setConfirming(true)}
++          className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
++        >
++          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
++          <Trash2 className="h-4 w-4" />
++          {t("platform.deleteOrgButton")}
++        </button>
++      </div>
++
++      <ConfirmDialog
++        open={confirming}
++        onOpenChange={setConfirming}
++        title={t("platform.confirmDeleteOrgTitle")}
++        description={t("platform.confirmDeleteOrgDesc", { name: org.name })}
++        onConfirm={() => {
++          setConfirming(false);
++          void submit();
++        }}
++      />
++    </SectionCard>
++  );
++}
++
+ function OrgDetailPage() {
+   const { orgId } = Route.useParams();
+   const { user } = useAuth();
+@@ -35,6 +263,7 @@ function OrgDetailPage() {
+   const { data: amoConnections } = useAllAmoConnections();
+   const { data: aiAgents } = useAllAiAgents();
+   const updateOrg = useUpdateOrganization();
++  const deleteUser = useDeleteUserAsOwner();
+ 
+   const org = orgs?.find((o) => o.id === orgId);
+   const [name, setName] = useState("");
+@@ -42,6 +271,8 @@ function OrgDetailPage() {
+   const [plan, setPlan] = useState<string>("Basic");
+   const [confirming, setConfirming] = useState<null | "save" | "deactivate" | "activate">(null);
+   const [busy, setBusy] = useState(false);
++  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
++  const [pendingDeleteUser, setPendingDeleteUser] = useState<OwnerProfileRow | null>(null);
+ 
+   useEffect(() => {
+     if (org) {
+@@ -109,6 +340,18 @@ function OrgDetailPage() {
+     }
+   }
+ 
++  async function applyDeleteUser(profile: OwnerProfileRow) {
++    setDeletingUserId(profile.id);
++    try {
++      await deleteUser.mutateAsync(profile.id);
++      toast.success(t("admin.employeeDeleted"));
++    } catch (err) {
++      toast.error(err instanceof Error ? err.message : t("admin.employeeDeleteFailed"));
++    } finally {
++      setDeletingUserId(null);
++    }
++  }
++
+   return (
+     <>
+       <PageHeader
+@@ -212,7 +455,10 @@ function OrgDetailPage() {
+         </SectionCard>
+       </div>
+ 
+-      <SectionCard title={t("platform.orgUsersTitle")}>
++      <SectionCard
++        title={t("platform.orgUsersTitle")}
++        actions={<AddOrgEmployeeDialog orgId={org.id} />}
++      >
+         {orgUsers.length === 0 ? (
+           <p className="flex items-center gap-2 text-sm text-subtle">
+             <Users2 className="h-4 w-4" /> {t("platform.noUsers")}
+@@ -228,12 +474,44 @@ function OrgDetailPage() {
+                   <p className="truncate text-xs text-subtle">{p.email}</p>
+                 </div>
+                 <Pill tone="info">{p.role}</Pill>
++                <button
++                  type="button"
++                  aria-label={t("admin.deleteEmployee")}
++                  disabled={deletingUserId === p.id}
++                  onClick={() => setPendingDeleteUser(p)}
++                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
++                >
++                  {deletingUserId === p.id ? (
++                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
++                  ) : (
++                    <Trash2 className="h-3.5 w-3.5" />
++                  )}
++                </button>
+               </li>
+             ))}
+           </ul>
+         )}
+       </SectionCard>
+ 
++      <DeleteOrgDangerZone org={org} />
++
++      <ConfirmDialog
++        open={!!pendingDeleteUser}
++        onOpenChange={(open) => !open && setPendingDeleteUser(null)}
++        title={t("admin.confirmDeleteTitle")}
++        description={
++          pendingDeleteUser
++            ? t("admin.confirmDeleteDesc", {
++                name: pendingDeleteUser.full_name || pendingDeleteUser.email,
++              })
++            : undefined
++        }
++        onConfirm={() => {
++          if (pendingDeleteUser) void applyDeleteUser(pendingDeleteUser);
++          setPendingDeleteUser(null);
++        }}
++      />
++
+       <ConfirmDialog
+         open={confirming === "save"}
+         onOpenChange={(v) => !v && setConfirming(null)}
+diff --git a/src/routes/platform.users.tsx b/src/routes/platform.users.tsx
+index 140c829..5c22003 100644
+--- a/src/routes/platform.users.tsx
++++ b/src/routes/platform.users.tsx
+@@ -1,9 +1,12 @@
++import { useState } from "react";
+ import { createFileRoute } from "@tanstack/react-router";
+-import { ShieldAlert, Users2 } from "lucide-react";
++import { Loader2, ShieldAlert, Trash2, Users2 } from "lucide-react";
++import { toast } from "sonner";
+ import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
++import { ConfirmDialog } from "@/components/ConfirmDialog";
+ import { useAuth } from "@/lib/auth";
+ import { useI18n } from "@/lib/i18n";
+-import { useAllProfiles } from "@/hooks/use-crm-data";
++import { useAllProfiles, useDeleteUserAsOwner, type OwnerProfileRow } from "@/hooks/use-crm-data";
+ 
+ export const Route = createFileRoute("/platform/users")({
+   head: () => ({
+@@ -16,6 +19,9 @@ function PlatformUsersPage() {
+   const { user } = useAuth();
+   const { t } = useI18n();
+   const { data: profiles, isLoading } = useAllProfiles();
++  const deleteUser = useDeleteUserAsOwner();
++  const [deletingId, setDeletingId] = useState<string | null>(null);
++  const [pendingDelete, setPendingDelete] = useState<OwnerProfileRow | null>(null);
+ 
+   if (user && user.role !== "platform_owner") {
+     return (
+@@ -27,6 +33,18 @@ function PlatformUsersPage() {
+     );
+   }
+ 
++  async function applyDelete(profile: OwnerProfileRow) {
++    setDeletingId(profile.id);
++    try {
++      await deleteUser.mutateAsync(profile.id);
++      toast.success(t("admin.employeeDeleted"));
++    } catch (err) {
++      toast.error(err instanceof Error ? err.message : t("admin.employeeDeleteFailed"));
++    } finally {
++      setDeletingId(null);
++    }
++  }
++
+   return (
+     <>
+       <PageHeader title={t("platform.usersTitle")} description={t("platform.usersDesc")} />
+@@ -47,6 +65,7 @@ function PlatformUsersPage() {
+                   <th className="px-4 py-3 font-medium">{t("admin.colEmail")}</th>
+                   <th className="px-4 py-3 font-medium">{t("platform.orgsTitle")}</th>
+                   <th className="px-4 py-3 font-medium">{t("admin.colRole")}</th>
++                  <th className="px-4 py-3 font-medium" />
+                 </tr>
+               </thead>
+               <tbody>
+@@ -60,6 +79,23 @@ function PlatformUsersPage() {
+                     <td className="px-4 py-3">
+                       <Pill tone="info">{p.role}</Pill>
+                     </td>
++                    <td className="px-4 py-3 text-right">
++                      {p.role !== "platform_owner" && (
++                        <button
++                          type="button"
++                          aria-label={t("admin.deleteEmployee")}
++                          disabled={deletingId === p.id}
++                          onClick={() => setPendingDelete(p)}
++                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
++                        >
++                          {deletingId === p.id ? (
++                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
++                          ) : (
++                            <Trash2 className="h-3.5 w-3.5" />
++                          )}
++                        </button>
++                      )}
++                    </td>
+                   </tr>
+                 ))}
+               </tbody>
+@@ -67,6 +103,23 @@ function PlatformUsersPage() {
+           </div>
+         )}
+       </SectionCard>
++
++      <ConfirmDialog
++        open={!!pendingDelete}
++        onOpenChange={(open) => !open && setPendingDelete(null)}
++        title={t("admin.confirmDeleteTitle")}
++        description={
++          pendingDelete
++            ? t("admin.confirmDeleteDesc", {
++                name: pendingDelete.full_name || pendingDelete.email,
++              })
++            : undefined
++        }
++        onConfirm={() => {
++          if (pendingDelete) void applyDelete(pendingDelete);
++          setPendingDelete(null);
++        }}
++      />
+     </>
+   );
+ }
+diff --git a/supabase/migrations/20260813090000_owner_panel_crud.sql b/supabase/migrations/20260813090000_owner_panel_crud.sql
+new file mode 100644
+index 0000000..a7bce22
+--- /dev/null
++++ b/supabase/migrations/20260813090000_owner_panel_crud.sql
+@@ -0,0 +1,58 @@
++-- Owner (Platform) panel CRUD: the platform owner could only create a
++-- company and deactivate/edit it — no way to delete a user, add a user to
++-- an existing company, or delete a company outright. This adds the
++-- server-side piece for all three (routes call these directly).
++--
++-- Deleting a company is destructive and irreversible: every lead, deal,
++-- contact, task, call, audit entry etc. that belongs to it is gone for
++-- good, and so is every one of its user accounts. None of the
++-- organization_id foreign keys added across earlier migrations actually
++-- cascade (every "ON DELETE CASCADE" on an already-existing column was a
++-- no-op — ALTER TABLE ... ADD COLUMN IF NOT EXISTS ... REFERENCES silently
++-- skips the whole clause, cascade included, once the column already
++-- exists), so a plain `delete from organizations` would just fail on the
++-- first foreign key it hits. This function deletes every dependent row
++-- itself, in one transaction, then the organization row last.
++--
++-- User accounts (auth.users, whose deletion cascades to profiles) are
++-- deleted separately, from the calling server route via the Auth Admin
++-- API — not from inside this SQL function — since that's the
++-- already-proven path (same one admin.delete-employee.ts uses) and this
++-- function's owner shouldn't need auth-schema privileges it doesn't
++-- otherwise have.
++create or replace function public.delete_organization_data(target_org_id uuid)
++returns void
++language plpgsql
++security definer
++set search_path = public
++as $$
++begin
++  delete from public.task_comments where organization_id = target_org_id;
++  delete from public.lead_activities where organization_id = target_org_id;
++  delete from public.tasks where organization_id = target_org_id;
++  delete from public.amocrm_calls where organization_id = target_org_id;
++  delete from public.call_logs where organization_id = target_org_id;
++  delete from public.work_sessions where organization_id = target_org_id;
++  delete from public.notifications where organization_id = target_org_id;
++  delete from public.audit_logs where organization_id = target_org_id;
++  delete from public.error_logs where organization_id = target_org_id;
++  delete from public.deals where organization_id = target_org_id;
++  delete from public.leads where organization_id = target_org_id;
++  delete from public.contacts where organization_id = target_org_id;
++  delete from public.companies where organization_id = target_org_id;
++  delete from public.pipeline_stages where organization_id = target_org_id;
++  delete from public.auto_responders where organization_id = target_org_id;
++  delete from public.ai_agents where organization_id = target_org_id;
++  delete from public.business_profile where organization_id = target_org_id;
++  delete from public.integration_settings where organization_id = target_org_id;
++  delete from public.amocrm_connection where organization_id = target_org_id;
++  delete from public.organizations where id = target_org_id;
++end;
++$$;
++
++-- Only the server (service-role) may call this — it has no auth.uid()-based
++-- authorization check of its own, since the calling route
++-- (platform.delete-organization.ts) already requires a platform_owner
++-- session before it ever runs.
++revoke all on function public.delete_organization_data(uuid) from public, anon, authenticated;
++grant execute on function public.delete_organization_data(uuid) to service_role;
+-- 
+2.43.0
+

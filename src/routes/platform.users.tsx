@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ShieldAlert, Users2 } from "lucide-react";
+import { Loader2, ShieldAlert, Trash2, Users2 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { useAllProfiles } from "@/hooks/use-crm-data";
+import { useAllProfiles, useDeleteUserAsOwner, type OwnerProfileRow } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/platform/users")({
   head: () => ({
@@ -16,6 +19,9 @@ function PlatformUsersPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { data: profiles, isLoading } = useAllProfiles();
+  const deleteUser = useDeleteUserAsOwner();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<OwnerProfileRow | null>(null);
 
   if (user && user.role !== "platform_owner") {
     return (
@@ -25,6 +31,18 @@ function PlatformUsersPage() {
         </div>
       </SectionCard>
     );
+  }
+
+  async function applyDelete(profile: OwnerProfileRow) {
+    setDeletingId(profile.id);
+    try {
+      await deleteUser.mutateAsync(profile.id);
+      toast.success(t("admin.employeeDeleted"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.employeeDeleteFailed"));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -47,6 +65,7 @@ function PlatformUsersPage() {
                   <th className="px-4 py-3 font-medium">{t("admin.colEmail")}</th>
                   <th className="px-4 py-3 font-medium">{t("platform.orgsTitle")}</th>
                   <th className="px-4 py-3 font-medium">{t("admin.colRole")}</th>
+                  <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -60,6 +79,23 @@ function PlatformUsersPage() {
                     <td className="px-4 py-3">
                       <Pill tone="info">{p.role}</Pill>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      {p.role !== "platform_owner" && (
+                        <button
+                          type="button"
+                          aria-label={t("admin.deleteEmployee")}
+                          disabled={deletingId === p.id}
+                          onClick={() => setPendingDelete(p)}
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                        >
+                          {deletingId === p.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -67,6 +103,23 @@ function PlatformUsersPage() {
           </div>
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title={t("admin.confirmDeleteTitle")}
+        description={
+          pendingDelete
+            ? t("admin.confirmDeleteDesc", {
+                name: pendingDelete.full_name || pendingDelete.email,
+              })
+            : undefined
+        }
+        onConfirm={() => {
+          if (pendingDelete) void applyDelete(pendingDelete);
+          setPendingDelete(null);
+        }}
+      />
     </>
   );
 }
