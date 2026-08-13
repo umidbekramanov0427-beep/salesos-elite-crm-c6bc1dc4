@@ -23,6 +23,15 @@ export type AmoCrmCallRow = Tables["amocrm_calls"]["Row"];
 /* plus create/update/delete mutations that invalidate that key.       */
 /* ------------------------------------------------------------------ */
 
+// Supabase/PostgREST caps a single select() response at 1000 rows by
+// default — a plain `.select("*")` with no `.range()` silently truncates
+// past that instead of erroring, so any org whose row count crosses 1000
+// (leads is the first table this happened to) quietly loses data off the
+// end with no error anywhere. Page through with `.range()` until a page
+// comes back short, keeping a stable `id` tiebreaker so results stay
+// disjoint across pages regardless of what orderBy the caller asked for.
+const RESOURCE_PAGE_SIZE = 1000;
+
 function makeResource<TableName extends keyof Tables>(table: TableName, queryKey: QueryKey) {
   type Row = Tables[TableName]["Row"];
   type Insert = Tables[TableName]["Insert"];
@@ -39,12 +48,23 @@ function makeResource<TableName extends keyof Tables>(table: TableName, queryKey
       enabled: config?.enabled ?? true,
       refetchInterval: config?.refetchInterval ?? false,
       queryFn: async (): Promise<Row[]> => {
-        let query = supabase.from(table).select("*");
-        if (config?.orderBy)
-          query = query.order(config.orderBy, { ascending: config?.ascending ?? true });
-        const { data, error } = await query;
-        if (error) throw error;
-        return (data ?? []) as unknown as Row[];
+        const all: Row[] = [];
+        let from = 0;
+        for (;;) {
+          let query = supabase.from(table).select("*");
+          if (config?.orderBy)
+            query = query.order(config.orderBy, { ascending: config?.ascending ?? true });
+          query = query
+            .order("id" as never, { ascending: true })
+            .range(from, from + RESOURCE_PAGE_SIZE - 1);
+          const { data, error } = await query;
+          if (error) throw error;
+          const page = (data ?? []) as unknown as Row[];
+          all.push(...page);
+          if (page.length < RESOURCE_PAGE_SIZE) break;
+          from += RESOURCE_PAGE_SIZE;
+        }
+        return all;
       },
     });
   }
