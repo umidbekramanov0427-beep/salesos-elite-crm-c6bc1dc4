@@ -345,13 +345,14 @@ export function useVisibleOwnerIds(): Set<string> | null {
   }, [user, profiles]);
 }
 
-export function useCrmBase() {
-  const companies = useCompaniesRaw();
-  const contacts = useContactsRaw();
-  const leads = useLeadsRaw();
-  const deals = useDealsRaw();
-  const stages = usePipelineStagesRaw();
-  const profiles = useProfilesRaw();
+export function useCrmBase(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const companies = useCompaniesRaw({ enabled });
+  const contacts = useContactsRaw({ enabled });
+  const leads = useLeadsRaw({ enabled });
+  const deals = useDealsRaw({ enabled });
+  const stages = usePipelineStagesRaw({ enabled });
+  const profiles = useProfilesRaw({ enabled });
   const visibleOwnerIds = useVisibleOwnerIds();
 
   const isLoading =
@@ -454,8 +455,8 @@ export type CrmLeadView = {
 // snapshot (see useAsOfSnapshot) in place of the live leads table, while
 // still joining against the current contacts/profiles/stages for display
 // names — the same shape either way.
-export function useCrmLeads(overrideLeads?: LeadRow[]) {
-  const base = useCrmBase();
+export function useCrmLeads(overrideLeads?: LeadRow[], options?: { enabled?: boolean }) {
+  const base = useCrmBase(options);
   const visibleOwnerIds = useVisibleOwnerIds();
   // base.leads is already scoped, but an as-of-date override comes straight
   // from the (unscoped) audit trail — apply the same ownership filter to it
@@ -520,6 +521,127 @@ export function useCrmLeads(overrideLeads?: LeadRow[]) {
   }, [sourceLeads, base.contacts, base.profiles, base.stages]);
 
   return { rows, ...base };
+}
+
+/* ------------------------------------------------------------------ */
+/* View: Pipeline board — one funnel's leads, fetched server-side      */
+/* instead of pulling the whole organization's leads (useCrmBase) and  */
+/* filtering client-side. Large AmoCRM accounts can have tens of       */
+/* thousands of leads spread across dozens of funnels; loading all of  */
+/* them just to show one funnel's Kanban board was the direct cause of */
+/* the board never finishing "Pipeline yuklanmoqda...". contacts/      */
+/* companies/deals aren't fetched at all here -- the board's cards only*/
+/* need fields already denormalized onto leads (company_name, tags,    */
+/* expected_revenue), not a contacts/companies join.                   */
+/* ------------------------------------------------------------------ */
+
+function usePipelineBoardLeadsRaw(funnel: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["pipeline_board_leads", user?.organizationId, funnel],
+    enabled: !!user?.organizationId && !!funnel,
+    queryFn: async (): Promise<LeadRow[]> => {
+      const fetchPage = async (from: number): Promise<LeadRow[]> => {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("funnel", funnel!)
+          .order("id", { ascending: true })
+          .range(from, from + RESOURCE_PAGE_SIZE - 1);
+        if (error) throw error;
+        return (data ?? []) as LeadRow[];
+      };
+
+      const all: LeadRow[] = [];
+      let from = 0;
+      let done = false;
+      while (!done) {
+        const starts = Array.from(
+          { length: LIST_PAGE_CONCURRENCY },
+          (_, i) => from + i * RESOURCE_PAGE_SIZE,
+        );
+        const pages = await Promise.all(starts.map(fetchPage));
+        for (const page of pages) {
+          all.push(...page);
+          if (page.length < RESOURCE_PAGE_SIZE) done = true;
+        }
+        from += LIST_PAGE_CONCURRENCY * RESOURCE_PAGE_SIZE;
+      }
+      return all;
+    },
+  });
+}
+
+/** Same shape as useCrmLeads, scoped to a single funnel and fetched server-side — see the comment above usePipelineBoardLeadsRaw for why. */
+export function usePipelineBoardLeads(funnel: string | null) {
+  const board = usePipelineBoardLeadsRaw(funnel);
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: profiles } = useProfilesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+
+  const scopedLeads = useMemo(() => {
+    const leads = board.data ?? [];
+    return visibleOwnerIds
+      ? leads.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : leads;
+  }, [board.data, visibleOwnerIds]);
+
+  const rows = useMemo<CrmLeadView[]>(() => {
+    const profilesById = byId(profiles ?? []);
+    const stagesById = byId(stages ?? []);
+
+    return scopedLeads.map((l): CrmLeadView => {
+      const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
+      const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      return {
+        id: l.id,
+        name: l.name,
+        initials: initialsOf(l.name),
+        company: l.company_name,
+        companyId: l.company_id ?? "",
+        position: "",
+        phone: "",
+        altPhone: "",
+        email: "",
+        telegram: "",
+        whatsapp: "",
+        source: l.source ?? "",
+        campaign: l.campaign ?? "",
+        utm: l.utm ?? "",
+        owner: owner ? profileName(owner) : "Unassigned",
+        ownerId: l.owner_id ?? "",
+        manager: manager ? profileName(manager) : "—",
+        priority: l.priority,
+        score: l.score,
+        temperature: l.temperature,
+        budget: l.budget,
+        expectedRevenue: l.expected_revenue,
+        country: l.country ?? "",
+        region: l.region ?? "",
+        city: l.city ?? "",
+        address: l.address ?? "",
+        stage: stage?.name ?? "New Lead",
+        stageId: l.stage_id ?? "",
+        stageIsWon: stage?.is_won ?? false,
+        stageIsLost: stage?.is_lost ?? false,
+        funnel: l.funnel ?? "",
+        nextFollowUp: formatFollowUp(l.next_follow_up),
+        lastContact: timeAgo(l.last_contact_at),
+        created: formatDate(l.created_at),
+        updated: timeAgo(l.updated_at),
+        tags: l.tags ?? [],
+        amocrmId: l.amocrm_id,
+      };
+    });
+  }, [scopedLeads, profiles, stages]);
+
+  return {
+    rows,
+    stages: stages ?? [],
+    isLoading: board.isLoading || !stages || !profiles,
+    isError: board.isError,
+  };
 }
 
 /* ------------------------------------------------------------------ */

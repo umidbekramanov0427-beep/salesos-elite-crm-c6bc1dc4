@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, GripVertical, Loader2 } from "lucide-react";
+import { ChevronRight, ExternalLink, GripVertical, Loader2, Workflow } from "lucide-react";
 import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import {
@@ -17,13 +17,17 @@ import {
   useAmoCrmLink,
   useAsOfSnapshot,
   useCrmLeads,
+  usePipelineBoardLeads,
+  usePipelineStagesRaw,
   useProfilesRaw,
-  useTagsSummary,
   useUpdateLead,
   type LeadRow,
 } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/crm/pipeline")({
+  validateSearch: (search: Record<string, unknown>): { funnel?: string | undefined } => ({
+    funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "AmoCRM — SalesOS Elite CRM" },
@@ -50,39 +54,87 @@ function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): str
   return `${s.color}/5 border-border`;
 }
 
+// A funnel with tens of thousands of leads is exactly why this page needs
+// to require one to be picked before fetching anything (see
+// usePipelineBoardLeads) -- fetching every funnel's leads at once to build
+// this list would defeat the point. pipeline_stages already carries the
+// funnel each stage belongs to, and there are far fewer stages than leads.
+function FunnelPicker({ funnelNames }: { funnelNames: string[] }) {
+  const { t } = useI18n();
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {funnelNames.map((name) => (
+        <Link
+          key={name}
+          to="/crm/pipeline"
+          search={{ funnel: name }}
+          className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
+        >
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Workflow className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate text-sm font-semibold text-foreground">{name}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+        </Link>
+      ))}
+      {funnelNames.length === 0 && (
+        <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
+          {t("funnels.noLeads")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function PipelinePage() {
   const { t } = useI18n();
   const { format } = useCurrency();
+  const navigate = useNavigate();
+  const { funnel: funnelParam } = Route.useSearch();
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
-  const {
-    rows: leads,
-    stages,
-    isLoading: leadsLoading,
-  } = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined);
-  const isLoading = leadsLoading || (asOfDate ? asOfSnapshot.isLoading : false);
+  const { data: allStages } = usePipelineStagesRaw();
+  const funnelNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of allStages ?? []) set.add(s.pipeline_name || "Direct Sales");
+    return Array.from(set).sort();
+  }, [allStages]);
+
+  // "As of date" reconstructs the whole org's leads from the audit trail
+  // (see useAsOfSnapshot) -- there's no way to scope that to one funnel
+  // server-side, so it only pays that org-wide cost when a user opts into
+  // it, falling back to useCrmLeads' full join. The default, common path
+  // (no as-of date) stays on usePipelineBoardLeads, which only fetches
+  // this one funnel's leads.
+  const boardResult = usePipelineBoardLeads(asOfDate ? null : (funnelParam ?? null));
+  const asOfResult = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined, {
+    enabled: !!asOfDate,
+  });
+  const stages = boardResult.stages;
+  const effectiveLeads = asOfDate
+    ? asOfResult.rows.filter((l) => l.funnel === funnelParam)
+    : boardResult.rows;
+  const isLoading = asOfDate
+    ? asOfResult.isLoading || asOfSnapshot.isLoading
+    : boardResult.isLoading;
   const updateLead = useUpdateLead();
   const { data: profiles } = useProfilesRaw();
-  const { tags: tagSummary } = useTagsSummary();
   const getAmoLink = useAmoCrmLink();
 
   const [filters, setFilters] = useState<LeadFilterState>(EMPTY_LEAD_FILTERS);
-  const funnelNames = useMemo(() => {
+  const filteredLeads = useMemo(
+    () => filterLeads(effectiveLeads, { ...filters, funnel: null }),
+    [effectiveLeads, filters],
+  );
+  const tagOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const l of leads) set.add(l.funnel || "Direct Sales");
+    for (const l of effectiveLeads) for (const tag of l.tags) set.add(tag);
     return Array.from(set).sort();
-  }, [leads]);
-  const filteredLeads = useMemo(() => filterLeads(leads, filters), [leads, filters]);
-  // Without this, selecting a funnel only narrowed which leads showed up
-  // inside each column — every AmoCRM pipeline's stage columns still
-  // rendered side by side regardless of the filter, since each stage now
-  // carries the AmoCRM pipeline it actually belongs to (see pipeline_name),
-  // an org with several pipelines got one long, mixed-together board
-  // instead of one funnel's own stages.
-  const visibleStages = useMemo(() => {
-    if (!filters.funnel) return stages;
-    return stages.filter((s) => (s.pipeline_name || "Direct Sales") === filters.funnel);
-  }, [stages, filters.funnel]);
+  }, [effectiveLeads]);
+  const visibleStages = useMemo(
+    () => stages.filter((s) => (s.pipeline_name || "Direct Sales") === funnelParam),
+    [stages, funnelParam],
+  );
 
   const [board, setBoard] = useState<Record<string, string[]>>({});
   const [dragged, setDragged] = useState<string | null>(null);
@@ -108,18 +160,40 @@ function PipelinePage() {
     setOver(null);
   };
 
+  if (!funnelParam) {
+    return (
+      <>
+        <PageHeader title={t("pipeline.title")} description={t("pipeline.pickFunnelDesc")} />
+        <FunnelPicker funnelNames={funnelNames} />
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader title={t("pipeline.title")} description={t("pipeline.desc")} />
+      <Link
+        to="/crm/pipeline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+      >
+        {t("funnels.backToFunnels")}
+      </Link>
+
+      <PageHeader title={funnelParam} description={t("pipeline.desc")} />
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <LeadFilterBar
-          value={filters}
-          onChange={setFilters}
+          value={{ ...filters, funnel: funnelParam }}
+          onChange={(next) => {
+            if (next.funnel !== funnelParam) {
+              void navigate({ to: "/crm/pipeline", search: { funnel: next.funnel ?? undefined } });
+              return;
+            }
+            setFilters(next);
+          }}
           funnels={funnelNames}
           owners={profiles ?? []}
-          tags={tagSummary.map((tg) => tg.name)}
-          stages={stages}
+          tags={tagOptions}
+          stages={visibleStages}
         />
         <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
       </div>
