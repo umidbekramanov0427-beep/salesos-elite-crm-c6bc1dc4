@@ -40,8 +40,10 @@ import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import {
   useBusinessProfile,
+  useCreateSettingListItem,
   useCreateStage,
   useCrmLeads,
+  useDeleteSettingListItem,
   useDeleteStage,
   useDeleteTag,
   useIntegrationSetting,
@@ -51,11 +53,14 @@ import {
   useRenameTag,
   useSendTestReport,
   useSetTelegramBotUsername,
+  useSettingList,
   useTagsSummary,
   useUpdateBusinessProfile,
   useUpdateNotificationPreferences,
   useUpdateProfile,
+  useUpdateSettingListItem,
   useUpdateStage,
+  type SettingListType,
   type StageRow,
 } from "@/hooks/use-crm-data";
 import { cn } from "@/lib/utils";
@@ -123,15 +128,7 @@ const STAGE_COLORS = [
   "bg-muted-foreground",
 ] as const;
 
-const COMING_SOON: SectionKey[] = [
-  "categories",
-  "salesStages",
-  "scoreModifiers",
-  "skills",
-  "qualificationGroups",
-  "leadCategories",
-  "conversion",
-];
+const COMING_SOON: SectionKey[] = [];
 
 function ProfileSection() {
   const { t } = useI18n();
@@ -1196,6 +1193,206 @@ function ComingSoonSection({ label }: { label: string }) {
   );
 }
 
+// Backs the seven admin-managed named lists (categories, sales stages,
+// score modifiers, skills, qualification groups, lead categories,
+// conversion targets) — same shape (name + optional numeric value), one
+// shared component instead of seven near-identical ones.
+const LIST_SECTION_TYPE: Record<string, SettingListType> = {
+  categories: "categories",
+  salesStages: "sales_stages",
+  scoreModifiers: "score_modifiers",
+  skills: "skills",
+  qualificationGroups: "qualification_groups",
+  leadCategories: "lead_categories",
+  conversion: "conversion_targets",
+};
+const LIST_SECTION_HAS_VALUE = new Set<SettingListType>(["score_modifiers", "conversion_targets"]);
+
+function GenericListSection({ label, listType }: { label: string; listType: SettingListType }) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const withValue = LIST_SECTION_HAS_VALUE.has(listType);
+  const { data: items, isLoading } = useSettingList(listType);
+  const createItem = useCreateSettingListItem();
+  const updateItem = useUpdateSettingListItem();
+  const deleteItem = useDeleteSettingListItem();
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editValue, setEditValue] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try {
+      await createItem.mutateAsync({
+        organization_id: user!.organizationId!,
+        list_type: listType,
+        name: name.trim(),
+        value: withValue && value.trim() ? Number(value) : null,
+        position: items.length,
+      });
+      toast.success(t("settings.list.added"));
+      setName("");
+      setValue("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.list.actionFailed"));
+    }
+  }
+
+  async function save(id: string) {
+    try {
+      await updateItem.mutateAsync({
+        id,
+        patch: {
+          ...(editName.trim() ? { name: editName.trim() } : {}),
+          ...(withValue ? { value: editValue.trim() ? Number(editValue) : null } : {}),
+        },
+      });
+      toast.success(t("settings.list.updated"));
+      setEditingId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.list.actionFailed"));
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      await deleteItem.mutateAsync(id);
+      toast.success(t("settings.list.deleted"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.list.actionFailed"));
+    } finally {
+      setConfirmDelete(null);
+    }
+  }
+
+  return (
+    <SectionCard title={label} description={t("settings.list.desc")}>
+      {canManage && (
+        <form onSubmit={(e) => void add(e)} className="mb-4 flex flex-wrap items-center gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("settings.list.namePlaceholder")}
+            className="h-10 min-w-[180px] flex-1 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+          />
+          {withValue && (
+            <input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={t("settings.list.valuePlaceholder")}
+              type="number"
+              className="h-10 w-40 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            />
+          )}
+          <button
+            type="submit"
+            disabled={createItem.isPending || !name.trim()}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {createItem.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            {t("settings.list.add")}
+          </button>
+        </form>
+      )}
+
+      {isLoading && (
+        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        </div>
+      )}
+      {!isLoading && items.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">{t("settings.list.empty")}</p>
+      )}
+      <ul className="space-y-2">
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-2.5"
+          >
+            {editingId === item.id ? (
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void save(item.id);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  className="h-9 min-w-[160px] flex-1 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-primary/40"
+                />
+                {withValue && (
+                  <input
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    type="number"
+                    className="h-9 w-32 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-primary/40"
+                  />
+                )}
+                <button
+                  onClick={() => void save(item.id)}
+                  className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
+                  aria-label={t("common.save")}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">{item.name}</span>
+                {withValue && item.value != null && (
+                  <span className="text-xs text-subtle">{item.value}</span>
+                )}
+              </div>
+            )}
+            {canManage && editingId !== item.id && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setEditName(item.name);
+                    setEditValue(item.value != null ? String(item.value) : "");
+                  }}
+                  className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
+                  aria-label={t("settings.list.rename")}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setConfirmDelete({ id: item.id, name: item.name })}
+                  className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
+                  aria-label={t("settings.list.delete")}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
+        title={
+          confirmDelete ? t("settings.list.deleteConfirmTitle", { name: confirmDelete.name }) : ""
+        }
+        description={t("settings.list.deleteConfirmDesc")}
+        onConfirm={() => confirmDelete && void remove(confirmDelete.id)}
+      />
+    </SectionCard>
+  );
+}
+
 function SettingsPage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -1285,6 +1482,12 @@ function SettingsPage() {
           {section === "tags" && <TagsSection />}
           {section === "users" && <UsersSection />}
           {section === "telegram" && <TelegramSection />}
+          {section in LIST_SECTION_TYPE && (
+            <GenericListSection
+              label={NAV.find((n) => n.key === section)?.label ?? ""}
+              listType={LIST_SECTION_TYPE[section]!}
+            />
+          )}
           {COMING_SOON.includes(section) && (
             <ComingSoonSection label={NAV.find((n) => n.key === section)?.label ?? ""} />
           )}

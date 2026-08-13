@@ -112,6 +112,8 @@ const leadActivitiesResource = makeResource("lead_activities", ["lead_activities
 const workSessionsResource = makeResource("work_sessions", ["work_sessions"]);
 const callLogsResource = makeResource("call_logs", ["call_logs"]);
 const amocrmCallsResource = makeResource("amocrm_calls", ["amocrm_calls"]);
+const settingListsResource = makeResource("setting_lists", ["setting_lists"]);
+const rolePermissionsResource = makeResource("role_permissions", ["role_permissions"]);
 
 export const useCompaniesRaw = (opts?: Parameters<typeof companiesResource.useList>[0]) =>
   companiesResource.useList({ orderBy: "created_at", ascending: false, ...opts });
@@ -202,6 +204,29 @@ export const useCreateCallLog = callLogsResource.useCreate;
 
 export const useAmoCrmCallsRaw = (opts?: Parameters<typeof amocrmCallsResource.useList>[0]) =>
   amocrmCallsResource.useList({ orderBy: "occurred_at", ascending: false, ...opts });
+
+export type SettingListType =
+  | "categories"
+  | "sales_stages"
+  | "score_modifiers"
+  | "skills"
+  | "qualification_groups"
+  | "lead_categories"
+  | "conversion_targets";
+
+/** One of the seven admin-managed named lists shown under Settings (categories, score modifiers, etc). */
+export function useSettingList(listType: SettingListType) {
+  const { data, ...rest } = settingListsResource.useList({ orderBy: "position" });
+  const items = (data ?? []).filter((item) => item.list_type === listType);
+  return { ...rest, data: items };
+}
+export const useCreateSettingListItem = settingListsResource.useCreate;
+export const useUpdateSettingListItem = settingListsResource.useUpdate;
+export const useDeleteSettingListItem = settingListsResource.useRemove;
+
+export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResource.useList>[0]) =>
+  rolePermissionsResource.useList(opts);
+export const useUpdateRolePermission = rolePermissionsResource.useUpdate;
 
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
