@@ -1064,6 +1064,7 @@ export type Database = {
           key: string
           name: string
           organization_id: string
+          pipeline_name: string | null
           position: number
           probability: number
         }
@@ -1078,6 +1079,7 @@ export type Database = {
           key: string
           name: string
           organization_id: string
+          pipeline_name?: string | null
           position: number
           probability?: number
         }
@@ -1092,6 +1094,7 @@ export type Database = {
           key?: string
           name?: string
           organization_id?: string
+          pipeline_name?: string | null
           position?: number
           probability?: number
         }
