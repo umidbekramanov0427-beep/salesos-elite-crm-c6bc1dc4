@@ -1382,7 +1382,8 @@ export function useAmoConnectionStatus() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["amocrm_connection_status", user?.organizationId],
-    enabled: !!user?.organizationId && user.role === "super_admin",
+    enabled:
+      !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
     refetchInterval: 3000,
     queryFn: async (): Promise<AmoConnectionStatus | null> => {
       const { data, error } = await supabase
@@ -2045,7 +2046,8 @@ export function useSecurityUsers() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["security_users", user?.organizationId],
-    enabled: !!user?.organizationId && user.role === "super_admin",
+    enabled:
+      !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
     queryFn: async (): Promise<SecurityUserStatus[]> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -2106,7 +2108,8 @@ export function useAmoCatalog() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["amocrm_catalog", user?.organizationId],
-    enabled: !!user?.organizationId && user.role === "super_admin",
+    enabled:
+      !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
     queryFn: async (): Promise<AmoCatalog> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;

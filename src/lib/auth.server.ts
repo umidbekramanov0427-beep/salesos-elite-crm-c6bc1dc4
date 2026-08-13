@@ -50,7 +50,7 @@ export async function requireSuperAdmin(
   return userId ? requireSuperAdminForUser(userId) : null;
 }
 
-/** Same check as requireSuperAdmin, given a user id already resolved from a token. */
+/** Same check as requireSuperAdmin, given a user id already resolved from a token. Also admits platform_owner -- a platform owner administers their own organization with at least super_admin's privileges. */
 export async function requireSuperAdminForUser(
   userId: string,
 ): Promise<{ id: string; organizationId: string } | null> {
@@ -60,7 +60,8 @@ export async function requireSuperAdminForUser(
     .select("role, organization_id")
     .eq("id", userId)
     .maybeSingle();
-  if (profile?.role !== "super_admin" || !profile.organization_id) return null;
+  const isOrgAdmin = profile?.role === "super_admin" || profile?.role === "platform_owner";
+  if (!isOrgAdmin || !profile.organization_id) return null;
   return { id: userId, organizationId: profile.organization_id };
 }
 

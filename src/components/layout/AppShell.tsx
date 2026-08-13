@@ -27,7 +27,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isAdmin = user?.role === "super_admin";
+  // A platform owner who's also a member of their own organization (this
+  // session's whole setup) runs it day to day, so they need everything a
+  // super_admin gets, not just the platform-management screens.
+  const isAdmin = user?.role === "super_admin" || user?.role === "platform_owner";
   const isPlatformOwner = user?.role === "platform_owner";
   // Exact match first: several /platform/* sub-pages share the "/platform"
   // prefix, so a plain prefix search would always resolve to the bare
@@ -73,11 +76,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
             <nav className="space-y-1">
-              {NAV_ITEMS.filter((i) =>
-                isPlatformOwner
-                  ? i.platformOwnerOnly
-                  : (!i.adminOnly || isAdmin) && !i.platformOwnerOnly,
-              ).map((item) => {
+              {NAV_ITEMS.filter((i) => {
+                // A platform owner also runs their own organization day to
+                // day (this session's whole point), so they need the
+                // regular CRM/admin nav on top of the platform-only items
+                // -- not instead of it, which is what this used to do.
+                if (i.platformOwnerOnly) return isPlatformOwner;
+                if (i.adminOnly) return isAdmin || isPlatformOwner;
+                return true;
+              }).map((item) => {
                 const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
                 return (
                   <Link

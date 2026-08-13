@@ -214,7 +214,8 @@ function LogCallCard() {
 function AttendanceSection() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSessions = useAsOfSnapshot<WorkSessionRow>("work_sessions", asOfDate);
   const asOfCalls = useAsOfSnapshot<CallLogRow>("call_logs", asOfDate);
@@ -445,7 +446,8 @@ function NormativesSection() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin" || user?.role === "rop";
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
   const { rows, isLoading } = useNormativesView();
 
   const onTrack = rows.filter((r) => r.status === "onTrack").length;

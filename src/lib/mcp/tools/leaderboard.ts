@@ -48,7 +48,7 @@ export default defineTool({
     const q = search?.trim().toLowerCase();
 
     const ranking = (profiles ?? [])
-      .filter((p) => p.role !== "super_admin")
+      .filter((p) => p.role !== "super_admin" && p.role !== "platform_owner")
       .filter((p) => !q || (p.full_name || p.email).toLowerCase().includes(q))
       .map((p) => {
         const mine = (leads ?? []).filter((l) => l.owner_id === p.id);

@@ -80,7 +80,8 @@ async function maybeStartOnboarding(
   chatId: number,
   profile: { id: string; full_name: string; organization_id: string; role: string },
 ) {
-  if (profile.role !== "super_admin" && profile.role !== "rop") return false;
+  if (profile.role !== "super_admin" && profile.role !== "rop" && profile.role !== "platform_owner")
+    return false;
   const { data: bp } = await supabaseAdmin
     .from("business_profile")
     .select("company_name")

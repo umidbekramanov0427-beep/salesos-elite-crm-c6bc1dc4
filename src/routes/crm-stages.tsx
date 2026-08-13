@@ -51,7 +51,7 @@ const PERMISSION_KEY: Record<string, string> = {
 function PermissionsTable() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canManage = user?.role === "super_admin";
+  const canManage = user?.role === "super_admin" || user?.role === "platform_owner";
   const { data: permissions, isLoading } = useRolePermissions();
   const updatePermission = useUpdateRolePermission();
 

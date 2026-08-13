@@ -317,7 +317,7 @@ function AutoRespondersPage() {
   const [editing, setEditing] = useState<AutoResponderRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AutoResponderRow | null>(null);
 
-  if (user && user.role !== "super_admin") {
+  if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
       <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
