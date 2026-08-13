@@ -38,7 +38,7 @@ begin
       and tc.table_schema = 'public'
       and tc.table_name in ('leads', 'contacts')
     group by tc.constraint_name, tc.table_name
-    having array_agg(kcu.column_name) = array['amocrm_id']
+    having array_agg(kcu.column_name::text) = array['amocrm_id']
   loop
     execute format('alter table public.%I drop constraint %I', r.table_name, r.constraint_name);
   end loop;
