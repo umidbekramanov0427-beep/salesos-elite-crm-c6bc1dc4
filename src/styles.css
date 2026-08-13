@@ -221,10 +221,9 @@
 }
 
 /* LogoLoader: the brand mark blooming in place of a plain spinner. The
-   center dot pulses in, then each petal/tip pair scales in from the
-   center out (staggered per-petal via animation-delay in the component),
-   holds, and fades back before the next loop -- reads as "thinking"
-   rather than a bare rotating ring. */
+   center dot pulses in, then every petal/tip pair scales in from the
+   center out together, in unison, holds, and fades back before the next
+   loop -- reads as "thinking" rather than a bare rotating ring. */
 @keyframes logo-loader-core-pulse {
   0%,
   100% {
