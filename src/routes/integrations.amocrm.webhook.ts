@@ -3,7 +3,7 @@ import { getConnection, upsertSingleAmoLead } from "@/lib/amocrm/client.server";
 
 // AmoCRM posts form-encoded fields like leads[add][0][id], leads[update][0][name] ...
 const FIELD_PATTERN =
-  /^leads\[(?:add|update)\]\[(\d+)\]\[(id|name|price|status_id|responsible_user_id)\]$/;
+  /^leads\[(?:add|update)\]\[(\d+)\]\[(id|name|price|status_id|responsible_user_id|pipeline_id)\]$/;
 
 export const Route = createFileRoute("/integrations/amocrm/webhook")({
   server: {
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/integrations/amocrm/webhook")({
             price?: string;
             status_id?: string;
             responsible_user_id?: string;
+            pipeline_id?: string;
           };
           const byIndex = new Map<string, Entry>();
 
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/integrations/amocrm/webhook")({
               entry.price ? Number(entry.price) : null,
               entry.status_id ? Number(entry.status_id) : null,
               entry.responsible_user_id ? Number(entry.responsible_user_id) : null,
+              entry.pipeline_id ? Number(entry.pipeline_id) : null,
             );
           }
         } catch (err) {

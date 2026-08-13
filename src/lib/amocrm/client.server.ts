@@ -345,16 +345,25 @@ const AMO_WON_STATUS_ID = 142;
 const AMO_LOST_STATUS_ID = 143;
 const STAGE_COLOR_ROTATION = ["bg-primary", "bg-info", "bg-warning", "bg-mint-border"] as const;
 
+/** Builds the lookup key used to disambiguate a status id across pipelines — see syncPipelineStages. */
+function pipelineStatusKey(pipelineId: number, statusId: number): string {
+  return `${pipelineId}:${statusId}`;
+}
+
 /**
  * Mirrors AmoCRM's real pipeline/status structure into pipeline_stages, one
- * row per (organization, amocrm_status_id) — additive, so stages created by
- * hand in Settings (which have no amocrm_status_id) are left untouched.
- * Returns a status_id -> our stage_id lookup for lead upserts.
+ * row per (organization, amocrm_pipeline_id, amocrm_status_id) — additive,
+ * so stages created by hand in Settings (which have no amocrm_status_id)
+ * are left untouched. Returns a "pipelineId:statusId" -> our stage_id
+ * lookup for lead upserts — status ids alone aren't unique across
+ * pipelines (won/lost are id 142/143 in every pipeline), so a lookup keyed
+ * on status id alone would collapse every pipeline's "Won" stage into
+ * whichever one was upserted last.
  */
 async function syncPipelineStages(
   organizationId: string,
   conn: AmoConnection,
-): Promise<Map<number, string>> {
+): Promise<Map<string, string>> {
   const pipelines = await fetchPipelines(conn);
   const rows: {
     organization_id: string;
@@ -378,7 +387,11 @@ async function syncPipelineStages(
         organization_id: organizationId,
         amocrm_pipeline_id: pipeline.id,
         amocrm_status_id: status.id,
-        key: `amo-${status.id}`,
+        // AmoCRM reuses status ids 142 (won) and 143 (lost) in *every*
+        // pipeline — they aren't globally unique. The key must be scoped
+        // per pipeline too, or two pipelines' won/lost stages collide on
+        // this org's (organization_id, key) uniqueness.
+        key: `amo-${pipeline.id}-${status.id}`,
         name: status.name,
         position: status.sort ?? index,
         color: isWon
@@ -397,13 +410,15 @@ async function syncPipelineStages(
 
   const { data, error } = await supabaseAdmin
     .from("pipeline_stages")
-    .upsert(rows, { onConflict: "organization_id,amocrm_status_id" })
-    .select("id, amocrm_status_id");
+    .upsert(rows, { onConflict: "organization_id,amocrm_pipeline_id,amocrm_status_id" })
+    .select("id, amocrm_pipeline_id, amocrm_status_id");
   if (error) throw error;
 
-  const map = new Map<number, string>();
+  const map = new Map<string, string>();
   for (const row of data ?? []) {
-    if (row.amocrm_status_id != null) map.set(row.amocrm_status_id, row.id);
+    if (row.amocrm_pipeline_id != null && row.amocrm_status_id != null) {
+      map.set(pipelineStatusKey(row.amocrm_pipeline_id, row.amocrm_status_id), row.id);
+    }
   }
   return map;
 }
@@ -602,7 +617,8 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           source: "AmoCRM",
           expected_revenue: l.price ?? 0,
           budget: l.price ?? 0,
-          stage_id: stageByStatusId.get(l.status_id) ?? fallbackStageId,
+          stage_id:
+            stageByStatusId.get(pipelineStatusKey(l.pipeline_id, l.status_id)) ?? fallbackStageId,
           owner_id: l.responsible_user_id
             ? (ownerByAmoUserId.get(l.responsible_user_id) ?? null)
             : null,
@@ -689,19 +705,28 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
   return rows.length;
 }
 
-/** Resolves a stage_id for a single AmoCRM status_id, falling back to the org's "new" stage. */
+/**
+ * Resolves a stage_id for a single AmoCRM status_id, falling back to the
+ * org's "new" stage. Status ids alone aren't unique across pipelines
+ * (won/lost are id 142/143 in every pipeline) — pass pipelineId when known
+ * so this can disambiguate; without it, `.limit(1)` just takes whichever
+ * pipeline's matching stage comes first, same as this always did before
+ * pipeline-scoped stages existed, rather than erroring on multiple rows.
+ */
 export async function resolveStageId(
   organizationId: string,
   statusId: number | null,
+  pipelineId: number | null = null,
 ): Promise<string | null> {
   if (statusId != null) {
-    const { data } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("pipeline_stages")
       .select("id")
       .eq("organization_id", organizationId)
-      .eq("amocrm_status_id", statusId)
-      .maybeSingle();
-    if (data?.id) return data.id;
+      .eq("amocrm_status_id", statusId);
+    if (pipelineId != null) query = query.eq("amocrm_pipeline_id", pipelineId);
+    const { data } = await query.limit(1);
+    if (data?.[0]?.id) return data[0].id;
   }
   return defaultStageId(organizationId);
 }
@@ -729,9 +754,10 @@ export async function upsertSingleAmoLead(
   price: number | null,
   statusId: number | null,
   responsibleUserId: number | null,
+  pipelineId: number | null = null,
 ) {
   const [stageId, ownerId] = await Promise.all([
-    resolveStageId(organizationId, statusId),
+    resolveStageId(organizationId, statusId, pipelineId),
     resolveOwnerId(organizationId, responsibleUserId),
   ]);
   const { error } = await supabaseAdmin.from("leads").upsert(
