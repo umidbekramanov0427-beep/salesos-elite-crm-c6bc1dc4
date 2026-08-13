@@ -110,10 +110,28 @@ async function ensureValidToken(conn: AmoConnection): Promise<AmoConnection> {
   return refreshTokens(conn);
 }
 
-async function amoFetch(conn: AmoConnection, path: string) {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// AmoCRM enforces a per-integration rate limit (undocumented exact number,
+// commonly reported around 7 req/s) — fetching several list endpoints
+// concurrently (see fetchAllPaged below) can burst past it and get 429s
+// back. Retrying with backoff instead of failing the whole sync handles
+// that regardless of the exact limit, rather than trying to guess a
+// concurrency level that's always safe.
+const RATE_LIMIT_MAX_RETRIES = 6;
+
+async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise<unknown> {
   const res = await fetch(`https://${conn.subdomain}${path}`, {
     headers: { authorization: `Bearer ${conn.access_token}` },
   });
+  if (res.status === 429 && attempt <= RATE_LIMIT_MAX_RETRIES) {
+    const retryAfterHeader = Number(res.headers.get("retry-after"));
+    const delayMs = (retryAfterHeader > 0 ? retryAfterHeader : attempt) * 1000;
+    await sleep(delayMs);
+    return amoFetch(conn, path, attempt + 1);
+  }
   if (res.status === 204) return null;
   if (!res.ok) {
     const text = await res.text();
@@ -127,9 +145,12 @@ async function amoFetch(conn: AmoConnection, path: string) {
 // a time was the dominant cost of a sync for any account with more than a
 // few hundred records — each page is its own network round-trip to
 // AmoCRM. Requesting a small batch of pages concurrently cuts that wall-
-// clock time roughly by the batch size, while staying well under AmoCRM's
-// per-integration rate limit (~7 req/s).
-const PAGE_FETCH_CONCURRENCY = 4;
+// clock time roughly by the batch size. Kept modest (rather than higher)
+// because syncLeadsFromAmo also runs several of these paginated fetches
+// (leads, contacts, companies, users) at the same time via Promise.all —
+// amoFetch's 429 retry above is the real safety net, this just keeps
+// bursts smaller to begin with.
+const PAGE_FETCH_CONCURRENCY = 3;
 
 async function fetchAllPaged<T>(
   conn: AmoConnection,
