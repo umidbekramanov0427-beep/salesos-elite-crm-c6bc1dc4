@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Filter, GripVertical, Loader2, Lock, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
@@ -125,6 +125,12 @@ function CrmStages() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const { rows: leads, leads: rawLeads, stages, isLoading } = useCrmLeads();
+
+  useEffect(() => {
+    if (!window.location.hash) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const rows = useMemo(() => {
     const q = query.toLowerCase();
