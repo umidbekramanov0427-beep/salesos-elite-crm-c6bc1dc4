@@ -114,6 +114,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Supabase client errors (PostgrestError) carry a `.message` string but are
+// plain objects, not `instanceof Error` — a bare `err instanceof Error`
+// check silently drops the real reason (missing column, RLS denial, broken
+// upsert conflict target, ...) and reports "Unknown sync error" instead.
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = (err as { message: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return "Unknown sync error";
+}
+
 // AmoCRM enforces a per-integration rate limit (undocumented exact number,
 // commonly reported around 7 req/s) — fetching several list endpoints
 // concurrently (see fetchAllPaged below) can burst past it and get 429s
@@ -620,7 +633,7 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
 
     return { synced: leads.length, callsSynced };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown sync error";
+    const message = describeError(err);
     await supabaseAdmin
       .from("amocrm_connection")
       .update({ last_sync_error: message })
