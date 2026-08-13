@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import {
+  CheckCircle2,
   ChevronDown,
   ExternalLink,
   Loader2,
@@ -232,9 +233,10 @@ function CallRow({ call }: { call: AudioCallView }) {
 
   async function onAnalyze() {
     try {
-      await analyze.mutateAsync(call.id);
+      const result = await analyze.mutateAsync(call.id);
       setExpanded(true);
       toast.success(t("audio.analyzed"));
+      if (result.taskWarning) toast.error(result.taskWarning);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("audio.analyzeFailed"));
     }
@@ -318,6 +320,20 @@ function CallRow({ call }: { call: AudioCallView }) {
             {t("audio.aiSummary")}
           </p>
           <p className="whitespace-pre-wrap text-sm text-foreground">{call.aiSummary}</p>
+          {call.nextStep && (
+            <div className="rounded-lg border border-mint/30 bg-mint/10 p-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-mint-foreground">
+                {t("audio.nextStep")}
+              </p>
+              <p className="mt-1 text-sm text-foreground">{call.nextStep}</p>
+              {call.amocrmTaskId && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-mint-foreground" />
+                  {t("audio.taskCreated")}
+                </p>
+              )}
+            </div>
+          )}
           {call.transcript && (
             <details className="mt-2">
               <summary className="cursor-pointer text-xs font-medium text-subtle hover:text-foreground">

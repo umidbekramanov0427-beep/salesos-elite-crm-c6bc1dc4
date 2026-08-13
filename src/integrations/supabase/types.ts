@@ -62,6 +62,7 @@ export type Database = {
         Row: {
           ai_summary: string | null
           amocrm_note_id: number | null
+          amocrm_task_id: number | null
           analyzed_at: string | null
           connected: boolean
           created_by: string | null
@@ -69,17 +70,20 @@ export type Database = {
           duration_seconds: number
           id: string
           lead_id: string | null
+          next_step: string | null
           occurred_at: string
           organization_id: string
           phone: string | null
           recording_url: string | null
           source: string
           synced_at: string
+          task_created_at: string | null
           transcript: string | null
         }
         Insert: {
           ai_summary?: string | null
           amocrm_note_id?: number | null
+          amocrm_task_id?: number | null
           analyzed_at?: string | null
           connected?: boolean
           created_by?: string | null
@@ -87,17 +91,20 @@ export type Database = {
           duration_seconds?: number
           id?: string
           lead_id?: string | null
+          next_step?: string | null
           occurred_at: string
           organization_id: string
           phone?: string | null
           recording_url?: string | null
           source?: string
           synced_at?: string
+          task_created_at?: string | null
           transcript?: string | null
         }
         Update: {
           ai_summary?: string | null
           amocrm_note_id?: number | null
+          amocrm_task_id?: number | null
           analyzed_at?: string | null
           connected?: boolean
           created_by?: string | null
@@ -105,12 +112,14 @@ export type Database = {
           duration_seconds?: number
           id?: string
           lead_id?: string | null
+          next_step?: string | null
           occurred_at?: string
           organization_id?: string
           phone?: string | null
           recording_url?: string | null
           source?: string
           synced_at?: string
+          task_created_at?: string | null
           transcript?: string | null
         }
         Relationships: [

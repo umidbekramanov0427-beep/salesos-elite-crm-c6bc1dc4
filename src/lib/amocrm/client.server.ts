@@ -122,6 +122,57 @@ async function amoFetch(conn: AmoConnection, path: string) {
   return await res.json();
 }
 
+async function amoWriteFetch(
+  conn: AmoConnection,
+  path: string,
+  method: "POST" | "PATCH",
+  body: unknown,
+) {
+  const res = await fetch(`https://${conn.subdomain}${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${conn.access_token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`AmoCRM API error (${res.status}) on ${path}: ${text}`);
+  }
+  return await res.json();
+}
+
+/**
+ * Creates a task on an AmoCRM lead — used to hand a call's AI-suggested next
+ * step to the responsible manager as a reminder inside AmoCRM itself, right
+ * after a call recording is analyzed.
+ */
+export async function createAmoTask(
+  organizationId: string,
+  leadAmoId: number,
+  text: string,
+  completeTill: number,
+  responsibleAmoUserId: number | null,
+): Promise<number | null> {
+  const conn = await getConnection(organizationId);
+  if (!conn) throw new Error("AmoCRM ulanmagan.");
+  const validConn = await ensureValidToken(conn);
+  const payload = [
+    {
+      text,
+      complete_till: completeTill,
+      entity_id: leadAmoId,
+      entity_type: "leads",
+      ...(responsibleAmoUserId != null ? { responsible_user_id: responsibleAmoUserId } : {}),
+    },
+  ];
+  const json = (await amoWriteFetch(validConn, "/api/v4/tasks", "POST", payload)) as {
+    _embedded?: { tasks?: { id: number }[] };
+  };
+  return json._embedded?.tasks?.[0]?.id ?? null;
+}
+
 type AmoLead = {
   id: number;
   name: string | null;

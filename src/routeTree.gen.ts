@@ -51,6 +51,7 @@ import { Route as PlatformDeleteUserRouteImport } from './routes/platform.delete
 import { Route as PlatformErrorsRouteImport } from './routes/platform.errors'
 import { Route as PlatformIntegrationsRouteImport } from './routes/platform.integrations'
 import { Route as PlatformNotificationsRouteImport } from './routes/platform.notifications'
+import { Route as PlatformUpdateUserRouteImport } from './routes/platform.update-user'
 import { Route as PlatformUsersRouteImport } from './routes/platform.users'
 import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
 import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
@@ -280,6 +281,11 @@ const PlatformNotificationsRoute = PlatformNotificationsRouteImport.update({
   path: '/platform/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformUpdateUserRoute = PlatformUpdateUserRouteImport.update({
+  id: '/platform/update-user',
+  path: '/platform/update-user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlatformUsersRoute = PlatformUsersRouteImport.update({
   id: '/platform/users',
   path: '/platform/users',
@@ -393,6 +399,7 @@ export interface FileRoutesByFullPath {
   '/platform/errors': typeof PlatformErrorsRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/platform/notifications': typeof PlatformNotificationsRoute
+  '/platform/update-user': typeof PlatformUpdateUserRoute
   '/platform/users': typeof PlatformUsersRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/platform/errors': typeof PlatformErrorsRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/platform/notifications': typeof PlatformNotificationsRoute
+  '/platform/update-user': typeof PlatformUpdateUserRoute
   '/platform/users': typeof PlatformUsersRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
@@ -508,6 +516,7 @@ export interface FileRoutesById {
   '/platform/errors': typeof PlatformErrorsRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/platform/notifications': typeof PlatformNotificationsRoute
+  '/platform/update-user': typeof PlatformUpdateUserRoute
   '/platform/users': typeof PlatformUsersRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
@@ -567,6 +576,7 @@ export interface FileRouteTypes {
     | '/platform/errors'
     | '/platform/integrations'
     | '/platform/notifications'
+    | '/platform/update-user'
     | '/platform/users'
     | '/telegram/link'
     | '/telegram/send-daily-report'
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/platform/errors'
     | '/platform/integrations'
     | '/platform/notifications'
+    | '/platform/update-user'
     | '/platform/users'
     | '/telegram/link'
     | '/telegram/send-daily-report'
@@ -681,6 +692,7 @@ export interface FileRouteTypes {
     | '/platform/errors'
     | '/platform/integrations'
     | '/platform/notifications'
+    | '/platform/update-user'
     | '/platform/users'
     | '/telegram/link'
     | '/telegram/send-daily-report'
@@ -732,6 +744,7 @@ export interface RootRouteChildren {
   PlatformErrorsRoute: typeof PlatformErrorsRoute
   PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
   PlatformNotificationsRoute: typeof PlatformNotificationsRoute
+  PlatformUpdateUserRoute: typeof PlatformUpdateUserRoute
   PlatformUsersRoute: typeof PlatformUsersRoute
   TelegramLinkRoute: typeof TelegramLinkRoute
   TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
@@ -1040,6 +1053,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/update-user': {
+      id: '/platform/update-user'
+      path: '/platform/update-user'
+      fullPath: '/platform/update-user'
+      preLoaderRoute: typeof PlatformUpdateUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/platform/users': {
       id: '/platform/users'
       path: '/platform/users'
@@ -1230,6 +1250,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlatformErrorsRoute: PlatformErrorsRoute,
   PlatformIntegrationsRoute: PlatformIntegrationsRoute,
   PlatformNotificationsRoute: PlatformNotificationsRoute,
+  PlatformUpdateUserRoute: PlatformUpdateUserRoute,
   PlatformUsersRoute: PlatformUsersRoute,
   TelegramLinkRoute: TelegramLinkRoute,
   TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,

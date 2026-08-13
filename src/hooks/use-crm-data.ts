@@ -587,6 +587,9 @@ export type AudioCallView = {
   occurredAt: string;
   transcript: string | null;
   aiSummary: string | null;
+  nextStep: string | null;
+  amocrmTaskId: number | null;
+  amocrmId: number | null;
 };
 
 export type RecoverableLeadView = {
@@ -638,6 +641,9 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
           occurredAt: timeAgo(c.occurred_at),
           transcript: c.transcript,
           aiSummary: c.ai_summary,
+          nextStep: c.next_step,
+          amocrmTaskId: c.amocrm_task_id,
+          amocrmId: lead?.amocrmId ?? null,
         };
       }),
     [calls, leadsById],
@@ -1465,6 +1471,33 @@ export function useDeleteUserAsOwner() {
   });
 }
 
+/** Platform owner: edit any company member's name, role, and/or reset their password. */
+export function useUpdateUserAsOwner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      full_name?: string;
+      role?: "super_admin" | "rop" | "sotuv_menejeri";
+      password?: string;
+    }): Promise<void> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/platform/update-user", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to update user");
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] }),
+  });
+}
+
 /** Platform owner: add a ROP/Sotuv menejeri/Super Admin account to an existing company. */
 export function useAddOrgEmployee() {
   const qc = useQueryClient();
@@ -1632,7 +1665,14 @@ export function useAiAssistantChat() {
 export function useAnalyzeCall() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (callId: string): Promise<{ transcript: string; summary: string }> => {
+    mutationFn: async (
+      callId: string,
+    ): Promise<{
+      transcript: string;
+      summary: string;
+      nextStep: string | null;
+      taskWarning: string | null;
+    }> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       const res = await fetch("/audio-analytics/analyze", {

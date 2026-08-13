@@ -96,15 +96,17 @@ export function SectionCard({
   actions,
   children,
   className,
+  id,
 }: {
   title?: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <section className={cn("surface-card", className)}>
+    <section id={id} className={cn("surface-card", className)}>
       {(title || actions) && (
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div>

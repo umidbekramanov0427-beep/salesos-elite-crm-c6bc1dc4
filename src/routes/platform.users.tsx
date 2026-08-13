@@ -4,6 +4,7 @@ import { Loader2, ShieldAlert, Trash2, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EditUserDialog } from "@/components/EditUserDialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useAllProfiles, useDeleteUserAsOwner, type OwnerProfileRow } from "@/hooks/use-crm-data";
@@ -81,19 +82,22 @@ function PlatformUsersPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {p.role !== "platform_owner" && (
-                        <button
-                          type="button"
-                          aria-label={t("admin.deleteEmployee")}
-                          disabled={deletingId === p.id}
-                          onClick={() => setPendingDelete(p)}
-                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
-                        >
-                          {deletingId === p.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <EditUserDialog profile={p} />
+                          <button
+                            type="button"
+                            aria-label={t("admin.deleteEmployee")}
+                            disabled={deletingId === p.id}
+                            onClick={() => setPendingDelete(p)}
+                            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                          >
+                            {deletingId === p.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
