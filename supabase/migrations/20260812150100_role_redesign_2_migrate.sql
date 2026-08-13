@@ -81,15 +81,26 @@ create policy "profiles_select" on public.profiles for select to authenticated
     or public.is_platform_owner()
   );
 
--- 5. Fix two pre-existing RLS bugs on the exact surface this migration is
---    already touching: migration 20260811174705 re-added overly-broad
---    "FOR ALL ... USING (organization_id = ...)" policies on ai_agents and
---    auto_responders (no role check at all, stacking as an OR alongside
---    the correct super_admin-only policies and granting every org member
---    full read/write on those tables), and reintroduced a
---    "USING (true)" SELECT policy on notification_preferences (undoing
---    the same-org fix from 20260811080000). Dropping all three restores
---    the intended restrictions.
+-- 5. Fix pre-existing RLS bugs on the exact surface this migration is
+--    already touching, all introduced by the same stray migration
+--    (20260811174705): overly-broad "FOR ALL ... USING (organization_id =
+--    ...)" policies on ai_agents and auto_responders (no role check at
+--    all, stacking as an OR alongside the correct super_admin-only
+--    policies and granting every org member full read/write on those
+--    tables); a reintroduced "USING (true)" SELECT policy on
+--    notification_preferences (undoing the same-org fix from
+--    20260811080000); and two duplicate policies on organizations that
+--    call a second, never-granted current_org_id() helper instead of the
+--    working current_user_org_id() — Postgres evaluates every permissive
+--    policy for a query, so hitting this one at all raises "permission
+--    denied for function current_org_id" (42501) and breaks the whole
+--    query, even though the original organizations_select/organizations_write
+--    policies (using current_user_org_id(), which already has execute
+--    grants) would have been sufficient on their own. Dropping all five
+--    restores the intended restrictions and unblocks the Platform panel's
+--    company list/create flow.
 drop policy if exists "Company members manage AI agents" on public.ai_agents;
 drop policy if exists "Company members manage auto responders" on public.auto_responders;
 drop policy if exists "Signed-in users can read notification preferences" on public.notification_preferences;
+drop policy if exists "Members can view their organization" on public.organizations;
+drop policy if exists "Platform owners manage organizations" on public.organizations;
