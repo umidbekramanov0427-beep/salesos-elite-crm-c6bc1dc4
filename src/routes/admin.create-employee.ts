@@ -20,11 +20,27 @@ export const Route = createFileRoute("/admin/create-employee")({
         const password = body.password;
         const fullName = body.full_name?.trim() ?? "";
 
-        if (!email || !password || password.length < 8) {
-          return Response.json(
-            { error: "Email and an 8+ character password are required." },
-            { status: 400 },
-          );
+        if (!email || !password) {
+          return Response.json({ error: "Email and password are required." }, { status: 400 });
+        }
+
+        const { data: policy } = await supabaseAdmin
+          .from("security_settings")
+          .select("min_password_length, require_number, require_uppercase, require_symbol")
+          .eq("organization_id", admin.organizationId)
+          .maybeSingle();
+        const minLength = policy?.min_password_length ?? 8;
+        if (
+          password.length < minLength ||
+          (policy?.require_number && !/[0-9]/.test(password)) ||
+          (policy?.require_uppercase && !/[A-Z]/.test(password)) ||
+          (policy?.require_symbol && !/[^A-Za-z0-9]/.test(password))
+        ) {
+          const reqs = [`${minLength}+ belgi`];
+          if (policy?.require_number) reqs.push("kamida bitta raqam");
+          if (policy?.require_uppercase) reqs.push("kamida bitta bosh harf");
+          if (policy?.require_symbol) reqs.push("kamida bitta maxsus belgi");
+          return Response.json({ error: `Parol talablari: ${reqs.join(", ")}.` }, { status: 400 });
         }
 
         const { data, error } = await supabaseAdmin.auth.admin.createUser({

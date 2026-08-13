@@ -11,6 +11,7 @@ import {
   Plug,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Trash2,
   UserPlus,
@@ -646,6 +647,7 @@ function AdminPanelContent() {
                 { icon: Plug, label: t("int.title"), href: "/integrations" },
                 { icon: Bot, label: t("admin.autoResponders"), href: "/admin/auto-responders" },
                 { icon: Sparkles, label: t("admin.aiAgents"), href: "/admin/ai-agents" },
+                { icon: ShieldCheck, label: t("admin.securityCenter"), href: "/admin/security" },
               ].map((c) => (
                 <li key={c.label}>
                   <a
