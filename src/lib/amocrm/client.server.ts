@@ -169,6 +169,7 @@ async function fetchAllPaged<T>(
   conn: AmoConnection,
   pathForPage: (page: number) => string,
   extractItems: (data: unknown) => T[],
+  maxPages = 800, // default safety cap: ~200k records at limit=250
 ): Promise<T[]> {
   const all: T[] = [];
   let page = 1;
@@ -183,7 +184,7 @@ async function fetchAllPaged<T>(
       if (items.length === 0) done = true;
     }
     page += PAGE_FETCH_CONCURRENCY;
-    if (page > 800) break; // safety cap: ~200k records at limit=250
+    if (page > maxPages) break;
   }
   return all;
 }
@@ -513,13 +514,27 @@ type AmoCallNote = {
   };
 };
 
-/** Pulls every call-type note (from a connected telephony integration) across all leads. */
+// A full-history call-notes pull is the single biggest unbounded cost in a
+// sync — an account with years of call history can have far more notes
+// than leads, and fetching all of it was almost certainly what pushed
+// syncs on large accounts past the platform's request execution time
+// limit: the whole sync (leads, contacts, companies, pipeline stages, then
+// this) is one request, so a call-notes fetch that runs long enough gets
+// the entire sync silently killed with no response ever reaching the
+// browser — a spinner stuck forever, not an error. Recent call history is
+// what Audio Analytics actually needs; cap the window and the page count
+// so one sync run can never run away like that again.
+const CALL_NOTES_LOOKBACK_DAYS = 90;
+const CALL_NOTES_MAX_PAGES = 40; // ~10k notes at limit=250
+
 async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
+  const sinceUnix = Math.floor(Date.now() / 1000) - CALL_NOTES_LOOKBACK_DAYS * 86400;
   const notes = await fetchAllPaged(
     conn,
     (page) =>
-      `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&limit=250&page=${page}`,
+      `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&filter[created_at][from]=${sinceUnix}&limit=250&page=${page}`,
     (data) => (data as { _embedded?: { notes?: AmoCallNote[] } } | null)?._embedded?.notes ?? [],
+    CALL_NOTES_MAX_PAGES,
   );
   // Same page-boundary duplication risk as fetchAllLeads above, and the
   // notes upsert below has the same onConflict-target vulnerability.
