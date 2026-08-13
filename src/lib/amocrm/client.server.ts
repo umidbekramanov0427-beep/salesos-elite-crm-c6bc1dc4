@@ -486,45 +486,62 @@ async function syncUserMapping(
     ]);
     if (error) throw error;
     const profileByEmail = new Map((profiles ?? []).map((p) => [p.email.toLowerCase(), p]));
-    for (const amoUser of users) {
-      if (!amoUser.email) continue;
-      const email = amoUser.email.toLowerCase();
-      let profile = profileByEmail.get(email);
-      if (!profile) {
-        // No CRM account for this AmoCRM user yet — auto-provision a sales
-        // rep account so they can log in with their AmoCRM email and the
-        // shared rep password, instead of silently staying unmapped.
-        const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: amoUser.email,
-          password: SOTUV_MENEJERI_DEFAULT_PASSWORD,
-          email_confirm: true,
-          user_metadata: {
-            full_name: amoUser.name?.trim() || amoUser.email,
-            role: "sotuv_menejeri",
-            organization_id: organizationId,
-          },
-        });
-        if (createError || !created.user) {
-          // Most likely an email collision with an existing auth user in a
-          // different organization — report it distinctly and keep going,
-          // don't let one failed provisioning attempt abort the whole sync.
-          console.error(
-            `[amocrm sync] Could not auto-provision rep account for ${amoUser.email}: ${createError?.message ?? "unknown error"}`,
-          );
-          continue;
-        }
-        profile = { id: created.user.id, email: amoUser.email, amocrm_user_id: null };
-        profileByEmail.set(email, profile);
-      }
-      map.set(amoUser.id, profile.id);
-      // Skip the write when the mapping is already correct — on every
-      // sync after the first, this avoids a DB round-trip per AmoCRM user.
-      if (profile.amocrm_user_id !== amoUser.id) {
-        await supabaseAdmin
-          .from("profiles")
-          .update({ amocrm_user_id: amoUser.id })
-          .eq("id", profile.id);
-      }
+
+    // This used to await createUser + a profile update one AmoCRM user at a
+    // time — fine for a handful of reps, but an account with dozens of
+    // users turned this into a long serial chain of network round-trips,
+    // the same "slow enough by itself to blow the platform's execution
+    // limit" failure as the contacts/companies fetch above. Batch it the
+    // same way.
+    const usableUsers = users.filter((u): u is AmoUser & { email: string } => !!u.email);
+    for (let i = 0; i < usableUsers.length; i += PAGE_FETCH_CONCURRENCY) {
+      const batch = usableUsers.slice(i, i + PAGE_FETCH_CONCURRENCY);
+      await Promise.all(
+        batch.map(async (amoUser) => {
+          const email = amoUser.email.toLowerCase();
+          let profile = profileByEmail.get(email);
+          if (!profile) {
+            // No CRM account for this AmoCRM user yet — auto-provision a
+            // sales rep account so they can log in with their AmoCRM email
+            // and the shared rep password, instead of silently staying
+            // unmapped.
+            const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser(
+              {
+                email: amoUser.email,
+                password: SOTUV_MENEJERI_DEFAULT_PASSWORD,
+                email_confirm: true,
+                user_metadata: {
+                  full_name: amoUser.name?.trim() || amoUser.email,
+                  role: "sotuv_menejeri",
+                  organization_id: organizationId,
+                },
+              },
+            );
+            if (createError || !created.user) {
+              // Most likely an email collision with an existing auth user
+              // in a different organization — report it distinctly and
+              // keep going, don't let one failed provisioning attempt
+              // abort the whole sync.
+              console.error(
+                `[amocrm sync] Could not auto-provision rep account for ${amoUser.email}: ${createError?.message ?? "unknown error"}`,
+              );
+              return;
+            }
+            profile = { id: created.user.id, email: amoUser.email, amocrm_user_id: null };
+            profileByEmail.set(email, profile);
+          }
+          map.set(amoUser.id, profile.id);
+          // Skip the write when the mapping is already correct — on every
+          // sync after the first, this avoids a DB round-trip per AmoCRM
+          // user.
+          if (profile.amocrm_user_id !== amoUser.id) {
+            await supabaseAdmin
+              .from("profiles")
+              .update({ amocrm_user_id: amoUser.id })
+              .eq("id", profile.id);
+          }
+        }),
+      );
     }
   } catch {
     // Owner matching is best-effort — a failure here shouldn't block the
