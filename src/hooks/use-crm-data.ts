@@ -31,6 +31,15 @@ export type AmoCrmCallRow = Tables["amocrm_calls"]["Row"];
 // comes back short, keeping a stable `id` tiebreaker so results stay
 // disjoint across pages regardless of what orderBy the caller asked for.
 const RESOURCE_PAGE_SIZE = 1000;
+// Large AmoCRM-synced accounts can have several thousand rows per table
+// (leads/contacts/companies/pipeline_stages). Fetching pages one at a time,
+// each awaited before the next request even starts, meant every CRM page
+// load paid the full network round-trip cost of every page in sequence —
+// the dominant cause of "still loading" for these accounts. Requesting a
+// batch of pages concurrently (same pattern used for AmoCRM's own paginated
+// fetches in client.server.ts) cuts that wall-clock time roughly by the
+// batch size.
+const LIST_PAGE_CONCURRENCY = 4;
 
 function makeResource<TableName extends keyof Tables>(table: TableName, queryKey: QueryKey) {
   type Row = Tables[TableName]["Row"];
@@ -48,9 +57,7 @@ function makeResource<TableName extends keyof Tables>(table: TableName, queryKey
       enabled: config?.enabled ?? true,
       refetchInterval: config?.refetchInterval ?? false,
       queryFn: async (): Promise<Row[]> => {
-        const all: Row[] = [];
-        let from = 0;
-        for (;;) {
+        const fetchPage = async (from: number): Promise<Row[]> => {
           let query = supabase.from(table).select("*");
           if (config?.orderBy)
             query = query.order(config.orderBy, { ascending: config?.ascending ?? true });
@@ -59,10 +66,23 @@ function makeResource<TableName extends keyof Tables>(table: TableName, queryKey
             .range(from, from + RESOURCE_PAGE_SIZE - 1);
           const { data, error } = await query;
           if (error) throw error;
-          const page = (data ?? []) as unknown as Row[];
-          all.push(...page);
-          if (page.length < RESOURCE_PAGE_SIZE) break;
-          from += RESOURCE_PAGE_SIZE;
+          return (data ?? []) as unknown as Row[];
+        };
+
+        const all: Row[] = [];
+        let from = 0;
+        let done = false;
+        while (!done) {
+          const starts = Array.from(
+            { length: LIST_PAGE_CONCURRENCY },
+            (_, i) => from + i * RESOURCE_PAGE_SIZE,
+          );
+          const pages = await Promise.all(starts.map(fetchPage));
+          for (const page of pages) {
+            all.push(...page);
+            if (page.length < RESOURCE_PAGE_SIZE) done = true;
+          }
+          from += LIST_PAGE_CONCURRENCY * RESOURCE_PAGE_SIZE;
         }
         return all;
       },
@@ -1357,12 +1377,13 @@ export type AmoConnectionStatus = {
   last_sync_error: string | null;
 };
 
-/** The connected org's own AmoCRM sync status/error — super_admin only (RLS). */
+/** The connected org's own AmoCRM sync status/error — super_admin only (RLS). Polls every 3s so the Integrations page reflects a sync as it happens, without a manual refresh. */
 export function useAmoConnectionStatus() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["amocrm_connection_status", user?.organizationId],
     enabled: !!user?.organizationId && user.role === "super_admin",
+    refetchInterval: 3000,
     queryFn: async (): Promise<AmoConnectionStatus | null> => {
       const { data, error } = await supabase
         .from("amocrm_connection")
