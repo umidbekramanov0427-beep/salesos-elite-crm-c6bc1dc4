@@ -158,9 +158,24 @@ const RATE_LIMIT_MAX_RETRIES = 6;
 const SERVER_ERROR_MAX_RETRIES = 3;
 
 async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise<unknown> {
-  const res = await fetch(`https://${conn.subdomain}${path}`, {
-    headers: { authorization: `Bearer ${conn.access_token}` },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://${conn.subdomain}${path}`, {
+      headers: { authorization: `Bearer ${conn.access_token}` },
+    });
+  } catch (err) {
+    // fetch() itself throwing (not just returning a bad status) means the
+    // connection to AmoCRM failed at the network level — DNS, TLS, refused,
+    // etc. Neither the 429 nor the 5xx handling below ever runs in that
+    // case since there's no Response to inspect, so this needs its own
+    // retry or a single network blip fails the entire sync outright with
+    // an opaque "fetch failed" and no chance to recover.
+    if (attempt <= SERVER_ERROR_MAX_RETRIES) {
+      await sleep(attempt * 1000);
+      return amoFetch(conn, path, attempt + 1);
+    }
+    throw err;
+  }
   if (res.status === 429 && attempt <= RATE_LIMIT_MAX_RETRIES) {
     const retryAfterHeader = Number(res.headers.get("retry-after"));
     const delayMs = (retryAfterHeader > 0 ? retryAfterHeader : attempt) * 1000;
