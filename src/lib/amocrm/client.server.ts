@@ -14,6 +14,10 @@ type AmoConnection = {
   connected_at: string;
   last_synced_at: string | null;
   last_sync_error: string | null;
+  // null means "sync everything" (unrestricted, the original behavior) —
+  // set once an admin picks a subset on the AmoCRM import-settings page.
+  enabled_pipeline_ids: number[] | null;
+  enabled_user_ids: number[] | null;
 };
 
 function requireEnv(name: string): string {
@@ -384,7 +388,12 @@ async function fetchAllUsers(conn: AmoConnection): Promise<AmoUser[]> {
 }
 
 type AmoStatus = { id: number; name: string; sort: number; pipeline_id: number };
-type AmoPipeline = { id: number; name: string; _embedded?: { statuses?: AmoStatus[] } };
+type AmoPipeline = {
+  id: number;
+  name: string;
+  is_main?: boolean;
+  _embedded?: { statuses?: AmoStatus[] };
+};
 
 async function fetchPipelines(conn: AmoConnection): Promise<AmoPipeline[]> {
   const data = (await amoFetch(conn, "/api/v4/leads/pipelines?with=statuses")) as {
@@ -428,7 +437,13 @@ async function syncPipelineStages(
   organizationId: string,
   conn: AmoConnection,
 ): Promise<PipelineStageSync> {
-  const pipelines = await fetchPipelines(conn);
+  const allPipelines = await fetchPipelines(conn);
+  // An admin can narrow which AmoCRM pipelines actually get synced (see the
+  // amocrm-import-settings page) — null means unrestricted, the original
+  // behavior.
+  const pipelines = conn.enabled_pipeline_ids
+    ? allPipelines.filter((p) => conn.enabled_pipeline_ids!.includes(p.id))
+    : allPipelines;
   const pipelineNameById = new Map<number, string>(
     pipelines.map((p) => [p.id, p.name?.trim() || "Direct Sales"]),
   );
@@ -523,7 +538,12 @@ async function syncUserMapping(
     // the same "slow enough by itself to blow the platform's execution
     // limit" failure as the contacts/companies fetch above. Batch it the
     // same way.
-    const usableUsers = users.filter((u): u is AmoUser & { email: string } => !!u.email);
+    // An admin can narrow which AmoCRM operators actually get an account
+    // and get treated as a lead owner (see the amocrm-import-settings
+    // page) — null means unrestricted, the original behavior.
+    const usableUsers = users
+      .filter((u): u is AmoUser & { email: string } => !!u.email)
+      .filter((u) => !conn.enabled_user_ids || conn.enabled_user_ids.includes(u.id));
     for (let i = 0; i < usableUsers.length; i += PAGE_FETCH_CONCURRENCY) {
       const batch = usableUsers.slice(i, i + PAGE_FETCH_CONCURRENCY);
       await Promise.all(
@@ -669,12 +689,19 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       const pageLeads = dedupeByKey(pageData?._embedded?.leads ?? [], (l) => String(l.id));
       if (pageLeads.length === 0) break;
 
+      // Filtered AFTER the pagination-continuation checks below (which key
+      // off the raw fetched page size) — a page made entirely of leads in
+      // an excluded pipeline must not be mistaken for "last page reached".
+      const syncableLeads = conn.enabled_pipeline_ids
+        ? pageLeads.filter((l) => conn.enabled_pipeline_ids!.includes(l.pipeline_id))
+        : pageLeads;
+
       // Only fetch the contacts/companies this page's leads actually
       // reference, not the whole account's address book (see
       // fetchEntitiesByIds above).
       const referencedContactIds = new Set<number>();
       const referencedCompanyIds = new Set<number>();
-      for (const l of pageLeads) {
+      for (const l of syncableLeads) {
         const cId = amoMainContactId(l);
         const coId = amoMainCompanyId(l);
         if (cId) referencedContactIds.add(cId);
@@ -738,7 +765,7 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
         }
       }
 
-      const rows = pageLeads.map((l) => {
+      const rows = syncableLeads.map((l) => {
         const contactAmoId = amoMainContactId(l);
         const companyAmoId = amoMainCompanyId(l);
         const company = companyAmoId ? companiesById.get(companyAmoId) : undefined;
@@ -769,13 +796,15 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           tags: amoTagNames(l),
         };
       });
-      const { error } = await supabaseAdmin.from("leads").upsert(
-        dedupeByKey(rows, (r) => String(r.amocrm_id)),
-        { onConflict: "organization_id,amocrm_id" },
-      );
-      if (error) throw error;
+      if (rows.length > 0) {
+        const { error } = await supabaseAdmin.from("leads").upsert(
+          dedupeByKey(rows, (r) => String(r.amocrm_id)),
+          { onConflict: "organization_id,amocrm_id" },
+        );
+        if (error) throw error;
+      }
 
-      totalSynced += pageLeads.length;
+      totalSynced += syncableLeads.length;
       if (pageLeads.length < 250) break; // short page — this was the last one
       page += 1;
     }
@@ -926,5 +955,65 @@ export async function upsertSingleAmoLead(
     },
     { onConflict: "organization_id,amocrm_id" },
   );
+  if (error) throw error;
+}
+
+export type AmoCatalogPipeline = { id: number; name: string; is_main: boolean };
+export type AmoCatalogOperator = {
+  id: number;
+  name: string;
+  email: string | null;
+  existingProfileEmail: string | null;
+};
+export type AmoCatalog = {
+  subdomain: string;
+  pipelines: AmoCatalogPipeline[];
+  operators: AmoCatalogOperator[];
+  enabledPipelineIds: number[] | null;
+  enabledUserIds: number[] | null;
+};
+
+/** Live list of every AmoCRM pipeline/operator for the amocrm-import-settings admin page, plus the org's current selection. */
+export async function fetchAmoCatalog(organizationId: string): Promise<AmoCatalog> {
+  const conn0 = await getConnection(organizationId);
+  if (!conn0) throw new Error("AmoCRM is not connected yet.");
+  const conn = await ensureValidToken(conn0);
+
+  const [pipelines, users, { data: profiles, error }] = await Promise.all([
+    fetchPipelines(conn),
+    fetchAllUsers(conn),
+    supabaseAdmin.from("profiles").select("email").eq("organization_id", organizationId),
+  ]);
+  if (error) throw error;
+
+  const existingEmails = new Set((profiles ?? []).map((p) => p.email.toLowerCase()));
+
+  return {
+    subdomain: conn.subdomain,
+    pipelines: pipelines.map((p) => ({ id: p.id, name: p.name, is_main: !!p.is_main })),
+    operators: users.map((u) => ({
+      id: u.id,
+      name: u.name?.trim() || u.email || `AmoCRM user #${u.id}`,
+      email: u.email,
+      existingProfileEmail: u.email && existingEmails.has(u.email.toLowerCase()) ? u.email : null,
+    })),
+    enabledPipelineIds: conn.enabled_pipeline_ids,
+    enabledUserIds: conn.enabled_user_ids,
+  };
+}
+
+/** Saves which AmoCRM pipelines/operators syncLeadsFromAmo should actually pull — see amocrm-import-settings. */
+export async function saveAmoImportSettings(
+  organizationId: string,
+  enabledPipelineIds: number[],
+  enabledUserIds: number[],
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("amocrm_connection")
+    .update({
+      enabled_pipeline_ids: enabledPipelineIds,
+      enabled_user_ids: enabledUserIds,
+    })
+    .eq("organization_id", organizationId);
   if (error) throw error;
 }

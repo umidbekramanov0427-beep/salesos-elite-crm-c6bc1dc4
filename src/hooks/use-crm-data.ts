@@ -2053,6 +2053,67 @@ export function useToggleUserBan() {
 }
 
 /* ------------------------------------------------------------------ */
+/* AmoCRM import settings — pick which pipelines/operators to sync.    */
+/* ------------------------------------------------------------------ */
+
+export type AmoCatalogPipeline = { id: number; name: string; is_main: boolean };
+export type AmoCatalogOperator = {
+  id: number;
+  name: string;
+  email: string | null;
+  existingProfileEmail: string | null;
+};
+export type AmoCatalog = {
+  subdomain: string;
+  pipelines: AmoCatalogPipeline[];
+  operators: AmoCatalogOperator[];
+  enabledPipelineIds: number[] | null;
+  enabledUserIds: number[] | null;
+};
+
+export function useAmoCatalog() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["amocrm_catalog", user?.organizationId],
+    enabled: !!user?.organizationId && user.role === "super_admin",
+    queryFn: async (): Promise<AmoCatalog> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/amocrm-catalog", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = (await res.json()) as AmoCatalog & { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not load AmoCRM catalog.");
+      return json;
+    },
+  });
+}
+
+export function useSaveAmoImportSettings() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({ pipelineIds, userIds }: { pipelineIds: number[]; userIds: number[] }) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/amocrm-import-settings", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ pipelineIds, userIds }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not save.");
+      return json;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["amocrm_catalog", user?.organizationId] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Tags — aggregated across every lead, with rename/delete that touch  */
 /* every lead carrying that tag.                                       */
 /* ------------------------------------------------------------------ */
