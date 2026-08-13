@@ -8,6 +8,7 @@ import {
   Loader2,
   Lock,
   Pencil,
+  ListFilter,
   Plug,
   Search,
   ShieldAlert,
@@ -648,6 +649,11 @@ function AdminPanelContent() {
                 { icon: Bot, label: t("admin.autoResponders"), href: "/admin/auto-responders" },
                 { icon: Sparkles, label: t("admin.aiAgents"), href: "/admin/ai-agents" },
                 { icon: ShieldCheck, label: t("admin.securityCenter"), href: "/admin/security" },
+                {
+                  icon: ListFilter,
+                  label: t("admin.amocrmImport"),
+                  href: "/admin/amocrm-import",
+                },
               ].map((c) => (
                 <li key={c.label}>
                   <a

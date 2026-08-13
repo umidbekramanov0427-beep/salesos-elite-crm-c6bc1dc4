@@ -144,6 +144,8 @@ export type Database = {
           access_token: string
           connected_at: string
           connected_by: string | null
+          enabled_pipeline_ids: number[] | null
+          enabled_user_ids: number[] | null
           id: boolean
           last_sync_error: string | null
           last_synced_at: string | null
@@ -156,6 +158,8 @@ export type Database = {
           access_token: string
           connected_at?: string
           connected_by?: string | null
+          enabled_pipeline_ids?: number[] | null
+          enabled_user_ids?: number[] | null
           id?: boolean
           last_sync_error?: string | null
           last_synced_at?: string | null
@@ -168,6 +172,8 @@ export type Database = {
           access_token?: string
           connected_at?: string
           connected_by?: string | null
+          enabled_pipeline_ids?: number[] | null
+          enabled_user_ids?: number[] | null
           id?: boolean
           last_sync_error?: string | null
           last_synced_at?: string | null

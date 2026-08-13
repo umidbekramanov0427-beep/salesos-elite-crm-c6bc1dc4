@@ -29,6 +29,9 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminAiAgentsRouteImport } from './routes/admin.ai-agents'
+import { Route as AdminAmocrmCatalogRouteImport } from './routes/admin.amocrm-catalog'
+import { Route as AdminAmocrmImportRouteImport } from './routes/admin.amocrm-import'
+import { Route as AdminAmocrmImportSettingsRouteImport } from './routes/admin.amocrm-import-settings'
 import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-responders'
 import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
 import { Route as AdminDeleteEmployeeRouteImport } from './routes/admin.delete-employee'
@@ -172,6 +175,22 @@ const AdminAiAgentsRoute = AdminAiAgentsRouteImport.update({
   path: '/ai-agents',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAmocrmCatalogRoute = AdminAmocrmCatalogRouteImport.update({
+  id: '/amocrm-catalog',
+  path: '/amocrm-catalog',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAmocrmImportRoute = AdminAmocrmImportRouteImport.update({
+  id: '/amocrm-import',
+  path: '/amocrm-import',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAmocrmImportSettingsRoute =
+  AdminAmocrmImportSettingsRouteImport.update({
+    id: '/amocrm-import-settings',
+    path: '/amocrm-import-settings',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminAutoRespondersRoute = AdminAutoRespondersRouteImport.update({
   id: '/auto-responders',
   path: '/auto-responders',
@@ -403,6 +422,9 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRoute
+  '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
+  '/admin/amocrm-import': typeof AdminAmocrmImportRoute
+  '/admin/amocrm-import-settings': typeof AdminAmocrmImportSettingsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
@@ -465,6 +487,9 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRoute
+  '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
+  '/admin/amocrm-import': typeof AdminAmocrmImportRoute
+  '/admin/amocrm-import-settings': typeof AdminAmocrmImportSettingsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
@@ -528,6 +553,9 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRoute
+  '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
+  '/admin/amocrm-import': typeof AdminAmocrmImportRoute
+  '/admin/amocrm-import-settings': typeof AdminAmocrmImportSettingsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
@@ -592,6 +620,9 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
+    | '/admin/amocrm-catalog'
+    | '/admin/amocrm-import'
+    | '/admin/amocrm-import-settings'
     | '/admin/auto-responders'
     | '/admin/create-employee'
     | '/admin/delete-employee'
@@ -654,6 +685,9 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
+    | '/admin/amocrm-catalog'
+    | '/admin/amocrm-import'
+    | '/admin/amocrm-import-settings'
     | '/admin/auto-responders'
     | '/admin/create-employee'
     | '/admin/delete-employee'
@@ -716,6 +750,9 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
+    | '/admin/amocrm-catalog'
+    | '/admin/amocrm-import'
+    | '/admin/amocrm-import-settings'
     | '/admin/auto-responders'
     | '/admin/create-employee'
     | '/admin/delete-employee'
@@ -946,6 +983,27 @@ declare module '@tanstack/react-router' {
       path: '/ai-agents'
       fullPath: '/admin/ai-agents'
       preLoaderRoute: typeof AdminAiAgentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/amocrm-catalog': {
+      id: '/admin/amocrm-catalog'
+      path: '/amocrm-catalog'
+      fullPath: '/admin/amocrm-catalog'
+      preLoaderRoute: typeof AdminAmocrmCatalogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/amocrm-import': {
+      id: '/admin/amocrm-import'
+      path: '/amocrm-import'
+      fullPath: '/admin/amocrm-import'
+      preLoaderRoute: typeof AdminAmocrmImportRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/amocrm-import-settings': {
+      id: '/admin/amocrm-import-settings'
+      path: '/amocrm-import-settings'
+      fullPath: '/admin/amocrm-import-settings'
+      preLoaderRoute: typeof AdminAmocrmImportSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/auto-responders': {
@@ -1233,6 +1291,9 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAiAgentsRoute: typeof AdminAiAgentsRoute
+  AdminAmocrmCatalogRoute: typeof AdminAmocrmCatalogRoute
+  AdminAmocrmImportRoute: typeof AdminAmocrmImportRoute
+  AdminAmocrmImportSettingsRoute: typeof AdminAmocrmImportSettingsRoute
   AdminAutoRespondersRoute: typeof AdminAutoRespondersRoute
   AdminCreateEmployeeRoute: typeof AdminCreateEmployeeRoute
   AdminDeleteEmployeeRoute: typeof AdminDeleteEmployeeRoute
@@ -1244,6 +1305,9 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAiAgentsRoute: AdminAiAgentsRoute,
+  AdminAmocrmCatalogRoute: AdminAmocrmCatalogRoute,
+  AdminAmocrmImportRoute: AdminAmocrmImportRoute,
+  AdminAmocrmImportSettingsRoute: AdminAmocrmImportSettingsRoute,
   AdminAutoRespondersRoute: AdminAutoRespondersRoute,
   AdminCreateEmployeeRoute: AdminCreateEmployeeRoute,
   AdminDeleteEmployeeRoute: AdminDeleteEmployeeRoute,
