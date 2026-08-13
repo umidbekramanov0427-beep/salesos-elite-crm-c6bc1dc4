@@ -1,6 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ChevronRight, ExternalLink, Loader2, Workflow } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
 import {
@@ -176,16 +183,16 @@ function FunnelList({
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                <Workflow className="h-3 w-3" /> CRM
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-sky-400">
+                <RefreshCw className="h-3 w-3" /> AmoCRM
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
             </div>
 
             <div className="mt-3 flex items-end justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-bold text-foreground">{f.name}</p>
+              <p className="min-w-0 truncate text-base font-bold text-foreground">{f.name}</p>
               <div className="shrink-0 text-right">
-                <p className="text-2xl font-bold leading-none text-foreground">{f.count}</p>
+                <p className="text-2xl font-extrabold leading-none text-foreground">{f.count}</p>
                 <p className="mt-1 text-[11px] text-subtle">{t("funnels.openLeads")}</p>
               </div>
             </div>
@@ -193,10 +200,14 @@ function FunnelList({
             <HeatBar leads={f.items} />
 
             <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
-              <span className="font-medium text-muted-foreground">{format(f.value)}</span>
+              <span className="font-semibold text-foreground">{format(f.value)}</span>
               <span className="font-semibold text-success">
                 {f.conversion}% {t("funnels.conversion")}
               </span>
+            </div>
+
+            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium text-success">
+              <CheckCircle2 className="h-3 w-3" /> {t("funnels.synced")}
             </div>
           </Link>
         ))}
