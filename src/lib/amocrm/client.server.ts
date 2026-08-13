@@ -328,14 +328,32 @@ async function fetchEntitiesByIds<T extends { id: number }>(
   ids: number[],
 ): Promise<Map<number, T>> {
   const map = new Map<number, T>();
+  const chunks: number[][] = [];
   for (let i = 0; i < ids.length; i += ENTITY_ID_CHUNK) {
-    const chunk = ids.slice(i, i + ENTITY_ID_CHUNK);
-    const idParams = chunk.map((id) => `filter[id][]=${id}`).join("&");
-    const data = (await amoFetch(conn, `/api/v4/${entity}?limit=250&${idParams}`)) as {
-      _embedded?: Record<string, T[]>;
-    } | null;
-    const items = data?._embedded?.[entity] ?? [];
-    for (const item of items) map.set(item.id, item);
+    chunks.push(ids.slice(i, i + ENTITY_ID_CHUNK));
+  }
+  // Chunks used to be fetched one at a time — fine when this only ever ran
+  // for a handful of chunks, but an org with thousands of leads (each
+  // referencing its own contact/company) can need dozens of chunks, and
+  // doing them serially was slow enough on its own to push the whole sync
+  // past the platform's request execution limit — the same "killed with no
+  // response" failure mode as the original unbounded-fetch bug, just from a
+  // new source now that fetch is bounded. Batch them the same way
+  // fetchAllPaged already does for pagination.
+  for (let i = 0; i < chunks.length; i += PAGE_FETCH_CONCURRENCY) {
+    const batch = chunks.slice(i, i + PAGE_FETCH_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async (chunk) => {
+        const idParams = chunk.map((id) => `filter[id][]=${id}`).join("&");
+        const data = (await amoFetch(conn, `/api/v4/${entity}?limit=250&${idParams}`)) as {
+          _embedded?: Record<string, T[]>;
+        } | null;
+        return data?._embedded?.[entity] ?? [];
+      }),
+    );
+    for (const items of results) {
+      for (const item of items) map.set(item.id, item);
+    }
   }
   return map;
 }
