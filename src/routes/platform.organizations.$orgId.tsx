@@ -1,9 +1,24 @@
-import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Loader2, ShieldAlert, Users2 } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, Loader2, ShieldAlert, Trash2, UserPlus, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
@@ -15,9 +30,16 @@ import {
   useAllProfiles,
   useAllAmoConnections,
   useAllAiAgents,
+  useAddOrgEmployee,
+  useDeleteUserAsOwner,
+  useDeleteOrganization,
+  type OwnerProfileRow,
+  type OrganizationRow,
 } from "@/hooks/use-crm-data";
 
 const PLANS = ["Basic", "Pro", "Enterprise"] as const;
+const ORG_ROLES = ["sotuv_menejeri", "rop", "super_admin"] as const;
+type OrgRole = (typeof ORG_ROLES)[number];
 
 export const Route = createFileRoute("/platform/organizations/$orgId")({
   head: () => ({
@@ -25,6 +47,212 @@ export const Route = createFileRoute("/platform/organizations/$orgId")({
   }),
   component: OrgDetailPage,
 });
+
+function AddOrgEmployeeDialog({ orgId }: { orgId: string }) {
+  const { t } = useI18n();
+  const addEmployee = useAddOrgEmployee();
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<OrgRole>("sotuv_menejeri");
+  const [busy, setBusy] = useState(false);
+
+  const roleLabel: Record<OrgRole, string> = {
+    sotuv_menejeri: t("admin.roleRep"),
+    rop: t("admin.roleRop"),
+    super_admin: t("admin.roleAdmin"),
+  };
+
+  function reset() {
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setRole("sotuv_menejeri");
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || password.length < 8) return;
+    setConfirming(true);
+  }
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await addEmployee.mutateAsync({
+        organization_id: orgId,
+        email: email.trim(),
+        password,
+        full_name: fullName.trim(),
+        role,
+      });
+      toast.success(t("admin.employeeCreated"));
+      reset();
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.employeeCreateFailed"));
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) reset();
+        }}
+      >
+        <DialogTrigger asChild>
+          <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
+            <UserPlus className="h-4 w-4" /> {t("admin.addEmployee")}
+          </button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.addEmployee")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="org-emp-name">{t("admin.newEmployeeName")}</Label>
+              <Input
+                id="org-emp-name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-emp-email">{t("admin.colEmail")}</Label>
+              <Input
+                id="org-emp-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-emp-password">{t("admin.newEmployeePassword")}</Label>
+              <Input
+                id="org-emp-password"
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <Label>{t("admin.colRole")}</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORG_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {roleLabel[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <button
+                type="submit"
+                disabled={busy}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("admin.addEmployee")}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={t("admin.confirmCreateTitle")}
+        description={t("admin.confirmCreateDesc", {
+          name: fullName.trim() || email.trim(),
+          role: roleLabel[role],
+        })}
+        onConfirm={() => void submit()}
+      />
+    </>
+  );
+}
+
+function DeleteOrgDangerZone({ org }: { org: OrganizationRow }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const deleteOrg = useDeleteOrganization();
+  const [confirmText, setConfirmText] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await deleteOrg.mutateAsync(org.id);
+      toast.success(t("platform.orgDeleted"));
+      void navigate({ to: "/platform" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("platform.orgDeleteFailed"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SectionCard title={t("platform.dangerZone")} description={t("platform.dangerZoneDesc")}>
+      <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+        <p className="text-sm text-muted-foreground">
+          {t("platform.deleteOrgWarning", { name: org.name })}
+        </p>
+        <div>
+          <Label htmlFor="delete-confirm-name">
+            {t("platform.typeToConfirm", { name: org.name })}
+          </Label>
+          <Input
+            id="delete-confirm-name"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={org.name}
+          />
+        </div>
+        <button
+          type="button"
+          disabled={confirmText.trim() !== org.name || busy}
+          onClick={() => setConfirming(true)}
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Trash2 className="h-4 w-4" />
+          {t("platform.deleteOrgButton")}
+        </button>
+      </div>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={t("platform.confirmDeleteOrgTitle")}
+        description={t("platform.confirmDeleteOrgDesc", { name: org.name })}
+        onConfirm={() => {
+          setConfirming(false);
+          void submit();
+        }}
+      />
+    </SectionCard>
+  );
+}
 
 function OrgDetailPage() {
   const { orgId } = Route.useParams();
@@ -35,6 +263,7 @@ function OrgDetailPage() {
   const { data: amoConnections } = useAllAmoConnections();
   const { data: aiAgents } = useAllAiAgents();
   const updateOrg = useUpdateOrganization();
+  const deleteUser = useDeleteUserAsOwner();
 
   const org = orgs?.find((o) => o.id === orgId);
   const [name, setName] = useState("");
@@ -42,6 +271,8 @@ function OrgDetailPage() {
   const [plan, setPlan] = useState<string>("Basic");
   const [confirming, setConfirming] = useState<null | "save" | "deactivate" | "activate">(null);
   const [busy, setBusy] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [pendingDeleteUser, setPendingDeleteUser] = useState<OwnerProfileRow | null>(null);
 
   useEffect(() => {
     if (org) {
@@ -106,6 +337,18 @@ function OrgDetailPage() {
       toast.error(err instanceof Error ? err.message : t("platform.orgUpdateFailed"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function applyDeleteUser(profile: OwnerProfileRow) {
+    setDeletingUserId(profile.id);
+    try {
+      await deleteUser.mutateAsync(profile.id);
+      toast.success(t("admin.employeeDeleted"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.employeeDeleteFailed"));
+    } finally {
+      setDeletingUserId(null);
     }
   }
 
@@ -212,7 +455,10 @@ function OrgDetailPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title={t("platform.orgUsersTitle")}>
+      <SectionCard
+        title={t("platform.orgUsersTitle")}
+        actions={<AddOrgEmployeeDialog orgId={org.id} />}
+      >
         {orgUsers.length === 0 ? (
           <p className="flex items-center gap-2 text-sm text-subtle">
             <Users2 className="h-4 w-4" /> {t("platform.noUsers")}
@@ -228,11 +474,43 @@ function OrgDetailPage() {
                   <p className="truncate text-xs text-subtle">{p.email}</p>
                 </div>
                 <Pill tone="info">{p.role}</Pill>
+                <button
+                  type="button"
+                  aria-label={t("admin.deleteEmployee")}
+                  disabled={deletingUserId === p.id}
+                  onClick={() => setPendingDeleteUser(p)}
+                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                >
+                  {deletingUserId === p.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
               </li>
             ))}
           </ul>
         )}
       </SectionCard>
+
+      <DeleteOrgDangerZone org={org} />
+
+      <ConfirmDialog
+        open={!!pendingDeleteUser}
+        onOpenChange={(open) => !open && setPendingDeleteUser(null)}
+        title={t("admin.confirmDeleteTitle")}
+        description={
+          pendingDeleteUser
+            ? t("admin.confirmDeleteDesc", {
+                name: pendingDeleteUser.full_name || pendingDeleteUser.email,
+              })
+            : undefined
+        }
+        onConfirm={() => {
+          if (pendingDeleteUser) void applyDeleteUser(pendingDeleteUser);
+          setPendingDeleteUser(null);
+        }}
+      />
 
       <ConfirmDialog
         open={confirming === "save"}

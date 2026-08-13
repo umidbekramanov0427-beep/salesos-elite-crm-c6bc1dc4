@@ -1443,6 +1443,82 @@ export function useDeactivateExpiredTrials() {
   });
 }
 
+/** Platform owner: delete any company member's account, from any organization. */
+export function useDeleteUserAsOwner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/platform/delete-user", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to delete user");
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] }),
+  });
+}
+
+/** Platform owner: add a ROP/Sotuv menejeri/Super Admin account to an existing company. */
+export function useAddOrgEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      organization_id: string;
+      email: string;
+      password: string;
+      full_name: string;
+      role: "super_admin" | "rop" | "sotuv_menejeri";
+    }): Promise<{ id: string }> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/platform/add-employee", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to add employee");
+      return json;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] }),
+  });
+}
+
+/** Platform owner: permanently delete a company and every row/account tied to it. */
+export function useDeleteOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/platform/delete-organization", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to delete company");
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["organizations"] });
+      void qc.invalidateQueries({ queryKey: ["owner_all_profiles"] });
+    },
+  });
+}
+
 // Cross-org visibility for the platform owner only — RLS on each of these
 // tables grants read access to is_platform_owner() (see migration
 // 20260812130000_owner_panel.sql); every other role's queries stay scoped
