@@ -217,7 +217,7 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 - /crm/contacts — Contacts
 - /crm/companies — Companies
 - /crm/deals — Deals
-- /crm-stages — CRM Stages: full lead register with stage history
+- /crm-stages — Permissions matrix: which roles can do what
 - /funnels — Funnels: pipeline visualization and stage conversion
 - /crm/pipeline — AmoCRM: drag-and-drop pipeline board synced from AmoCRM
 - /tasks — Important Tasks: company-wide task board

@@ -16,7 +16,6 @@ import {
   Sparkles,
   Trash2,
   UserPlus,
-  Workflow,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -646,7 +645,6 @@ function AdminPanelContent() {
                   to: "/admin/permissions" as const,
                   important: true,
                 },
-                { icon: Workflow, label: t("admin.funnelsStages"), to: "/crm-stages" as const },
                 { icon: Plug, label: t("int.title"), to: "/integrations" as const },
                 {
                   icon: Bot,
