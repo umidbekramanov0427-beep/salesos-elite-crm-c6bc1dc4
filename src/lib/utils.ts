@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Color-codes a role badge consistently everywhere a role Pill is shown. */
+export function roleTone(role: string): "gold" | "blue" | "success" | "danger" | "neutral" {
+  switch (role) {
+    case "super_admin":
+      return "gold";
+    case "rop":
+      return "blue";
+    case "sotuv_menejeri":
+      return "success";
+    case "platform_owner":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
 /** "2h ago", "Yesterday", "3 days ago" — used across CRM list/detail views. */
 export function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "—";

@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Check,
   Loader2,
-  Network,
   Pencil,
   Plug,
   Search,
@@ -39,7 +38,7 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn, roleTone, timeAgo } from "@/lib/utils";
 import {
   useProfilesRaw,
   useUpdateProfile,
@@ -67,8 +66,9 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ROLES: ProfileRow["role"][] = ["sotuv_menejeri", "rop", "super_admin"];
+const NO_MANAGER = "__none__";
 
-function CreateEmployeeDialog() {
+function CreateEmployeeDialog({ ropOptions }: { ropOptions: ProfileRow[] }) {
   const { t } = useI18n();
   const createEmployee = useCreateEmployee();
   const updateProfile = useUpdateProfile();
@@ -79,6 +79,7 @@ function CreateEmployeeDialog() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<ProfileRow["role"]>("sotuv_menejeri");
   const [department, setDepartment] = useState("Sales");
+  const [managerId, setManagerId] = useState("");
   const [busy, setBusy] = useState(false);
 
   const roleLabel: Record<ProfileRow["role"], string> = {
@@ -96,6 +97,7 @@ function CreateEmployeeDialog() {
     setPassword("");
     setRole("sotuv_menejeri");
     setDepartment("Sales");
+    setManagerId("");
   }
 
   async function submit() {
@@ -106,7 +108,14 @@ function CreateEmployeeDialog() {
         password,
         full_name: fullName.trim(),
       });
-      await updateProfile.mutateAsync({ id, patch: { role, department: department.trim() } });
+      await updateProfile.mutateAsync({
+        id,
+        patch: {
+          role,
+          department: department.trim(),
+          ...(role === "sotuv_menejeri" && managerId ? { manager_id: managerId } : {}),
+        },
+      });
       toast.success(t("admin.employeeCreated"));
       reset();
       setOpen(false);
@@ -198,6 +207,23 @@ function CreateEmployeeDialog() {
                 />
               </div>
             </div>
+            {role === "sotuv_menejeri" && (
+              <div>
+                <Label>{t("admin.colManagerRop")}</Label>
+                <Select value={managerId} onValueChange={setManagerId}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder={t("admin.noManagerRop")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ropOptions.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.full_name || r.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <DialogFooter>
               <button
                 type="submit"
@@ -375,6 +401,7 @@ function AdminPanelContent() {
   };
 
   const employees = profiles ?? [];
+  const ropOptions = employees.filter((p) => p.role === "rop");
   const adminCount = employees.filter((p) => p.role === "super_admin").length;
   const q = query.trim().toLowerCase();
   const filteredEmployees = q
@@ -393,6 +420,21 @@ function AdminPanelContent() {
     } finally {
       setSavingId(null);
       setEditingId(null);
+    }
+  }
+
+  async function applyManagerChange(profile: ProfileRow, managerId: string) {
+    setSavingId(profile.id);
+    try {
+      await updateProfile.mutateAsync({
+        id: profile.id,
+        patch: { manager_id: managerId || null },
+      });
+      toast.success(t("admin.org.updated"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.org.updateFailed"));
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -415,7 +457,7 @@ function AdminPanelContent() {
         description={t("admin.description")}
         actions={
           <>
-            <CreateEmployeeDialog />
+            <CreateEmployeeDialog ropOptions={ropOptions} />
             <Pill tone="danger">{t("admin.adminsOnly")}</Pill>
           </>
         }
@@ -481,21 +523,24 @@ function AdminPanelContent() {
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
+                    <th className="px-6 py-3 font-medium">#</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colEmployee")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colDepartment")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colEmail")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colRole")}</th>
+                    <th className="px-6 py-3 font-medium">{t("admin.colManagerRop")}</th>
                     <th className="px-6 py-3 font-medium" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEmployees.map((p) => {
+                  {filteredEmployees.map((p, index) => {
                     const isEditing = editingId === p.id;
                     return (
                       <tr
                         key={p.id}
                         className="border-b border-border last:border-0 hover:bg-surface"
                       >
+                        <td className="px-6 py-4 text-sm font-bold text-amber-500">#{index + 1}</td>
                         <td className="px-6 py-4 font-medium">{p.full_name || "—"}</td>
                         <td className="px-6 py-4 text-muted-foreground">{p.department}</td>
                         <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
@@ -521,7 +566,7 @@ function AdminPanelContent() {
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <span className="text-sm font-medium">{roleLabel[p.role]}</span>
+                              <Pill tone={roleTone(p.role)}>{roleLabel[p.role]}</Pill>
                             )}
                             <button
                               type="button"
@@ -532,6 +577,33 @@ function AdminPanelContent() {
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {p.role === "sotuv_menejeri" ? (
+                            <Select
+                              value={p.manager_id ?? NO_MANAGER}
+                              disabled={savingId === p.id}
+                              onValueChange={(v) =>
+                                void applyManagerChange(p, v === NO_MANAGER ? "" : v)
+                              }
+                            >
+                              <SelectTrigger className="h-9 w-40">
+                                <SelectValue placeholder={t("admin.noManagerRop")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_MANAGER}>
+                                  {t("admin.noManagerRop")}
+                                </SelectItem>
+                                {ropOptions.map((r) => (
+                                  <SelectItem key={r.id} value={r.id}>
+                                    {r.full_name || r.email}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-xs text-subtle">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-right">
                           {p.id !== user?.id && (
@@ -570,7 +642,6 @@ function AdminPanelContent() {
                 },
                 { icon: Workflow, label: t("admin.funnelsStages"), href: "/crm-stages" },
                 { icon: Plug, label: t("int.title"), href: "/integrations" },
-                { icon: Network, label: t("admin.orgStructure"), href: "/admin/org-structure" },
                 { icon: Bot, label: t("admin.autoResponders"), href: "/admin/auto-responders" },
                 { icon: Sparkles, label: t("admin.aiAgents"), href: "/admin/ai-agents" },
               ].map((c) => (
