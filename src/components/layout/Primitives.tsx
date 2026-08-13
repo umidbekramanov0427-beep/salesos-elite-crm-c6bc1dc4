@@ -126,7 +126,7 @@ export function Pill({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "success" | "danger" | "warning" | "info";
+  tone?: "neutral" | "success" | "danger" | "warning" | "info" | "blue" | "gold";
 }) {
   const tones = {
     neutral: "bg-muted text-muted-foreground",
@@ -134,6 +134,8 @@ export function Pill({
     danger: "bg-destructive/10 text-destructive",
     warning: "bg-warning/15 text-warning-foreground",
     info: "bg-primary/10 text-primary",
+    blue: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+    gold: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   } as const;
   return (
     <span

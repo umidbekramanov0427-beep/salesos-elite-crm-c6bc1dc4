@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { roleTone } from "@/lib/utils";
 import { useAllProfiles, useDeleteUserAsOwner, type OwnerProfileRow } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/platform/users")({
@@ -78,7 +79,7 @@ function PlatformUsersPage() {
                       {p.organizations?.name ?? "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <Pill tone="info">{p.role}</Pill>
+                      <Pill tone={roleTone(p.role)}>{p.role}</Pill>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {p.role !== "platform_owner" && (

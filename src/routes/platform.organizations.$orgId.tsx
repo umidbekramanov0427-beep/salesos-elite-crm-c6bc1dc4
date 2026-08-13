@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { timeAgo } from "@/lib/utils";
+import { roleTone, timeAgo } from "@/lib/utils";
 import {
   useOrganizations,
   useUpdateOrganization,
@@ -474,7 +474,7 @@ function OrgDetailPage() {
                   </p>
                   <p className="truncate text-xs text-subtle">{p.email}</p>
                 </div>
-                <Pill tone="info">{p.role}</Pill>
+                <Pill tone={roleTone(p.role)}>{p.role}</Pill>
                 <EditUserDialog profile={p} />
                 <button
                   type="button"
