@@ -33,6 +33,9 @@ import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-res
 import { Route as AdminCreateEmployeeRouteImport } from './routes/admin.create-employee'
 import { Route as AdminDeleteEmployeeRouteImport } from './routes/admin.delete-employee'
 import { Route as AdminOrgStructureRouteImport } from './routes/admin.org-structure'
+import { Route as AdminSecurityRouteImport } from './routes/admin.security'
+import { Route as AdminSecurityBanRouteImport } from './routes/admin.security-ban'
+import { Route as AdminSecurityUsersRouteImport } from './routes/admin.security-users'
 import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
 import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analytics.analyze'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
@@ -187,6 +190,21 @@ const AdminDeleteEmployeeRoute = AdminDeleteEmployeeRouteImport.update({
 const AdminOrgStructureRoute = AdminOrgStructureRouteImport.update({
   id: '/org-structure',
   path: '/org-structure',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSecurityRoute = AdminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSecurityBanRoute = AdminSecurityBanRouteImport.update({
+  id: '/security-ban',
+  path: '/security-ban',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSecurityUsersRoute = AdminSecurityUsersRouteImport.update({
+  id: '/security-users',
+  path: '/security-users',
   getParentRoute: () => AdminRoute,
 } as any)
 const AiAssistantChatRoute = AiAssistantChatRouteImport.update({
@@ -389,6 +407,9 @@ export interface FileRoutesByFullPath {
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
+  '/admin/security': typeof AdminSecurityRoute
+  '/admin/security-ban': typeof AdminSecurityBanRoute
+  '/admin/security-users': typeof AdminSecurityUsersRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -448,6 +469,9 @@ export interface FileRoutesByTo {
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
+  '/admin/security': typeof AdminSecurityRoute
+  '/admin/security-ban': typeof AdminSecurityBanRoute
+  '/admin/security-users': typeof AdminSecurityUsersRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -508,6 +532,9 @@ export interface FileRoutesById {
   '/admin/create-employee': typeof AdminCreateEmployeeRoute
   '/admin/delete-employee': typeof AdminDeleteEmployeeRoute
   '/admin/org-structure': typeof AdminOrgStructureRoute
+  '/admin/security': typeof AdminSecurityRoute
+  '/admin/security-ban': typeof AdminSecurityBanRoute
+  '/admin/security-users': typeof AdminSecurityUsersRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -569,6 +596,9 @@ export interface FileRouteTypes {
     | '/admin/create-employee'
     | '/admin/delete-employee'
     | '/admin/org-structure'
+    | '/admin/security'
+    | '/admin/security-ban'
+    | '/admin/security-users'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
     | '/crm/companies'
@@ -628,6 +658,9 @@ export interface FileRouteTypes {
     | '/admin/create-employee'
     | '/admin/delete-employee'
     | '/admin/org-structure'
+    | '/admin/security'
+    | '/admin/security-ban'
+    | '/admin/security-users'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
     | '/crm/companies'
@@ -687,6 +720,9 @@ export interface FileRouteTypes {
     | '/admin/create-employee'
     | '/admin/delete-employee'
     | '/admin/org-structure'
+    | '/admin/security'
+    | '/admin/security-ban'
+    | '/admin/security-users'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
     | '/crm/companies'
@@ -940,6 +976,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrgStructureRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/security': {
+      id: '/admin/security'
+      path: '/security'
+      fullPath: '/admin/security'
+      preLoaderRoute: typeof AdminSecurityRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/security-ban': {
+      id: '/admin/security-ban'
+      path: '/security-ban'
+      fullPath: '/admin/security-ban'
+      preLoaderRoute: typeof AdminSecurityBanRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/security-users': {
+      id: '/admin/security-users'
+      path: '/security-users'
+      fullPath: '/admin/security-users'
+      preLoaderRoute: typeof AdminSecurityUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/ai-assistant/chat': {
       id: '/ai-assistant/chat'
       path: '/chat'
@@ -1180,6 +1237,9 @@ interface AdminRouteChildren {
   AdminCreateEmployeeRoute: typeof AdminCreateEmployeeRoute
   AdminDeleteEmployeeRoute: typeof AdminDeleteEmployeeRoute
   AdminOrgStructureRoute: typeof AdminOrgStructureRoute
+  AdminSecurityRoute: typeof AdminSecurityRoute
+  AdminSecurityBanRoute: typeof AdminSecurityBanRoute
+  AdminSecurityUsersRoute: typeof AdminSecurityUsersRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -1188,6 +1248,9 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCreateEmployeeRoute: AdminCreateEmployeeRoute,
   AdminDeleteEmployeeRoute: AdminDeleteEmployeeRoute,
   AdminOrgStructureRoute: AdminOrgStructureRoute,
+  AdminSecurityRoute: AdminSecurityRoute,
+  AdminSecurityBanRoute: AdminSecurityBanRoute,
+  AdminSecurityUsersRoute: AdminSecurityUsersRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

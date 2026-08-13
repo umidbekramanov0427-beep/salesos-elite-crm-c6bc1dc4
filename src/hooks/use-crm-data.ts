@@ -1938,6 +1938,121 @@ export function useUpdateBusinessProfile() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Security Center — per-org password policy + 2FA-required flag.      */
+/* ------------------------------------------------------------------ */
+
+export type SecuritySettingsRow = Tables["security_settings"]["Row"];
+
+const DEFAULT_SECURITY_SETTINGS: Omit<SecuritySettingsRow, "organization_id"> = {
+  min_password_length: 8,
+  require_number: false,
+  require_uppercase: false,
+  require_symbol: false,
+  two_factor_required: false,
+  updated_at: "",
+  updated_by: null,
+};
+
+/** Falls back to the platform default policy when the org hasn't saved custom settings yet. */
+export function useSecuritySettings() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["security_settings", user?.organizationId],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<SecuritySettingsRow> => {
+      const { data, error } = await supabase
+        .from("security_settings")
+        .select("*")
+        .eq("organization_id", user!.organizationId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? { organization_id: user!.organizationId!, ...DEFAULT_SECURITY_SETTINGS };
+    },
+  });
+}
+
+export function useUpdateSecuritySettings() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (
+      patch: Partial<
+        Pick<
+          SecuritySettingsRow,
+          | "min_password_length"
+          | "require_number"
+          | "require_uppercase"
+          | "require_symbol"
+          | "two_factor_required"
+        >
+      >,
+    ) => {
+      const { data, error } = await supabase
+        .from("security_settings")
+        .upsert(
+          { organization_id: user!.organizationId!, ...patch, updated_by: user?.id ?? null },
+          { onConflict: "organization_id" },
+        )
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["security_settings", user?.organizationId] }),
+  });
+}
+
+export type SecurityUserStatus = {
+  id: string;
+  last_sign_in_at: string | null;
+  banned_until: string | null;
+};
+
+/** Login activity + block status for the org's employees — lives on auth.users, so it's fetched via a service-role route rather than a direct table read. */
+export function useSecurityUsers() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["security_users", user?.organizationId],
+    enabled: !!user?.organizationId && user.role === "super_admin",
+    queryFn: async (): Promise<SecurityUserStatus[]> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/security-users", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = (await res.json()) as { users?: SecurityUserStatus[]; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not load login activity.");
+      return json.users ?? [];
+    },
+  });
+}
+
+export function useToggleUserBan() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/security-ban", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ userId, ban }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not update the account.");
+      return json;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["security_users", user?.organizationId] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Tags — aggregated across every lead, with rename/delete that touch  */
 /* every lead carrying that tag.                                       */
 /* ------------------------------------------------------------------ */

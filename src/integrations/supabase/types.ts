@@ -1227,6 +1227,54 @@ export type Database = {
           },
         ]
       }
+      security_settings: {
+        Row: {
+          min_password_length: number
+          organization_id: string
+          require_number: boolean
+          require_symbol: boolean
+          require_uppercase: boolean
+          two_factor_required: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          min_password_length?: number
+          organization_id: string
+          require_number?: boolean
+          require_symbol?: boolean
+          require_uppercase?: boolean
+          two_factor_required?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          min_password_length?: number
+          organization_id?: string
+          require_number?: boolean
+          require_symbol?: boolean
+          require_uppercase?: boolean
+          two_factor_required?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       setting_lists: {
         Row: {
           created_at: string
