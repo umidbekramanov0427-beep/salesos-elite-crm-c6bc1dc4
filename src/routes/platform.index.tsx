@@ -246,7 +246,7 @@ function CreateOrgDialog() {
 function PlatformPage() {
   const { user } = useAuth();
   const { t } = useI18n();
-  const { data: orgs, isLoading } = useOrganizations();
+  const { data: orgs, isLoading, error } = useOrganizations();
   const deactivateExpired = useDeactivateExpiredTrials();
 
   useEffect(() => {
@@ -278,6 +278,10 @@ function PlatformPage() {
       <SectionCard title={t("platform.orgsTitle")}>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+        ) : error ? (
+          <p className="text-sm text-destructive">
+            {t("platform.loadFailed")}: {error instanceof Error ? error.message : String(error)}
+          </p>
         ) : !orgs?.length ? (
           <p className="text-sm text-muted-foreground">{t("platform.noOrgs")}</p>
         ) : (

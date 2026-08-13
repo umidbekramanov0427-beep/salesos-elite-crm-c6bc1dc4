@@ -1126,6 +1126,8 @@ export type Database = {
           team: string | null
           telegram_chat_id: number | null
           telegram_link_code: string | null
+          telegram_onboarding_answers: Json | null
+          telegram_onboarding_step: number | null
           updated_at: string
         }
         Insert: {
@@ -1148,6 +1150,8 @@ export type Database = {
           team?: string | null
           telegram_chat_id?: number | null
           telegram_link_code?: string | null
+          telegram_onboarding_answers?: Json | null
+          telegram_onboarding_step?: number | null
           updated_at?: string
         }
         Update: {
@@ -1170,6 +1174,8 @@ export type Database = {
           team?: string | null
           telegram_chat_id?: number | null
           telegram_link_code?: string | null
+          telegram_onboarding_answers?: Json | null
+          telegram_onboarding_step?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1182,6 +1188,76 @@ export type Database = {
           },
           {
             foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          action: string
+          allowed: boolean
+          id: string
+          organization_id: string
+          role: string
+        }
+        Insert: {
+          action: string
+          allowed?: boolean
+          id?: string
+          organization_id: string
+          role: string
+        }
+        Update: {
+          action?: string
+          allowed?: boolean
+          id?: string
+          organization_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      setting_lists: {
+        Row: {
+          created_at: string
+          id: string
+          list_type: string
+          name: string
+          organization_id: string
+          position: number
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          list_type: string
+          name: string
+          organization_id: string
+          position?: number
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          list_type?: string
+          name?: string
+          organization_id?: string
+          position?: number
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setting_lists_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
