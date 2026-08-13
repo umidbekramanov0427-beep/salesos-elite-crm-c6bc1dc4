@@ -1,9 +1,10 @@
 import { useId } from "react";
 
 // A loading state built from the app's own brand mark instead of a generic
-// spinner: the center dot pulses in first, then each of the six petals
-// blooms outward in sequence (staggered by angle), holds, and fades back —
-// reads as a "thinking"/working motion rather than a bare rotating ring.
+// spinner: the center dot pulses in first, then all six petals bloom
+// outward together, in unison, from the same center point, hold, and fade
+// back — reads as a "thinking"/working motion rather than a bare rotating
+// ring.
 export function LogoLoader({ className }: { className?: string }) {
   const petalGrad = useId();
   const petalId = useId();
@@ -35,23 +36,15 @@ export function LogoLoader({ className }: { className?: string }) {
 
       <circle cx="50" cy="50" r="4.5" fill="#22C55E" className="logo-loader-core" />
 
-      {angles.map((a, i) => (
+      {angles.map((a) => (
         // The rotation lives on this <g> (an SVG attribute); the bloom
         // animation's CSS `transform: scale(...)` goes on the child <use>
         // instead of here, since a CSS transform replaces rather than
         // composes with an element's own `transform` attribute -- putting
         // both on the same node would silently drop the rotation.
         <g key={`petal-${a}`} transform={`rotate(${a} 50 50)`}>
-          <use
-            href={`#${petalId}`}
-            className="logo-loader-petal"
-            style={{ animationDelay: `${i * 0.12}s` }}
-          />
-          <use
-            href={`#${dotId}`}
-            className="logo-loader-petal"
-            style={{ animationDelay: `${i * 0.12}s` }}
-          />
+          <use href={`#${petalId}`} className="logo-loader-petal" />
+          <use href={`#${dotId}`} className="logo-loader-petal" />
         </g>
       ))}
     </svg>
