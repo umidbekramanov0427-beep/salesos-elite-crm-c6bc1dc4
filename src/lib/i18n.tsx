@@ -1304,6 +1304,7 @@ const en: Dict = {
 
   "pipeline.title": "AmoCRM",
   "pipeline.desc": "Every CRM lead, drag between stages — the change is saved instantly.",
+  "pipeline.pickFunnelDesc": "Pick a funnel to open its Kanban board.",
   "pipeline.loading": "Loading pipeline…",
   "pipeline.expected": "expected",
   "pipeline.dropHint": "Drop a deal here",
@@ -2654,6 +2655,7 @@ const ru: Dict = {
 
   "pipeline.title": "AmoCRM",
   "pipeline.desc": "Все лиды CRM, перетаскивайте между этапами — изменение сохраняется мгновенно.",
+  "pipeline.pickFunnelDesc": "Выберите воронку, чтобы открыть её канбан-доску.",
   "pipeline.loading": "Загрузка пайплайна…",
   "pipeline.expected": "ожидается",
   "pipeline.dropHint": "Перетащите сделку сюда",
@@ -4023,6 +4025,7 @@ const uz: Dict = {
   "pipeline.title": "AmoCRM",
   "pipeline.desc":
     "Barcha CRM lidlari, bosqichlar orasida tortib o‘tkazing — o‘zgarish darhol saqlanadi.",
+  "pipeline.pickFunnelDesc": "Kanban doskasini ochish uchun voronkani tanlang.",
   "pipeline.loading": "Pipeline yuklanmoqda…",
   "pipeline.expected": "kutilmoqda",
   "pipeline.dropHint": "Bitimni shu yerga tashlang",

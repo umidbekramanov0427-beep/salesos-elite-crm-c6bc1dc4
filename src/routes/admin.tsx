@@ -643,8 +643,7 @@ function AdminPanelContent() {
                 {
                   icon: Lock,
                   label: t("admin.permissionsMatrix"),
-                  to: "/crm-stages" as const,
-                  hash: "permissions",
+                  to: "/admin/permissions" as const,
                   important: true,
                 },
                 { icon: Workflow, label: t("admin.funnelsStages"), to: "/crm-stages" as const },
@@ -669,7 +668,6 @@ function AdminPanelContent() {
                 <li key={c.label}>
                   <Link
                     to={c.to}
-                    {...("hash" in c ? { hash: c.hash } : {})}
                     className={cn(
                       "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
                       c.important
