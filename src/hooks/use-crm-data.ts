@@ -1500,36 +1500,46 @@ export function useRevenueSeries() {
   }, [deals, visibleOwnerIds]);
 }
 
-export function usePipelineStageStats() {
-  const { data: deals } = useDealsRaw();
-  const { data: stages } = usePipelineStagesRaw();
-  const visibleOwnerIds = useVisibleOwnerIds();
-
+// Both dashboard funnel widgets used to aggregate the deals table (which
+// this AmoCRM-synced setup never actually populates -- real revenue lives
+// on leads) and/or every pipeline_stages row across the whole org (~60
+// AmoCRM pipelines here, all sharing generic stage names like
+// "Неразобранное") with no funnel filter, producing a chart with dozens of
+// duplicate-labeled all-zero bars. Both now require an explicit funnel
+// selection and read real, funnel-scoped lead data -- the funnel-scoped
+// fetch is shared (same react-query key) between the two widgets, so
+// selecting a funnel costs one request, not two.
+export function usePipelineStageStats(funnel: string | null) {
+  const board = usePipelineBoardLeads(funnel);
   return useMemo(() => {
-    const rows = visibleOwnerIds
-      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
-      : (deals ?? []);
-    return (stages ?? []).map((s) => {
-      const inStage = rows.filter((d) => d.stage_id === s.id);
+    if (!funnel) return [];
+    const funnelStages = board.stages
+      .filter((s) => s.pipeline_name === funnel)
+      .sort((a, b) => a.position - b.position);
+    return funnelStages.map((s) => {
+      const inStage = board.rows.filter((l) => l.stageId === s.id);
       return {
         stage: s.name,
-        value: inStage.reduce((sum, d) => sum + Number(d.value), 0),
+        value: inStage.reduce((sum, l) => sum + l.expectedRevenue, 0),
         deals: inStage.length,
       };
     });
-  }, [deals, stages, visibleOwnerIds]);
+  }, [funnel, board.stages, board.rows]);
 }
 
-export function useFunnelFlow() {
-  const { rows: leads, stages } = useCrmLeads();
+export function useFunnelFlow(funnel: string | null) {
+  const board = usePipelineBoardLeads(funnel);
   return useMemo(() => {
-    const ordered = [...stages].sort((a, b) => a.position - b.position);
-    const base = leads.length || 1;
-    return ordered.map((s) => {
-      const count = leads.filter((l) => l.stageId === s.id).length;
+    if (!funnel) return [];
+    const funnelStages = board.stages
+      .filter((s) => s.pipeline_name === funnel)
+      .sort((a, b) => a.position - b.position);
+    const base = board.rows.length || 1;
+    return funnelStages.map((s) => {
+      const count = board.rows.filter((l) => l.stageId === s.id).length;
       return { stage: s.name, count, conversion: Math.round((count / base) * 1000) / 10 };
     });
-  }, [leads, stages]);
+  }, [funnel, board.stages, board.rows]);
 }
 
 export type DashboardKpi = {
@@ -1801,29 +1811,47 @@ export function useRecentActivity(limit = 6) {
   return { rows, isLoading: activityQuery.isLoading };
 }
 
+// Used to read the (essentially unused, since this is an AmoCRM-synced
+// setup where real revenue lives on leads) deals table -- always 0. Reuses
+// the same leaderboard_stats RPC the Reyting page itself uses, so this
+// widget's numbers actually match the full leaderboard.
 export function useTopPerformers(limit = 5) {
-  const { data: deals } = useDealsRaw();
+  const { user } = useAuth();
   const { data: profiles } = useProfilesRaw();
+  const statsQuery = useQuery({
+    queryKey: ["leaderboard_stats", null, null, null, null, ""],
+    enabled: !!user?.organizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("leaderboard_stats", {
+        p_from: null,
+        p_to: null,
+        p_funnel: null,
+        p_stage_id: null,
+        p_tags: null,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   return useMemo(() => {
-    const rows = deals ?? [];
+    const statsByOwner = new Map((statsQuery.data ?? []).map((r) => [r.owner_id, r]));
     const people = profiles ?? [];
     return people
       .map((p) => {
-        const won = rows.filter((d) => d.owner_id === p.id && d.status === "won");
-        const revenue = won.reduce((s, d) => s + Number(d.value), 0);
+        const stats = statsByOwner.get(p.id);
         return {
           id: p.id,
           name: p.full_name || p.email,
           department: p.department,
-          deals: won.length,
-          revenue,
+          deals: stats?.won_leads ?? 0,
+          revenue: stats?.revenue ?? 0,
           target: p.monthly_target || 1,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit);
-  }, [deals, profiles, limit]);
+  }, [statsQuery.data, profiles, limit]);
 }
 
 /* ------------------------------------------------------------------ */
