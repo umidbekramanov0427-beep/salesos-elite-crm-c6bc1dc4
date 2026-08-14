@@ -451,6 +451,61 @@ export type CrmLeadView = {
   amocrmId: number | null;
 };
 
+// Shared lead-row -> display-view mapper, used by every hook that needs
+// CrmLeadView shape: the full-org useCrmLeads() below, plus the lean
+// single-lead and paginated-list hooks that don't fetch contacts at all
+// (contact is optional there — its fields just come back blank, which is
+// fine since the leads register table never renders them).
+function leadRowToView(
+  l: LeadRow,
+  contact: ContactRow | null | undefined,
+  profilesById: Map<string, ProfileRow>,
+  stagesById: Map<string, StageRow>,
+): CrmLeadView {
+  const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
+  const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
+  const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+  return {
+    id: l.id,
+    name: l.name,
+    initials: initialsOf(l.name),
+    company: l.company_name,
+    companyId: l.company_id ?? "",
+    position: contact?.position ?? "",
+    phone: contact?.phone ?? "",
+    altPhone: contact?.alt_phone ?? "",
+    email: contact?.email ?? "",
+    telegram: contact?.telegram ?? "",
+    whatsapp: contact?.whatsapp ?? "",
+    source: l.source ?? "",
+    campaign: l.campaign ?? "",
+    utm: l.utm ?? "",
+    owner: owner ? profileName(owner) : "Unassigned",
+    ownerId: l.owner_id ?? "",
+    manager: manager ? profileName(manager) : "—",
+    priority: l.priority,
+    score: l.score,
+    temperature: l.temperature,
+    budget: l.budget,
+    expectedRevenue: l.expected_revenue,
+    country: l.country ?? "",
+    region: l.region ?? "",
+    city: l.city ?? "",
+    address: l.address ?? "",
+    stage: stage?.name ?? "New Lead",
+    stageId: l.stage_id ?? "",
+    stageIsWon: stage?.is_won ?? false,
+    stageIsLost: stage?.is_lost ?? false,
+    funnel: l.funnel ?? "",
+    nextFollowUp: formatFollowUp(l.next_follow_up),
+    lastContact: timeAgo(l.last_contact_at),
+    created: formatDate(l.created_at),
+    updated: timeAgo(l.updated_at),
+    tags: l.tags ?? [],
+    amocrmId: l.amocrm_id,
+  };
+}
+
 // overrideLeads lets callers substitute a reconstructed "as of a past date"
 // snapshot (see useAsOfSnapshot) in place of the live leads table, while
 // still joining against the current contacts/profiles/stages for display
@@ -473,54 +528,164 @@ export function useCrmLeads(overrideLeads?: LeadRow[], options?: { enabled?: boo
     const profilesById = byId(base.profiles);
     const stagesById = byId(base.stages);
 
-    return sourceLeads.map((l): CrmLeadView => {
-      const contact = l.contact_id ? contactsById.get(l.contact_id) : undefined;
-      const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
-      const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
-      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-      return {
-        id: l.id,
-        name: l.name,
-        initials: initialsOf(l.name),
-        company: l.company_name,
-        companyId: l.company_id ?? "",
-        position: contact?.position ?? "",
-        phone: contact?.phone ?? "",
-        altPhone: contact?.alt_phone ?? "",
-        email: contact?.email ?? "",
-        telegram: contact?.telegram ?? "",
-        whatsapp: contact?.whatsapp ?? "",
-        source: l.source ?? "",
-        campaign: l.campaign ?? "",
-        utm: l.utm ?? "",
-        owner: owner ? profileName(owner) : "Unassigned",
-        ownerId: l.owner_id ?? "",
-        manager: manager ? profileName(manager) : "—",
-        priority: l.priority,
-        score: l.score,
-        temperature: l.temperature,
-        budget: l.budget,
-        expectedRevenue: l.expected_revenue,
-        country: l.country ?? "",
-        region: l.region ?? "",
-        city: l.city ?? "",
-        address: l.address ?? "",
-        stage: stage?.name ?? "New Lead",
-        stageId: l.stage_id ?? "",
-        stageIsWon: stage?.is_won ?? false,
-        stageIsLost: stage?.is_lost ?? false,
-        funnel: l.funnel ?? "",
-        nextFollowUp: formatFollowUp(l.next_follow_up),
-        lastContact: timeAgo(l.last_contact_at),
-        created: formatDate(l.created_at),
-        updated: timeAgo(l.updated_at),
-        tags: l.tags ?? [],
-        amocrmId: l.amocrm_id,
-      };
-    });
+    return sourceLeads.map((l) =>
+      leadRowToView(
+        l,
+        l.contact_id ? contactsById.get(l.contact_id) : undefined,
+        profilesById,
+        stagesById,
+      ),
+    );
   }, [sourceLeads, base.contacts, base.profiles, base.stages]);
 
   return { rows, ...base };
+}
+
+/* ------------------------------------------------------------------ */
+/* View: a single lead by id — fetched directly instead of pulling the */
+/* whole org's leads (useCrmLeads) just to .find() one of them. On a   */
+/* large AmoCRM account this turned "open any one lead" into the same  */
+/* multi-minute full-table fetch as the leads register itself. Applies */
+/* the same owner/team visibility rule as useCrmBase (JS-layer, since   */
+/* the leads SELECT RLS policy itself is org-wide) so a rep still can't */
+/* open a teammate's lead by guessing its URL.                          */
+/* ------------------------------------------------------------------ */
+
+export function useLeadById(leadId: string | undefined) {
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: profiles } = useProfilesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+
+  const query = useQuery({
+    queryKey: ["lead_detail", leadId],
+    enabled: !!leadId,
+    queryFn: async (): Promise<{ lead: LeadRow; contact: ContactRow | null } | null> => {
+      const { data: lead, error } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", leadId!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!lead) return null;
+      let contact: ContactRow | null = null;
+      if (lead.contact_id) {
+        const { data: c } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq("id", lead.contact_id)
+          .maybeSingle();
+        contact = c ?? null;
+      }
+      return { lead, contact };
+    },
+  });
+
+  const lead = useMemo<CrmLeadView | undefined>(() => {
+    const row = query.data?.lead;
+    if (!row) return undefined;
+    if (visibleOwnerIds && (!row.owner_id || !visibleOwnerIds.has(row.owner_id))) return undefined;
+    return leadRowToView(row, query.data?.contact, byId(profiles), byId(stages));
+  }, [query.data, visibleOwnerIds, profiles, stages]);
+
+  return { lead, isLoading: query.isLoading };
+}
+
+/* ------------------------------------------------------------------ */
+/* View: the leads register, paginated server-side. The register used  */
+/* to call useCrmLeads() (the whole org's leads) and render every row   */
+/* into one <table> with no pagination at all — on an account with tens */
+/* of thousands of leads that meant transferring the entire table AND   */
+/* rendering tens of thousands of DOM rows, the real cause of the page  */
+/* freezing for minutes. Only the current page's rows are fetched now;  */
+/* the summary stat cards come from a small SQL aggregate (leads_list_  */
+/* stats) instead of being reduced over every row client-side.          */
+/* ------------------------------------------------------------------ */
+
+export type LeadsListParams = {
+  page: number;
+  pageSize?: number;
+  search?: string;
+  stageId?: string | null;
+  sortDesc?: boolean;
+};
+
+type LeadsListStats = { total: number; hot: number; avgScore: number; revenue: number };
+
+export function useLeadsListPage(params: LeadsListParams) {
+  const { user } = useAuth();
+  const pageSize = params.pageSize ?? 50;
+  const search = params.search?.trim() || null;
+  const visibleOwnerIds = useVisibleOwnerIds();
+  const ownerScopeKey = visibleOwnerIds ? [...visibleOwnerIds].sort().join(",") : null;
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: profiles } = useProfilesRaw();
+
+  const pageQuery = useQuery({
+    queryKey: [
+      "leads_list_page",
+      user?.organizationId,
+      params.page,
+      pageSize,
+      search,
+      params.stageId ?? null,
+      params.sortDesc ?? true,
+      ownerScopeKey,
+    ],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadRow[]> => {
+      const from = params.page * pageSize;
+      let q = supabase.from("leads").select("*");
+      if (params.stageId) q = q.eq("stage_id", params.stageId);
+      if (search) q = q.or(`name.ilike.%${search}%,company_name.ilike.%${search}%`);
+      if (visibleOwnerIds) q = q.in("owner_id", [...visibleOwnerIds]);
+      q = q
+        .order("score", { ascending: !(params.sortDesc ?? true) })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as LeadRow[];
+    },
+  });
+
+  const statsQuery = useQuery({
+    queryKey: [
+      "leads_list_stats",
+      user?.organizationId,
+      search,
+      params.stageId ?? null,
+      ownerScopeKey,
+    ],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadsListStats> => {
+      const { data, error } = await supabase
+        .rpc("leads_list_stats", {
+          p_search: search,
+          p_stage_id: params.stageId ?? null,
+        })
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        total: Number(data?.total ?? 0),
+        hot: Number(data?.hot ?? 0),
+        avgScore: Math.round(Number(data?.avg_score ?? 0)),
+        revenue: Number(data?.revenue ?? 0),
+      };
+    },
+  });
+
+  const rows = useMemo<CrmLeadView[]>(() => {
+    const stagesById = byId(stages);
+    const profilesById = byId(profiles);
+    return (pageQuery.data ?? []).map((l) => leadRowToView(l, undefined, profilesById, stagesById));
+  }, [pageQuery.data, stages, profiles]);
+
+  return {
+    rows,
+    stats: statsQuery.data ?? { total: 0, hot: 0, avgScore: 0, revenue: 0 },
+    isLoading: pageQuery.isLoading || statsQuery.isLoading,
+    isFetching: pageQuery.isFetching,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -645,6 +810,60 @@ export function usePipelineBoardLeads(funnel: string | null) {
 }
 
 /* ------------------------------------------------------------------ */
+/* View: Funnels list -- one row per funnel, aggregated server-side.   */
+/* The /funnels page (no funnel selected) used to pull the whole org's */
+/* leads via useCrmLeads() just to group them into cards -- same full- */
+/* table problem as everywhere else on a large AmoCRM account.         */
+/* ------------------------------------------------------------------ */
+
+export type FunnelStat = {
+  name: string;
+  count: number;
+  value: number;
+  won: number;
+  hot: number;
+  warm: number;
+  cold: number;
+  conversion: number;
+};
+
+export function useFunnelListStats(enabled = true) {
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ["funnel_list_stats", user?.organizationId],
+    enabled: enabled && !!user?.organizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("funnel_list_stats");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const funnels = useMemo<FunnelStat[]>(
+    () =>
+      (query.data ?? [])
+        .map((r): FunnelStat => {
+          const count = Number(r.total);
+          const won = Number(r.won);
+          return {
+            name: r.funnel,
+            count,
+            value: Number(r.value),
+            won,
+            hot: Number(r.hot),
+            warm: Number(r.warm),
+            cold: Number(r.cold),
+            conversion: count ? Math.round((won / count) * 1000) / 10 : 0,
+          };
+        })
+        .sort((a, b) => b.count - a.count),
+    [query.data],
+  );
+
+  return { funnels, isLoading: query.isLoading };
+}
+
+/* ------------------------------------------------------------------ */
 /* View: Leaderboard (real per-manager performance, not simulated)     */
 /* ------------------------------------------------------------------ */
 
@@ -672,19 +891,23 @@ export type LeaderboardManagerRow = {
   targetCompletion: number;
 };
 
+type LeaderboardOwnerStats = { total: number; won: number; lost: number; revenue: number };
+
+// Live path (the overwhelming majority of calls, including the 3s "live"
+// poll on the Reyting landing page) used to re-fetch the whole org's leads
+// table -- tens of thousands of rows on a large AmoCRM account -- on every
+// poll tick, forever, for as long as the tab stayed open. leaderboard_stats
+// computes the same per-owner totals in Postgres and returns one row per
+// rep instead. The as-of-date override path (opts.overrideLeads) still
+// reduces client-side, since that snapshot only exists in memory (it comes
+// from the audit trail, not the live table) and is small by nature.
 export function useLeaderboardView(
   filters: LeaderboardFilters,
   opts?: { refetchInterval?: number | false; overrideLeads?: LeadRow[] | undefined },
 ) {
   const refetchInterval = opts?.refetchInterval ?? false;
-  const {
-    data: liveLeads,
-    isLoading: leadsLoading,
-    isFetching: leadsFetching,
-    refetch: refetchLeads,
-    dataUpdatedAt,
-  } = useLeadsRaw({ refetchInterval });
-  const leads = opts?.overrideLeads ?? liveLeads;
+  const useOverride = !!opts?.overrideLeads;
+
   const {
     data: profiles,
     isLoading: profilesLoading,
@@ -697,26 +920,90 @@ export function useLeaderboardView(
     isFetching: stagesFetching,
     refetch: refetchStages,
   } = usePipelineStagesRaw({ refetchInterval });
-  const isLoading = leadsLoading || profilesLoading || stagesLoading;
-  const isFetching = leadsFetching || profilesFetching || stagesFetching;
-
-  const refetch = () => Promise.all([refetchLeads(), refetchProfiles(), refetchStages()]);
-
   const stagesById = useMemo(() => byId(stages), [stages]);
 
-  const filteredLeads = useMemo(
-    () =>
-      (leads ?? []).filter((l) => {
-        if (filters.from && l.created_at < filters.from) return false;
-        if (filters.to && l.created_at > filters.to) return false;
-        if (filters.stageId && l.stage_id !== filters.stageId) return false;
-        if (filters.funnel && (l.funnel || "Direct Sales") !== filters.funnel) return false;
-        if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
-          return false;
-        return true;
-      }),
-    [leads, filters.from, filters.to, filters.stageId, filters.funnel, filters.tags],
-  );
+  const tagsKey = filters.tags.length ? [...filters.tags].sort().join(",") : "";
+  const statsQuery = useQuery({
+    queryKey: [
+      "leaderboard_stats",
+      filters.from,
+      filters.to,
+      filters.funnel,
+      filters.stageId,
+      tagsKey,
+    ],
+    enabled: !useOverride,
+    refetchInterval: useOverride ? false : refetchInterval,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("leaderboard_stats", {
+        p_from: filters.from,
+        p_to: filters.to,
+        p_funnel: filters.funnel,
+        p_stage_id: filters.stageId,
+        p_tags: filters.tags.length ? filters.tags : null,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const filteredOverrideLeads = useMemo(() => {
+    if (!useOverride) return [];
+    return (opts?.overrideLeads ?? []).filter((l) => {
+      if (filters.from && l.created_at < filters.from) return false;
+      if (filters.to && l.created_at > filters.to) return false;
+      if (filters.stageId && l.stage_id !== filters.stageId) return false;
+      if (filters.funnel && (l.funnel || "Direct Sales") !== filters.funnel) return false;
+      if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
+        return false;
+      return true;
+    });
+  }, [
+    useOverride,
+    opts?.overrideLeads,
+    filters.from,
+    filters.to,
+    filters.stageId,
+    filters.funnel,
+    filters.tags,
+  ]);
+
+  const statsByOwner = useMemo(() => {
+    const map = new Map<string, LeaderboardOwnerStats>();
+    if (useOverride) {
+      for (const l of filteredOverrideLeads) {
+        if (!l.owner_id) continue;
+        const entry = map.get(l.owner_id) ?? { total: 0, won: 0, lost: 0, revenue: 0 };
+        entry.total += 1;
+        const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+        if (stage?.is_won) {
+          entry.won += 1;
+          entry.revenue += l.expected_revenue;
+        }
+        if (stage?.is_lost) entry.lost += 1;
+        map.set(l.owner_id, entry);
+      }
+    } else {
+      for (const r of statsQuery.data ?? []) {
+        map.set(r.owner_id, {
+          total: Number(r.total_leads),
+          won: Number(r.won_leads),
+          lost: Number(r.lost_leads),
+          revenue: Number(r.revenue),
+        });
+      }
+    }
+    return map;
+  }, [useOverride, filteredOverrideLeads, stagesById, statsQuery.data]);
+
+  const isLoading = useOverride
+    ? profilesLoading || stagesLoading
+    : profilesLoading || stagesLoading || statsQuery.isLoading;
+  const isFetching = useOverride
+    ? profilesFetching || stagesFetching
+    : profilesFetching || stagesFetching || statsQuery.isFetching;
+  const refetch = () =>
+    Promise.all([refetchProfiles(), refetchStages(), useOverride ? null : statsQuery.refetch()]);
 
   const rows = useMemo<LeaderboardManagerRow[]>(() => {
     const q = filters.search.trim().toLowerCase();
@@ -729,21 +1016,18 @@ export function useLeaderboardView(
     );
     return eligible
       .map((p): LeaderboardManagerRow => {
-        const mine = filteredLeads.filter((l) => l.owner_id === p.id);
-        const won = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_won : false));
-        const lost = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_lost : false));
-        const revenue = won.reduce((s, l) => s + l.expected_revenue, 0);
-        const conversion = mine.length ? (won.length / mine.length) * 100 : 0;
-        const targetCompletion = p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
+        const s = statsByOwner.get(p.id) ?? { total: 0, won: 0, lost: 0, revenue: 0 };
+        const conversion = s.total ? (s.won / s.total) * 100 : 0;
+        const targetCompletion = p.monthly_target > 0 ? (s.revenue / p.monthly_target) * 100 : 0;
         return {
           id: p.id,
           name: profileName(p),
           initials: initialsOf(profileName(p)),
           avatarUrl: p.avatar_url,
-          totalLeads: mine.length,
-          wonLeads: won.length,
-          lostLeads: lost.length,
-          revenue,
+          totalLeads: s.total,
+          wonLeads: s.won,
+          lostLeads: s.lost,
+          revenue: s.revenue,
           conversion,
           kpiPercent: p.kpi_percent,
           monthlyTarget: p.monthly_target,
@@ -751,16 +1035,14 @@ export function useLeaderboardView(
         };
       })
       .sort((a, b) => b.revenue - a.revenue);
-  }, [profiles, filteredLeads, stagesById, filters.search]);
+  }, [profiles, statsByOwner, filters.search]);
 
   return {
     rows,
-    filteredLeads,
-    stages: stages ?? [],
     isLoading,
     isFetching,
     refetch,
-    dataUpdatedAt,
+    dataUpdatedAt: statsQuery.dataUpdatedAt,
   };
 }
 
@@ -1270,26 +1552,95 @@ export type DashboardFilters = {
   maxAmount?: number | null;
 };
 
-export function useDashboardKpis(
-  filters?: DashboardFilters,
-  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
-) {
-  const { data: liveDeals } = useDealsRaw();
-  const { data: liveLeads } = useLeadsRaw();
+type DashboardKpiValues = {
+  revenueToday: number;
+  revenueMonth: number;
+  pipelineValue: number;
+  openDealsCount: number;
+  newLeadsToday: number;
+  wonThisWeek: number;
+  lostThisWeek: number;
+  conversion: number;
+};
+
+const EMPTY_DASHBOARD_KPIS: DashboardKpiValues = {
+  revenueToday: 0,
+  revenueMonth: 0,
+  pipelineValue: 0,
+  openDealsCount: 0,
+  newLeadsToday: 0,
+  wonThisWeek: 0,
+  lostThisWeek: 0,
+  conversion: 0,
+};
+
+// Live path (the default -- no overrides passed) used to pull the whole
+// org's leads + deals + stages client-side just to reduce them into these
+// eight numbers. dashboard_kpis computes the same numbers in Postgres.
+// The as-of-date override path still reduces client-side below, since that
+// snapshot only exists in memory (reconstructed from the audit trail) and
+// is small by nature -- there's nothing in the database to query it from.
+function useDashboardKpisLive(
+  filters: DashboardFilters | undefined,
+  enabled: boolean,
+): DashboardKpiValues {
+  const { user } = useAuth();
+  const from = filters?.from ?? null;
+  const to = filters?.to ?? null;
+  const funnel = filters?.funnel ?? null;
+  const minAmount = filters?.minAmount ?? null;
+  const maxAmount = filters?.maxAmount ?? null;
+
+  const query = useQuery({
+    queryKey: ["dashboard_kpis", user?.organizationId, from, to, funnel, minAmount, maxAmount],
+    enabled: enabled && !!user?.organizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc("dashboard_kpis", {
+          p_from: from,
+          p_to: to,
+          p_funnel: funnel,
+          p_min_amount: minAmount,
+          p_max_amount: maxAmount,
+        })
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const d = query.data;
+  if (!d) return EMPTY_DASHBOARD_KPIS;
+  return {
+    revenueToday: Number(d.revenue_today ?? 0),
+    revenueMonth: Number(d.revenue_month ?? 0),
+    pipelineValue: Number(d.pipeline_value ?? 0),
+    openDealsCount: Number(d.open_deals_count ?? 0),
+    newLeadsToday: Number(d.new_leads_today ?? 0),
+    wonThisWeek: Number(d.won_this_week ?? 0),
+    lostThisWeek: Number(d.lost_this_week ?? 0),
+    conversion: Number(d.conversion ?? 0),
+  };
+}
+
+function useDashboardKpisFromOverride(
+  filters: DashboardFilters | undefined,
+  overrides: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
+): DashboardKpiValues {
   const { data: stages } = usePipelineStagesRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
   const deals = useMemo(() => {
-    const rows = overrides?.deals ?? liveDeals ?? [];
+    const rows = overrides.deals ?? [];
     return visibleOwnerIds
       ? rows.filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
       : rows;
-  }, [overrides?.deals, liveDeals, visibleOwnerIds]);
+  }, [overrides.deals, visibleOwnerIds]);
   const leads = useMemo(() => {
-    const rows = overrides?.leads ?? liveLeads ?? [];
+    const rows = overrides.leads ?? [];
     return visibleOwnerIds
       ? rows.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
       : rows;
-  }, [overrides?.leads, liveLeads, visibleOwnerIds]);
+  }, [overrides.leads, visibleOwnerIds]);
 
   return useMemo(() => {
     const from = filters?.from ?? null;
@@ -1386,6 +1737,22 @@ export function useDashboardKpis(
     filters?.minAmount,
     filters?.maxAmount,
   ]);
+}
+
+export function useDashboardKpis(
+  filters?: DashboardFilters,
+  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
+): DashboardKpiValues {
+  const useOverride = !!(overrides?.leads || overrides?.deals);
+  // Both branches are hooks, so both always run (React's rules of hooks) --
+  // only the relevant one's result is used, same pattern as useCrmLeads'
+  // as-of-date handling.
+  const live = useDashboardKpisLive(filters, !useOverride);
+  const overridden = useDashboardKpisFromOverride(filters, {
+    leads: useOverride ? overrides?.leads : [],
+    deals: useOverride ? overrides?.deals : [],
+  });
+  return useOverride ? overridden : live;
 }
 
 export type ActivityItem = {
