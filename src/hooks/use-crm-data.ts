@@ -3423,16 +3423,14 @@ export function useManagerFunnelStats(funnel?: string | null): Map<string, Manag
 
 /* ------------------------------------------------------------------ */
 /* Weekly per-manager trend (Reyting charts) — conversion% and sales-    */
-/* stage revenue, bucketed by week of lead creation, for the top 5       */
-/* managers by total sales revenue (a fixed categorical palette only     */
-/* reads cleanly up to about 5 lines on one chart). "Conversion" here is */
-/* each week's cohort of created leads that are *currently* sitting in a */
+/* stage revenue, bucketed by week of lead creation, for every manager   */
+/* with at least one lead in the funnel. "Conversion" here is each       */
+/* week's cohort of created leads that are *currently* sitting in a      */
 /* sales stage — there's no stored historical snapshot of conversion     */
 /* itself to chart directly, so this is the closest real approximation.  */
 /* ------------------------------------------------------------------ */
 
-const TREND_WEEKS = 8;
-const TREND_MAX_MANAGERS = 5;
+const DEFAULT_TREND_WEEKS = 8;
 
 export type ManagerTrendSeries = {
   id: string;
@@ -3452,7 +3450,10 @@ function startOfWeek(d: Date): Date {
   return copy;
 }
 
-export function useManagerWeeklyTrend(funnel?: string | null): ManagerWeeklyTrend {
+export function useManagerWeeklyTrend(
+  funnel?: string | null,
+  weeks: number = DEFAULT_TREND_WEEKS,
+): ManagerWeeklyTrend {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
   const { data: profiles } = useProfilesRaw();
@@ -3461,25 +3462,24 @@ export function useManagerWeeklyTrend(funnel?: string | null): ManagerWeeklyTren
   return useMemo(() => {
     const weekStarts: Date[] = [];
     const now = startOfWeek(new Date());
-    for (let i = TREND_WEEKS - 1; i >= 0; i--) {
+    for (let i = weeks - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i * 7);
       weekStarts.push(d);
     }
     const weekLabels = weekStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
 
-    const topOwnerIds = Array.from(managerStats.entries())
+    const ownerIds = Array.from(managerStats.entries())
       .sort((a, b) => b[1].salesRevenue - a[1].salesRevenue)
-      .slice(0, TREND_MAX_MANAGERS)
       .map(([id]) => id);
-    if (topOwnerIds.length === 0) return { weekLabels, series: [] };
+    if (ownerIds.length === 0) return { weekLabels, series: [] };
 
     const profilesById = byId(profiles);
     const stagesById = byId(stages);
 
     type Bucket = { total: number; sales: number; salesRevenue: number };
     const buckets = new Map<string, Bucket[]>();
-    for (const id of topOwnerIds) {
+    for (const id of ownerIds) {
       buckets.set(
         id,
         weekStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
@@ -3509,7 +3509,7 @@ export function useManagerWeeklyTrend(funnel?: string | null): ManagerWeeklyTren
       }
     }
 
-    const series: ManagerTrendSeries[] = topOwnerIds.map((id) => {
+    const series: ManagerTrendSeries[] = ownerIds.map((id) => {
       const b = buckets.get(id)!;
       return {
         id,
@@ -3520,7 +3520,7 @@ export function useManagerWeeklyTrend(funnel?: string | null): ManagerWeeklyTren
     });
 
     return { weekLabels, series };
-  }, [leads, stages, profiles, managerStats, funnel]);
+  }, [leads, stages, profiles, managerStats, funnel, weeks]);
 }
 
 /* ------------------------------------------------------------------ */

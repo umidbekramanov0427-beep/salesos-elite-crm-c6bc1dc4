@@ -9,6 +9,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// A small "!" badge that explains what a card/metric/column means on hover
+// or focus -- for the label itself, not the whole surrounding card (unlike
+// KpiCard's tooltip-wraps-everything pattern), so it stays out of the way
+// of clicks/hovers on the card's own content.
+export function InfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            aria-label={text}
+            className="inline-flex h-3.5 w-3.5 shrink-0 cursor-help items-center justify-center rounded-full border border-subtle/60 text-[9px] font-bold leading-none text-subtle outline-none transition-colors hover:border-primary hover:text-primary focus-visible:border-primary focus-visible:text-primary"
+          >
+            !
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[240px] text-xs">{text}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export function PageHeader({
   title,
@@ -58,12 +82,14 @@ export function StatCard({
   delta,
   hint,
   tone = "default",
+  info,
 }: {
   label: string;
   value: string;
   delta?: number;
   hint?: string;
   tone?: "default" | "mint";
+  info?: string;
 }) {
   return (
     <div
@@ -73,7 +99,10 @@ export function StatCard({
         tone === "mint" ? "mint-card" : "surface-card",
       )}
     >
-      <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+        {label}
+        {info && <InfoTip text={info} />}
+      </p>
       <p className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-foreground">
         {value}
       </p>
@@ -98,7 +127,7 @@ export function SectionCard({
   className,
   id,
 }: {
-  title?: string;
+  title?: ReactNode;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
