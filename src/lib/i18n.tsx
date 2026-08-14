@@ -781,6 +781,31 @@ const en: Dict = {
   "lb.colTarget": "Target",
   "lb.chartConversion": "CONVERSION",
   "lb.chartRevenue": "BY REVENUE",
+  "lb.trendRangeLabel": "Range",
+  "lb.trendRange4": "Last 4 weeks",
+  "lb.trendRange8": "Last 8 weeks",
+  "lb.trendRange12": "Last 12 weeks",
+  "lb.trendRange26": "Last 26 weeks",
+  "lb.info.totalLeadsCount":
+    "Total number of leads in the selected funnel (or every funnel, if none is selected).",
+  "lb.info.avgConversion": "WON leads divided by total leads in the funnel.",
+  "lb.info.totalSales":
+    "Leads currently sitting in a prepayment, half-payment or full-payment stage. The amount below is their combined value.",
+  "lb.info.totalWonLeads": "Leads in a closed-WON stage. The amount below is their combined value.",
+  "lb.info.totalRevenue": "Combined value of every lead in the funnel, regardless of stage.",
+  "lb.info.todayRevenue":
+    "Today's funnel revenue minus the funnel's revenue at the start of today (via time-travel history).",
+  "lb.info.colTotalLeads": "This manager's total leads in the funnel.",
+  "lb.info.colSales": "This manager's leads in a prepayment, half-payment or full-payment stage.",
+  "lb.info.colRevenue":
+    "Combined value of this manager's Sales-stage leads only, not their whole funnel.",
+  "lb.info.colConversion": "This manager's Sales-stage leads divided by their total leads.",
+  "lb.info.colKpi": "This manager's KPI completion percentage.",
+  "lb.info.colKpiMonthly": "5% of this manager's Sales-stage revenue.",
+  "lb.info.chartConversion":
+    "Each manager's weekly conversion rate — the share of that week's new leads currently sitting in a sales stage.",
+  "lb.info.chartRevenue":
+    "Each manager's weekly Sales-stage revenue (prepayment/half-payment/full-payment leads).",
   "lb.topStrengths": "Top performers — strengths",
   "lb.bottomWeaknesses": "Lowest performers — feedback",
   "lb.aiPlaceholder": "Click Generate for an AI summary.",
@@ -2290,6 +2315,31 @@ const ru: Dict = {
   "lb.colTarget": "План",
   "lb.chartConversion": "КОНВЕРСИЯ",
   "lb.chartRevenue": "ПО ВЫРУЧКЕ",
+  "lb.trendRangeLabel": "Период",
+  "lb.trendRange4": "Последние 4 недели",
+  "lb.trendRange8": "Последние 8 недель",
+  "lb.trendRange12": "Последние 12 недель",
+  "lb.trendRange26": "Последние 26 недель",
+  "lb.info.totalLeadsCount":
+    "Общее число лидов в выбранной воронке (или во всех, если воронка не выбрана).",
+  "lb.info.avgConversion": "Выигранные лиды, делённые на общее число лидов в воронке.",
+  "lb.info.totalSales":
+    "Лиды на этапе предоплаты, частичной или полной оплаты. Сумма ниже — их общая стоимость.",
+  "lb.info.totalWonLeads": "Лиды на этапе «выиграно». Сумма ниже — их общая стоимость.",
+  "lb.info.totalRevenue": "Общая стоимость всех лидов в воронке, независимо от этапа.",
+  "lb.info.todayRevenue":
+    "Сегодняшняя выручка воронки минус выручка на начало дня (по истории time-travel).",
+  "lb.info.colTotalLeads": "Общее число лидов этого менеджера в воронке.",
+  "lb.info.colSales": "Лиды этого менеджера на этапе предоплаты, частичной или полной оплаты.",
+  "lb.info.colRevenue":
+    "Общая стоимость лидов этого менеджера только на этапах продаж, а не всей воронки.",
+  "lb.info.colConversion": "Лиды на этапах продаж, делённые на общее число лидов этого менеджера.",
+  "lb.info.colKpi": "Процент выполнения KPI этого менеджера.",
+  "lb.info.colKpiMonthly": "5% от выручки этапов продаж этого менеджера.",
+  "lb.info.chartConversion":
+    "Еженедельная конверсия каждого менеджера — доля новых лидов недели, находящихся сейчас на этапе продаж.",
+  "lb.info.chartRevenue":
+    "Еженедельная выручка каждого менеджера по этапам продаж (предоплата/частичная/полная оплата).",
   "lb.topStrengths": "Лучшие — сильные стороны",
   "lb.bottomWeaknesses": "Отстающие — обратная связь",
   "lb.aiPlaceholder": "Нажмите «Сгенерировать» для AI-сводки.",
@@ -3815,6 +3865,34 @@ const uz: Dict = {
   "lb.colTarget": "Maqsad",
   "lb.chartConversion": "KONVERSIYA",
   "lb.chartRevenue": "TUSHUM BO'YICHA",
+  "lb.trendRangeLabel": "Davr",
+  "lb.trendRange4": "Oxirgi 4 hafta",
+  "lb.trendRange8": "Oxirgi 8 hafta",
+  "lb.trendRange12": "Oxirgi 12 hafta",
+  "lb.trendRange26": "Oxirgi 26 hafta",
+  "lb.info.totalLeadsCount":
+    "Tanlangan voronkadagi (yoki hech qaysi tanlanmasa, barcha voronkalardagi) jami lidlar soni.",
+  "lb.info.avgConversion": "Voronkadagi WON lidlar sonini jami lidlar soniga bo'lish.",
+  "lb.info.totalSales":
+    "Predoplata, yarim to'lov yoki to'liq to'lov bosqichida turgan lidlar. Pastdagi summa — ularning umumiy qiymati.",
+  "lb.info.totalWonLeads":
+    "WON (yutilgan) bosqichdagi lidlar. Pastdagi summa — ularning umumiy qiymati.",
+  "lb.info.totalRevenue": "Voronkadagi barcha lidlarning umumiy qiymati, bosqichidan qat'i nazar.",
+  "lb.info.todayRevenue":
+    "Hozirgi voronka tushumidan bugun boshlanishidagi tushum ayirilgan (tarix/time-travel orqali).",
+  "lb.info.colTotalLeads": "Shu menejerning voronkadagi jami lidlar soni.",
+  "lb.info.colSales":
+    "Shu menejerning predoplata, yarim to'lov yoki to'liq to'lov bosqichidagi lidlari.",
+  "lb.info.colRevenue":
+    "Shu menejerning faqat sotuv bosqichidagi lidlari summasi, butun voronkasi emas.",
+  "lb.info.colConversion":
+    "Shu menejerning sotuv bosqichidagi lidlari sonini jami lidlar soniga bo'lish.",
+  "lb.info.colKpi": "Shu menejerning KPI bajarilish foizi.",
+  "lb.info.colKpiMonthly": "Shu menejerning sotuv bosqichi tushumidan 5%.",
+  "lb.info.chartConversion":
+    "Har bir menejerning haftalik konversiyasi — o'sha hafta yaratilgan lidlardan hozir sotuv bosqichida turganlarining ulushi.",
+  "lb.info.chartRevenue":
+    "Har bir menejerning haftalik sotuv bosqichi tushumi (predoplata/yarim to'lov/to'liq to'lov).",
   "lb.topStrengths": "Top menejerlar — ustunliklari",
   "lb.bottomWeaknesses": "Eng past ko'rsatkichlilar — feedback",
   "lb.aiPlaceholder": 'AI xulosa uchun "Yaratish"ni bosing.',

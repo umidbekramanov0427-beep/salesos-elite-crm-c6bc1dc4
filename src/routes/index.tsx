@@ -12,7 +12,13 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
-import { PageHeader, SectionCard, StatCard, ExportButton } from "@/components/layout/Primitives";
+import {
+  PageHeader,
+  SectionCard,
+  StatCard,
+  ExportButton,
+  InfoTip,
+} from "@/components/layout/Primitives";
 import { cn } from "@/lib/utils";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -351,7 +357,8 @@ function Leaderboard() {
   }, [todayStartSnapshot.data, funnel, funnelStats.totalRevenue]);
 
   const managerStats = useManagerFunnelStats(funnel);
-  const managerTrend = useManagerWeeklyTrend(funnel);
+  const [trendWeeks, setTrendWeeks] = useState(8);
+  const managerTrend = useManagerWeeklyTrend(funnel, trendWeeks);
   const conversionChartData = useMemo(
     () =>
       managerTrend.weekLabels.map((label, i) => {
@@ -544,20 +551,36 @@ function Leaderboard() {
           label={t("lb.totalLeadsCount")}
           value={String(funnelStats.totalLeads)}
           tone="mint"
+          info={t("lb.info.totalLeadsCount")}
         />
-        <StatCard label={t("lb.avgConversion")} value={pct(funnelStats.conversion)} />
+        <StatCard
+          label={t("lb.avgConversion")}
+          value={pct(funnelStats.conversion)}
+          info={t("lb.info.avgConversion")}
+        />
         <StatCard
           label={t("lb.totalSales")}
           value={String(funnelStats.salesStageCount)}
           hint={format(funnelStats.salesStageRevenue)}
+          info={t("lb.info.totalSales")}
         />
         <StatCard
           label={t("lb.totalWonLeads")}
           value={String(funnelStats.wonCount)}
           hint={format(funnelStats.wonRevenue)}
+          info={t("lb.info.totalWonLeads")}
         />
-        <StatCard label={t("lb.totalRevenue")} value={format(funnelStats.totalRevenue)} />
-        <StatCard label={t("lb.todayRevenue")} value={format(todayRevenue)} tone="mint" />
+        <StatCard
+          label={t("lb.totalRevenue")}
+          value={format(funnelStats.totalRevenue)}
+          info={t("lb.info.totalRevenue")}
+        />
+        <StatCard
+          label={t("lb.todayRevenue")}
+          value={format(todayRevenue)}
+          tone="mint"
+          info={t("lb.info.todayRevenue")}
+        />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
@@ -576,12 +599,42 @@ function Leaderboard() {
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-subtle">
                   <th className="py-2.5 pr-4">{t("lb.colManager")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("lb.colTotalLeads")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("lb.colSales")}</th>
-                  <th className="px-4 py-2.5 text-right">{t("lb.colRevenue")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("lb.colConversion")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("lb.colKpi")}</th>
-                  <th className="py-2.5 pl-4 text-right">{t("lb.colKpiMonthly")}</th>
+                  <th className="px-4 py-2.5 text-center">
+                    <span className="inline-flex items-center gap-1.5">
+                      {t("lb.colTotalLeads")}
+                      <InfoTip text={t("lb.info.colTotalLeads")} />
+                    </span>
+                  </th>
+                  <th className="px-4 py-2.5 text-center">
+                    <span className="inline-flex items-center gap-1.5">
+                      {t("lb.colSales")}
+                      <InfoTip text={t("lb.info.colSales")} />
+                    </span>
+                  </th>
+                  <th className="px-4 py-2.5 text-right">
+                    <span className="inline-flex items-center justify-end gap-1.5">
+                      {t("lb.colRevenue")}
+                      <InfoTip text={t("lb.info.colRevenue")} />
+                    </span>
+                  </th>
+                  <th className="px-4 py-2.5 text-center">
+                    <span className="inline-flex items-center gap-1.5">
+                      {t("lb.colConversion")}
+                      <InfoTip text={t("lb.info.colConversion")} />
+                    </span>
+                  </th>
+                  <th className="px-4 py-2.5 text-center">
+                    <span className="inline-flex items-center gap-1.5">
+                      {t("lb.colKpi")}
+                      <InfoTip text={t("lb.info.colKpi")} />
+                    </span>
+                  </th>
+                  <th className="py-2.5 pl-4 text-right">
+                    <span className="inline-flex items-center justify-end gap-1.5">
+                      {t("lb.colKpiMonthly")}
+                      <InfoTip text={t("lb.info.colKpiMonthly")} />
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -635,8 +688,15 @@ function Leaderboard() {
         </SectionCard>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <SectionCard title={t("lb.chartConversion")}>
+      <div className="mt-6 space-y-6">
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-2">
+              {t("lb.chartConversion")}
+              <InfoTip text={t("lb.info.chartConversion")} />
+            </span>
+          }
+        >
           {managerTrend.series.length === 0 ? (
             <p className="py-10 text-center text-sm text-subtle">{t("lb.noManagers")}</p>
           ) : (
@@ -683,7 +743,27 @@ function Leaderboard() {
           )}
         </SectionCard>
 
-        <SectionCard title={t("lb.chartRevenue")}>
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-2">
+              {t("lb.chartRevenue")}
+              <InfoTip text={t("lb.info.chartRevenue")} />
+            </span>
+          }
+          actions={
+            <select
+              value={trendWeeks}
+              onChange={(e) => setTrendWeeks(Number(e.target.value))}
+              aria-label={t("lb.trendRangeLabel")}
+              className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors hover:border-primary/40"
+            >
+              <option value={4}>{t("lb.trendRange4")}</option>
+              <option value={8}>{t("lb.trendRange8")}</option>
+              <option value={12}>{t("lb.trendRange12")}</option>
+              <option value={26}>{t("lb.trendRange26")}</option>
+            </select>
+          }
+        >
           {managerTrend.series.length === 0 ? (
             <p className="py-10 text-center text-sm text-subtle">{t("lb.noManagers")}</p>
           ) : (
