@@ -492,19 +492,29 @@ async function syncPipelineStages(
   }
   if (rows.length === 0) return { stageByStatusId: new Map(), pipelineNameById };
 
-  const { data, error } = await supabaseAdmin
-    .from("pipeline_stages")
-    .upsert(
-      dedupeByKey(rows, (r) => `${r.amocrm_pipeline_id}:${r.amocrm_status_id}`),
-      { onConflict: "organization_id,amocrm_pipeline_id,amocrm_status_id" },
-    )
-    .select("id, amocrm_pipeline_id, amocrm_status_id");
-  if (error) throw error;
-
+  // This used to be one upsert() call for every pipeline/status combination
+  // at once -- fine for a handful of pipelines, but an account with dozens
+  // of pipelines (each with its own audit-trail write) pushed a single
+  // statement past the database's statement_timeout, failing the sync
+  // before it ever got to a single lead. Chunk it the same way every other
+  // bulk write in this file already is.
+  const STAGE_UPSERT_CHUNK = 200;
+  const dedupedRows = dedupeByKey(rows, (r) => `${r.amocrm_pipeline_id}:${r.amocrm_status_id}`);
   const stageByStatusId = new Map<string, string>();
-  for (const row of data ?? []) {
-    if (row.amocrm_pipeline_id != null && row.amocrm_status_id != null) {
-      stageByStatusId.set(pipelineStatusKey(row.amocrm_pipeline_id, row.amocrm_status_id), row.id);
+  for (let i = 0; i < dedupedRows.length; i += STAGE_UPSERT_CHUNK) {
+    const chunk = dedupedRows.slice(i, i + STAGE_UPSERT_CHUNK);
+    const { data, error } = await supabaseAdmin
+      .from("pipeline_stages")
+      .upsert(chunk, { onConflict: "organization_id,amocrm_pipeline_id,amocrm_status_id" })
+      .select("id, amocrm_pipeline_id, amocrm_status_id");
+    if (error) throw error;
+    for (const row of data ?? []) {
+      if (row.amocrm_pipeline_id != null && row.amocrm_status_id != null) {
+        stageByStatusId.set(
+          pipelineStatusKey(row.amocrm_pipeline_id, row.amocrm_status_id),
+          row.id,
+        );
+      }
     }
   }
   return { stageByStatusId, pipelineNameById };
