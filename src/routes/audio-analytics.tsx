@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/audio-analytics")({
   head: () => ({
@@ -50,8 +51,16 @@ export const Route = createFileRoute("/audio-analytics")({
       { property: "og:description", content: "Real call activity per rep, from AmoCRM." },
     ],
   }),
-  component: AudioAnalytics,
+  component: AudioAnalyticsGated,
 });
+
+function AudioAnalyticsGated() {
+  return (
+    <PermissionGate action="View recordings">
+      <AudioAnalytics />
+    </PermissionGate>
+  );
+}
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 

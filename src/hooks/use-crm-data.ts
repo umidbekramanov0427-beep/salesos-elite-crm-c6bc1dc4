@@ -269,6 +269,18 @@ export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResou
 export const useUpdateRolePermission = rolePermissionsResource.useUpdate;
 export const useCreateRolePermission = rolePermissionsResource.useCreate;
 
+// Real enforcement, not just a stored preference: super_admin/platform_owner
+// always pass; rop/sotuv_menejeri are gated by their row in role_permissions
+// (see Huquqlar jadvali). No row for that action+role = denied, matching
+// "unconfigured means no access" rather than silently allowing everything.
+export function usePermission(action: string): boolean {
+  const { user } = useAuth();
+  const { data: permissions } = useRolePermissions();
+  if (!user) return false;
+  if (user.role === "super_admin" || user.role === "platform_owner") return true;
+  return (permissions ?? []).some((p) => p.action === action && p.role === user.role && p.allowed);
+}
+
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
 

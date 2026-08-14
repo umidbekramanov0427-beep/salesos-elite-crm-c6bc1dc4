@@ -25,6 +25,7 @@ import {
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,8 +39,16 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Real-time ranking for the whole revenue org." },
     ],
   }),
-  component: Leaderboard,
+  component: LeaderboardGated,
 });
+
+function LeaderboardGated() {
+  return (
+    <PermissionGate action="View leaderboard">
+      <Leaderboard />
+    </PermissionGate>
+  );
+}
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 const LIVE_REFRESH_MS = 3000;

@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth";
 import { useAiAssistantChat } from "@/hooks/use-crm-data";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { cn } from "@/lib/utils";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/ai-assistant")({
   head: () => ({
@@ -30,8 +31,16 @@ export const Route = createFileRoute("/ai-assistant")({
       },
     ],
   }),
-  component: AiAssistantPage,
+  component: AiAssistantPageGated,
 });
+
+function AiAssistantPageGated() {
+  return (
+    <PermissionGate action="Use AI assistant">
+      <AiAssistantPage />
+    </PermissionGate>
+  );
+}
 
 type Msg = { role: "user" | "assistant"; content: string; error?: boolean };
 

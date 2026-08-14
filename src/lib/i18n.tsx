@@ -65,6 +65,11 @@ const en: Dict = {
   "admin.restrictedTitle": "Restricted",
   "admin.restrictedDesc": "This page is only visible to workspace administrators.",
   "admin.restrictedHint": "Ask your admin for access if you believe this is a mistake.",
+  "permission.restrictedTitle": "Restricted",
+  "permission.restrictedDesc":
+    "Your administrator hasn't granted your role access to this section.",
+  "permission.restrictedHint":
+    "Ask your admin to enable it in Huquqlar jadvali if you believe this is a mistake.",
   "platform.title": "Platform",
   "platform.desc": "Manage every company using SalesOS Elite.",
   "platform.orgsTitle": "Companies",
@@ -1489,6 +1494,11 @@ const ru: Dict = {
   "admin.restrictedTitle": "Доступ ограничен",
   "admin.restrictedDesc": "Эта страница видна только администраторам рабочего пространства.",
   "admin.restrictedHint": "Если это ошибка, обратитесь к своему администратору.",
+  "permission.restrictedTitle": "Доступ ограничен",
+  "permission.restrictedDesc":
+    "Ваш администратор не предоставил вашей роли доступ к этому разделу.",
+  "permission.restrictedHint":
+    "Если это ошибка, попросите администратора включить его в Huquqlar jadvali.",
   "platform.title": "Платформа",
   "platform.desc": "Управляйте всеми компаниями, использующими SalesOS Elite.",
   "platform.orgsTitle": "Компании",
@@ -2901,6 +2911,11 @@ const uz: Dict = {
   "admin.restrictedTitle": "Kirish cheklangan",
   "admin.restrictedDesc": "Bu sahifa faqat ish maydoni administratorlariga ko‘rinadi.",
   "admin.restrictedHint": "Agar bu xato deb hisoblasangiz, administratoringizdan so‘rang.",
+  "permission.restrictedTitle": "Kirish cheklangan",
+  "permission.restrictedDesc":
+    "Administratoringiz sizning rolingizga bu bo'limga kirish huquqini bermagan.",
+  "permission.restrictedHint":
+    "Agar bu xato deb hisoblasangiz, administratoringizdan Huquqlar jadvalida yoqishni so'rang.",
   "platform.title": "Platforma",
   "platform.desc": "SalesOS Elite'dan foydalanuvchi barcha kompaniyalarni boshqaring.",
   "platform.orgsTitle": "Kompaniyalar",

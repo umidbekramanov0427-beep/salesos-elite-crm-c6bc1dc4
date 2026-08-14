@@ -33,6 +33,7 @@ import {
   useTasksView,
 } from "@/hooks/use-crm-data";
 import { AuditTrailList } from "@/components/history/AuditTrailList";
+import { PermissionGate } from "@/components/PermissionGate";
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
@@ -47,8 +48,16 @@ export const Route = createFileRoute("/crm/leads/$leadId")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: LeadWorkspace,
+  component: LeadWorkspaceGated,
 });
+
+function LeadWorkspaceGated() {
+  return (
+    <PermissionGate action="View leads">
+      <LeadWorkspace />
+    </PermissionGate>
+  );
+}
 
 function LeadNotFound() {
   const { t } = useI18n();

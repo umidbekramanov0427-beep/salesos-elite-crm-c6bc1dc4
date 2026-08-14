@@ -13,6 +13,7 @@ import {
 import { PageHeader, SectionCard, StatCard } from "@/components/layout/Primitives";
 import { REPS, REVENUE_SERIES, currency } from "@/lib/mock-data";
 import { useI18n } from "@/lib/i18n";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({
@@ -27,8 +28,16 @@ export const Route = createFileRoute("/analytics")({
       { property: "og:description", content: "Sales reports, trends and revenue forecasting." },
     ],
   }),
-  component: Analytics,
+  component: AnalyticsGated,
 });
+
+function AnalyticsGated() {
+  return (
+    <PermissionGate action="View reports">
+      <Analytics />
+    </PermissionGate>
+  );
+}
 
 function Analytics() {
   const { t } = useI18n();

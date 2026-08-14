@@ -23,6 +23,7 @@ import {
   useUpdateLead,
   type LeadRow,
 } from "@/hooks/use-crm-data";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/crm/pipeline")({
   validateSearch: (search: Record<string, unknown>): { funnel?: string | undefined } => ({
@@ -45,8 +46,16 @@ export const Route = createFileRoute("/crm/pipeline")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: PipelinePage,
+  component: PipelinePageGated,
 });
+
+function PipelinePageGated() {
+  return (
+    <PermissionGate action="View pipeline">
+      <PipelinePage />
+    </PermissionGate>
+  );
+}
 
 function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): string {
   if (s.is_won) return "bg-success/10 border-success/30";

@@ -25,6 +25,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useLeadsListPage, usePipelineStagesRaw } from "@/hooks/use-crm-data";
 import { NewLeadDialog } from "@/components/crm/quick-create";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/crm/leads/")({
   validateSearch: (search: Record<string, unknown>): { stage?: string | undefined } => ({
@@ -47,8 +48,16 @@ export const Route = createFileRoute("/crm/leads/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: LeadsPage,
+  component: LeadsPageGated,
 });
+
+function LeadsPageGated() {
+  return (
+    <PermissionGate action="View leads">
+      <LeadsPage />
+    </PermissionGate>
+  );
+}
 
 const tempTone = (t: string): "danger" | "warning" | "info" =>
   t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info";
