@@ -1917,6 +1917,27 @@ export function useTriggerAmoCrmSync() {
   });
 }
 
+export function useDisconnectAmoCrm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<void> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/amocrm-disconnect", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not disconnect.");
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] });
+      void qc.invalidateQueries({ queryKey: ["amocrm_connection_status"] });
+      void qc.invalidateQueries({ queryKey: ["amocrm_catalog"] });
+    },
+  });
+}
+
 export function useCreateEmployee() {
   const qc = useQueryClient();
   return useMutation({

@@ -30,6 +30,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminAiAgentsRouteImport } from './routes/admin.ai-agents'
 import { Route as AdminAmocrmCatalogRouteImport } from './routes/admin.amocrm-catalog'
+import { Route as AdminAmocrmDisconnectRouteImport } from './routes/admin.amocrm-disconnect'
 import { Route as AdminAmocrmImportRouteImport } from './routes/admin.amocrm-import'
 import { Route as AdminAmocrmImportSettingsRouteImport } from './routes/admin.amocrm-import-settings'
 import { Route as AdminAutoRespondersRouteImport } from './routes/admin.auto-responders'
@@ -179,6 +180,11 @@ const AdminAiAgentsRoute = AdminAiAgentsRouteImport.update({
 const AdminAmocrmCatalogRoute = AdminAmocrmCatalogRouteImport.update({
   id: '/amocrm-catalog',
   path: '/amocrm-catalog',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAmocrmDisconnectRoute = AdminAmocrmDisconnectRouteImport.update({
+  id: '/amocrm-disconnect',
+  path: '/amocrm-disconnect',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAmocrmImportRoute = AdminAmocrmImportRouteImport.update({
@@ -429,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
+  '/admin/amocrm-disconnect': typeof AdminAmocrmDisconnectRoute
   '/admin/amocrm-import': typeof AdminAmocrmImportRoute
   '/admin/amocrm-import-settings': typeof AdminAmocrmImportSettingsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
@@ -495,6 +502,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
+  '/admin/amocrm-disconnect': typeof AdminAmocrmDisconnectRoute
   '/admin/amocrm-import': typeof AdminAmocrmImportRoute
   '/admin/amocrm-import-settings': typeof AdminAmocrmImportSettingsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
@@ -562,6 +570,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRoute
   '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
+  '/admin/amocrm-disconnect': typeof AdminAmocrmDisconnectRoute
   '/admin/amocrm-import': typeof AdminAmocrmImportRoute
   '/admin/amocrm-import-settings': typeof AdminAmocrmImportSettingsRoute
   '/admin/auto-responders': typeof AdminAutoRespondersRoute
@@ -630,6 +639,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
     | '/admin/amocrm-catalog'
+    | '/admin/amocrm-disconnect'
     | '/admin/amocrm-import'
     | '/admin/amocrm-import-settings'
     | '/admin/auto-responders'
@@ -696,6 +706,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
     | '/admin/amocrm-catalog'
+    | '/admin/amocrm-disconnect'
     | '/admin/amocrm-import'
     | '/admin/amocrm-import-settings'
     | '/admin/auto-responders'
@@ -762,6 +773,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
     | '/admin/amocrm-catalog'
+    | '/admin/amocrm-disconnect'
     | '/admin/amocrm-import'
     | '/admin/amocrm-import-settings'
     | '/admin/auto-responders'
@@ -1002,6 +1014,13 @@ declare module '@tanstack/react-router' {
       path: '/amocrm-catalog'
       fullPath: '/admin/amocrm-catalog'
       preLoaderRoute: typeof AdminAmocrmCatalogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/amocrm-disconnect': {
+      id: '/admin/amocrm-disconnect'
+      path: '/amocrm-disconnect'
+      fullPath: '/admin/amocrm-disconnect'
+      preLoaderRoute: typeof AdminAmocrmDisconnectRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/amocrm-import': {
@@ -1311,6 +1330,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAiAgentsRoute: typeof AdminAiAgentsRoute
   AdminAmocrmCatalogRoute: typeof AdminAmocrmCatalogRoute
+  AdminAmocrmDisconnectRoute: typeof AdminAmocrmDisconnectRoute
   AdminAmocrmImportRoute: typeof AdminAmocrmImportRoute
   AdminAmocrmImportSettingsRoute: typeof AdminAmocrmImportSettingsRoute
   AdminAutoRespondersRoute: typeof AdminAutoRespondersRoute
@@ -1326,6 +1346,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAiAgentsRoute: AdminAiAgentsRoute,
   AdminAmocrmCatalogRoute: AdminAmocrmCatalogRoute,
+  AdminAmocrmDisconnectRoute: AdminAmocrmDisconnectRoute,
   AdminAmocrmImportRoute: AdminAmocrmImportRoute,
   AdminAmocrmImportSettingsRoute: AdminAmocrmImportSettingsRoute,
   AdminAutoRespondersRoute: AdminAutoRespondersRoute,
