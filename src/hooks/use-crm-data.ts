@@ -3434,6 +3434,10 @@ export function useManagerFunnelStats(funnel?: string | null): Map<string, Manag
 /* ------------------------------------------------------------------ */
 
 const DEFAULT_TREND_WEEKS = 8;
+// A "Butun davr" (all-time) range with years of history would otherwise
+// bucket into hundreds of illegible weekly points -- cap it the same way
+// the chart itself is already capped for legibility.
+const MAX_TREND_WEEKS = 52;
 
 export type ManagerTrendSeries = {
   id: string;
@@ -3455,7 +3459,8 @@ function startOfWeek(d: Date): Date {
 
 export function useManagerWeeklyTrend(
   funnel?: string | null,
-  weeks: number = DEFAULT_TREND_WEEKS,
+  from?: Date | null,
+  to?: Date | null,
 ): ManagerWeeklyTrend {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
@@ -3463,10 +3468,18 @@ export function useManagerWeeklyTrend(
   const managerStats = useManagerFunnelStats(funnel);
 
   return useMemo(() => {
+    const rangeEnd = startOfWeek(to ?? new Date());
+    const rangeStart = from
+      ? startOfWeek(from)
+      : new Date(rangeEnd.getTime() - (DEFAULT_TREND_WEEKS - 1) * 7 * 86400000);
+    const weekCount = Math.min(
+      MAX_TREND_WEEKS,
+      Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (7 * 86400000)) + 1),
+    );
+
     const weekStarts: Date[] = [];
-    const now = startOfWeek(new Date());
-    for (let i = weeks - 1; i >= 0; i--) {
-      const d = new Date(now);
+    for (let i = weekCount - 1; i >= 0; i--) {
+      const d = new Date(rangeEnd);
       d.setDate(d.getDate() - i * 7);
       weekStarts.push(d);
     }
@@ -3523,7 +3536,7 @@ export function useManagerWeeklyTrend(
     });
 
     return { weekLabels, series };
-  }, [leads, stages, profiles, managerStats, funnel, weeks]);
+  }, [leads, stages, profiles, managerStats, funnel, from, to]);
 }
 
 /* ------------------------------------------------------------------ */
