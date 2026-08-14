@@ -267,6 +267,7 @@ export const useDeleteSettingListItem = settingListsResource.useRemove;
 export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResource.useList>[0]) =>
   rolePermissionsResource.useList(opts);
 export const useUpdateRolePermission = rolePermissionsResource.useUpdate;
+export const useCreateRolePermission = rolePermissionsResource.useCreate;
 
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
