@@ -1164,6 +1164,7 @@ export type AudioCallView = {
   durationSeconds: number;
   recordingUrl: string | null;
   occurredAt: string;
+  occurredAtRaw: string;
   transcript: string | null;
   aiSummary: string | null;
   nextStep: string | null;
@@ -1222,6 +1223,7 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
           durationSeconds: c.duration_seconds,
           recordingUrl: c.recording_url,
           occurredAt: timeAgo(c.occurred_at),
+          occurredAtRaw: c.occurred_at,
           transcript: c.transcript,
           aiSummary: c.ai_summary,
           nextStep: c.next_step,

@@ -1,5 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -112,6 +129,212 @@ function BulletList({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+const tooltipStyle = {
+  borderRadius: 12,
+  border: "1px solid var(--color-border)",
+  background: "var(--color-popover)",
+  boxShadow: "var(--shadow-elevated)",
+  fontSize: 12,
+};
+
+function AudioInsightsCharts({ calls }: { calls: AudioCallView[] }) {
+  const { t } = useI18n();
+  const analyzed = useMemo(() => calls.filter((c) => c.score !== null), [calls]);
+
+  const scoreTrend = useMemo(() => {
+    const days: { label: string; score: number | null }[] = [];
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dayKey = d.toDateString();
+      const dayCalls = analyzed.filter((c) => new Date(c.occurredAtRaw).toDateString() === dayKey);
+      const avg = dayCalls.length
+        ? Math.round(dayCalls.reduce((s, c) => s + (c.score ?? 0), 0) / dayCalls.length)
+        : null;
+      days.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, score: avg });
+    }
+    return days;
+  }, [analyzed]);
+
+  const moodBreakdown = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of analyzed) {
+      if (!c.mood) continue;
+      const key = c.mood.trim();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([mood, count]) => ({ mood, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [analyzed]);
+
+  const skillsRadar = useMemo(() => {
+    const bySkill = new Map<string, { met: number; total: number }>();
+    for (const c of analyzed) {
+      for (const item of c.analysis?.checklist ?? []) {
+        if (!item.skill) continue;
+        const cur = bySkill.get(item.skill) ?? { met: 0, total: 0 };
+        cur.total += 1;
+        if (item.met) cur.met += 1;
+        bySkill.set(item.skill, cur);
+      }
+    }
+    return Array.from(bySkill.entries()).map(([skill, { met, total }]) => ({
+      skill,
+      value: total > 0 ? Math.round((met / total) * 100) : 0,
+    }));
+  }, [analyzed]);
+
+  const avgTalkRatio = useMemo(() => {
+    const withRatio = analyzed.filter((c) => c.talkRatio != null);
+    if (withRatio.length === 0) return null;
+    return Math.round(withRatio.reduce((s, c) => s + (c.talkRatio ?? 0), 0) / withRatio.length);
+  }, [analyzed]);
+
+  if (analyzed.length === 0) return null;
+
+  return (
+    <div className="mt-8 grid gap-6 xl:grid-cols-2">
+      <SectionCard
+        title={t("audio.chart.scoreTrend")}
+        description={t("audio.chart.scoreTrendDesc")}
+      >
+        <div className="h-[220px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={scoreTrend} margin={{ left: -14, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                fontSize={11}
+                stroke="var(--color-subtle)"
+              />
+              <YAxis
+                domain={[0, 100]}
+                tickLine={false}
+                axisLine={false}
+                fontSize={11}
+                stroke="var(--color-subtle)"
+              />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke="var(--color-primary)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                connectNulls
+                animationDuration={700}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title={t("audio.chart.moodBreakdown")}
+        description={t("audio.chart.moodBreakdownDesc")}
+      >
+        {moodBreakdown.length === 0 ? (
+          <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+        ) : (
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={moodBreakdown} margin={{ left: -14, right: 8, top: 8 }}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="mood"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  stroke="var(--color-subtle)"
+                  interval={0}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  stroke="var(--color-subtle)"
+                />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-accent)" }} />
+                <Bar
+                  dataKey="count"
+                  fill="var(--color-primary)"
+                  radius={[8, 8, 4, 4]}
+                  animationDuration={700}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title={t("audio.chart.skillsRadar")}
+        description={t("audio.chart.skillsRadarDesc")}
+      >
+        {skillsRadar.length === 0 ? (
+          <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noRubric")}</p>
+        ) : (
+          <div className="h-[260px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={skillsRadar}>
+                <PolarGrid stroke="var(--color-border)" />
+                <PolarAngleAxis dataKey="skill" fontSize={11} stroke="var(--color-subtle)" />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar
+                  dataKey="value"
+                  stroke="var(--color-primary)"
+                  fill="var(--color-primary)"
+                  fillOpacity={0.25}
+                  animationDuration={700}
+                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${v}%`} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title={t("audio.chart.talkRatio")} description={t("audio.chart.talkRatioDesc")}>
+        {avgTalkRatio == null ? (
+          <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+        ) : (
+          <div className="space-y-3 py-4">
+            <div className="flex h-8 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="flex items-center justify-center bg-primary text-xs font-semibold text-primary-foreground transition-[width]"
+                style={{ width: `${avgTalkRatio}%` }}
+              >
+                {avgTalkRatio}%
+              </div>
+              <div className="flex flex-1 items-center justify-center bg-mint text-xs font-semibold text-mint-foreground">
+                {100 - avgTalkRatio}%
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-primary" /> {t("audio.chart.rep")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-mint-border" /> {t("audio.chart.customer")}
+              </span>
+            </div>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }
@@ -706,6 +929,10 @@ function AudioAnalytics() {
           avgDuration={totals.avgDuration}
           connected={totals.connected}
         />
+      </div>
+
+      <div className="mt-8">
+        <AudioInsightsCharts calls={recent} />
       </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-3">
