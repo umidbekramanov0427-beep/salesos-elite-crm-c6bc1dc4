@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AdminBackLink } from "@/components/admin/AdminBackLink";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn, describeError } from "@/lib/utils";
@@ -203,6 +204,7 @@ function ImportSettingsPage() {
 
   return (
     <>
+      <AdminBackLink />
       <PageHeader
         title={t("amocrmImport.title")}
         description={t("amocrmImport.desc")}
@@ -342,11 +344,14 @@ function AmoImportSettingsPage() {
 
   if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
-      <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <ShieldAlert className="h-4 w-4" /> {t("admin.restrictedHint")}
-        </div>
-      </SectionCard>
+      <>
+        <AdminBackLink />
+        <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <ShieldAlert className="h-4 w-4" /> {t("admin.restrictedHint")}
+          </div>
+        </SectionCard>
+      </>
     );
   }
 

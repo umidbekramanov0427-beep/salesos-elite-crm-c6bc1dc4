@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Loader2, MessageSquare, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { AdminBackLink } from "@/components/admin/AdminBackLink";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -270,11 +271,14 @@ function AiAgentsPage() {
 
   if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
-      <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <ShieldAlert className="h-4 w-4" /> {t("admin.restrictedHint")}
-        </div>
-      </SectionCard>
+      <>
+        <AdminBackLink />
+        <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <ShieldAlert className="h-4 w-4" /> {t("admin.restrictedHint")}
+          </div>
+        </SectionCard>
+      </>
     );
   }
 
@@ -283,6 +287,7 @@ function AiAgentsPage() {
 
   return (
     <>
+      <AdminBackLink />
       <PageHeader title={t("admin.aiAgents")} description={t("admin.aiAgentsDesc")} />
 
       <p className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
