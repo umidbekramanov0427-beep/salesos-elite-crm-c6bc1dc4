@@ -60,6 +60,9 @@ import {
   useUpdateProfile,
   useUpdateSettingListItem,
   useUpdateStage,
+  type GlossaryItem,
+  type ObjectionItem,
+  type ProductServiceItem,
   type SettingListType,
   type StageRow,
 } from "@/hooks/use-crm-data";
@@ -388,6 +391,152 @@ function NotificationsSection() {
   );
 }
 
+function TwoFieldListEditor<T extends Record<string, string>>({
+  items,
+  onChange,
+  keyA,
+  keyB,
+  placeholderA,
+  placeholderB,
+  addLabel,
+  disabled,
+}: {
+  items: T[];
+  onChange: (items: T[]) => void;
+  keyA: keyof T;
+  keyB: keyof T;
+  placeholderA: string;
+  placeholderB: string;
+  addLabel: string;
+  disabled?: boolean;
+}) {
+  function update(i: number, key: keyof T, value: string) {
+    const next = items.slice();
+    next[i] = { ...next[i], [key]: value } as T;
+    onChange(next);
+  }
+  function remove(i: number) {
+    onChange(items.filter((_, idx) => idx !== i));
+  }
+  function add() {
+    onChange([...items, { [keyA]: "", [keyB]: "" } as T]);
+  }
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-2 rounded-xl border border-border bg-surface p-2.5"
+        >
+          <div className="grid flex-1 gap-2 sm:grid-cols-2">
+            <input
+              value={item[keyA] as string}
+              onChange={(e) => update(i, keyA, e.target.value)}
+              disabled={disabled}
+              placeholder={placeholderA}
+              className="h-9 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-primary/40 disabled:bg-muted"
+            />
+            <input
+              value={item[keyB] as string}
+              onChange={(e) => update(i, keyB, e.target.value)}
+              disabled={disabled}
+              placeholder={placeholderB}
+              className="h-9 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-primary/40 disabled:bg-muted"
+            />
+          </div>
+          {!disabled && (
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              className="mt-1.5 shrink-0 text-subtle transition-colors hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      ))}
+      {!disabled && (
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <Plus className="h-3.5 w-3.5" /> {addLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function TagListEditor({
+  items,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  items: string[];
+  onChange: (items: string[]) => void;
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+  function add() {
+    const v = draft.trim();
+    if (!v) return;
+    onChange([...items, v]);
+    setDraft("");
+  }
+  function remove(i: number) {
+    onChange(items.filter((_, idx) => idx !== i));
+  }
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((tag, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground"
+          >
+            {tag}
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="text-subtle transition-colors hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      {!disabled && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            placeholder={placeholder}
+            className="h-9 flex-1 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-primary/40"
+          />
+          <button
+            type="button"
+            onClick={add}
+            className="inline-flex h-9 items-center gap-1 rounded-lg border border-dashed border-border px-3 text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BusinessProfileSection() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -398,33 +547,59 @@ function BusinessProfileSection() {
 
   const [companyName, setCompanyName] = useState(profile?.company_name ?? "");
   const [description, setDescription] = useState(profile?.description ?? "");
-  const [competitors, setCompetitors] = useState(profile?.competitors ?? "");
-  const [terminology, setTerminology] = useState(profile?.terminology ?? "");
+  const [valueProposition, setValueProposition] = useState(profile?.value_proposition ?? "");
+  const [targetCustomer, setTargetCustomer] = useState(profile?.target_customer ?? "");
+  const [qualifiedLeadDefinition, setQualifiedLeadDefinition] = useState(
+    profile?.qualified_lead_definition ?? "",
+  );
   const [tone, setTone] = useState(profile?.tone ?? "");
+  const [productsServices, setProductsServices] = useState<ProductServiceItem[]>([]);
+  const [objections, setObjections] = useState<ObjectionItem[]>([]);
+  const [glossary, setGlossary] = useState<GlossaryItem[]>([]);
+  const [competitorsList, setCompetitorsList] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showBot, setShowBot] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     if (!profile || hydrated) return;
     setCompanyName(profile.company_name);
     setDescription(profile.description);
-    setCompetitors(profile.competitors);
-    setTerminology(profile.terminology);
+    setValueProposition(profile.value_proposition);
+    setTargetCustomer(profile.target_customer);
+    setQualifiedLeadDefinition(profile.qualified_lead_definition);
     setTone(profile.tone);
+    setProductsServices(
+      Array.isArray(profile.products_services)
+        ? (profile.products_services as ProductServiceItem[])
+        : [],
+    );
+    setObjections(Array.isArray(profile.objections) ? (profile.objections as ObjectionItem[]) : []);
+    setGlossary(Array.isArray(profile.glossary) ? (profile.glossary as GlossaryItem[]) : []);
+    setCompetitorsList(profile.competitors_list ?? []);
     setHydrated(true);
   }, [profile, hydrated]);
 
-  async function onSave(e: FormEvent) {
-    e.preventDefault();
+  function clean<T extends Record<string, string>>(items: T[]): T[] {
+    return items.filter((item) => Object.values(item).some((v) => v.trim() !== ""));
+  }
+
+  async function save(patch: Partial<Parameters<typeof updateProfile.mutateAsync>[0]>) {
     setSaving(true);
     try {
       await updateProfile.mutateAsync({
         company_name: companyName.trim(),
         description: description.trim(),
-        competitors: competitors.trim(),
-        terminology: terminology.trim(),
+        value_proposition: valueProposition.trim(),
+        target_customer: targetCustomer.trim(),
+        qualified_lead_definition: qualifiedLeadDefinition.trim(),
         tone: tone.trim(),
+        products_services: clean(productsServices),
+        objections: clean(objections),
+        glossary: clean(glossary),
+        competitors_list: competitorsList,
+        ...patch,
       });
       toast.success(t("settings.business.saved"));
     } catch (err) {
@@ -434,6 +609,36 @@ function BusinessProfileSection() {
     }
   }
 
+  async function onSave(e: FormEvent) {
+    e.preventDefault();
+    await save({});
+  }
+
+  async function onReset() {
+    setCompanyName("");
+    setDescription("");
+    setValueProposition("");
+    setTargetCustomer("");
+    setQualifiedLeadDefinition("");
+    setTone("");
+    setProductsServices([]);
+    setObjections([]);
+    setGlossary([]);
+    setCompetitorsList([]);
+    await save({
+      company_name: "",
+      description: "",
+      value_proposition: "",
+      target_customer: "",
+      qualified_lead_definition: "",
+      tone: "",
+      products_services: [],
+      objections: [],
+      glossary: [],
+      competitors_list: [],
+    });
+  }
+
   return (
     <SectionCard
       title={t("settings.business.title")}
@@ -441,13 +646,22 @@ function BusinessProfileSection() {
       actions={
         canManage &&
         !showBot && (
-          <button
-            type="button"
-            onClick={() => setShowBot(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
-          >
-            <Bot className="h-3.5 w-3.5" /> {t("bizbot.cta")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBot(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+            >
+              <Bot className="h-3.5 w-3.5" /> {t("bizbot.cta")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold text-subtle transition-colors hover:border-destructive/30 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> {t("settings.business.resetToDefault")}
+            </button>
+          </div>
         )
       }
     >
@@ -467,13 +681,22 @@ function BusinessProfileSection() {
           onComplete={(fields) => {
             if (fields.company_name) setCompanyName(fields.company_name);
             if (fields.description) setDescription(fields.description);
-            if (fields.competitors) setCompetitors(fields.competitors);
-            if (fields.terminology) setTerminology(fields.terminology);
+            if (fields.value_proposition) setValueProposition(fields.value_proposition);
+            if (fields.target_customer) setTargetCustomer(fields.target_customer);
+            if (fields.qualified_lead_definition)
+              setQualifiedLeadDefinition(fields.qualified_lead_definition);
             if (fields.tone) setTone(fields.tone);
             toast.success(t("bizbot.reviewHint"));
           }}
         />
       )}
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title={t("settings.business.resetConfirmTitle")}
+        description={t("settings.business.resetConfirmDesc")}
+        onConfirm={onReset}
+      />
       <form onSubmit={onSave} className="grid gap-5 sm:grid-cols-2">
         <label className="block sm:col-span-2">
           <span className="text-[13px] font-medium text-muted-foreground">
@@ -497,18 +720,40 @@ function BusinessProfileSection() {
             className="mt-2 h-20 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
           />
         </label>
-        <label className="block">
+        <label className="block sm:col-span-2">
           <span className="text-[13px] font-medium text-muted-foreground">
-            {t("settings.business.competitors")}
+            {t("settings.business.valueProposition")}
           </span>
-          <input
-            value={competitors}
-            onChange={(e) => setCompetitors(e.target.value)}
+          <textarea
+            value={valueProposition}
+            onChange={(e) => setValueProposition(e.target.value)}
             disabled={!canManage}
-            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
+            className="mt-2 h-20 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
           />
         </label>
         <label className="block">
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.business.targetCustomer")}
+          </span>
+          <textarea
+            value={targetCustomer}
+            onChange={(e) => setTargetCustomer(e.target.value)}
+            disabled={!canManage}
+            className="mt-2 h-20 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
+          />
+        </label>
+        <label className="block">
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.business.qualifiedLeadDefinition")}
+          </span>
+          <textarea
+            value={qualifiedLeadDefinition}
+            onChange={(e) => setQualifiedLeadDefinition(e.target.value)}
+            disabled={!canManage}
+            className="mt-2 h-20 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
+          />
+        </label>
+        <label className="block sm:col-span-2">
           <span className="text-[13px] font-medium text-muted-foreground">
             {t("settings.business.tone")}
           </span>
@@ -519,17 +764,75 @@ function BusinessProfileSection() {
             className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
           />
         </label>
-        <label className="block sm:col-span-2">
+
+        <div className="sm:col-span-2">
           <span className="text-[13px] font-medium text-muted-foreground">
-            {t("settings.business.terminology")}
+            {t("settings.business.productsServices")}
           </span>
-          <textarea
-            value={terminology}
-            onChange={(e) => setTerminology(e.target.value)}
-            disabled={!canManage}
-            className="mt-2 h-20 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background disabled:bg-muted disabled:text-muted-foreground"
-          />
-        </label>
+          <div className="mt-2">
+            <TwoFieldListEditor
+              items={productsServices}
+              onChange={setProductsServices}
+              keyA="name"
+              keyB="description"
+              placeholderA={t("settings.business.productName")}
+              placeholderB={t("settings.business.productDescription")}
+              addLabel={t("settings.business.addProduct")}
+              disabled={!canManage}
+            />
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.business.objections")}
+          </span>
+          <div className="mt-2">
+            <TwoFieldListEditor
+              items={objections}
+              onChange={setObjections}
+              keyA="objection"
+              keyB="response"
+              placeholderA={t("settings.business.objectionText")}
+              placeholderB={t("settings.business.objectionResponse")}
+              addLabel={t("settings.business.addObjection")}
+              disabled={!canManage}
+            />
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.business.glossary")}
+          </span>
+          <div className="mt-2">
+            <TwoFieldListEditor
+              items={glossary}
+              onChange={setGlossary}
+              keyA="term"
+              keyB="definition"
+              placeholderA={t("settings.business.term")}
+              placeholderB={t("settings.business.definition")}
+              addLabel={t("settings.business.addTerm")}
+              disabled={!canManage}
+            />
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {t("settings.business.competitors")}
+          </span>
+          <div className="mt-2">
+            <TagListEditor
+              items={competitorsList}
+              onChange={setCompetitorsList}
+              placeholder={t("settings.business.addCompetitor")}
+              disabled={!canManage}
+            />
+          </div>
+        </div>
+
         {canManage && (
           <div className="sm:col-span-2">
             <button

@@ -301,35 +301,56 @@ export type Database = {
         Row: {
           company_name: string
           competitors: string
+          competitors_list: string[]
           description: string
+          glossary: Json
           id: boolean
+          objections: Json
           organization_id: string
+          products_services: Json
+          qualified_lead_definition: string
+          target_customer: string
           terminology: string
           tone: string
           updated_at: string
           updated_by: string | null
+          value_proposition: string
         }
         Insert: {
           company_name?: string
           competitors?: string
+          competitors_list?: string[]
           description?: string
+          glossary?: Json
           id?: boolean
+          objections?: Json
           organization_id: string
+          products_services?: Json
+          qualified_lead_definition?: string
+          target_customer?: string
           terminology?: string
           tone?: string
           updated_at?: string
           updated_by?: string | null
+          value_proposition?: string
         }
         Update: {
           company_name?: string
           competitors?: string
+          competitors_list?: string[]
           description?: string
+          glossary?: Json
           id?: boolean
+          objections?: Json
           organization_id?: string
+          products_services?: Json
+          qualified_lead_definition?: string
+          target_customer?: string
           terminology?: string
           tone?: string
           updated_at?: string
           updated_by?: string | null
+          value_proposition?: string
         }
         Relationships: [
           {

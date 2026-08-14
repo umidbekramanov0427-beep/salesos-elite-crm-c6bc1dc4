@@ -7,13 +7,20 @@ import { cn } from "@/lib/utils";
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
-type FieldKey = "company_name" | "description" | "competitors" | "terminology" | "tone";
+type FieldKey =
+  | "company_name"
+  | "description"
+  | "value_proposition"
+  | "target_customer"
+  | "qualified_lead_definition"
+  | "tone";
 
 const FIELD_ORDER: FieldKey[] = [
   "company_name",
   "description",
-  "competitors",
-  "terminology",
+  "value_proposition",
+  "target_customer",
+  "qualified_lead_definition",
   "tone",
 ];
 
@@ -36,8 +43,9 @@ export function BusinessProfileBot({
   const questions: Record<FieldKey, string> = {
     company_name: t("bizbot.q.companyName"),
     description: t("bizbot.q.description"),
-    competitors: t("bizbot.q.competitors"),
-    terminology: t("bizbot.q.terminology"),
+    value_proposition: t("bizbot.q.valueProposition"),
+    target_customer: t("bizbot.q.targetCustomer"),
+    qualified_lead_definition: t("bizbot.q.qualifiedLeadDefinition"),
     tone: t("bizbot.q.tone"),
   };
 
@@ -65,7 +73,7 @@ export function BusinessProfileBot({
         messages: [
           {
             role: "user",
-            content: `Below is a Q&A interview with a business owner filling out their CRM's business profile. Extract and clean up the answers into a strict JSON object with exactly these keys: company_name, description, competitors, terminology, tone. Each value must be a well-written string in ${LANG_NAME[lang]} based only on what the user actually said — don't invent facts they didn't mention. If the user gave no real answer for a field, use an empty string "" for it. Respond with ONLY the raw JSON object — no markdown fences, no extra commentary.\n\n${transcript}`,
+            content: `Below is a Q&A interview with a business owner filling out their CRM's business profile. Extract and clean up the answers into a strict JSON object with exactly these keys: company_name, description, value_proposition, target_customer, qualified_lead_definition, tone. Each value must be a well-written string in ${LANG_NAME[lang]} based only on what the user actually said — don't invent facts they didn't mention. If the user gave no real answer for a field, use an empty string "" for it. Respond with ONLY the raw JSON object — no markdown fences, no extra commentary.\n\n${transcript}`,
           },
         ],
       });
