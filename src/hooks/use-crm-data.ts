@@ -3325,11 +3325,26 @@ export function useFunnelNames() {
 /* funnel's totals instead of silently vanishing from the sum.          */
 /* ------------------------------------------------------------------ */
 
-// AmoCRM stage names are whatever the org typed into their own pipeline —
-// match loosely (lowercased, apostrophes stripped) rather than against an
-// exact string, so "To'liq to'lov", "TO'LIQ TO'LOV" and "Toliq to'lov" all
-// still match.
-const SALES_STAGE_KEYWORDS = ["predoplata", "yarim", "toliq"];
+// AmoCRM stage names are whatever the org typed into their own pipeline, and
+// vary funnel to funnel -- confirmed real-world variants (per the user):
+//   Prepayment:   "Predoplata", "Predoplata qildi", "Predoplata qildi |
+//                 kelishuv bor", and the observed misspelling "Peredoplata"
+//   Half payment: always "Yarim to'lov"
+//   Full payment: "To'liq to'lov qildi", "WON | To'liq to'lov",
+//                 "Успешно реализовано" (ru), or bare "WON"
+//   Exception:    some funnels use "ROP Closed" in place of a full-payment
+//                 stage -- counts as a sale too when it shows up
+// Matched loosely (lowercased, apostrophes stripped) against any of these
+// as a substring, not an exact string.
+const SALES_STAGE_KEYWORDS = [
+  "predoplata",
+  "peredoplata",
+  "yarim",
+  "toliq",
+  "won",
+  "успешно",
+  "rop closed",
+];
 
 function normalizeStageName(name: string): string {
   return name.toLowerCase().replace(/['’ʼ`]/g, "");
