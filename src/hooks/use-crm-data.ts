@@ -1129,6 +1129,26 @@ export function useLeaderboardView(
 /* OPENAI_API_KEY (transcription) and DEEPSEEK_API_KEY (summary) set.      */
 /* ------------------------------------------------------------------ */
 
+export type CallChecklistItem = {
+  stage: string;
+  step: string;
+  skill: string | null;
+  points: number;
+  met: boolean;
+  note: string;
+};
+
+export type CallAnalysis = {
+  checklist: CallChecklistItem[];
+  strengths: string[];
+  improvements: string[];
+  warnings: string[];
+  risks: string[];
+  agreements: string[];
+  keyQuotes: string[];
+  topObjections: string[];
+};
+
 export type AudioCallView = {
   id: string;
   leadId: string | null;
@@ -1146,6 +1166,10 @@ export type AudioCallView = {
   nextStep: string | null;
   amocrmTaskId: number | null;
   amocrmId: number | null;
+  score: number | null;
+  mood: string | null;
+  talkRatio: number | null;
+  analysis: CallAnalysis | null;
 };
 
 export type RecoverableLeadView = {
@@ -1200,6 +1224,10 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
           nextStep: c.next_step,
           amocrmTaskId: c.amocrm_task_id,
           amocrmId: lead?.amocrmId ?? null,
+          score: c.score,
+          mood: c.mood,
+          talkRatio: c.talk_ratio,
+          analysis: (c.analysis as CallAnalysis | null) ?? null,
         };
       }),
     [calls, leadsById],
@@ -2417,6 +2445,10 @@ export function useAnalyzeCall() {
       summary: string;
       nextStep: string | null;
       taskWarning: string | null;
+      score: number | null;
+      mood: string | null;
+      talkRatio: number | null;
+      analysis: CallAnalysis | null;
     }> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
