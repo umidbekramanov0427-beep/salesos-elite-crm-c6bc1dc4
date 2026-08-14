@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import {
   AlertOctagon,
@@ -363,6 +363,7 @@ function ErrorLogsSection() {
 function AdminPanel() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
@@ -372,6 +373,10 @@ function AdminPanel() {
         </div>
       </SectionCard>
     );
+  }
+
+  if (pathname !== "/admin") {
+    return <Outlet />;
   }
 
   return <AdminPanelContent />;
