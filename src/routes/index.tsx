@@ -260,7 +260,7 @@ function Leaderboard() {
 
   const { data: stageOptions } = usePipelineStagesRaw();
   const { names: funnelNames } = useFunnelNames();
-  const { tags: tagSummary } = useTagsSummary();
+  const { tags: tagSummary } = useTagsSummary(funnel);
 
   const filters = useMemo(
     () => ({
