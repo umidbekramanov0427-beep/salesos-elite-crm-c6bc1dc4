@@ -72,6 +72,11 @@ export async function exchangeCodeForTokens(code: string, subdomain: string) {
   return tokens;
 }
 
+// Mutates `conn` in place (in addition to returning it) so that every other
+// reference to the same connection object already in flight elsewhere in a
+// sync — syncPipelineStages, syncUserMapping, parallel amoFetch calls — picks
+// up the refreshed access_token too, without needing every call site to be
+// re-threaded through a new object each time a refresh happens.
 async function refreshTokens(conn: AmoConnection) {
   const tokens = await tokenRequest(conn.subdomain, {
     client_id: getAmoClientId(),
@@ -90,12 +95,10 @@ async function refreshTokens(conn: AmoConnection) {
     })
     .eq("organization_id", conn.organization_id);
   if (error) throw error;
-  return {
-    ...conn,
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    token_expires_at: expiresAt,
-  };
+  conn.access_token = tokens.access_token;
+  conn.refresh_token = tokens.refresh_token;
+  conn.token_expires_at = expiresAt;
+  return conn;
 }
 
 export async function getConnection(organizationId: string): Promise<AmoConnection | null> {
@@ -161,7 +164,12 @@ const RATE_LIMIT_MAX_RETRIES = 6;
 // "back off, you're going too fast" signals — just try again shortly.
 const SERVER_ERROR_MAX_RETRIES = 3;
 
-async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise<unknown> {
+async function amoFetch(
+  conn: AmoConnection,
+  path: string,
+  attempt = 1,
+  triedRefresh = false,
+): Promise<unknown> {
   let res: Response;
   try {
     res = await fetch(`https://${conn.subdomain}${path}`, {
@@ -176,7 +184,7 @@ async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise
     // an opaque "fetch failed" and no chance to recover.
     if (attempt <= SERVER_ERROR_MAX_RETRIES) {
       await sleep(attempt * 1000);
-      return amoFetch(conn, path, attempt + 1);
+      return amoFetch(conn, path, attempt + 1, triedRefresh);
     }
     throw err;
   }
@@ -184,11 +192,22 @@ async function amoFetch(conn: AmoConnection, path: string, attempt = 1): Promise
     const retryAfterHeader = Number(res.headers.get("retry-after"));
     const delayMs = (retryAfterHeader > 0 ? retryAfterHeader : attempt) * 1000;
     await sleep(delayMs);
-    return amoFetch(conn, path, attempt + 1);
+    return amoFetch(conn, path, attempt + 1, triedRefresh);
   }
   if (res.status >= 500 && attempt <= SERVER_ERROR_MAX_RETRIES) {
     await sleep(attempt * 1000);
-    return amoFetch(conn, path, attempt + 1);
+    return amoFetch(conn, path, attempt + 1, triedRefresh);
+  }
+  // A 401 here means AmoCRM considers our access_token invalid even though
+  // our own stored token_expires_at said it still had time left — the token
+  // can be invalidated early (revoked, superseded by another sign-in) with
+  // no warning. Force one refresh-and-retry before giving up, so a sync
+  // doesn't stay permanently broken on stale expiry bookkeeping alone; if
+  // the refresh_token itself is also dead, refreshTokens() throws its own
+  // clear error instead of masking it as this 401.
+  if (res.status === 401 && !triedRefresh) {
+    await refreshTokens(conn);
+    return amoFetch(conn, path, attempt, true);
   }
   if (res.status === 204) return null;
   if (!res.ok) {
