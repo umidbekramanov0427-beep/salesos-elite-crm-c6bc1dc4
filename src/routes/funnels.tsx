@@ -24,9 +24,12 @@ import {
   useAmoCrmLink,
   useAsOfSnapshot,
   useCrmLeads,
+  useFunnelListStats,
+  usePipelineBoardLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
   type CrmLeadView,
+  type FunnelStat,
   type LeadRow,
 } from "@/hooks/use-crm-data";
 
@@ -62,18 +65,61 @@ const CARD_ACCENTS = [
   "before:bg-violet-500",
 ];
 
+// Reduces a small in-memory leads array (the as-of-date snapshot) into the
+// same FunnelStat[] shape the live path gets from funnel_list_stats -- used
+// only when time-travelling, since that data doesn't exist in a live table
+// to run the RPC against.
+function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
+  const map = new Map<string, CrmLeadView[]>();
+  for (const l of leads) {
+    const key = funnelOf(l);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(l);
+  }
+  return Array.from(map.entries())
+    .map(([name, items]): FunnelStat => {
+      const won = items.filter((l) => l.stageIsWon).length;
+      return {
+        name,
+        count: items.length,
+        value: items.reduce((sum, l) => sum + l.expectedRevenue, 0),
+        won,
+        hot: items.filter((l) => l.temperature === "Hot").length,
+        warm: items.filter((l) => l.temperature === "Warm").length,
+        cold: items.filter((l) => l.temperature === "Cold").length,
+        conversion: items.length ? Math.round((won / items.length) * 1000) / 10 : 0,
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+}
+
 function Funnels() {
   const { funnel: funnelParam } = Route.useSearch();
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
-  const {
-    rows: leads,
-    leads: rawLeads,
-    isLoading: leadsLoading,
-  } = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined);
-  const isLoading = leadsLoading || (asOfDate ? asOfSnapshot.isLoading : false);
 
-  if (isLoading && leads.length === 0) {
+  // Live path: the list gets its per-funnel numbers from a single small SQL
+  // aggregate instead of the whole org's leads; the detail view fetches
+  // only that one funnel's leads (same hook the AmoCRM board uses).
+  const listStats = useFunnelListStats(!asOfDate);
+  const board = usePipelineBoardLeads(!asOfDate && funnelParam ? funnelParam : null);
+
+  // As-of-date path: unchanged -- reduces the small in-memory snapshot.
+  const override = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined, {
+    enabled: !!asOfDate,
+  });
+
+  const funnels = asOfDate ? funnelStatsFromLeads(override.rows) : listStats.funnels;
+  const detailLeads = asOfDate
+    ? override.rows.filter((l) => funnelOf(l) === funnelParam)
+    : board.rows;
+  const isLoading = asOfDate
+    ? override.isLoading || asOfSnapshot.isLoading
+    : funnelParam
+      ? board.isLoading
+      : listStats.isLoading;
+
+  if (isLoading && funnels.length === 0 && !funnelParam) {
     return (
       <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -86,22 +132,24 @@ function Funnels() {
   return funnelParam ? (
     <FunnelDetail
       name={funnelParam}
-      leads={leads}
-      rawLeads={rawLeads}
+      leads={detailLeads}
+      funnelNames={funnels.map((f) => f.name)}
       isLoading={isLoading}
       asOfDate={asOfDate}
       asOfControl={asOfControl}
     />
   ) : (
-    <FunnelList leads={leads} isLoading={isLoading} asOfDate={asOfDate} asOfControl={asOfControl} />
+    <FunnelList
+      funnels={funnels}
+      isLoading={isLoading}
+      asOfDate={asOfDate}
+      asOfControl={asOfControl}
+    />
   );
 }
 
-function HeatBar({ leads }: { leads: CrmLeadView[] }) {
+function HeatBar({ hot, warm, cold }: { hot: number; warm: number; cold: number }) {
   const { t } = useI18n();
-  const hot = leads.filter((l) => l.temperature === "Hot").length;
-  const warm = leads.filter((l) => l.temperature === "Warm").length;
-  const cold = leads.filter((l) => l.temperature === "Cold").length;
   const total = Math.max(1, hot + warm + cold);
 
   return (
@@ -125,35 +173,18 @@ function HeatBar({ leads }: { leads: CrmLeadView[] }) {
 }
 
 function FunnelList({
-  leads,
+  funnels,
   isLoading,
   asOfDate,
   asOfControl,
 }: {
-  leads: CrmLeadView[];
+  funnels: FunnelStat[];
   isLoading: boolean;
   asOfDate: Date | null;
   asOfControl: ReactNode;
 }) {
   const { t } = useI18n();
   const { format } = useCurrency();
-
-  const funnels = useMemo(() => {
-    const map = new Map<string, CrmLeadView[]>();
-    for (const l of leads) {
-      const key = funnelOf(l);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(l);
-    }
-    return Array.from(map.entries())
-      .map(([name, items]) => {
-        const value = items.reduce((sum, l) => sum + l.expectedRevenue, 0);
-        const won = items.filter((l) => l.stage === "Won").length;
-        const conversion = items.length ? Math.round((won / items.length) * 1000) / 10 : 0;
-        return { name, items, count: items.length, value, won, conversion };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [leads]);
 
   return (
     <>
@@ -197,7 +228,7 @@ function FunnelList({
               </div>
             </div>
 
-            <HeatBar leads={f.items} />
+            <HeatBar hot={f.hot} warm={f.warm} cold={f.cold} />
 
             <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
               <span className="font-semibold text-foreground">{format(f.value)}</span>
@@ -361,15 +392,15 @@ function LeadListRow({
 
 function FunnelDetail({
   name,
-  leads: allLeads,
-  rawLeads,
+  leads,
+  funnelNames,
   isLoading,
   asOfDate,
   asOfControl,
 }: {
   name: string;
   leads: CrmLeadView[];
-  rawLeads: LeadRow[];
+  funnelNames: string[];
   isLoading: boolean;
   asOfDate: Date | null;
   asOfControl: ReactNode;
@@ -384,15 +415,6 @@ function FunnelDetail({
   const { data: stages } = usePipelineStagesRaw();
   const getAmoLink = useAmoCrmLink();
 
-  const funnelNames = useMemo(() => {
-    const set = new Set<string>();
-    for (const l of allLeads) set.add(funnelOf(l));
-    return Array.from(set).sort();
-  }, [allLeads]);
-
-  const leads = useMemo(() => allLeads.filter((l) => funnelOf(l) === name), [allLeads, name]);
-  const rawById = useMemo(() => new Map(rawLeads.map((r) => [r.id, r])), [rawLeads]);
-
   // Egalar/teglar filtrlari shu voronkadagi lidlarga tegishli bo'lishi
   // kerak -- butun akkaunt bo'yicha emas, aks holda boshqa voronkalarning
   // egalari/teglari ham ko'rinib, ishlatib bo'lmaydigan variantlar chiqadi.
@@ -406,19 +428,10 @@ function FunnelDetail({
     return Array.from(set).sort();
   }, [leads]);
 
-  const gallery = useMemo(() => {
-    const filtered = filterLeads(leads, { ...filters, funnel: null });
-    return [...filtered].sort((a, b) => {
-      const at = rawById.get(a.id)?.updated_at ?? "";
-      const bt = rawById.get(b.id)?.updated_at ?? "";
-      return new Date(bt).getTime() - new Date(at).getTime();
-    });
-  }, [leads, rawById, filters]);
+  const gallery = useMemo(() => filterLeads(leads, { ...filters, funnel: null }), [leads, filters]);
 
-  const wonCount = leads.filter((l) => l.stage === "Won").length;
-  const lostValue = leads
-    .filter((l) => l.stage === "Lost")
-    .reduce((s, l) => s + l.expectedRevenue, 0);
+  const wonCount = leads.filter((l) => l.stageIsWon).length;
+  const lostValue = leads.filter((l) => l.stageIsLost).reduce((s, l) => s + l.expectedRevenue, 0);
   const conversionRate = leads.length ? Math.round((wonCount / leads.length) * 1000) / 10 : 0;
 
   return (
