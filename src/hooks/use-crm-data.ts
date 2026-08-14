@@ -2494,6 +2494,10 @@ export async function notifyTaskAssigned(assigneeId: string, taskTitle: string):
 
 export type BusinessProfileRow = Tables["business_profile"]["Row"];
 
+export type ProductServiceItem = { name: string; description: string };
+export type ObjectionItem = { objection: string; response: string };
+export type GlossaryItem = { term: string; definition: string };
+
 export function useBusinessProfile() {
   const { user } = useAuth();
   return useQuery({
@@ -2519,7 +2523,18 @@ export function useUpdateBusinessProfile() {
       patch: Partial<
         Pick<
           BusinessProfileRow,
-          "company_name" | "description" | "competitors" | "terminology" | "tone"
+          | "company_name"
+          | "description"
+          | "competitors"
+          | "terminology"
+          | "tone"
+          | "value_proposition"
+          | "target_customer"
+          | "qualified_lead_definition"
+          | "products_services"
+          | "objections"
+          | "glossary"
+          | "competitors_list"
         >
       >,
     ) => {
