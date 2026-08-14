@@ -1507,6 +1507,57 @@ export type Database = {
         Returns: Json[]
       }
       delete_organization_data: { Args: { target_org_id: string }; Returns: undefined }
+      leads_list_stats: {
+        Args: { p_search: string | null; p_stage_id: string | null }
+        Returns: { total: number; hot: number; avg_score: number; revenue: number }[]
+      }
+      leaderboard_stats: {
+        Args: {
+          p_from: string | null
+          p_to: string | null
+          p_funnel: string | null
+          p_stage_id: string | null
+          p_tags: string[] | null
+        }
+        Returns: {
+          owner_id: string
+          total_leads: number
+          won_leads: number
+          lost_leads: number
+          revenue: number
+        }[]
+      }
+      dashboard_kpis: {
+        Args: {
+          p_from: string | null
+          p_to: string | null
+          p_funnel: string | null
+          p_min_amount: number | null
+          p_max_amount: number | null
+        }
+        Returns: {
+          revenue_today: number
+          revenue_month: number
+          pipeline_value: number
+          open_deals_count: number
+          new_leads_today: number
+          won_this_week: number
+          lost_this_week: number
+          conversion: number
+        }[]
+      }
+      funnel_list_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          funnel: string
+          total: number
+          value: number
+          won: number
+          hot: number
+          warm: number
+          cold: number
+        }[]
+      }
     }
     Enums: {
       app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri"
