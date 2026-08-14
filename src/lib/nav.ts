@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   History,
   Bell,
+  LineChart,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,7 +31,7 @@ export type NavItem = {
   // shows a company's own CRM data) is hidden from them instead.
   platformOwnerOnly?: boolean;
   badge?: string;
-  group?: "analytics";
+  group?: "general" | "analysis" | "control";
   // Tailwind text-color utility applied to the icon when the item is not
   // the active route, so each item reads as its own thing at a glance
   // instead of a wall of identical muted icons.
@@ -37,48 +39,68 @@ export type NavItem = {
 };
 
 // Sidebar is intentionally a short, fixed list — everything else (Leads,
-// Contacts, Companies, Deals, Inbox, Analytics, CRM Stages, Integrations)
-// is reached from within these pages rather than getting its own nav slot.
+// Contacts, Companies, Deals, Inbox, CRM Stages, Integrations) is reached
+// from within these pages rather than getting its own nav slot.
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Leaderboard", to: "/", icon: Trophy, iconColor: "text-amber-500" },
-  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard, iconColor: "text-blue-500" },
-  { label: "AI Assistant", to: "/ai-assistant", icon: Sparkles, iconColor: "text-violet-500" },
+  { label: "Leaderboard", to: "/", icon: Trophy, group: "general", iconColor: "text-amber-500" },
+  {
+    label: "Dashboard",
+    to: "/dashboard",
+    icon: LayoutDashboard,
+    group: "general",
+    iconColor: "text-blue-500",
+  },
   {
     label: "Funnels",
     to: "/funnels",
     icon: Workflow,
-    group: "analytics",
+    group: "general",
     iconColor: "text-indigo-500",
   },
   {
     label: "AmoCRM",
     to: "/crm/pipeline",
     icon: KanbanSquare,
-    group: "analytics",
+    group: "general",
     iconColor: "text-cyan-500",
+  },
+  {
+    label: "Audio Analytics",
+    to: "/audio-analytics",
+    icon: AudioLines,
+    group: "analysis",
+    iconColor: "text-pink-500",
+  },
+  {
+    label: "Sales Analytics",
+    to: "/analytics",
+    icon: LineChart,
+    group: "analysis",
+    iconColor: "text-emerald-500",
+  },
+  {
+    label: "Lead Analytics",
+    to: "/lead-analytics",
+    icon: Target,
+    group: "analysis",
+    iconColor: "text-rose-500",
   },
   {
     label: "Important Tasks",
     to: "/tasks",
     icon: ClipboardList,
     badge: "8",
-    group: "analytics",
+    group: "control",
     iconColor: "text-orange-500",
-  },
-  {
-    label: "Audio Analytics",
-    to: "/audio-analytics",
-    icon: AudioLines,
-    group: "analytics",
-    iconColor: "text-pink-500",
   },
   {
     label: "Attendance & Quotas",
     to: "/attendance",
     icon: Clock,
-    group: "analytics",
+    group: "control",
     iconColor: "text-teal-500",
   },
+  { label: "AI Assistant", to: "/ai-assistant", icon: Sparkles, iconColor: "text-violet-500" },
   { label: "Settings", to: "/settings", icon: Settings },
   {
     label: "Admin Panel",

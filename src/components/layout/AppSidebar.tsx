@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -11,6 +11,8 @@ import {
   LogOut,
   Plug,
   ShieldCheck,
+  UserCircle,
+  Users,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
@@ -19,7 +21,6 @@ import { LANGS, LANG_FLAGS, LANG_SHORT, useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import {
-  useDealsRaw,
   useFunnelNames,
   useIntegrationSetting,
   useMarkNotificationRead,
@@ -39,57 +40,40 @@ type Props = {
 function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
   const { t } = useI18n();
   const { data: amocrm } = useIntegrationSetting("amocrm");
-  const items = [{ name: "amoCRM", connected: amocrm?.enabled ?? false }];
-  const anyConnected = items.some((i) => i.connected);
+  const connected = amocrm?.enabled ?? false;
 
-  const trigger = collapsed ? (
-    <button
-      type="button"
-      className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-mint transition-colors hover:bg-mint-border"
-    >
-      <Plug className={cn("h-4 w-4", anyConnected ? "text-success" : "text-mint-foreground")} />
-    </button>
-  ) : (
-    <button
-      type="button"
-      className="mx-3 mb-2 flex w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl border border-mint-border bg-mint px-3 py-2.5 text-left transition-colors hover:bg-mint-border"
-    >
-      <Plug
-        className={cn("h-4 w-4 shrink-0", anyConnected ? "text-success" : "text-mint-foreground")}
-      />
-      <span className="truncate text-sm font-bold text-mint-foreground">
-        {t("nav.integrations")}
-      </span>
-    </button>
-  );
+  if (collapsed) {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              to="/admin/amocrm-import"
+              className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/20 text-warning"
+            >
+              <Plug className="h-5 w-5" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t("nav.integrations")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent side="right" align="start" sideOffset={8} className="w-72 space-y-2 p-3">
-        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-subtle">
-          {t("nav.integrations")}
-        </p>
-        <div className="space-y-1.5">
-          {items.map((i) => (
-            <div
-              key={i.name}
-              className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5"
-            >
-              <span className="text-sm font-semibold text-foreground">{i.name}</span>
-              <span
-                className={cn(
-                  "text-[11px] font-bold uppercase tracking-wide",
-                  i.connected ? "text-success" : "text-subtle",
-                )}
-              >
-                {i.connected ? t("common.connected") : t("common.notConnected")}
-              </span>
-            </div>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <Link
+      to="/admin/amocrm-import"
+      className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-3 text-sm font-semibold text-warning-foreground shadow-soft transition-colors hover:bg-warning/25"
+    >
+      <Plug className={cn("h-5 w-5 shrink-0", connected ? "text-success" : "text-warning")} />
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block truncate">{t("nav.integrations")}</span>
+        <span className="block truncate text-[11px] font-normal text-warning-foreground/70">
+          AmoCRM
+        </span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-warning" />
+    </Link>
   );
 }
 
@@ -210,17 +194,19 @@ function UserMenu({ collapsed, isAdmin }: { collapsed: boolean; isAdmin: boolean
       {user?.initials ?? "?"}
     </button>
   ) : (
-    <button className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-2 text-left transition-colors hover:bg-accent">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
+    <button className="mx-3 flex w-[calc(100%-1.5rem)] items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-3 text-left shadow-soft transition-colors hover:bg-warning/25">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/20 text-xs font-semibold text-warning-foreground">
         {user?.initials ?? "?"}
       </span>
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate text-[13px] font-medium text-foreground">
+        <span className="block truncate text-[13px] font-semibold text-warning-foreground">
           {user?.name ?? "…"}
         </span>
-        <span className="block truncate text-[11px] text-subtle">{user?.email ?? ""}</span>
+        <span className="block truncate text-[11px] text-warning-foreground/70">
+          {user?.email ?? ""}
+        </span>
       </span>
-      <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-subtle" />
+      <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-warning" />
     </button>
   );
 
@@ -256,14 +242,31 @@ function UserMenu({ collapsed, isAdmin }: { collapsed: boolean; isAdmin: boolean
             />
           </div>
         </div>
-        {isAdmin && (
+        <div className="space-y-0.5">
           <Link
-            to="/admin"
-            className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            to="/settings"
+            search={{ section: "profile" }}
+            className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            <ShieldCheck className="h-4 w-4" /> {t("nav./admin")}
+            <UserCircle className="h-4 w-4" /> {t("userMenu.account")}
           </Link>
-        )}
+          {isAdmin && (
+            <>
+              <Link
+                to="/admin"
+                className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                <Users className="h-4 w-4" /> {t("userMenu.users")}
+              </Link>
+              <Link
+                to="/admin"
+                className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              >
+                <ShieldCheck className="h-4 w-4" /> {t("nav./admin")}
+              </Link>
+            </>
+          )}
+        </div>
         <button
           onClick={onSignOut}
           className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
@@ -377,25 +380,7 @@ function FunnelsNavGroup({
 export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Props) {
   const { t } = useI18n();
   const { user } = useAuth();
-  const { data: myDeals } = useDealsRaw({ enabled: !collapsed });
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const monthlyTargetPct = useMemo(() => {
-    if (!user) return 0;
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const revenueMonth = (myDeals ?? [])
-      .filter(
-        (d) =>
-          d.owner_id === user.id &&
-          d.status === "won" &&
-          d.close_date &&
-          new Date(d.close_date) >= startOfMonth,
-      )
-      .reduce((sum, d) => sum + Number(d.value), 0);
-    const target = user.monthlyTarget || 1;
-    return Math.min(100, Math.round((revenueMonth / target) * 100));
-  }, [myDeals, user]);
   const mainItems = NAV_ITEMS.filter(
     (i) =>
       (!i.adminOnly || isAdmin) &&
@@ -404,11 +389,18 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       // instead of a separate, stripped-down sidebar.
       (!i.platformOwnerOnly || isPlatformOwner) &&
       i.to !== "/settings" &&
-      i.to !== "/admin",
+      i.to !== "/admin" &&
+      i.to !== "/ai-assistant",
   );
-  const topItems = mainItems.filter((i) => !i.group);
-  const analyticsItems = mainItems.filter((i) => i.group === "analytics");
+  // Platform-owner-only items (Platform, Users, Errors, etc.) carry no
+  // `group`, so they render together, unlabeled, above the three named
+  // groups — same spot they've always occupied.
+  const ungroupedItems = mainItems.filter((i) => !i.group);
+  const generalItems = mainItems.filter((i) => i.group === "general");
+  const analysisItems = mainItems.filter((i) => i.group === "analysis");
+  const controlItems = mainItems.filter((i) => i.group === "control");
   const settingsItem = NAV_ITEMS.find((i) => i.to === "/settings")!;
+  const aiAssistantItem = NAV_ITEMS.find((i) => i.to === "/ai-assistant")!;
 
   function renderItem(item: (typeof NAV_ITEMS)[number]) {
     // "/platform" has sibling sub-pages (/platform/users etc.) that share
@@ -460,9 +452,37 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
     );
   }
 
+  function renderGroup(labelKey: string, items: (typeof NAV_ITEMS)[number][]) {
+    if (items.length === 0) return null;
+    return (
+      <>
+        {!collapsed && (
+          <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">
+            {t(labelKey)}
+          </p>
+        )}
+        {collapsed && <div className="my-3 border-t border-sidebar-border" />}
+        <div className="space-y-1.5">
+          {items.map((item) =>
+            item.to === "/funnels" ? (
+              <FunnelsNavGroup
+                key={item.to}
+                item={item}
+                collapsed={collapsed}
+                active={pathname.startsWith(item.to)}
+              />
+            ) : (
+              renderItem(item)
+            ),
+          )}
+        </div>
+      </>
+    );
+  }
+
   // A platform owner with no organization of their own has nothing for
   // the company-scoped widgets below (integrations status, business
-  // profile, monthly target, analytics nav) to show, so they get a short,
+  // profile, analytics nav) to show, so they get a short,
   // separate sidebar instead. A platform owner who *is* also a member of
   // an organization (this session's whole setup) runs it day to day and
   // falls through to the regular sidebar below instead, with the
@@ -516,55 +536,21 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       </div>
 
       <div className="px-0 pb-1 pt-1">
-        <IntegrationsStatus collapsed={collapsed} />
+        {isAdmin && <IntegrationsStatus collapsed={collapsed} />}
         <BusinessProfileLink collapsed={collapsed} />
       </div>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
-        {topItems.map((item) => renderItem(item))}
-        {analyticsItems.length > 0 && (
-          <>
-            {!collapsed && (
-              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">
-                {t("nav.groupAnalytics")}
-              </p>
-            )}
-            {collapsed && <div className="my-3 border-t border-sidebar-border" />}
-            <div className="space-y-1.5">
-              {analyticsItems.map((item) =>
-                item.to === "/funnels" ? (
-                  <FunnelsNavGroup
-                    key={item.to}
-                    item={item}
-                    collapsed={collapsed}
-                    active={pathname.startsWith(item.to)}
-                  />
-                ) : (
-                  renderItem(item)
-                ),
-              )}
-            </div>
-          </>
-        )}
+        {ungroupedItems.map((item) => renderItem(item))}
+        {renderGroup("nav.groupGeneral", generalItems)}
+        {renderGroup("nav.groupAnalytics", analysisItems)}
+        {renderGroup("nav.groupControl", controlItems)}
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
-        {!collapsed && user?.role !== "sotuv_menejeri" && (
-          <div className="mb-3 rounded-xl bg-mint p-3">
-            <p className="text-xs font-semibold text-foreground">{t("nav.monthlyTarget")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("nav.monthlyTargetHint", { pct: monthlyTargetPct })}
-            </p>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-mint-border">
-              <div
-                className="h-full rounded-full bg-success transition-[width]"
-                style={{ width: `${monthlyTargetPct}%` }}
-              />
-            </div>
-          </div>
-        )}
+        <div>{renderItem(aiAssistantItem)}</div>
 
-        <div>{renderItem(settingsItem)}</div>
+        <div className="mt-2">{renderItem(settingsItem)}</div>
 
         <div className="mt-2">
           <UserMenu collapsed={collapsed} isAdmin={isAdmin} />
