@@ -10,13 +10,23 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useFunnelFlow, usePipelineStageStats, useRevenueSeries } from "@/hooks/use-crm-data";
 import { useI18n } from "@/lib/i18n";
+
+function ChooseFunnelPrompt() {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border px-6 py-10 text-center">
+      <Filter className="h-5 w-5 text-subtle" />
+      <p className="text-sm font-medium text-muted-foreground">{t("charts.chooseFunnel")}</p>
+    </div>
+  );
+}
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -104,9 +114,16 @@ export function RevenueChart() {
   );
 }
 
-export function PipelineChart() {
+export function PipelineChart({ funnel }: { funnel: string | null }) {
   const { t } = useI18n();
-  const stats = usePipelineStageStats();
+  const stats = usePipelineStageStats(funnel);
+  if (!funnel) {
+    return (
+      <SectionCard title={t("charts.pipeline.title")} description={t("charts.pipeline.desc")}>
+        <ChooseFunnelPrompt />
+      </SectionCard>
+    );
+  }
   return (
     <SectionCard title={t("charts.pipeline.title")} description={t("charts.pipeline.desc")}>
       <div className="h-[180px] w-full">
@@ -166,10 +183,17 @@ export function PipelineChart() {
   );
 }
 
-export function SalesFunnel() {
+export function SalesFunnel({ funnel }: { funnel: string | null }) {
   const { t } = useI18n();
-  const flow = useFunnelFlow();
+  const flow = useFunnelFlow(funnel);
   const max = flow[0]?.count ?? 1;
+  if (!funnel) {
+    return (
+      <SectionCard title={t("charts.funnel.title")} description={t("charts.funnel.desc")}>
+        <ChooseFunnelPrompt />
+      </SectionCard>
+    );
+  }
   return (
     <SectionCard title={t("charts.funnel.title")} description={t("charts.funnel.desc")}>
       <ol className="space-y-3">

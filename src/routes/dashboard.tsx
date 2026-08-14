@@ -286,10 +286,10 @@ function Dashboard() {
           <RevenueChart />
         </Suspense>
         <Suspense fallback={<ChartSkeleton height={180} />}>
-          <PipelineChart />
+          <PipelineChart funnel={funnel} />
         </Suspense>
         <Suspense fallback={<ChartSkeleton height={220} />}>
-          <SalesFunnel />
+          <SalesFunnel funnel={funnel} />
         </Suspense>
       </div>
 
