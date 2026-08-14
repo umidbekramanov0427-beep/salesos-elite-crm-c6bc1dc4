@@ -357,8 +357,12 @@ function Leaderboard() {
   }, [todayStartSnapshot.data, funnel, funnelStats.totalRevenue]);
 
   const managerStats = useManagerFunnelStats(funnel);
-  const [trendWeeks, setTrendWeeks] = useState(8);
-  const managerTrend = useManagerWeeklyTrend(funnel, trendWeeks);
+  const [trendRange, setTrendRange] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
+  const managerTrend = useManagerWeeklyTrend(funnel, trendRange.from, trendRange.to);
   const conversionChartData = useMemo(
     () =>
       managerTrend.weekLabels.map((label, i) => {
@@ -696,6 +700,7 @@ function Leaderboard() {
               <InfoTip text={t("lb.info.chartConversion")} />
             </span>
           }
+          actions={<DateRangeFilter value={trendRange} onChange={setTrendRange} />}
         >
           {managerTrend.series.length === 0 ? (
             <p className="py-10 text-center text-sm text-subtle">{t("lb.noManagers")}</p>
@@ -749,19 +754,6 @@ function Leaderboard() {
               {t("lb.chartRevenue")}
               <InfoTip text={t("lb.info.chartRevenue")} />
             </span>
-          }
-          actions={
-            <select
-              value={trendWeeks}
-              onChange={(e) => setTrendWeeks(Number(e.target.value))}
-              aria-label={t("lb.trendRangeLabel")}
-              className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors hover:border-primary/40"
-            >
-              <option value={4}>{t("lb.trendRange4")}</option>
-              <option value={8}>{t("lb.trendRange8")}</option>
-              <option value={12}>{t("lb.trendRange12")}</option>
-              <option value={26}>{t("lb.trendRange26")}</option>
-            </select>
           }
         >
           {managerTrend.series.length === 0 ? (
