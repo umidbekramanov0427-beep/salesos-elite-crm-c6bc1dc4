@@ -906,6 +906,7 @@ export type FunnelStat = {
 
 export function useFunnelListStats(enabled = true) {
   const { user } = useAuth();
+  const enabledFunnels = useEnabledFunnelNames();
   const query = useQuery({
     queryKey: ["funnel_list_stats", user?.organizationId],
     enabled: enabled && !!user?.organizationId,
@@ -919,6 +920,7 @@ export function useFunnelListStats(enabled = true) {
   const funnels = useMemo<FunnelStat[]>(
     () =>
       (query.data ?? [])
+        .filter((r) => !enabledFunnels || enabledFunnels.has(r.funnel))
         .map((r): FunnelStat => {
           const count = Number(r.total);
           const won = Number(r.won);
@@ -934,7 +936,7 @@ export function useFunnelListStats(enabled = true) {
           };
         })
         .sort((a, b) => b.count - a.count),
-    [query.data],
+    [query.data, enabledFunnels],
   );
 
   return { funnels, isLoading: query.isLoading };
@@ -1111,8 +1113,9 @@ export function useLeaderboardView(
           targetCompletion,
         };
       })
+      .filter((row) => !filters.funnel || row.totalLeads > 0)
       .sort((a, b) => b.revenue - a.revenue);
-  }, [profiles, statsByOwner, filters.search]);
+  }, [profiles, statsByOwner, filters.search, filters.funnel]);
 
   return {
     rows,
@@ -2835,17 +2838,18 @@ export function useSaveAmoImportSettings() {
 
 export type TagSummary = { name: string; count: number };
 
-export function useTagsSummary() {
+export function useTagsSummary(funnel?: string | null) {
   const { data: leads, ...rest } = useLeadsRaw();
   const tags = useMemo<TagSummary[]>(() => {
     const counts = new Map<string, number>();
     for (const l of leads ?? []) {
+      if (funnel && (l.funnel || "Direct Sales") !== funnel) continue;
       for (const tag of l.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
     return Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
-  }, [leads]);
+  }, [leads, funnel]);
   return { tags, ...rest };
 }
 
@@ -3270,20 +3274,45 @@ export function useUpdateAiAgent() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Which funnel (pipeline) names are enabled for import — every funnel  */
+/* filter in the app (sidebar, Dashboard, Reyting, Funnels, AmoCRM      */
+/* board) consults this so a pipeline unchecked in "Import qilinadigan  */
+/* voronkalar" never appears as a filter option. null = no restriction. */
+/* ------------------------------------------------------------------ */
+
+export function useEnabledFunnelNames(): Set<string> | null {
+  const { user } = useAuth();
+  const { data } = useQuery({
+    queryKey: ["enabled_funnel_names", user?.organizationId],
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<string[] | null> => {
+      const { data, error } = await supabase.rpc("enabled_funnel_names");
+      if (error) throw error;
+      return data ?? null;
+    },
+  });
+  return useMemo(() => (data ? new Set(data) : null), [data]);
+}
+
+/* ------------------------------------------------------------------ */
 /* Distinct funnel names — for the sidebar's expandable Funnels group. */
 /* ------------------------------------------------------------------ */
 
 export function useFunnelNames() {
   const { data: leads, isLoading } = useLeadsRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
+  const enabledFunnels = useEnabledFunnelNames();
   const names = useMemo(() => {
     const set = new Set<string>();
     for (const l of leads ?? []) {
       if (visibleOwnerIds && !(l.owner_id && visibleOwnerIds.has(l.owner_id))) continue;
-      set.add(l.funnel || "Direct Sales");
+      const name = l.funnel || "Direct Sales";
+      if (enabledFunnels && !enabledFunnels.has(name)) continue;
+      set.add(name);
     }
     return Array.from(set).sort();
-  }, [leads, visibleOwnerIds]);
+  }, [leads, visibleOwnerIds, enabledFunnels]);
   return { names, isLoading };
 }
 

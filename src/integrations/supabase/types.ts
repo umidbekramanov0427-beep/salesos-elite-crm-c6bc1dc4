@@ -1835,6 +1835,10 @@ export type Database = {
           cold: number
         }[]
       }
+      enabled_funnel_names: {
+        Args: Record<PropertyKey, never>
+        Returns: string[] | null
+      }
     }
     Enums: {
       app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri"

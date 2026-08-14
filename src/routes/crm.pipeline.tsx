@@ -12,6 +12,7 @@ import {
   useAmoCrmLink,
   useAsOfSnapshot,
   useCrmLeads,
+  useEnabledFunnelNames,
   usePipelineBoardLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
@@ -83,11 +84,16 @@ function PipelinePage() {
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
   const { data: allStages } = usePipelineStagesRaw();
+  const enabledFunnels = useEnabledFunnelNames();
   const funnelNames = useMemo(() => {
     const set = new Set<string>();
-    for (const s of allStages ?? []) set.add(s.pipeline_name || "Direct Sales");
+    for (const s of allStages ?? []) {
+      const name = s.pipeline_name || "Direct Sales";
+      if (enabledFunnels && !enabledFunnels.has(name)) continue;
+      set.add(name);
+    }
     return Array.from(set).sort();
-  }, [allStages]);
+  }, [allStages, enabledFunnels]);
 
   // "As of date" reconstructs the whole org's leads from the audit trail
   // (see useAsOfSnapshot) -- there's no way to scope that to one funnel
@@ -135,6 +141,10 @@ function PipelinePage() {
     for (const l of effectiveLeads) for (const tag of l.tags) set.add(tag);
     return Array.from(set).sort();
   }, [effectiveLeads]);
+  const ownerOptions = useMemo(() => {
+    const ownerIds = new Set(effectiveLeads.map((l) => l.ownerId).filter(Boolean));
+    return (profiles ?? []).filter((p) => ownerIds.has(p.id));
+  }, [effectiveLeads, profiles]);
   const visibleStages = useMemo(
     () => stages.filter((s) => (s.pipeline_name || "Direct Sales") === funnelParam),
     [stages, funnelParam],
@@ -190,7 +200,7 @@ function PipelinePage() {
             });
           }}
           funnels={funnelNames}
-          owners={profiles ?? []}
+          owners={ownerOptions}
           tags={tagOptions}
           stages={stages}
         />
