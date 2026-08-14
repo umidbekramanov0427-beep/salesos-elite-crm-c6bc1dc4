@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Crown, Loader2, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Loader2, Medal, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, ExportButton } from "@/components/layout/Primitives";
 import { cn } from "@/lib/utils";
@@ -11,7 +21,10 @@ import {
   useAiAssistantChat,
   useAsOfSnapshot,
   useFunnelNames,
+  useFunnelStats,
   useLeaderboardView,
+  useManagerFunnelStats,
+  useManagerWeeklyTrend,
   usePipelineStagesRaw,
   useTagsSummary,
   type LeaderboardManagerRow,
@@ -74,6 +87,24 @@ function LeaderboardGated() {
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 const LIVE_REFRESH_MS = 3000;
+
+// Fixed categorical order, never cycled — matches the app's own --color-chart-*
+// ramp (styles.css), which exists for exactly this (multi-series charts).
+const MANAGER_CHART_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+];
+
+const chartTooltipStyle = {
+  borderRadius: 12,
+  border: "1px solid var(--color-border)",
+  background: "var(--color-popover)",
+  boxShadow: "var(--shadow-elevated)",
+  fontSize: 12,
+};
 
 function pct(n: number): string {
   return `${Math.round(n * 10) / 10}%`;
@@ -150,8 +181,10 @@ function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number
     "border-slate-400/40",
     "border-orange-400/40",
   ];
+  const medalColorByPlace = ["text-amber-500", "text-slate-400", "text-orange-500"];
   return (
-    <div className={cn("surface-card space-y-3 border p-5", toneByPlace[place])}>
+    <div className={cn("surface-card relative space-y-3 border p-5", toneByPlace[place])}>
+      <Medal className={cn("absolute right-4 top-4 h-7 w-7", medalColorByPlace[place])} />
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint text-sm font-bold text-mint-foreground">
           {row.initials}
@@ -160,7 +193,6 @@ function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number
           <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
           <p className="text-[11px] text-subtle">#{place + 1}</p>
         </div>
-        {place === 0 && <Crown className="h-5 w-5 shrink-0 text-amber-500" />}
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-lg bg-surface p-2">
@@ -288,36 +320,56 @@ function Leaderboard() {
     [allRows, revenueRange],
   );
 
-  const todayIso = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
-  }, []);
-  const { rows: todayRows } = useLeaderboardView(
-    {
-      from: todayIso,
-      to: null,
-      search: "",
-      stageId: null,
-      funnel: null,
-      tags: [],
-    },
-    { refetchInterval: live ? LIVE_REFRESH_MS : false },
-  );
-
   async function handleManualRefresh() {
     await refetch();
     toast.success(t("lb.refreshed"));
   }
 
-  const totals = useMemo(() => {
-    const totalLeads = rows.reduce((s, r) => s + r.totalLeads, 0);
-    const wonLeads = rows.reduce((s, r) => s + r.wonLeads, 0);
-    const revenue = rows.reduce((s, r) => s + r.revenue, 0);
-    const todayRevenue = todayRows.reduce((s, r) => s + r.revenue, 0);
-    const avgConversion = totalLeads ? (wonLeads / totalLeads) * 100 : 0;
-    return { totalLeads, wonLeads, revenue, todayRevenue, avgConversion };
-  }, [rows, todayRows]);
+  // Computed straight from the raw leads table (see useFunnelStats), not
+  // summed across the per-manager leaderboard rows above -- a lead with no
+  // (or an unmatched) owner still counted toward the funnel's real totals,
+  // but never showed up in any manager's row, so summing `rows` silently
+  // undercounted both totalLeads and revenue whenever that happened.
+  const funnelStats = useFunnelStats(funnel);
+
+  // "Bugungi tushum" (today's revenue) — the funnel's total revenue right
+  // now minus a time-travel snapshot of the same funnel as it stood at the
+  // start of today, i.e. how much revenue this funnel picked up today.
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const todayStartSnapshot = useAsOfSnapshot<LeadRow>("leads", startOfToday);
+  const todayRevenue = useMemo(() => {
+    const before = (todayStartSnapshot.data ?? []).reduce((s, l) => {
+      const f = l.funnel || "Direct Sales";
+      if (funnel && f !== funnel) return s;
+      return s + l.expected_revenue;
+    }, 0);
+    return funnelStats.totalRevenue - before;
+  }, [todayStartSnapshot.data, funnel, funnelStats.totalRevenue]);
+
+  const managerStats = useManagerFunnelStats(funnel);
+  const managerTrend = useManagerWeeklyTrend(funnel);
+  const conversionChartData = useMemo(
+    () =>
+      managerTrend.weekLabels.map((label, i) => {
+        const row: Record<string, string | number | null> = { label };
+        for (const s of managerTrend.series) row[s.id] = s.conversion[i] ?? null;
+        return row;
+      }),
+    [managerTrend],
+  );
+  const revenueChartData = useMemo(
+    () =>
+      managerTrend.weekLabels.map((label, i) => {
+        const row: Record<string, string | number | null> = { label };
+        for (const s of managerTrend.series) row[s.id] = s.salesRevenue[i] ?? 0;
+        return row;
+      }),
+    [managerTrend],
+  );
 
   const [topSummary, setTopSummary] = useState<string | null>(null);
   const [bottomSummary, setBottomSummary] = useState<string | null>(null);
@@ -487,11 +539,25 @@ function Leaderboard() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t("lb.todayRevenue")} value={format(totals.todayRevenue)} tone="mint" />
-        <StatCard label={t("lb.avgConversion")} value={pct(totals.avgConversion)} />
-        <StatCard label={t("lb.totalWonLeads")} value={String(totals.wonLeads)} />
-        <StatCard label={t("lb.totalRevenue")} value={format(totals.revenue)} />
+      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <StatCard
+          label={t("lb.totalLeadsCount")}
+          value={String(funnelStats.totalLeads)}
+          tone="mint"
+        />
+        <StatCard label={t("lb.avgConversion")} value={pct(funnelStats.conversion)} />
+        <StatCard
+          label={t("lb.totalSales")}
+          value={String(funnelStats.salesStageCount)}
+          hint={format(funnelStats.salesStageRevenue)}
+        />
+        <StatCard
+          label={t("lb.totalWonLeads")}
+          value={String(funnelStats.wonCount)}
+          hint={format(funnelStats.wonRevenue)}
+        />
+        <StatCard label={t("lb.totalRevenue")} value={format(funnelStats.totalRevenue)} />
+        <StatCard label={t("lb.todayRevenue")} value={format(todayRevenue)} tone="mint" />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
@@ -511,74 +577,54 @@ function Leaderboard() {
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-subtle">
                   <th className="py-2.5 pr-4">{t("lb.colManager")}</th>
                   <th className="px-4 py-2.5 text-center">{t("lb.colTotalLeads")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("lb.colWonLeads")}</th>
+                  <th className="px-4 py-2.5 text-center">{t("lb.colSales")}</th>
                   <th className="px-4 py-2.5 text-right">{t("lb.colRevenue")}</th>
                   <th className="px-4 py-2.5 text-center">{t("lb.colConversion")}</th>
                   <th className="px-4 py-2.5 text-center">{t("lb.colKpi")}</th>
-                  <th className="px-4 py-2.5 text-right">{t("lb.colBonus")}</th>
-                  <th className="py-2.5 pl-4 text-right">{t("lb.colTarget")}</th>
+                  <th className="py-2.5 pl-4 text-right">{t("lb.colKpiMonthly")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map((r, i) => (
-                  <tr key={r.id}>
-                    <td className="py-3.5 pr-4">
-                      <div className="flex items-center gap-3">
-                        <span className="w-7 shrink-0 text-right text-sm font-bold text-amber-500">
-                          #{i + 1}
-                        </span>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
-                          {r.initials}
-                        </span>
-                        <span className="truncate font-medium text-foreground">{r.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-center tabular-nums">{r.totalLeads}</td>
-                    <td className="px-4 py-3.5 text-center tabular-nums">{r.wonLeads}</td>
-                    <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-foreground">
-                      {format(r.revenue)}
-                    </td>
-                    <td className="px-4 py-3.5 text-center tabular-nums">{pct(r.conversion)}</td>
-                    <td className="px-4 py-3.5 text-center tabular-nums text-primary">
-                      {pct(r.kpiPercent)}
-                    </td>
-                    <td className="px-4 py-3.5 text-right tabular-nums font-medium text-success">
-                      {format(r.revenue * 0.05)}
-                    </td>
-                    <td className="py-3.5 pl-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={cn(
-                              "h-full rounded-full",
-                              r.targetCompletion >= 100
-                                ? "bg-success"
-                                : r.targetCompletion >= 60
-                                  ? "bg-warning"
-                                  : "bg-destructive",
-                            )}
-                            style={{ width: `${Math.min(100, r.targetCompletion)}%` }}
-                          />
+                {rows.map((r, i) => {
+                  const stats = managerStats.get(r.id) ?? {
+                    totalLeads: r.totalLeads,
+                    salesCount: 0,
+                    salesRevenue: 0,
+                  };
+                  const conversion = stats.totalLeads
+                    ? (stats.salesCount / stats.totalLeads) * 100
+                    : 0;
+                  return (
+                    <tr key={r.id}>
+                      <td className="py-3.5 pr-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-7 shrink-0 text-right text-sm font-bold text-amber-500">
+                            #{i + 1}
+                          </span>
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
+                            {r.initials}
+                          </span>
+                          <span className="truncate font-medium text-foreground">{r.name}</span>
                         </div>
-                        <span
-                          className={cn(
-                            "w-12 shrink-0 text-right tabular-nums font-semibold",
-                            r.targetCompletion >= 100
-                              ? "text-success"
-                              : r.targetCompletion >= 60
-                                ? "text-warning"
-                                : "text-destructive",
-                          )}
-                        >
-                          {pct(r.targetCompletion)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3.5 text-center tabular-nums">{stats.totalLeads}</td>
+                      <td className="px-4 py-3.5 text-center tabular-nums">{stats.salesCount}</td>
+                      <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-foreground">
+                        {format(stats.salesRevenue)}
+                      </td>
+                      <td className="px-4 py-3.5 text-center tabular-nums">{pct(conversion)}</td>
+                      <td className="px-4 py-3.5 text-center tabular-nums text-primary">
+                        {pct(r.kpiPercent)}
+                      </td>
+                      <td className="py-3.5 pl-4 text-right tabular-nums font-medium text-success">
+                        {format(stats.salesRevenue * 0.05)}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {rows.length === 0 && !isLoading && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-sm text-subtle">
+                    <td colSpan={7} className="py-8 text-center text-sm text-subtle">
                       {t("lb.noManagers")}
                     </td>
                   </tr>
@@ -586,6 +632,102 @@ function Leaderboard() {
               </tbody>
             </table>
           </div>
+        </SectionCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <SectionCard title={t("lb.chartConversion")}>
+          {managerTrend.series.length === 0 ? (
+            <p className="py-10 text-center text-sm text-subtle">{t("lb.noManagers")}</p>
+          ) : (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={conversionChartData} margin={{ left: -14, right: 8, top: 8 }}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--color-border)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    stroke="var(--color-subtle)"
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    stroke="var(--color-subtle)"
+                  />
+                  <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}%`} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {managerTrend.series.map((s, idx) => (
+                    <Line
+                      key={s.id}
+                      name={s.name}
+                      dataKey={s.id}
+                      type="monotone"
+                      stroke={MANAGER_CHART_COLORS[idx % MANAGER_CHART_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      connectNulls
+                      animationDuration={700}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title={t("lb.chartRevenue")}>
+          {managerTrend.series.length === 0 ? (
+            <p className="py-10 text-center text-sm text-subtle">{t("lb.noManagers")}</p>
+          ) : (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={revenueChartData} margin={{ left: -14, right: 8, top: 8 }}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--color-border)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    stroke="var(--color-subtle)"
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    stroke="var(--color-subtle)"
+                    tickFormatter={(v: number) => format(v)}
+                    width={80}
+                  />
+                  <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => format(v)} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {managerTrend.series.map((s, idx) => (
+                    <Line
+                      key={s.id}
+                      name={s.name}
+                      dataKey={s.id}
+                      type="monotone"
+                      stroke={MANAGER_CHART_COLORS[idx % MANAGER_CHART_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      animationDuration={700}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </SectionCard>
       </div>
 
