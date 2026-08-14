@@ -856,17 +856,24 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
     }
 
     let callsSynced = 0;
+    // Call sync is best-effort -- a failure here shouldn't fail the whole
+    // sync, since leads/contacts/companies are the primary purpose and just
+    // proved they synced fine. But silently swallowing the reason (as this
+    // used to) meant a real, ongoing call-sync bug (wrong API scope, wrong
+    // note_type, an account with no telephony integration at all) looked
+    // identical to "everything's fine" on the Integrations page forever.
+    // Surface it in last_sync_error instead so it's visible without ever
+    // marking the overall sync (leads) as failed.
+    let callsSyncWarning: string | null = null;
     try {
       callsSynced = await syncCallsFromAmo(conn);
-    } catch {
-      // Call sync is best-effort: some AmoCRM accounts have no telephony
-      // integration writing call notes, or the notes endpoint isn't
-      // reachable for this account. Leads still synced successfully.
+    } catch (err) {
+      callsSyncWarning = `Calls: ${describeError(err)}`;
     }
 
     await supabaseAdmin
       .from("amocrm_connection")
-      .update({ last_synced_at: new Date().toISOString(), last_sync_error: null })
+      .update({ last_synced_at: new Date().toISOString(), last_sync_error: callsSyncWarning })
       .eq("organization_id", organizationId);
     await supabaseAdmin
       .from("integration_settings")
