@@ -690,11 +690,19 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
   const conn = await ensureValidToken(conn0);
 
   try {
+    // Each phase is labeled on failure -- a bare "canceling statement due to
+    // statement timeout" (or any other DB/network error) previously landed
+    // in last_sync_error with no way to tell which of these three calls,
+    // let alone which one of dozens of leads pages, actually caused it.
     const [{ stageByStatusId, pipelineNameById }, ownerByAmoUserId, fallbackStageId] =
       await Promise.all([
-        syncPipelineStages(organizationId, conn),
+        syncPipelineStages(organizationId, conn).catch((e) => {
+          throw new Error(`[pipeline stages] ${describeError(e)}`);
+        }),
         syncUserMapping(organizationId, conn),
-        defaultStageId(organizationId),
+        defaultStageId(organizationId).catch((e) => {
+          throw new Error(`[default stage] ${describeError(e)}`);
+        }),
       ]);
 
     // Leads used to be fetched into one array for the whole account (up to
@@ -762,7 +770,7 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
               { onConflict: "organization_id,amocrm_id" },
             )
             .select("id, amocrm_id");
-          if (error) throw error;
+          if (error) throw new Error(`[page ${page} contacts] ${describeError(error)}`);
           for (const row of data ?? []) {
             if (row.amocrm_id != null) contactIdMap.set(row.amocrm_id, row.id);
           }
@@ -787,7 +795,7 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
               { onConflict: "organization_id,amocrm_id" },
             )
             .select("id, amocrm_id");
-          if (error) throw error;
+          if (error) throw new Error(`[page ${page} companies] ${describeError(error)}`);
           for (const row of data ?? []) {
             if (row.amocrm_id != null) companyIdMap.set(row.amocrm_id, row.id);
           }
@@ -825,12 +833,21 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           tags: amoTagNames(l),
         };
       });
-      if (rows.length > 0) {
-        const { error } = await supabaseAdmin.from("leads").upsert(
-          dedupeByKey(rows, (r) => String(r.amocrm_id)),
-          { onConflict: "organization_id,amocrm_id" },
-        );
-        if (error) throw error;
+      // Each AmoCRM page already caps at 250 leads, but that turned out to
+      // be close enough to the same per-statement audit-trail overhead that
+      // forced pipeline_stages down to 200-row chunks (see above) that a
+      // single heavy account can still time out here. Chunk it the same way
+      // rather than wait for a second report of the same failure mode.
+      const LEADS_UPSERT_CHUNK = 100;
+      const dedupedLeadRows = dedupeByKey(rows, (r) => String(r.amocrm_id));
+      for (let i = 0; i < dedupedLeadRows.length; i += LEADS_UPSERT_CHUNK) {
+        const chunk = dedupedLeadRows.slice(i, i + LEADS_UPSERT_CHUNK);
+        if (chunk.length === 0) continue;
+        const { error } = await supabaseAdmin
+          .from("leads")
+          .upsert(chunk, { onConflict: "organization_id,amocrm_id" });
+        if (error)
+          throw new Error(`[page ${page} leads ${i}-${i + chunk.length}] ${describeError(error)}`);
       }
 
       totalSynced += syncableLeads.length;
@@ -903,13 +920,19 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
     };
   });
 
-  const { error } = await supabaseAdmin.from("amocrm_calls").upsert(
-    dedupeByKey(rows, (r) => String(r.amocrm_note_id)),
-    {
-      onConflict: "organization_id,amocrm_note_id",
-    },
-  );
-  if (error) throw error;
+  // Unlike the leads loop, this was still one upsert for the whole (capped
+  // but still up to ~5k-row) batch -- the same shape of statement that
+  // forced pipeline_stages and the leads loop down to chunked upserts.
+  // Chunk it too instead of waiting for this to be the next timeout report.
+  const CALLS_UPSERT_CHUNK = 200;
+  const dedupedCallRows = dedupeByKey(rows, (r) => String(r.amocrm_note_id));
+  for (let i = 0; i < dedupedCallRows.length; i += CALLS_UPSERT_CHUNK) {
+    const chunk = dedupedCallRows.slice(i, i + CALLS_UPSERT_CHUNK);
+    const { error } = await supabaseAdmin
+      .from("amocrm_calls")
+      .upsert(chunk, { onConflict: "organization_id,amocrm_note_id" });
+    if (error) throw new Error(`[calls ${i}-${i + chunk.length}] ${describeError(error)}`);
+  }
   return rows.length;
 }
 
