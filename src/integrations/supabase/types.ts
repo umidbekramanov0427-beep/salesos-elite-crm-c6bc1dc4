@@ -533,6 +533,86 @@ export type Database = {
           },
         ]
       }
+      call_qualification_groups: {
+        Row: {
+          created_at: string
+          funnel: string | null
+          id: string
+          name: string
+          organization_id: string
+          position: number
+        }
+        Insert: {
+          created_at?: string
+          funnel?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          position?: number
+        }
+        Update: {
+          created_at?: string
+          funnel?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_qualification_groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_qualification_criteria: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          label: string
+          organization_id: string
+          position: number
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          label: string
+          organization_id: string
+          position?: number
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          position?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_qualification_criteria_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "call_qualification_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_qualification_criteria_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           connected: boolean
