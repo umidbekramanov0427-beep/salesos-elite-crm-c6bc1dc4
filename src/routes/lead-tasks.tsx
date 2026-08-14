@@ -79,6 +79,7 @@ function LeadTasks() {
                         <Link
                           to="/crm/leads/$leadId"
                           params={{ leadId: l.id }}
+                          search={{ from: "leadTasks" }}
                           className="text-sm font-medium hover:text-primary"
                         >
                           {t.title}

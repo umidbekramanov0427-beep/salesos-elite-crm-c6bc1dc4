@@ -198,6 +198,7 @@ function RecoverableRow({
         <Link
           to="/crm/leads/$leadId"
           params={{ leadId: lead.id }}
+          search={{ from: "audio" }}
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
         >
           <ExternalLink className="h-3.5 w-3.5" /> {t("funnels.viewLead")}

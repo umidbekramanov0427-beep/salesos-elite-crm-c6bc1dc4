@@ -3,12 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, GripVertical, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
-import {
-  LeadFilterBar,
-  filterLeads,
-  EMPTY_LEAD_FILTERS,
-  type LeadFilterState,
-} from "@/components/crm/LeadFilterBar";
+import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -26,8 +21,24 @@ import {
 import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/crm/pipeline")({
-  validateSearch: (search: Record<string, unknown>): { funnel?: string | undefined } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    funnel?: string | undefined;
+    owner?: string | undefined;
+    stage?: string | undefined;
+    tags?: string | undefined;
+    q?: string | undefined;
+    min?: string | undefined;
+    max?: string | undefined;
+  } => ({
     funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
+    owner: typeof search["owner"] === "string" ? search["owner"] : undefined,
+    stage: typeof search["stage"] === "string" ? search["stage"] : undefined,
+    tags: typeof search["tags"] === "string" ? search["tags"] : undefined,
+    q: typeof search["q"] === "string" ? search["q"] : undefined,
+    min: typeof search["min"] === "string" ? search["min"] : undefined,
+    max: typeof search["max"] === "string" ? search["max"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -67,7 +78,8 @@ function PipelinePage() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const navigate = useNavigate();
-  const { funnel: funnelParam } = Route.useSearch();
+  const search = Route.useSearch();
+  const funnelParam = search.funnel;
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
   const { data: allStages } = usePipelineStagesRaw();
@@ -98,7 +110,22 @@ function PipelinePage() {
   const { data: profiles } = useProfilesRaw();
   const getAmoLink = useAmoCrmLink();
 
-  const [filters, setFilters] = useState<LeadFilterState>(EMPTY_LEAD_FILTERS);
+  // Filters live in the URL, not local state, so refresh/back-navigation
+  // returns you to exactly the same filtered view instead of resetting it.
+  const filters: LeadFilterState = useMemo(
+    () => ({
+      funnel: funnelParam ?? null,
+      ownerId: search.owner ?? null,
+      tags: search.tags ? search.tags.split(",").filter(Boolean) : [],
+      stageId: search.stage ?? null,
+      search: search.q ?? "",
+      amount: {
+        min: search.min !== undefined ? Number(search.min) : null,
+        max: search.max !== undefined ? Number(search.max) : null,
+      },
+    }),
+    [funnelParam, search.owner, search.tags, search.stage, search.q, search.min, search.max],
+  );
   const filteredLeads = useMemo(
     () => filterLeads(effectiveLeads, { ...filters, funnel: null }),
     [effectiveLeads, filters],
@@ -146,13 +173,21 @@ function PipelinePage() {
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <LeadFilterBar
-          value={{ ...filters, funnel: funnelParam ?? null }}
+          value={filters}
           onChange={(next) => {
-            if (next.funnel !== (funnelParam ?? null)) {
-              void navigate({ to: "/crm/pipeline", search: { funnel: next.funnel ?? undefined } });
-              return;
-            }
-            setFilters(next);
+            void navigate({
+              to: "/crm/pipeline",
+              search: {
+                funnel: next.funnel ?? undefined,
+                owner: next.ownerId ?? undefined,
+                stage: next.stageId ?? undefined,
+                tags: next.tags.length ? next.tags.join(",") : undefined,
+                q: next.search || undefined,
+                min: next.amount.min != null ? String(next.amount.min) : undefined,
+                max: next.amount.max != null ? String(next.amount.max) : undefined,
+              },
+              replace: true,
+            });
           }}
           funnels={funnelNames}
           owners={profiles ?? []}
@@ -247,6 +282,7 @@ function PipelinePage() {
                             <Link
                               to="/crm/leads/$leadId"
                               params={{ leadId: l.id }}
+                              search={{ from: "pipeline" }}
                               className="flex min-w-0 items-center gap-2"
                             >
                               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-semibold text-mint-foreground">

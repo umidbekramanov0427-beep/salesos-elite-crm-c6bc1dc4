@@ -28,8 +28,18 @@ import { NewLeadDialog } from "@/components/crm/quick-create";
 import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/crm/leads/")({
-  validateSearch: (search: Record<string, unknown>): { stage?: string | undefined } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    stage?: string | undefined;
+    q?: string | undefined;
+    sort?: "asc" | undefined;
+    page?: string | undefined;
+  } => ({
     stage: typeof search["stage"] === "string" ? search["stage"] : undefined,
+    q: typeof search["q"] === "string" ? search["q"] : undefined,
+    sort: search["sort"] === "asc" ? "asc" : undefined,
+    page: typeof search["page"] === "string" ? search["page"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -67,25 +77,52 @@ const PAGE_SIZE = 50;
 function LeadsPage() {
   const { t } = useI18n();
   const { format } = useCurrency();
-  const { stage: stageFilter } = Route.useSearch();
+  const search = Route.useSearch();
+  const stageFilter = search.stage;
   const navigate = Route.useNavigate();
-  const [queryInput, setQueryInput] = useState("");
-  const [query, setQuery] = useState("");
+
+  // Search text, sort direction and page live in the URL, not local state,
+  // so refresh/back-navigation returns you to exactly the same list view
+  // instead of resetting it. queryInput is just the input box's live value
+  // (debounced before it becomes the committed, URL-backed `query`).
+  const [queryInput, setQueryInput] = useState(() => search.q ?? "");
+  const query = search.q ?? "";
   const [view, setView] = useState<string>(SAVED_VIEWS[0] ?? "All leads");
   const [selected, setSelected] = useState<string[]>([]);
-  const [sortDesc, setSortDesc] = useState(true);
-  const [page, setPage] = useState(0);
+  const sortDesc = search.sort !== "asc";
+  const page = search.page !== undefined ? Number(search.page) : 0;
+
+  function setPage(v: number) {
+    void navigate({
+      search: (prev) => ({ ...prev, page: v > 0 ? String(v) : undefined }),
+      replace: true,
+    });
+  }
+  function setSortDesc(v: boolean) {
+    void navigate({ search: (prev) => ({ ...prev, sort: v ? undefined : "asc" }), replace: true });
+  }
 
   // Debounce the search box so every keystroke doesn't fire a new server
   // query — 350ms of no typing before it actually searches.
   useEffect(() => {
-    const id = setTimeout(() => setQuery(queryInput), 350);
+    const id = setTimeout(() => {
+      if (queryInput !== query) {
+        void navigate({
+          search: (prev) => ({ ...prev, q: queryInput || undefined, page: undefined }),
+          replace: true,
+        });
+      }
+    }, 350);
     return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryInput]);
 
   // Reset to page 1 whenever the filters change underneath the current page.
   useEffect(() => {
-    setPage(0);
+    if (page !== 0) {
+      void navigate({ search: (prev) => ({ ...prev, page: undefined }), replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, stageFilter]);
 
   // The URL's ?stage= param carries a stage *name* (for shareable links);
@@ -172,7 +209,7 @@ function LeadsPage() {
           <span className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-mint px-3 py-1.5 text-xs font-medium text-mint-foreground">
             {t("leads.stageFilter", { stage: stageFilter })}
             <button
-              onClick={() => void navigate({ search: {} })}
+              onClick={() => void navigate({ search: (prev) => ({ ...prev, stage: undefined }) })}
               className="rounded-full p-0.5 hover:bg-background/40"
               aria-label={t("leads.clearFilter")}
             >
@@ -220,7 +257,7 @@ function LeadsPage() {
                 />
               </div>
               <button
-                onClick={() => setSortDesc((s) => !s)}
+                onClick={() => setSortDesc(!sortDesc)}
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-accent"
               >
                 {t("leads.score")}{" "}
@@ -361,7 +398,7 @@ function LeadsPage() {
             <span>{t("leads.showingCount", { shown: rows.length, total: stats.total })}</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0 || isFetching}
                 className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 font-medium text-muted-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -371,7 +408,7 @@ function LeadsPage() {
                 {t("leads.pageOf", { page: page + 1, pages: totalPages })}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                 disabled={page + 1 >= totalPages || isFetching}
                 className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 font-medium text-muted-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
