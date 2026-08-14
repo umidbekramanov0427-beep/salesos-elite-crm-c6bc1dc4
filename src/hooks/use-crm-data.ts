@@ -19,8 +19,6 @@ export type LeadActivityRow = Tables["lead_activities"]["Row"];
 export type AmoCrmCallRow = Tables["amocrm_calls"]["Row"];
 export type QualificationGroupRow = Tables["call_qualification_groups"]["Row"];
 export type QualificationCriterionRow = Tables["call_qualification_criteria"]["Row"];
-export type QualificationGroupRow = Tables["call_qualification_groups"]["Row"];
-export type QualificationCriterionRow = Tables["call_qualification_criteria"]["Row"];
 export type CallCategoryRow = Tables["call_categories"]["Row"];
 export type CallSkillRow = Tables["call_skills"]["Row"];
 export type CallStageRow = Tables["call_stages"]["Row"];
@@ -168,12 +166,6 @@ const qualificationGroupsResource = makeResource("call_qualification_groups", [
 const qualificationCriteriaResource = makeResource("call_qualification_criteria", [
   "call_qualification_criteria",
 ]);
-const qualificationGroupsResource = makeResource("call_qualification_groups", [
-  "call_qualification_groups",
-]);
-const qualificationCriteriaResource = makeResource("call_qualification_criteria", [
-  "call_qualification_criteria",
-]);
 const callCategoriesResource = makeResource("call_categories", ["call_categories"]);
 const callSkillsResource = makeResource("call_skills", ["call_skills"]);
 const callStagesResource = makeResource("call_stages", ["call_stages"]);
@@ -287,25 +279,6 @@ export function useSettingList(listType: SettingListType) {
 export const useCreateSettingListItem = settingListsResource.useCreate;
 export const useUpdateSettingListItem = settingListsResource.useUpdate;
 export const useDeleteSettingListItem = settingListsResource.useRemove;
-
-/* ------------------------------------------------------------------ */
-/* Qualification Groups: BANT-style weighted criteria, one group per   */
-/* funnel/use-case.                                                    */
-/* ------------------------------------------------------------------ */
-
-export const useQualificationGroups = (
-  opts?: Parameters<typeof qualificationGroupsResource.useList>[0],
-) => qualificationGroupsResource.useList({ orderBy: "position", ...opts });
-export const useCreateQualificationGroup = qualificationGroupsResource.useCreate;
-export const useUpdateQualificationGroup = qualificationGroupsResource.useUpdate;
-export const useDeleteQualificationGroup = qualificationGroupsResource.useRemove;
-
-export const useQualificationCriteria = (
-  opts?: Parameters<typeof qualificationCriteriaResource.useList>[0],
-) => qualificationCriteriaResource.useList({ orderBy: "position", ...opts });
-export const useCreateQualificationCriterion = qualificationCriteriaResource.useCreate;
-export const useUpdateQualificationCriterion = qualificationCriteriaResource.useUpdate;
-export const useDeleteQualificationCriterion = qualificationCriteriaResource.useRemove;
 
 /* ------------------------------------------------------------------ */
 /* Qualification Groups: BANT-style weighted criteria, one group per   */
