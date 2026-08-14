@@ -1,14 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import {
+  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ExternalLink,
   Loader2,
+  MessageSquareQuote,
   Phone,
   PhoneIncoming,
   PhoneOutgoing,
+  ShieldAlert,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,6 +73,47 @@ function formatDuration(seconds: number, min: string): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")} ${min}`;
+}
+
+function scoreTone(score: number): "success" | "warning" | "danger" {
+  if (score >= 80) return "success";
+  if (score >= 50) return "warning";
+  return "danger";
+}
+
+function BulletList({
+  icon: Icon,
+  label,
+  items,
+  tone,
+}: {
+  icon: typeof ThumbsUp;
+  label: string;
+  items: string[];
+  tone: "success" | "warning" | "danger" | "neutral";
+}) {
+  if (items.length === 0) return null;
+  const toneClass = {
+    success: "border-success/20 bg-success/5 text-success",
+    warning: "border-warning/30 bg-warning/10 text-warning-foreground",
+    danger: "border-destructive/20 bg-destructive/5 text-destructive",
+    neutral: "border-border bg-surface text-foreground",
+  }[tone];
+  return (
+    <div className={cn("rounded-lg border p-2.5", toneClass)}>
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </p>
+      <ul className="mt-1.5 space-y-1 text-sm text-foreground">
+        {items.map((item, i) => (
+          <li key={i} className="flex gap-1.5">
+            <span className="text-subtle">·</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function DailyReportCard({
@@ -277,6 +323,9 @@ function CallRow({ call }: { call: AudioCallView }) {
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-3">
+          {call.score != null && (
+            <Pill tone={scoreTone(call.score)}>{t("audio.scorePill", { score: call.score })}</Pill>
+          )}
           <Pill tone={call.connected ? "success" : "neutral"}>
             {call.connected ? t("audio.connected") : t("audio.notConnected")}
           </Pill>
@@ -325,11 +374,29 @@ function CallRow({ call }: { call: AudioCallView }) {
       </div>
 
       {expanded && call.aiSummary && (
-        <div className="mt-3 space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            {t("audio.aiSummary")}
-          </p>
-          <p className="whitespace-pre-wrap text-sm text-foreground">{call.aiSummary}</p>
+        <div className="mt-3 space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              {t("audio.aiSummary")}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{call.aiSummary}</p>
+          </div>
+
+          {(call.mood || call.talkRatio != null) && (
+            <div className="flex flex-wrap gap-2">
+              {call.mood && (
+                <span className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
+                  {t("audio.mood")}: {call.mood}
+                </span>
+              )}
+              {call.talkRatio != null && (
+                <span className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
+                  {t("audio.talkRatio")}: {call.talkRatio}%
+                </span>
+              )}
+            </div>
+          )}
+
           {call.nextStep && (
             <div className="rounded-lg border border-mint/30 bg-mint/10 p-2.5">
               <p className="text-xs font-semibold uppercase tracking-wide text-mint-foreground">
@@ -344,6 +411,93 @@ function CallRow({ call }: { call: AudioCallView }) {
               )}
             </div>
           )}
+
+          {call.analysis && call.analysis.checklist.length > 0 && (
+            <div className="rounded-lg border border-border bg-surface p-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
+                {t("audio.checklist")}
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {call.analysis.checklist.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <CheckCircle2
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0",
+                        item.met ? "text-success" : "text-subtle",
+                      )}
+                    />
+                    <span className={cn("flex-1", !item.met && "text-muted-foreground")}>
+                      {item.step}
+                      {item.note && <span className="block text-xs text-subtle">{item.note}</span>}
+                    </span>
+                    <span className="shrink-0 text-xs text-subtle">
+                      {item.points} {t("audio.pts")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {call.analysis && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <BulletList
+                icon={ThumbsUp}
+                label={t("audio.strengths")}
+                items={call.analysis.strengths}
+                tone="success"
+              />
+              <BulletList
+                icon={ThumbsDown}
+                label={t("audio.improvements")}
+                items={call.analysis.improvements}
+                tone="warning"
+              />
+              <BulletList
+                icon={AlertTriangle}
+                label={t("audio.warnings")}
+                items={call.analysis.warnings}
+                tone="danger"
+              />
+              <BulletList
+                icon={ShieldAlert}
+                label={t("audio.risks")}
+                items={call.analysis.risks}
+                tone="danger"
+              />
+              <BulletList
+                icon={CheckCircle2}
+                label={t("audio.agreements")}
+                items={call.analysis.agreements}
+                tone="neutral"
+              />
+              <BulletList
+                icon={MessageSquareQuote}
+                label={t("audio.topObjections")}
+                items={call.analysis.topObjections}
+                tone="neutral"
+              />
+            </div>
+          )}
+
+          {call.analysis && call.analysis.keyQuotes.length > 0 && (
+            <div className="rounded-lg border border-border bg-surface p-2.5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtle">
+                <MessageSquareQuote className="h-3.5 w-3.5" /> {t("audio.keyQuotes")}
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {call.analysis.keyQuotes.map((q, i) => (
+                  <li
+                    key={i}
+                    className="border-l-2 border-primary/30 pl-2 text-sm italic text-foreground"
+                  >
+                    "{q}"
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {call.transcript && (
             <details className="mt-2">
               <summary className="cursor-pointer text-xs font-medium text-subtle hover:text-foreground">
