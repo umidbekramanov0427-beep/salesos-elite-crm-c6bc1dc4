@@ -5,6 +5,7 @@ import {
   Bot,
   ChevronDown,
   Check,
+  KeyRound,
   Loader2,
   Lock,
   Pencil,
@@ -46,6 +47,7 @@ import {
   useUpdateProfile,
   useCreateEmployee,
   useDeleteEmployee,
+  useSetEmployeePassword,
   useErrorLogsRaw,
   useResolveErrorLog,
   type ErrorLogRow,
@@ -388,15 +390,19 @@ function AdminPanelContent() {
   const { data: profiles, isLoading } = useProfilesRaw();
   const updateProfile = useUpdateProfile();
   const deleteEmployee = useDeleteEmployee();
+  const setPassword = useSetEmployeePassword();
   const [savingId, setSavingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
     profile: ProfileRow;
     role: ProfileRow["role"];
   } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ProfileRow | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<ProfileRow | null>(null);
+  const [passwordValue, setPasswordValue] = useState("");
 
   const roleLabel: Record<ProfileRow["role"], string> = {
     rep: t("admin.roleRep"),
@@ -413,11 +419,12 @@ function AdminPanelContent() {
     (p) => p.role === "super_admin" || p.role === "platform_owner",
   ).length;
   const q = query.trim().toLowerCase();
-  const filteredEmployees = q
-    ? employees.filter((p) =>
-        [p.full_name, p.email, p.department].some((v) => (v ?? "").toLowerCase().includes(q)),
-      )
-    : employees;
+  const filteredEmployees = employees
+    .filter((p) => !roleFilter || p.role === roleFilter)
+    .filter(
+      (p) =>
+        !q || [p.full_name, p.email, p.department].some((v) => (v ?? "").toLowerCase().includes(q)),
+    );
 
   async function applyRoleChange(profile: ProfileRow, role: ProfileRow["role"]) {
     setSavingId(profile.id);
@@ -456,6 +463,18 @@ function AdminPanelContent() {
       toast.error(describeError(err, t("admin.employeeDeleteFailed")));
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function applySetPassword() {
+    if (!passwordTarget || passwordValue.length < 8) return;
+    try {
+      await setPassword.mutateAsync({ id: passwordTarget.id, password: passwordValue });
+      toast.success(t("admin.passwordUpdated"));
+      setPasswordTarget(null);
+      setPasswordValue("");
+    } catch (err) {
+      toast.error(describeError(err, t("admin.passwordUpdateFailed")));
     }
   }
 
@@ -500,14 +519,29 @@ function AdminPanelContent() {
           className="xl:col-span-2"
           actions={
             employees.length > 0 && (
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t("admin.searchEmployees")}
-                  className="h-10 w-52 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="h-10 rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  aria-label={t("admin.rolesFilter")}
+                >
+                  <option value="">{t("admin.allRoles")}</option>
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {roleLabel[r]}
+                    </option>
+                  ))}
+                </select>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={t("admin.searchEmployees")}
+                    className="h-10 w-52 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
+                  />
+                </div>
               </div>
             )
           }
@@ -538,7 +572,7 @@ function AdminPanelContent() {
                     <th className="px-6 py-3 font-medium">{t("admin.colEmail")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colRole")}</th>
                     <th className="px-6 py-3 font-medium">{t("admin.colManagerRop")}</th>
-                    <th className="px-6 py-3 font-medium" />
+                    <th className="px-6 py-3 text-right font-medium">{t("admin.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -554,38 +588,28 @@ function AdminPanelContent() {
                         <td className="px-6 py-4 text-muted-foreground">{p.department}</td>
                         <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {isEditing ? (
-                              <Select
-                                value={p.role}
-                                disabled={savingId === p.id}
-                                onValueChange={(v) =>
-                                  setPendingChange({ profile: p, role: v as ProfileRow["role"] })
-                                }
-                              >
-                                <SelectTrigger className="h-9 w-36">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {ROLES.map((r) => (
-                                    <SelectItem key={r} value={r}>
-                                      {roleLabel[r]}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Pill tone={roleTone(p.role)}>{roleLabel[p.role]}</Pill>
-                            )}
-                            <button
-                              type="button"
-                              aria-label={t("admin.editRole")}
-                              onClick={() => setEditingId(isEditing ? null : p.id)}
-                              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          {isEditing ? (
+                            <Select
+                              value={p.role}
+                              disabled={savingId === p.id}
+                              onValueChange={(v) =>
+                                setPendingChange({ profile: p, role: v as ProfileRow["role"] })
+                              }
                             >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                              <SelectTrigger className="h-9 w-36">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ROLES.map((r) => (
+                                  <SelectItem key={r} value={r}>
+                                    {roleLabel[r]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Pill tone={roleTone(p.role)}>{roleLabel[p.role]}</Pill>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           {p.role === "sotuv_menejeri" ? (
@@ -614,22 +638,45 @@ function AdminPanelContent() {
                             <span className="text-xs text-subtle">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          {p.id !== user?.id && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
-                              aria-label={t("admin.deleteEmployee")}
-                              disabled={deletingId === p.id}
-                              onClick={() => setPendingDelete(p)}
-                              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                              aria-label={t("admin.editRole")}
+                              onClick={() => setEditingId(isEditing ? null : p.id)}
+                              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             >
-                              {deletingId === p.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
+                              <Pencil className="h-3.5 w-3.5" />
                             </button>
-                          )}
+                            {p.id !== user?.id && (
+                              <button
+                                type="button"
+                                aria-label={t("admin.setPassword")}
+                                onClick={() => {
+                                  setPasswordTarget(p);
+                                  setPasswordValue("");
+                                }}
+                                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                <KeyRound className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {p.id !== user?.id && (
+                              <button
+                                type="button"
+                                aria-label={t("admin.deleteEmployee")}
+                                disabled={deletingId === p.id}
+                                onClick={() => setPendingDelete(p)}
+                                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                              >
+                                {deletingId === p.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -748,6 +795,56 @@ function AdminPanelContent() {
           setPendingDelete(null);
         }}
       />
+
+      <Dialog
+        open={!!passwordTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordTarget(null);
+            setPasswordValue("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.setPasswordTitle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {passwordTarget?.full_name || passwordTarget?.email}
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="employee-new-password">{t("admin.newPassword")}</Label>
+            <Input
+              id="employee-new-password"
+              type="password"
+              value={passwordValue}
+              onChange={(e) => setPasswordValue(e.target.value)}
+              minLength={8}
+            />
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => {
+                setPasswordTarget(null);
+                setPasswordValue("");
+              }}
+              className="inline-flex h-10 items-center rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void applySetPassword()}
+              disabled={setPassword.isPending || passwordValue.length < 8}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {setPassword.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
