@@ -1267,6 +1267,9 @@ const en: Dict = {
   "leads.selectOne": "Select {name}",
   "leads.emptyState": "No leads match your filters yet.",
   "leads.showingCount": "Showing {shown} of {total} leads",
+  "leads.prevPage": "Previous",
+  "leads.nextPage": "Next",
+  "leads.pageOf": "Page {page} of {pages}",
 
   "funnels.title": "Funnels",
   "funnels.desc": "Pipeline visualization and stage conversion, computed from live CRM data.",
@@ -2618,6 +2621,9 @@ const ru: Dict = {
   "leads.selectOne": "Выбрать {name}",
   "leads.emptyState": "Пока нет лидов по заданным фильтрам.",
   "leads.showingCount": "Показано {shown} из {total} лидов",
+  "leads.prevPage": "Назад",
+  "leads.nextPage": "Вперёд",
+  "leads.pageOf": "Страница {page} из {pages}",
 
   "funnels.title": "Воронки",
   "funnels.desc": "Визуализация воронки и конверсия по этапам на основе реальных данных CRM.",
@@ -3986,6 +3992,9 @@ const uz: Dict = {
   "leads.selectOne": "{name} ni tanlash",
   "leads.emptyState": "Hozircha filtrlarga mos lid yo‘q.",
   "leads.showingCount": "{total} tadan {shown} tasi ko‘rsatilmoqda",
+  "leads.prevPage": "Oldingi",
+  "leads.nextPage": "Keyingi",
+  "leads.pageOf": "{pages} sahifadan {page} -si",
 
   "funnels.title": "Voronkalar",
   "funnels.desc":

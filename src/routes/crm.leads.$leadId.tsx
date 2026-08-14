@@ -27,8 +27,9 @@ import {
   useAuditTrail,
   useCreateLeadActivity,
   useCreateTask,
-  useCrmLeads,
+  useLeadById,
   useLeadActivities,
+  useProfilesRaw,
   useTasksView,
 } from "@/hooks/use-crm-data";
 import { AuditTrailList } from "@/components/history/AuditTrailList";
@@ -178,10 +179,9 @@ function LeadWorkspace() {
   const { t, lang } = useI18n();
   const { leadId } = Route.useParams();
   const { user } = useAuth();
-  const { rows: leads, profiles, isLoading } = useCrmLeads();
+  const { lead, isLoading } = useLeadById(leadId);
+  const { data: profiles } = useProfilesRaw();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Timeline");
-
-  const lead = leads.find((l) => l.id === leadId);
 
   const activities = useLeadActivities(lead?.id);
   const createActivity = useCreateLeadActivity();
@@ -272,7 +272,7 @@ function LeadWorkspace() {
   }
 
   const profileName = (id: string | null) =>
-    profiles.find((p) => p.id === id)?.full_name || t("lead.someone");
+    (profiles ?? []).find((p) => p.id === id)?.full_name || t("lead.someone");
 
   return (
     <>
