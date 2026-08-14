@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Loader2, Medal, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Loader2, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import {
   CartesianGrid,
   Legend,
@@ -179,6 +179,28 @@ function TagFilter({
   );
 }
 
+// #1 gets a trophy (no number needed -- there's only one #1). #2 and #3 get
+// a bigger, filled rank-colored circle with the actual place number inside,
+// which reads at a glance instead of asking the viewer to decode a generic
+// medal icon's color.
+function RankBadge({ place }: { place: number }) {
+  if (place === 0) return <Trophy className="h-8 w-8 shrink-0 text-amber-500" />;
+  const tone =
+    place === 1
+      ? "border-slate-400 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+      : "border-orange-400 bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300";
+  return (
+    <span
+      className={cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-extrabold",
+        tone,
+      )}
+    >
+      {place + 1}
+    </span>
+  );
+}
+
 function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number }) {
   const { t } = useI18n();
   const { format } = useCurrency();
@@ -187,10 +209,11 @@ function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number
     "border-slate-400/40",
     "border-orange-400/40",
   ];
-  const medalColorByPlace = ["text-amber-500", "text-slate-400", "text-orange-500"];
   return (
     <div className={cn("surface-card relative space-y-3 border p-5", toneByPlace[place])}>
-      <Medal className={cn("absolute right-4 top-4 h-7 w-7", medalColorByPlace[place])} />
+      <div className="absolute right-4 top-4">
+        <RankBadge place={place} />
+      </div>
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint text-sm font-bold text-mint-foreground">
           {row.initials}
