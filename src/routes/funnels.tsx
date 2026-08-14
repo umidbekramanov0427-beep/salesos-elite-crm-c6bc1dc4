@@ -10,12 +10,7 @@ import {
 } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
-import {
-  LeadFilterBar,
-  filterLeads,
-  EMPTY_LEAD_FILTERS,
-  type LeadFilterState,
-} from "@/components/crm/LeadFilterBar";
+import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -34,8 +29,26 @@ import {
 } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/funnels")({
-  validateSearch: (search: Record<string, unknown>): { funnel?: string | undefined } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    funnel?: string | undefined;
+    owner?: string | undefined;
+    stage?: string | undefined;
+    tags?: string | undefined;
+    q?: string | undefined;
+    min?: string | undefined;
+    max?: string | undefined;
+    view?: "gallery" | "list" | undefined;
+  } => ({
     funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
+    owner: typeof search["owner"] === "string" ? search["owner"] : undefined,
+    stage: typeof search["stage"] === "string" ? search["stage"] : undefined,
+    tags: typeof search["tags"] === "string" ? search["tags"] : undefined,
+    q: typeof search["q"] === "string" ? search["q"] : undefined,
+    min: typeof search["min"] === "string" ? search["min"] : undefined,
+    max: typeof search["max"] === "string" ? search["max"] : undefined,
+    view: search["view"] === "gallery" || search["view"] === "list" ? search["view"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -268,6 +281,7 @@ function LeadGalleryCard({
     <Link
       to="/crm/leads/$leadId"
       params={{ leadId: lead.id }}
+      search={{ from: "funnels" }}
       className="group relative block rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
     >
       {amoLink && (
@@ -346,7 +360,12 @@ function LeadListRow({
   return (
     <tr className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent">
       <td className="max-w-[16rem] px-3 py-3">
-        <Link to="/crm/leads/$leadId" params={{ leadId: lead.id }} className="block min-w-0">
+        <Link
+          to="/crm/leads/$leadId"
+          params={{ leadId: lead.id }}
+          search={{ from: "funnels" }}
+          className="block min-w-0"
+        >
           <p className="truncate text-sm font-semibold text-foreground hover:text-primary">
             {lead.company || lead.name}
           </p>
@@ -408,8 +427,26 @@ function FunnelDetail({
   const { t } = useI18n();
   const { format } = useCurrency();
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<LeadFilterState>({ ...EMPTY_LEAD_FILTERS, funnel: name });
-  const [view, setView] = useState<"gallery" | "list">("gallery");
+  const search = Route.useSearch();
+
+  // Filters (and the gallery/list toggle) live in the URL, not local state,
+  // so refresh/back-navigation returns you to exactly the same filtered
+  // view of this funnel instead of resetting it.
+  const filters: LeadFilterState = useMemo(
+    () => ({
+      funnel: name,
+      ownerId: search.owner ?? null,
+      tags: search.tags ? search.tags.split(",").filter(Boolean) : [],
+      stageId: search.stage ?? null,
+      search: search.q ?? "",
+      amount: {
+        min: search.min !== undefined ? Number(search.min) : null,
+        max: search.max !== undefined ? Number(search.max) : null,
+      },
+    }),
+    [name, search.owner, search.tags, search.stage, search.q, search.min, search.max],
+  );
+  const view: "gallery" | "list" = search.view === "list" ? "list" : "gallery";
 
   const { data: profiles } = useProfilesRaw();
   const { data: stages } = usePipelineStagesRaw();
@@ -438,7 +475,7 @@ function FunnelDetail({
     <>
       <Link
         to="/funnels"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="mb-4 inline-flex items-center gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-semibold text-amber-500 shadow-soft transition-colors hover:border-amber-400/60 hover:bg-amber-400/20"
       >
         <ArrowLeft className="h-4 w-4" /> {t("funnels.backToFunnels")}
       </Link>
@@ -473,20 +510,35 @@ function FunnelDetail({
         <SectionCard title={t("funnels.gallery")} description={t("funnels.galleryDesc")}>
           <div className="mb-5">
             <LeadFilterBar
-              value={{ ...filters, funnel: name }}
+              value={filters}
               onChange={(next) => {
-                if (next.funnel !== name) {
-                  void navigate({ to: "/funnels", search: { funnel: next.funnel ?? undefined } });
-                  return;
-                }
-                setFilters(next);
+                void navigate({
+                  to: "/funnels",
+                  search: {
+                    funnel: next.funnel ?? undefined,
+                    owner: next.ownerId ?? undefined,
+                    stage: next.stageId ?? undefined,
+                    tags: next.tags.length ? next.tags.join(",") : undefined,
+                    q: next.search || undefined,
+                    min: next.amount.min != null ? String(next.amount.min) : undefined,
+                    max: next.amount.max != null ? String(next.amount.max) : undefined,
+                    view,
+                  },
+                  replace: true,
+                });
               }}
               funnels={funnelNames}
               owners={funnelOwners}
               tags={funnelTags}
               stages={stages ?? []}
               view={view}
-              onViewChange={setView}
+              onViewChange={(v) =>
+                void navigate({
+                  to: "/funnels",
+                  search: (prev) => ({ ...prev, view: v }),
+                  replace: true,
+                })
+              }
             />
           </div>
           {gallery.length === 0 ? (

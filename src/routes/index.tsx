@@ -21,13 +21,35 @@ import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/
 import {
   AmountRangeFilter,
   amountInRange,
-  EMPTY_AMOUNT_RANGE,
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    from?: string | undefined;
+    to?: string | undefined;
+    label?: string | undefined;
+    q?: string | undefined;
+    stage?: string | undefined;
+    funnel?: string | undefined;
+    tags?: string | undefined;
+    min?: string | undefined;
+    max?: string | undefined;
+  } => ({
+    from: typeof search["from"] === "string" ? search["from"] : undefined,
+    to: typeof search["to"] === "string" ? search["to"] : undefined,
+    label: typeof search["label"] === "string" ? search["label"] : undefined,
+    q: typeof search["q"] === "string" ? search["q"] : undefined,
+    stage: typeof search["stage"] === "string" ? search["stage"] : undefined,
+    funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
+    tags: typeof search["tags"] === "string" ? search["tags"] : undefined,
+    min: typeof search["min"] === "string" ? search["min"] : undefined,
+    max: typeof search["max"] === "string" ? search["max"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Reyting — SalesOS Elite CRM" },
@@ -173,16 +195,65 @@ function Leaderboard() {
     if (user?.role === "platform_owner") void navigate({ to: "/platform", replace: true });
   }, [user, navigate]);
 
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
-    from: null,
-    to: null,
-    label: t("lb.presetAll"),
-  });
-  const [search, setSearch] = useState("");
-  const [stageId, setStageId] = useState<string | null>(null);
-  const [funnel, setFunnel] = useState<string | null>(null);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [revenueRange, setRevenueRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
+  const routeSearch = Route.useSearch();
+  const routeNavigate = Route.useNavigate();
+
+  // Filters live in the URL, not local state, so refresh/back-navigation
+  // returns you to exactly the same filtered leaderboard instead of
+  // resetting it. Live-refresh toggle and as-of-date stay local -- they're
+  // modes, not filters someone expects to come back to.
+  const dateFilter: DateFilterValue = useMemo(
+    () => ({
+      from: routeSearch.from ? new Date(routeSearch.from) : null,
+      to: routeSearch.to ? new Date(routeSearch.to) : null,
+      label: routeSearch.label ?? t("lb.presetAll"),
+    }),
+    [routeSearch.from, routeSearch.to, routeSearch.label, t],
+  );
+  const search = routeSearch.q ?? "";
+  const stageId = routeSearch.stage ?? null;
+  const funnel = routeSearch.funnel ?? null;
+  const selectedTags = useMemo(
+    () => (routeSearch.tags ? routeSearch.tags.split(",").filter(Boolean) : []),
+    [routeSearch.tags],
+  );
+  const revenueRange: AmountRangeValue = useMemo(
+    () => ({
+      min: routeSearch.min !== undefined ? Number(routeSearch.min) : null,
+      max: routeSearch.max !== undefined ? Number(routeSearch.max) : null,
+    }),
+    [routeSearch.min, routeSearch.max],
+  );
+
+  function patchSearch(patch: Record<string, string | undefined>) {
+    void routeNavigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+  }
+  function setDateFilter(v: DateFilterValue) {
+    patchSearch({
+      from: v.from ? v.from.toISOString() : undefined,
+      to: v.to ? v.to.toISOString() : undefined,
+      label: v.label || undefined,
+    });
+  }
+  function setSearch(v: string) {
+    patchSearch({ q: v || undefined });
+  }
+  function setStageId(v: string | null) {
+    patchSearch({ stage: v ?? undefined });
+  }
+  function setFunnel(v: string | null) {
+    patchSearch({ funnel: v ?? undefined });
+  }
+  function setSelectedTags(v: string[]) {
+    patchSearch({ tags: v.length ? v.join(",") : undefined });
+  }
+  function setRevenueRange(v: AmountRangeValue) {
+    patchSearch({
+      min: v.min != null ? String(v.min) : undefined,
+      max: v.max != null ? String(v.max) : undefined,
+    });
+  }
+
   const [live, setLive] = useState(true);
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -38,6 +38,17 @@ import { PermissionGate } from "@/components/PermissionGate";
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
 export const Route = createFileRoute("/crm/leads/$leadId")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { from?: "pipeline" | "funnels" | "audio" | "leadTasks" | undefined } => ({
+    from:
+      search["from"] === "pipeline" ||
+      search["from"] === "funnels" ||
+      search["from"] === "audio" ||
+      search["from"] === "leadTasks"
+        ? search["from"]
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Lead workspace — SalesOS Elite CRM" },
@@ -184,8 +195,18 @@ function LeadHistorySection({ leadId }: { leadId: string }) {
   );
 }
 
+const BACK_LABEL_KEY: Record<string, string> = {
+  pipeline: "lead.backFromPipeline",
+  funnels: "funnels.backToFunnels",
+  audio: "lead.backFromAudio",
+  leadTasks: "lead.backFromLeadTasks",
+};
+
 function LeadWorkspace() {
   const { t, lang } = useI18n();
+  const router = useRouter();
+  const { from } = Route.useSearch();
+  const backLabel = t(from ? (BACK_LABEL_KEY[from] ?? "lead.backToLeads") : "lead.backToLeads");
   const { leadId } = Route.useParams();
   const { user } = useAuth();
   const { lead, isLoading } = useLeadById(leadId);
@@ -285,15 +306,16 @@ function LeadWorkspace() {
 
   return (
     <>
+      <button
+        type="button"
+        onClick={() => router.history.back()}
+        className="mb-4 inline-flex items-center gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-semibold text-amber-500 shadow-soft transition-colors hover:border-amber-400/60 hover:bg-amber-400/20"
+      >
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
+      </button>
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link
-            to="/crm/leads"
-            className="rounded-xl border border-border p-2 text-muted-foreground hover:bg-accent"
-            aria-label={t("lead.backToLeads")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-mint text-sm font-semibold text-mint-foreground">
             {lead.initials}
           </span>

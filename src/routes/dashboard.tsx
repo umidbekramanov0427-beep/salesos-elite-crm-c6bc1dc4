@@ -36,11 +36,7 @@ import {
   type LeadRow,
 } from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
-import {
-  AmountRangeFilter,
-  EMPTY_AMOUNT_RANGE,
-  type AmountRangeValue,
-} from "@/components/filters/AmountRangeFilter";
+import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 const RevenueChart = lazy(() =>
@@ -54,6 +50,23 @@ const SalesFunnel = lazy(() =>
 );
 
 export const Route = createFileRoute("/dashboard")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    from?: string | undefined;
+    to?: string | undefined;
+    label?: string | undefined;
+    funnel?: string | undefined;
+    min?: string | undefined;
+    max?: string | undefined;
+  } => ({
+    from: typeof search["from"] === "string" ? search["from"] : undefined,
+    to: typeof search["to"] === "string" ? search["to"] : undefined,
+    label: typeof search["label"] === "string" ? search["label"] : undefined,
+    funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
+    min: typeof search["min"] === "string" ? search["min"] : undefined,
+    max: typeof search["max"] === "string" ? search["max"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Dashboard — SalesOS Elite" },
@@ -86,13 +99,54 @@ function Dashboard() {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const { format } = useCurrency();
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
-    from: null,
-    to: null,
-    label: t("lb.presetAll"),
-  });
-  const [funnel, setFunnel] = useState<string | null>(null);
-  const [amountRange, setAmountRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  // Filters live in the URL (not local state) so refreshing the page or
+  // navigating back keeps whatever was picked instead of resetting to
+  // "nothing selected" -- same pattern used across Funnels/AmoCRM/Reyting.
+  const dateFilter: DateFilterValue = useMemo(
+    () => ({
+      from: search.from ? new Date(search.from) : null,
+      to: search.to ? new Date(search.to) : null,
+      label: search.label ?? t("lb.presetAll"),
+    }),
+    [search.from, search.to, search.label, t],
+  );
+  const funnel = search.funnel ?? null;
+  const amountRange: AmountRangeValue = useMemo(
+    () => ({
+      min: search.min !== undefined ? Number(search.min) : null,
+      max: search.max !== undefined ? Number(search.max) : null,
+    }),
+    [search.min, search.max],
+  );
+
+  function setDateFilter(v: DateFilterValue) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        from: v.from ? v.from.toISOString() : undefined,
+        to: v.to ? v.to.toISOString() : undefined,
+        label: v.label || undefined,
+      }),
+      replace: true,
+    });
+  }
+  function setFunnel(v: string | null) {
+    void navigate({ search: (prev) => ({ ...prev, funnel: v ?? undefined }), replace: true });
+  }
+  function setAmountRange(v: AmountRangeValue) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        min: v.min != null ? String(v.min) : undefined,
+        max: v.max != null ? String(v.max) : undefined,
+      }),
+      replace: true,
+    });
+  }
+
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfLeads = useAsOfSnapshot<LeadRow>("leads", asOfDate);
   const asOfDeals = useAsOfSnapshot<DealRow>("deals", asOfDate);
