@@ -788,7 +788,7 @@ const en: Dict = {
   "lb.trendRange26": "Last 26 weeks",
   "lb.info.totalLeadsCount":
     "Total number of leads in the selected funnel (or every funnel, if none is selected).",
-  "lb.info.avgConversion": "WON leads divided by total leads in the funnel.",
+  "lb.info.avgConversion": "Sales-stage leads (Total sales) divided by total leads in the funnel.",
   "lb.info.totalSales":
     "Leads currently sitting in a prepayment, half-payment or full-payment stage. The amount below is their combined value.",
   "lb.info.totalWonLeads": "Leads in a closed-WON stage. The amount below is their combined value.",
@@ -2322,7 +2322,8 @@ const ru: Dict = {
   "lb.trendRange26": "Последние 26 недель",
   "lb.info.totalLeadsCount":
     "Общее число лидов в выбранной воронке (или во всех, если воронка не выбрана).",
-  "lb.info.avgConversion": "Выигранные лиды, делённые на общее число лидов в воронке.",
+  "lb.info.avgConversion":
+    "Лиды на этапах продаж (Всего продаж), делённые на общее число лидов в воронке.",
   "lb.info.totalSales":
     "Лиды на этапе предоплаты, частичной или полной оплаты. Сумма ниже — их общая стоимость.",
   "lb.info.totalWonLeads": "Лиды на этапе «выиграно». Сумма ниже — их общая стоимость.",
@@ -3872,7 +3873,8 @@ const uz: Dict = {
   "lb.trendRange26": "Oxirgi 26 hafta",
   "lb.info.totalLeadsCount":
     "Tanlangan voronkadagi (yoki hech qaysi tanlanmasa, barcha voronkalardagi) jami lidlar soni.",
-  "lb.info.avgConversion": "Voronkadagi WON lidlar sonini jami lidlar soniga bo'lish.",
+  "lb.info.avgConversion":
+    "Sotuv bosqichidagi lidlar (Jami sotuvlar) sonini jami lidlar soniga bo'lish.",
   "lb.info.totalSales":
     "Predoplata, yarim to'lov yoki to'liq to'lov bosqichida turgan lidlar. Pastdagi summa — ularning umumiy qiymati.",
   "lb.info.totalWonLeads":

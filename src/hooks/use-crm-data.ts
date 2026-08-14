@@ -3383,7 +3383,10 @@ export function useFunnelStats(funnel?: string | null): FunnelStats {
       wonRevenue,
       salesStageCount,
       salesStageRevenue,
-      conversion: totalLeads ? (wonCount / totalLeads) * 100 : 0,
+      // Sales-stage count (prepayment/half-payment/full-payment), not WON --
+      // this is "Umumiy konversiya" as specified, distinct from the WON-only
+      // ratio a plain won/total conversion would give.
+      conversion: totalLeads ? (salesStageCount / totalLeads) * 100 : 0,
       isLoading: leadsLoading || stagesLoading,
     };
   }, [leads, stages, funnel, leadsLoading, stagesLoading]);
