@@ -369,6 +369,170 @@ export type Database = {
           },
         ]
       }
+      call_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          position: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          position?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_skills: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          position: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          position?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_skills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_stages: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          position: number
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          position?: number
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_stages_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "call_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_stages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_stage_steps: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          points: number
+          position: number
+          skill_id: string | null
+          stage_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          points?: number
+          position?: number
+          skill_id?: string | null
+          stage_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          points?: number
+          position?: number
+          skill_id?: string | null
+          stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_stage_steps_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_stage_steps_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "call_skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_stage_steps_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "call_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           connected: boolean
