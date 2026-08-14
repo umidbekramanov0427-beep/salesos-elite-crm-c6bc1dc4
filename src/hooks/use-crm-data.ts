@@ -3319,6 +3319,77 @@ export function useFunnelNames() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Funnel-level stat cards (Reyting) — computed directly from the raw   */
+/* leads table rather than summed across per-manager leaderboard rows,  */
+/* so a lead with no (or an unmatched) owner still counts toward the    */
+/* funnel's totals instead of silently vanishing from the sum.          */
+/* ------------------------------------------------------------------ */
+
+// AmoCRM stage names are whatever the org typed into their own pipeline —
+// match loosely (lowercased, apostrophes stripped) rather than against an
+// exact string, so "To'liq to'lov", "TO'LIQ TO'LOV" and "Toliq to'lov" all
+// still match.
+const SALES_STAGE_KEYWORDS = ["predoplata", "yarim", "toliq"];
+
+function normalizeStageName(name: string): string {
+  return name.toLowerCase().replace(/['’ʼ`]/g, "");
+}
+
+export type FunnelStats = {
+  totalLeads: number;
+  totalRevenue: number;
+  wonCount: number;
+  wonRevenue: number;
+  salesStageCount: number;
+  salesStageRevenue: number;
+  conversion: number;
+  isLoading: boolean;
+};
+
+export function useFunnelStats(funnel?: string | null): FunnelStats {
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+
+  return useMemo(() => {
+    const stagesById = byId(stages);
+    let totalLeads = 0;
+    let totalRevenue = 0;
+    let wonCount = 0;
+    let wonRevenue = 0;
+    let salesStageCount = 0;
+    let salesStageRevenue = 0;
+
+    for (const l of leads ?? []) {
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      totalLeads += 1;
+      totalRevenue += l.expected_revenue;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      if (stage?.is_won) {
+        wonCount += 1;
+        wonRevenue += l.expected_revenue;
+      }
+      const stageName = stage ? normalizeStageName(stage.name) : "";
+      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
+        salesStageCount += 1;
+        salesStageRevenue += l.expected_revenue;
+      }
+    }
+
+    return {
+      totalLeads,
+      totalRevenue,
+      wonCount,
+      wonRevenue,
+      salesStageCount,
+      salesStageRevenue,
+      conversion: totalLeads ? (wonCount / totalLeads) * 100 : 0,
+      isLoading: leadsLoading || stagesLoading,
+    };
+  }, [leads, stages, funnel, leadsLoading, stagesLoading]);
+}
+
+/* ------------------------------------------------------------------ */
 /* Audit / history — full change trail with time-travel, fed by the     */
 /* audit_row_change() triggers on leads/deals/tasks/companies/contacts/ */
 /* pipeline_stages/profiles. Each row stores the complete before/after  */

@@ -11,6 +11,7 @@ import {
   useAiAssistantChat,
   useAsOfSnapshot,
   useFunnelNames,
+  useFunnelStats,
   useLeaderboardView,
   usePipelineStagesRaw,
   useTagsSummary,
@@ -288,36 +289,17 @@ function Leaderboard() {
     [allRows, revenueRange],
   );
 
-  const todayIso = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
-  }, []);
-  const { rows: todayRows } = useLeaderboardView(
-    {
-      from: todayIso,
-      to: null,
-      search: "",
-      stageId: null,
-      funnel: null,
-      tags: [],
-    },
-    { refetchInterval: live ? LIVE_REFRESH_MS : false },
-  );
-
   async function handleManualRefresh() {
     await refetch();
     toast.success(t("lb.refreshed"));
   }
 
-  const totals = useMemo(() => {
-    const totalLeads = rows.reduce((s, r) => s + r.totalLeads, 0);
-    const wonLeads = rows.reduce((s, r) => s + r.wonLeads, 0);
-    const revenue = rows.reduce((s, r) => s + r.revenue, 0);
-    const todayRevenue = todayRows.reduce((s, r) => s + r.revenue, 0);
-    const avgConversion = totalLeads ? (wonLeads / totalLeads) * 100 : 0;
-    return { totalLeads, wonLeads, revenue, todayRevenue, avgConversion };
-  }, [rows, todayRows]);
+  // Computed straight from the raw leads table (see useFunnelStats), not
+  // summed across the per-manager leaderboard rows above -- a lead with no
+  // (or an unmatched) owner still counted toward the funnel's real totals,
+  // but never showed up in any manager's row, so summing `rows` silently
+  // undercounted both totalLeads and revenue whenever that happened.
+  const funnelStats = useFunnelStats(funnel);
 
   const [topSummary, setTopSummary] = useState<string | null>(null);
   const [bottomSummary, setBottomSummary] = useState<string | null>(null);
@@ -487,11 +469,24 @@ function Leaderboard() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t("lb.todayRevenue")} value={format(totals.todayRevenue)} tone="mint" />
-        <StatCard label={t("lb.avgConversion")} value={pct(totals.avgConversion)} />
-        <StatCard label={t("lb.totalWonLeads")} value={String(totals.wonLeads)} />
-        <StatCard label={t("lb.totalRevenue")} value={format(totals.revenue)} />
+      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          label={t("lb.totalLeadsCount")}
+          value={String(funnelStats.totalLeads)}
+          tone="mint"
+        />
+        <StatCard label={t("lb.avgConversion")} value={pct(funnelStats.conversion)} />
+        <StatCard
+          label={t("lb.totalSales")}
+          value={String(funnelStats.salesStageCount)}
+          hint={format(funnelStats.salesStageRevenue)}
+        />
+        <StatCard
+          label={t("lb.totalWonLeads")}
+          value={String(funnelStats.wonCount)}
+          hint={format(funnelStats.wonRevenue)}
+        />
+        <StatCard label={t("lb.totalRevenue")} value={format(funnelStats.totalRevenue)} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
