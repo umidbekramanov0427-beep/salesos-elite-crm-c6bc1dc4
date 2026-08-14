@@ -2030,6 +2030,25 @@ export function useDeleteEmployee() {
   });
 }
 
+export function useSetEmployeePassword() {
+  return useMutation({
+    mutationFn: async (input: { id: string; password: string }): Promise<void> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/admin/set-employee-password", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to set password");
+    },
+  });
+}
+
 export type OrganizationRow = Tables["organizations"]["Row"];
 
 export function useOrganizations() {
