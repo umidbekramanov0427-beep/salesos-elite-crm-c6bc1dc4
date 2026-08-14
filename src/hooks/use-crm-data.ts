@@ -3390,6 +3390,140 @@ export function useFunnelStats(funnel?: string | null): FunnelStats {
 }
 
 /* ------------------------------------------------------------------ */
+/* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
+/* computation as useFunnelStats above, grouped by owner instead of      */
+/* summed across the whole funnel.                                       */
+/* ------------------------------------------------------------------ */
+
+export type ManagerFunnelStats = { totalLeads: number; salesCount: number; salesRevenue: number };
+
+export function useManagerFunnelStats(funnel?: string | null): Map<string, ManagerFunnelStats> {
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+  return useMemo(() => {
+    const stagesById = byId(stages);
+    const map = new Map<string, ManagerFunnelStats>();
+    for (const l of leads ?? []) {
+      if (!l.owner_id) continue;
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const cur = map.get(l.owner_id) ?? { totalLeads: 0, salesCount: 0, salesRevenue: 0 };
+      cur.totalLeads += 1;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const stageName = stage ? normalizeStageName(stage.name) : "";
+      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
+        cur.salesCount += 1;
+        cur.salesRevenue += l.expected_revenue;
+      }
+      map.set(l.owner_id, cur);
+    }
+    return map;
+  }, [leads, stages, funnel]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Weekly per-manager trend (Reyting charts) — conversion% and sales-    */
+/* stage revenue, bucketed by week of lead creation, for the top 5       */
+/* managers by total sales revenue (a fixed categorical palette only     */
+/* reads cleanly up to about 5 lines on one chart). "Conversion" here is */
+/* each week's cohort of created leads that are *currently* sitting in a */
+/* sales stage — there's no stored historical snapshot of conversion     */
+/* itself to chart directly, so this is the closest real approximation.  */
+/* ------------------------------------------------------------------ */
+
+const TREND_WEEKS = 8;
+const TREND_MAX_MANAGERS = 5;
+
+export type ManagerTrendSeries = {
+  id: string;
+  name: string;
+  conversion: (number | null)[];
+  salesRevenue: number[];
+};
+
+export type ManagerWeeklyTrend = { weekLabels: string[]; series: ManagerTrendSeries[] };
+
+function startOfWeek(d: Date): Date {
+  const copy = new Date(d);
+  const day = copy.getDay();
+  const diff = (day + 6) % 7; // Monday-start week
+  copy.setDate(copy.getDate() - diff);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+export function useManagerWeeklyTrend(funnel?: string | null): ManagerWeeklyTrend {
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: profiles } = useProfilesRaw();
+  const managerStats = useManagerFunnelStats(funnel);
+
+  return useMemo(() => {
+    const weekStarts: Date[] = [];
+    const now = startOfWeek(new Date());
+    for (let i = TREND_WEEKS - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i * 7);
+      weekStarts.push(d);
+    }
+    const weekLabels = weekStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
+
+    const topOwnerIds = Array.from(managerStats.entries())
+      .sort((a, b) => b[1].salesRevenue - a[1].salesRevenue)
+      .slice(0, TREND_MAX_MANAGERS)
+      .map(([id]) => id);
+    if (topOwnerIds.length === 0) return { weekLabels, series: [] };
+
+    const profilesById = byId(profiles);
+    const stagesById = byId(stages);
+
+    type Bucket = { total: number; sales: number; salesRevenue: number };
+    const buckets = new Map<string, Bucket[]>();
+    for (const id of topOwnerIds) {
+      buckets.set(
+        id,
+        weekStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
+      );
+    }
+
+    for (const l of leads ?? []) {
+      if (!l.owner_id || !buckets.has(l.owner_id)) continue;
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const created = new Date(l.created_at);
+      let weekIndex = -1;
+      for (let i = weekStarts.length - 1; i >= 0; i--) {
+        if (created >= weekStarts[i]!) {
+          weekIndex = i;
+          break;
+        }
+      }
+      if (weekIndex === -1) continue;
+      const bucket = buckets.get(l.owner_id)![weekIndex]!;
+      bucket.total += 1;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const stageName = stage ? normalizeStageName(stage.name) : "";
+      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
+        bucket.sales += 1;
+        bucket.salesRevenue += l.expected_revenue;
+      }
+    }
+
+    const series: ManagerTrendSeries[] = topOwnerIds.map((id) => {
+      const b = buckets.get(id)!;
+      return {
+        id,
+        name: profileName(profilesById.get(id)),
+        conversion: b.map((w) => (w.total ? (w.sales / w.total) * 100 : null)),
+        salesRevenue: b.map((w) => w.salesRevenue),
+      };
+    });
+
+    return { weekLabels, series };
+  }, [leads, stages, profiles, managerStats, funnel]);
+}
+
+/* ------------------------------------------------------------------ */
 /* Audit / history — full change trail with time-travel, fed by the     */
 /* audit_row_change() triggers on leads/deals/tasks/companies/contacts/ */
 /* pipeline_stages/profiles. Each row stores the complete before/after  */
