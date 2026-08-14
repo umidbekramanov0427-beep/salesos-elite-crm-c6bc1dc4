@@ -28,6 +28,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn, timeAgo } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -44,8 +45,16 @@ export const Route = createFileRoute("/tasks")({
       },
     ],
   }),
-  component: Tasks,
+  component: TasksGated,
 });
+
+function TasksGated() {
+  return (
+    <PermissionGate action="View tasks">
+      <Tasks />
+    </PermissionGate>
+  );
+}
 
 const COLUMNS: TaskRow["status"][] = ["Todo", "In progress", "Review", "Done"];
 
