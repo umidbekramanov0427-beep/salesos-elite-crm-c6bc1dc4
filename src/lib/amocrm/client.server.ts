@@ -1027,3 +1027,19 @@ export async function saveAmoImportSettings(
     .eq("organization_id", organizationId);
   if (error) throw error;
 }
+
+/** Removes the org's AmoCRM connection (and its access/refresh tokens) and flips integration_settings back off — see amocrm-import-settings' "Disconnect". */
+export async function disconnectAmoCrm(organizationId: string): Promise<void> {
+  const { error: connError } = await supabaseAdmin
+    .from("amocrm_connection")
+    .delete()
+    .eq("organization_id", organizationId);
+  if (connError) throw connError;
+
+  const { error: settingsError } = await supabaseAdmin
+    .from("integration_settings")
+    .update({ enabled: false })
+    .eq("organization_id", organizationId)
+    .eq("key", "amocrm");
+  if (settingsError) throw settingsError;
+}

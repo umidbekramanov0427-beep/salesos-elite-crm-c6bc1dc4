@@ -1,6 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Filter, Pin, Plus, Search, Star, Upload, ChevronDown, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Filter,
+  Pin,
+  Plus,
+  Search,
+  Star,
+  Upload,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
 import {
   PageHeader,
   SectionCard,
@@ -12,7 +23,7 @@ import { SAVED_VIEWS } from "@/lib/crm-data";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { useCrmLeads } from "@/hooks/use-crm-data";
+import { useLeadsListPage, usePipelineStagesRaw } from "@/hooks/use-crm-data";
 import { NewLeadDialog } from "@/components/crm/quick-create";
 
 export const Route = createFileRoute("/crm/leads/")({
@@ -42,37 +53,50 @@ export const Route = createFileRoute("/crm/leads/")({
 const tempTone = (t: string): "danger" | "warning" | "info" =>
   t === "Hot" ? "danger" : t === "Warm" ? "warning" : "info";
 
+const PAGE_SIZE = 50;
+
 function LeadsPage() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const { stage: stageFilter } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<string>(SAVED_VIEWS[0] ?? "All leads");
   const [selected, setSelected] = useState<string[]>([]);
   const [sortDesc, setSortDesc] = useState(true);
-  const { rows: allLeads, isLoading } = useCrmLeads();
+  const [page, setPage] = useState(0);
 
-  const rows = useMemo(() => {
-    const q = query.toLowerCase();
-    return allLeads
-      .filter((l) => !stageFilter || l.stage === stageFilter)
-      .filter(
-        (l) =>
-          !q ||
-          [l.name, l.company, l.email, l.id, l.owner, l.stage].some((v) =>
-            v.toLowerCase().includes(q),
-          ),
-      )
-      .sort((a, b) => (sortDesc ? b.score - a.score : a.score - b.score));
-  }, [allLeads, query, sortDesc, stageFilter]);
+  // Debounce the search box so every keystroke doesn't fire a new server
+  // query — 350ms of no typing before it actually searches.
+  useEffect(() => {
+    const id = setTimeout(() => setQuery(queryInput), 350);
+    return () => clearTimeout(id);
+  }, [queryInput]);
 
-  const hotCount = allLeads.filter((l) => l.score >= 80).length;
-  const avgScore = allLeads.length
-    ? Math.round(allLeads.reduce((s, l) => s + l.score, 0) / allLeads.length)
-    : 0;
-  const openValue = allLeads.reduce((s, l) => s + l.expectedRevenue, 0);
+  // Reset to page 1 whenever the filters change underneath the current page.
+  useEffect(() => {
+    setPage(0);
+  }, [query, stageFilter]);
 
+  // The URL's ?stage= param carries a stage *name* (for shareable links);
+  // resolve it to the id the server-side filter needs. Stages is a small,
+  // already-cached table, so this costs nothing extra.
+  const { data: stages } = usePipelineStagesRaw();
+  const stageId = useMemo(
+    () => (stageFilter ? ((stages ?? []).find((s) => s.name === stageFilter)?.id ?? null) : null),
+    [stages, stageFilter],
+  );
+
+  const { rows, stats, isLoading, isFetching } = useLeadsListPage({
+    page,
+    pageSize: PAGE_SIZE,
+    search: query,
+    stageId,
+    sortDesc,
+  });
+
+  const totalPages = Math.max(1, Math.ceil(stats.total / PAGE_SIZE));
   const allSelected = selected.length > 0 && selected.length === rows.length;
 
   return (
@@ -115,17 +139,17 @@ function LeadsPage() {
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t("leads.activeLeads")}
-          value={String(allLeads.length)}
+          value={String(stats.total)}
           hint={t("leads.allFunnels")}
           tone="mint"
         />
         <StatCard
           label={t("leads.hotLeads")}
-          value={String(hotCount)}
+          value={String(stats.hot)}
           hint={t("leads.scoreHint")}
         />
-        <StatCard label={t("leads.avgScore")} value={String(avgScore)} />
-        <StatCard label={t("leads.openValue")} value={format(openValue)} />
+        <StatCard label={t("leads.avgScore")} value={String(stats.avgScore)} />
+        <StatCard label={t("leads.openValue")} value={format(stats.revenue)} />
       </div>
 
       {isLoading && (
@@ -174,14 +198,14 @@ function LeadsPage() {
       <div className="mt-6">
         <SectionCard
           title={view}
-          description={t("leads.groupDesc", { shown: rows.length, total: allLeads.length })}
+          description={t("leads.groupDesc", { shown: rows.length, total: stats.total })}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
                 <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  value={queryInput}
+                  onChange={(e) => setQueryInput(e.target.value)}
                   placeholder={t("leads.searchPlaceholder")}
                   className="h-10 w-64 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
                 />
@@ -324,8 +348,27 @@ function LeadsPage() {
             </p>
           )}
 
-          <div className="-mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-border px-6 pt-4 text-xs text-subtle">
-            <span>{t("leads.showingCount", { shown: rows.length, total: allLeads.length })}</span>
+          <div className="-mx-6 -mb-6 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 pt-4 text-xs text-subtle">
+            <span>{t("leads.showingCount", { shown: rows.length, total: stats.total })}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0 || isFetching}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 font-medium text-muted-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> {t("leads.prevPage")}
+              </button>
+              <span className="font-medium text-foreground">
+                {t("leads.pageOf", { page: page + 1, pages: totalPages })}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={page + 1 >= totalPages || isFetching}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 font-medium text-muted-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t("leads.nextPage")} <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </SectionCard>
       </div>

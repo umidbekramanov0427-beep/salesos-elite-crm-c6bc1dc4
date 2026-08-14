@@ -1,17 +1,33 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Circle, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  CheckCircle2,
+  Circle,
+  Copy,
+  Loader2,
+  Plug,
+  RefreshCw,
+  ShieldAlert,
+  Unplug,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn, describeError } from "@/lib/utils";
-import { useAmoCatalog, useSaveAmoImportSettings } from "@/hooks/use-crm-data";
+import {
+  useAmoCatalog,
+  useAmoConnectionStatus,
+  useDisconnectAmoCrm,
+  useSaveAmoImportSettings,
+  useTriggerAmoCrmSync,
+} from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/admin/amocrm-import")({
   head: () => ({
     meta: [
-      { title: "AmoCRM import sozlamalari — SalesOS Elite" },
+      { title: "AmoCRM Integratsiyasi sozlamalar — SalesOS Elite" },
       {
         name: "description",
         content: "AmoCRM'dan qaysi voronkalar va operatorlar sinxronlanishini tanlang.",
@@ -21,10 +37,137 @@ export const Route = createFileRoute("/admin/amocrm-import")({
   component: AmoImportSettingsPage,
 });
 
+function ConnectionHeader() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const { data: status } = useAmoConnectionStatus();
+  const sync = useTriggerAmoCrmSync();
+  const disconnect = useDisconnectAmoCrm();
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const webhookUrl =
+    typeof window !== "undefined" && status && user?.organizationId
+      ? `${window.location.origin}/integrations/amocrm/webhook?org=${encodeURIComponent(user.organizationId)}`
+      : "";
+
+  if (!status) return null;
+
+  return (
+    <>
+      <SectionCard>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Pill tone="success">{t("common.connected")}</Pill>
+              {status.subdomain && <span className="text-xs text-subtle">{status.subdomain}</span>}
+            </div>
+            <p className="mt-2 text-xs text-subtle">
+              {t("amocrm.lastSync")}:{" "}
+              {status.last_synced_at
+                ? new Date(status.last_synced_at).toLocaleString()
+                : t("amocrm.never")}
+            </p>
+            {status.last_sync_error && (
+              <p className="mt-2 max-w-md text-xs text-destructive">
+                {t("amocrm.lastError")}: {status.last_sync_error}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                sync.mutate(undefined, {
+                  onSuccess: () => toast.success(t("amocrm.syncStarted")),
+                  onError: (err) =>
+                    toast.error(err instanceof Error ? err.message : t("amocrm.syncFailed")),
+                })
+              }
+              disabled={sync.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {sync.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {t("amocrm.syncNow")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDisconnect(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Unplug className="h-4 w-4" />
+              {t("amocrmImport.disconnect")}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title={t("amocrmImport.webhookUrlTitle")}
+        description={t("amocrmImport.webhookUrlDesc")}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground">
+            {webhookUrl}
+          </code>
+          <button
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(webhookUrl);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            {copied ? t("amocrmImport.copied") : t("amocrmImport.copyLink")}
+          </button>
+        </div>
+      </SectionCard>
+
+      <ConfirmDialog
+        open={confirmingDisconnect}
+        onOpenChange={setConfirmingDisconnect}
+        title={t("amocrmImport.disconnectConfirmTitle")}
+        description={t("amocrmImport.disconnectConfirmDesc")}
+        confirmLabel={t("amocrmImport.disconnect")}
+        onConfirm={() =>
+          disconnect.mutate(undefined, {
+            onSuccess: () => toast.success(t("amocrmImport.disconnected")),
+            onError: (err) => toast.error(describeError(err, t("amocrmImport.disconnectFailed"))),
+          })
+        }
+      />
+    </>
+  );
+}
+
+function NotConnectedCard() {
+  const { t } = useI18n();
+  return (
+    <SectionCard>
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <p className="text-sm text-muted-foreground">{t("amocrmImport.notConnected")}</p>
+        <Link
+          to="/integrations"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Plug className="h-4 w-4" /> {t("amocrmImport.goConnect")}
+        </Link>
+      </div>
+    </SectionCard>
+  );
+}
+
 function ImportSettingsPage() {
   const { t } = useI18n();
-  const { data: catalog, isLoading, isError, refetch, isFetching } = useAmoCatalog();
+  const { data: catalog, isLoading, isError, error, refetch, isFetching } = useAmoCatalog();
   const save = useSaveAmoImportSettings();
+  const notConnected = error instanceof Error && error.message === "AmoCRM is not connected yet.";
 
   const [pipelineIds, setPipelineIds] = useState<Set<number>>(new Set());
   const [userIds, setUserIds] = useState<Set<number>>(new Set());
@@ -64,33 +207,41 @@ function ImportSettingsPage() {
         title={t("amocrmImport.title")}
         description={t("amocrmImport.desc")}
         actions={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              disabled={isFetching}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-60"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
-              {t("amocrmImport.reload")}
-            </button>
-            <button
-              type="button"
-              onClick={() => void onSave()}
-              disabled={saving || isLoading || isError}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {t("common.save")}
-            </button>
-          </div>
+          catalog && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+                {t("amocrmImport.reload")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onSave()}
+                disabled={saving || isLoading}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("common.save")}
+              </button>
+            </div>
+          )
         }
       />
+
+      <div className="mb-6 space-y-6">
+        <ConnectionHeader />
+      </div>
 
       {isLoading ? (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
         </div>
+      ) : notConnected ? (
+        <NotConnectedCard />
       ) : isError || !catalog ? (
         <SectionCard>
           <p className="text-sm text-destructive">{t("amocrmImport.loadFailed")}</p>
