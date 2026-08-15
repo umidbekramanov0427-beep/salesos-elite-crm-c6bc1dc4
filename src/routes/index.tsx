@@ -223,22 +223,38 @@ function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number
           <p className="text-[11px] text-subtle">#{place + 1}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-lg bg-surface p-2">
-          <p className="text-subtle">{t("lb.colRevenue")}</p>
-          <p className="mt-0.5 font-bold text-foreground">{format(row.revenue)}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-surface p-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+            {t("lb.colRevenue")}
+          </p>
+          <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
+            {format(row.revenue)}
+          </p>
         </div>
-        <div className="rounded-lg bg-surface p-2">
-          <p className="text-subtle">{t("lb.colWonLeads")}</p>
-          <p className="mt-0.5 font-bold text-foreground">{row.wonLeads}</p>
+        <div className="rounded-lg bg-surface p-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+            {t("lb.colWonLeads")}
+          </p>
+          <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
+            {row.wonLeads}
+          </p>
         </div>
-        <div className="rounded-lg bg-surface p-2">
-          <p className="text-subtle">{t("lb.colConversion")}</p>
-          <p className="mt-0.5 font-bold text-success">{pct(row.conversion)}</p>
+        <div className="rounded-lg bg-surface p-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+            {t("lb.colConversion")}
+          </p>
+          <p className="mt-1 text-base font-extrabold tabular-nums text-success">
+            {pct(row.conversion)}
+          </p>
         </div>
-        <div className="rounded-lg bg-surface p-2">
-          <p className="text-subtle">{t("lb.colTotalLeads")}</p>
-          <p className="mt-0.5 font-bold text-foreground">{row.totalLeads}</p>
+        <div className="rounded-lg bg-surface p-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+            {t("lb.colTotalLeads")}
+          </p>
+          <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
+            {row.totalLeads}
+          </p>
         </div>
       </div>
     </div>

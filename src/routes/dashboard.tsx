@@ -270,60 +270,66 @@ function Dashboard() {
           info={t("dash.card.lostRevenueInfo")}
         />
 
-        <div className="relative overflow-hidden rounded-2xl border border-border">
-          <p className="flex items-center gap-1.5 p-4 pb-0 text-[13px] font-medium text-muted-foreground">
+        <div className="surface-card relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-violet-500">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
             {t("dash.card.tasks")}
             <InfoTip text={t("dash.card.tasksInfo")} />
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-b-2xl bg-border">
-            <div className="bg-success/10 p-4">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-success">
-                <CalendarClock className="h-3.5 w-3.5" />
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-success/10 p-3">
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-success">
+                <CalendarClock className="h-3 w-3" />
                 {t("dash.card.tasksDueToday")}
               </p>
-              <p className="mt-2 text-[26px] font-semibold leading-none text-success">
+              <p className="mt-2 text-[26px] font-bold leading-none tabular-nums text-success">
                 {taskStats.data?.dueToday ?? 0}
               </p>
             </div>
-            <div className="bg-destructive/10 p-4">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
-                <AlarmClockOff className="h-3.5 w-3.5" />
+            <div className="rounded-xl bg-destructive/10 p-3">
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
+                <AlarmClockOff className="h-3 w-3" />
                 {t("dash.card.tasksOverdue")}
               </p>
-              <p className="mt-2 text-[26px] font-semibold leading-none text-destructive">
+              <p className="mt-2 text-[26px] font-bold leading-none tabular-nums text-destructive">
                 {taskStats.data?.overdue ?? 0}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="surface-card relative overflow-hidden border-l-4 border-l-blue-500 p-6">
+        <div className="surface-card relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-blue-500">
           <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
             <PhoneCall className="h-3.5 w-3.5" />
             {t("dash.card.callTime")}
             <InfoTip text={t("dash.card.callTimeInfo")} />
           </p>
-          <p className="mt-1 text-[11px] text-subtle">
+          <p className="mt-1 text-xs font-medium text-subtle">
             {t("dash.card.callTimeManagers", { count: callStats.managerCount })}
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <div>
-              <p className="text-lg font-semibold leading-none text-foreground">
+              <p className="text-lg font-bold leading-none tabular-nums text-foreground">
                 {formatCallDuration(callStats.totalSeconds)}
               </p>
-              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeTotal")}</p>
+              <p className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-subtle">
+                {t("dash.card.callTimeTotal")}
+              </p>
             </div>
             <div>
-              <p className="text-lg font-semibold leading-none text-foreground">
+              <p className="text-lg font-bold leading-none tabular-nums text-foreground">
                 {formatCallDuration(callStats.avgSecondsPerManager)}
               </p>
-              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeAvg")}</p>
+              <p className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-subtle">
+                {t("dash.card.callTimeAvg")}
+              </p>
             </div>
             <div>
-              <p className="text-lg font-semibold leading-none text-foreground">
+              <p className="text-lg font-bold leading-none tabular-nums text-foreground">
                 {callStats.avgContactsPerManager}
               </p>
-              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeContacts")}</p>
+              <p className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-subtle">
+                {t("dash.card.callTimeContacts")}
+              </p>
             </div>
           </div>
         </div>
