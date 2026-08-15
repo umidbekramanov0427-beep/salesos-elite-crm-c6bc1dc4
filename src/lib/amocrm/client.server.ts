@@ -943,6 +943,70 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
   return rows.length;
 }
 
+type AmoTask = {
+  id: number;
+  entity_id: number;
+  entity_type: string;
+  complete_till: number;
+  is_completed: boolean;
+};
+
+export type AmoTaskStats = { dueToday: number; overdue: number };
+
+// Same "don't pull a whole account's history into one request" concern as
+// fetchCallNotes -- caps the pull so a huge open-task backlog can't push a
+// Dashboard load over the platform's memory/time limits.
+const TASKS_MAX_PAGES = 20; // ~5k open tasks at limit=250
+
+/**
+ * Counts this org's open (incomplete) AmoCRM tasks into "due later today"
+ * vs. "already overdue", optionally scoped to a single funnel by cross-
+ * referencing each task's lead against the local leads table (AmoCRM tasks
+ * carry no pipeline/funnel of their own -- only an entity_id/entity_type).
+ */
+export async function fetchOpenTaskStats(
+  organizationId: string,
+  funnel?: string | null,
+): Promise<AmoTaskStats> {
+  const conn0 = await getConnection(organizationId);
+  if (!conn0) return { dueToday: 0, overdue: 0 };
+  const conn = await ensureValidToken(conn0);
+
+  const tasks = await fetchAllPaged<AmoTask>(
+    conn,
+    (page) => `/api/v4/tasks?filter[is_completed]=0&limit=250&page=${page}`,
+    (data) => (data as { _embedded?: { tasks?: AmoTask[] } } | null)?._embedded?.tasks ?? [],
+    TASKS_MAX_PAGES,
+  );
+
+  let relevant = tasks;
+  if (funnel) {
+    const { data: leadRows, error } = await supabaseAdmin
+      .from("leads")
+      .select("amocrm_id")
+      .eq("organization_id", organizationId)
+      .eq("funnel", funnel);
+    if (error) throw error;
+    const allowedAmoIds = new Set(
+      (leadRows ?? []).map((l) => l.amocrm_id).filter((id): id is number => id != null),
+    );
+    relevant = tasks.filter((t) => t.entity_type === "leads" && allowedAmoIds.has(t.entity_id));
+  }
+
+  const now = Date.now() / 1000;
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const endOfTodayUnix = endOfToday.getTime() / 1000;
+
+  let dueToday = 0;
+  let overdue = 0;
+  for (const t of relevant) {
+    if (t.complete_till < now) overdue += 1;
+    else if (t.complete_till <= endOfTodayUnix) dueToday += 1;
+  }
+  return { dueToday, overdue };
+}
+
 /**
  * Resolves a stage_id for a single AmoCRM status_id, falling back to the
  * org's "new" stage. Status ids alone aren't unique across pipelines

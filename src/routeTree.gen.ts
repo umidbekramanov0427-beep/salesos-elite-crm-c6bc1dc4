@@ -47,6 +47,7 @@ import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
+import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
@@ -268,6 +269,11 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardAmocrmTasksRoute = DashboardAmocrmTasksRouteImport.update({
+  id: '/amocrm-tasks',
+  path: '/amocrm-tasks',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const ErrorsLogRoute = ErrorsLogRouteImport.update({
   id: '/errors/log',
   path: '/errors/log',
@@ -421,7 +427,7 @@ export interface FileRoutesByFullPath {
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
@@ -452,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
@@ -488,7 +495,7 @@ export interface FileRoutesByTo {
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
@@ -519,6 +526,7 @@ export interface FileRoutesByTo {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
@@ -556,7 +564,7 @@ export interface FileRoutesById {
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
@@ -587,6 +595,7 @@ export interface FileRoutesById {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
+  '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
@@ -656,6 +665,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/platform/activity'
     | '/platform/add-employee'
@@ -723,6 +733,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/platform/activity'
     | '/platform/add-employee'
@@ -790,6 +801,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/crm/pipeline'
+    | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/platform/activity'
     | '/platform/add-employee'
@@ -827,7 +839,7 @@ export interface RootRouteChildren {
   AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   CrmStagesRoute: typeof CrmStagesRoute
-  DashboardRoute: typeof DashboardRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
   IntegrationsRoute: typeof IntegrationsRouteWithChildren
@@ -1135,6 +1147,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/amocrm-tasks': {
+      id: '/dashboard/amocrm-tasks'
+      path: '/amocrm-tasks'
+      fullPath: '/dashboard/amocrm-tasks'
+      preLoaderRoute: typeof DashboardAmocrmTasksRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/errors/log': {
       id: '/errors/log'
       path: '/errors/log'
@@ -1385,6 +1404,18 @@ const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
   AudioAnalyticsRouteChildren,
 )
 
+interface DashboardRouteChildren {
+  DashboardAmocrmTasksRoute: typeof DashboardAmocrmTasksRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAmocrmTasksRoute: DashboardAmocrmTasksRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 interface IntegrationsRouteChildren {
   IntegrationsAmocrmCallbackRoute: typeof IntegrationsAmocrmCallbackRoute
   IntegrationsAmocrmConnectRoute: typeof IntegrationsAmocrmConnectRoute
@@ -1413,7 +1444,7 @@ const rootRouteChildren: RootRouteChildren = {
   AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   CrmStagesRoute: CrmStagesRoute,
-  DashboardRoute: DashboardRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,
   IntegrationsRoute: IntegrationsRouteWithChildren,

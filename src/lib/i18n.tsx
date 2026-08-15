@@ -430,6 +430,33 @@ const en: Dict = {
   "dash.weekSummaryEmpty": "Add leads and deals to see live insights here.",
   "dash.todayRevenue": "Today's revenue",
   "dash.todayGoal": "Today's goal",
+  "dash.card.totalLeads": "Total leads",
+  "dash.card.totalLeadsInfo":
+    "Total number of leads in the selected funnel (or every funnel, if none is selected).",
+  "dash.card.totalRevenue": "Total revenue",
+  "dash.card.totalRevenueInfo": "Combined value of every lead in the funnel, regardless of stage.",
+  "dash.card.conversion": "Conversion",
+  "dash.card.expectedConversion": "Expected conversion: 15%",
+  "dash.card.conversionInfo": "Sales-stage leads divided by total leads in the funnel.",
+  "dash.card.potentialSales": "Potential sales",
+  "dash.card.potentialSalesInfo":
+    "If this funnel's leads convert at the expected 15% rate, at this funnel's average deal size: how many sales and how much revenue that would be.",
+  "dash.card.lostLeads": "Lost leads",
+  "dash.card.lostLeadsInfo": "Total number of leads in a closed-lost stage in this funnel.",
+  "dash.card.lostRevenue": "Lost revenue",
+  "dash.card.lostRevenueInfo":
+    "Estimated revenue missed from lost leads: lost-lead count × the expected 15% conversion rate × this funnel's average deal size.",
+  "dash.card.tasks": "AmoCRM tasks",
+  "dash.card.tasksInfo": "Open AmoCRM tasks for this funnel's leads, live from AmoCRM.",
+  "dash.card.tasksDueToday": "Due today",
+  "dash.card.tasksOverdue": "Overdue",
+  "dash.card.callTime": "Today's call time",
+  "dash.card.callTimeInfo":
+    "This funnel's managers who made at least one call today, and their combined/average talk time and average number of people reached.",
+  "dash.card.callTimeManagers": "{count} managers active today",
+  "dash.card.callTimeTotal": "Total",
+  "dash.card.callTimeAvg": "Avg / manager",
+  "dash.card.callTimeContacts": "Avg contacts",
 
   "kpi.revenueToday": "Revenue today",
   "kpi.revenueTodayHint": "won deals closed today",
@@ -1978,6 +2005,33 @@ const ru: Dict = {
   "dash.weekSummaryEmpty": "Добавьте лиды и сделки, чтобы увидеть аналитику здесь.",
   "dash.todayRevenue": "Выручка сегодня",
   "dash.todayGoal": "Цель на сегодня",
+  "dash.card.totalLeads": "Всего лидов",
+  "dash.card.totalLeadsInfo":
+    "Общее число лидов в выбранной воронке (или во всех, если воронка не выбрана).",
+  "dash.card.totalRevenue": "Общая выручка",
+  "dash.card.totalRevenueInfo": "Общая стоимость всех лидов в воронке, независимо от этапа.",
+  "dash.card.conversion": "Конверсия",
+  "dash.card.expectedConversion": "Ожидаемая конверсия: 15%",
+  "dash.card.conversionInfo": "Лиды на этапах продаж, делённые на общее число лидов в воронке.",
+  "dash.card.potentialSales": "Потенциальные продажи",
+  "dash.card.potentialSalesInfo":
+    "Если лиды этой воронки конвертируются с ожидаемой ставкой 15% при среднем чеке этой воронки: сколько продаж и выручки это дало бы.",
+  "dash.card.lostLeads": "Потерянные лиды",
+  "dash.card.lostLeadsInfo": "Общее число лидов на этапе «проиграно» в этой воронке.",
+  "dash.card.lostRevenue": "Потерянная выручка",
+  "dash.card.lostRevenueInfo":
+    "Оценка упущенной выручки: число потерянных лидов × ожидаемая конверсия 15% × средний чек этой воронки.",
+  "dash.card.tasks": "Задачи AmoCRM",
+  "dash.card.tasksInfo": "Открытые задачи AmoCRM по лидам этой воронки, напрямую из AmoCRM.",
+  "dash.card.tasksDueToday": "На сегодня",
+  "dash.card.tasksOverdue": "Просрочено",
+  "dash.card.callTime": "Время звонков сегодня",
+  "dash.card.callTimeInfo":
+    "Менеджеры этой воронки, сделавшие хотя бы один звонок сегодня, и их суммарное/среднее время разговора и среднее число собеседников.",
+  "dash.card.callTimeManagers": "{count} менеджеров активны сегодня",
+  "dash.card.callTimeTotal": "Всего",
+  "dash.card.callTimeAvg": "Среднее / менеджер",
+  "dash.card.callTimeContacts": "Ср. контактов",
 
   "kpi.revenueToday": "Выручка сегодня",
   "kpi.revenueTodayHint": "выигранных сделок сегодня",
@@ -3524,6 +3578,36 @@ const uz: Dict = {
   "dash.weekSummaryEmpty": "Jonli tahlilni ko‘rish uchun lid va bitimlar qo‘shing.",
   "dash.todayRevenue": "Bugungi tushum",
   "dash.todayGoal": "Bugungi maqsad",
+  "dash.card.totalLeads": "Jami lid",
+  "dash.card.totalLeadsInfo":
+    "Tanlangan voronkadagi (yoki hech qaysi tanlanmasa, barcha voronkalardagi) jami lidlar soni.",
+  "dash.card.totalRevenue": "Jami tushum",
+  "dash.card.totalRevenueInfo":
+    "Voronkadagi barcha lidlarning umumiy qiymati, bosqichidan qat'i nazar.",
+  "dash.card.conversion": "Konversiya",
+  "dash.card.expectedConversion": "Kutilayotgan konversiya: 15%",
+  "dash.card.conversionInfo":
+    "Sotuv bosqichidagi lidlar sonini voronkadagi jami lidlar soniga bo'lish.",
+  "dash.card.potentialSales": "Potensial sotuv",
+  "dash.card.potentialSalesInfo":
+    "Agar shu voronkadagi lidlar kutilayotgan 15% konversiya bilan, shu voronkaning o'rtacha chekida sotuvga aylansa — qancha sotuv va tushum bo'lishi mumkinligi.",
+  "dash.card.lostLeads": "Yo'qotilgan lidlar",
+  "dash.card.lostLeadsInfo": "Shu voronkadagi yo'qotilgan (lost) bosqichidagi jami lidlar soni.",
+  "dash.card.lostRevenue": "Yo'qotilgan summa",
+  "dash.card.lostRevenueInfo":
+    "Yo'qotilgan taxminiy tushum: yo'qotilgan lidlar soni × kutilayotgan 15% konversiya × shu voronkaning o'rtacha cheki.",
+  "dash.card.tasks": "AmoCRM zadachalari",
+  "dash.card.tasksInfo":
+    "Shu voronkadagi lidlarga tegishli ochiq AmoCRM zadachalari, to'g'ridan-to'g'ri AmoCRM'dan.",
+  "dash.card.tasksDueToday": "Bugungi kunga",
+  "dash.card.tasksOverdue": "Vaqtida o'tib ketgan",
+  "dash.card.callTime": "Bugungi calltime",
+  "dash.card.callTimeInfo":
+    "Shu voronkada bugun kamida bitta qo'ng'iroq qilgan menejerlar, ularning jami/o'rtacha gaplashish vaqti va o'rtacha suhbatdosh soni.",
+  "dash.card.callTimeManagers": "Bugun {count} menejer faol",
+  "dash.card.callTimeTotal": "Jami",
+  "dash.card.callTimeAvg": "O'rtacha / menejer",
+  "dash.card.callTimeContacts": "O'rtacha suhbatdosh",
 
   "kpi.revenueToday": "Bugungi tushum",
   "kpi.revenueTodayHint": "bugun yopilgan bitimlar",

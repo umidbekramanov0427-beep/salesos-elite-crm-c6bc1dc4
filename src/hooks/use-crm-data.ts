@@ -3355,8 +3355,13 @@ export type FunnelStats = {
   totalRevenue: number;
   wonCount: number;
   wonRevenue: number;
+  lostCount: number;
   salesStageCount: number;
   salesStageRevenue: number;
+  // Average deal size across sales-stage leads only (salesStageRevenue /
+  // salesStageCount) -- the "o'rtacha chek" the Dashboard's projection cards
+  // are built from.
+  avgCheck: number;
   conversion: number;
   isLoading: boolean;
 };
@@ -3371,6 +3376,7 @@ export function useFunnelStats(funnel?: string | null): FunnelStats {
     let totalRevenue = 0;
     let wonCount = 0;
     let wonRevenue = 0;
+    let lostCount = 0;
     let salesStageCount = 0;
     let salesStageRevenue = 0;
 
@@ -3384,6 +3390,7 @@ export function useFunnelStats(funnel?: string | null): FunnelStats {
         wonCount += 1;
         wonRevenue += l.expected_revenue;
       }
+      if (stage?.is_lost) lostCount += 1;
       const stageName = stage ? normalizeStageName(stage.name) : "";
       if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
         salesStageCount += 1;
@@ -3396,8 +3403,10 @@ export function useFunnelStats(funnel?: string | null): FunnelStats {
       totalRevenue,
       wonCount,
       wonRevenue,
+      lostCount,
       salesStageCount,
       salesStageRevenue,
+      avgCheck: salesStageCount ? salesStageRevenue / salesStageCount : 0,
       // Sales-stage count (prepayment/half-payment/full-payment), not WON --
       // this is "Umumiy konversiya" as specified, distinct from the WON-only
       // ratio a plain won/total conversion would give.
@@ -3405,6 +3414,89 @@ export function useFunnelStats(funnel?: string | null): FunnelStats {
       isLoading: leadsLoading || stagesLoading,
     };
   }, [leads, stages, funnel, leadsLoading, stagesLoading]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Today's per-funnel call activity (Dashboard "Kunlik calltime" card)  */
+/* — how many managers made at least one call today in this funnel, how */
+/* much total/average talk time, and how many distinct leads each       */
+/* manager reached on average.                                          */
+/* ------------------------------------------------------------------ */
+
+export type FunnelCallStats = {
+  managerCount: number;
+  totalSeconds: number;
+  avgSecondsPerManager: number;
+  avgContactsPerManager: number;
+  isLoading: boolean;
+};
+
+export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
+  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+
+  return useMemo(() => {
+    const leadsById = byId(leads);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const byManager = new Map<string, { seconds: number; leadIds: Set<string> }>();
+    for (const c of calls ?? []) {
+      if (new Date(c.occurred_at) < startOfToday) continue;
+      if (!c.lead_id) continue;
+      const lead = leadsById.get(c.lead_id);
+      if (!lead?.owner_id) continue;
+      const leadFunnel = lead.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const cur = byManager.get(lead.owner_id) ?? { seconds: 0, leadIds: new Set<string>() };
+      cur.seconds += c.duration_seconds;
+      cur.leadIds.add(lead.id);
+      byManager.set(lead.owner_id, cur);
+    }
+
+    const managerCount = byManager.size;
+    const totalSeconds = Array.from(byManager.values()).reduce((s, m) => s + m.seconds, 0);
+    const totalContacts = Array.from(byManager.values()).reduce((s, m) => s + m.leadIds.size, 0);
+
+    return {
+      managerCount,
+      totalSeconds,
+      avgSecondsPerManager: managerCount ? Math.round(totalSeconds / managerCount) : 0,
+      avgContactsPerManager: managerCount
+        ? Math.round((totalContacts / managerCount) * 10) / 10
+        : 0,
+      isLoading: callsLoading || leadsLoading,
+    };
+  }, [calls, leads, funnel, callsLoading, leadsLoading]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Open AmoCRM task counts (Dashboard "zadachalar" card) — live-fetched, */
+/* not stored locally, since this app never syncs AmoCRM's own task list */
+/* in (it only ever pushes single reminder tasks out to AmoCRM).         */
+/* ------------------------------------------------------------------ */
+
+export type AmoTaskCardStats = { dueToday: number; overdue: number };
+
+export function useAmoCrmTaskStats(funnel?: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["amocrm_task_stats", user?.organizationId, funnel ?? null],
+    enabled: !!user?.organizationId,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<AmoTaskCardStats> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const params = new URLSearchParams();
+      if (funnel) params.set("funnel", funnel);
+      const res = await fetch(`/dashboard/amocrm-tasks?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = (await res.json()) as AmoTaskCardStats & { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not load AmoCRM tasks.");
+      return { dueToday: json.dueToday, overdue: json.overdue };
+    },
+  });
 }
 
 /* ------------------------------------------------------------------ */

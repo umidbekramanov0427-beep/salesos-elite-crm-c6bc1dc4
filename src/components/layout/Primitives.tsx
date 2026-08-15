@@ -83,27 +83,42 @@ export function StatCard({
   hint,
   tone = "default",
   info,
+  emphasize = false,
 }: {
   label: string;
   value: string;
   delta?: number;
   hint?: string;
-  tone?: "default" | "mint";
+  tone?: "default" | "mint" | "danger";
   info?: string;
+  // Bumps the value up a size for a card meant to read as an alert rather
+  // than a routine metric (e.g. Dashboard's "Yo'qotilgan summa").
+  emphasize?: boolean;
 }) {
   return (
     <div
       className={cn(
         "relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5",
-        statAccent(label),
-        tone === "mint" ? "mint-card" : "surface-card",
+        tone === "danger" ? "before:bg-destructive" : statAccent(label),
+        tone === "mint" ? "mint-card" : tone === "danger" ? "bg-destructive/10" : "surface-card",
       )}
     >
-      <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+      <p
+        className={cn(
+          "flex items-center gap-1.5 text-[13px] font-medium",
+          tone === "danger" ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
         {label}
         {info && <InfoTip text={info} />}
       </p>
-      <p className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-foreground">
+      <p
+        className={cn(
+          "mt-3 font-semibold leading-none tracking-tight",
+          emphasize ? "text-[36px]" : "text-[28px]",
+          tone === "danger" ? "text-destructive" : "text-foreground",
+        )}
+      >
         {value}
       </p>
       <div className="mt-3 flex items-center gap-2 text-xs">
@@ -113,7 +128,9 @@ export function StatCard({
             {delta}%
           </span>
         )}
-        {hint && <span className="text-subtle">{hint}</span>}
+        {hint && (
+          <span className={tone === "danger" ? "text-destructive/80" : "text-subtle"}>{hint}</span>
+        )}
       </div>
     </div>
   );

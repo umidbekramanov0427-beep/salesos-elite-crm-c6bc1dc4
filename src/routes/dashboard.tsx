@@ -1,18 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Banknote,
-  CalendarRange,
-  Gauge,
-  Layers3,
-  Percent,
-  Sparkles,
-  Trophy,
-  UserPlus,
-  XCircle,
-} from "lucide-react";
-import { PageHeader, SectionCard } from "@/components/layout/Primitives";
-import { KpiCard } from "@/components/dashboard/KpiCard";
+import { AlarmClockOff, CalendarClock, PhoneCall, Sparkles } from "lucide-react";
+import { PageHeader, SectionCard, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import {
   LeaderboardWidget,
@@ -28,10 +17,12 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import {
+  useAmoCrmTaskStats,
   useAsOfSnapshot,
   useDashboardKpis,
+  useFunnelCallStats,
   useFunnelNames,
-  useRevenueSeries,
+  useFunnelStats,
   type DealRow,
   type LeadRow,
 } from "@/hooks/use-crm-data";
@@ -165,9 +156,6 @@ function Dashboard() {
     dashboardFilters,
     asOfDate ? { leads: asOfLeads.data ?? [], deals: asOfDeals.data ?? [] } : undefined,
   );
-  const revenueSeries = useRevenueSeries();
-  const spark = useMemo(() => revenueSeries.map((r) => r.revenue), [revenueSeries]);
-
   function greeting() {
     const h = new Date().getHours();
     if (h < 12) return t("dash.greetingMorning");
@@ -182,91 +170,26 @@ function Dashboard() {
     year: "numeric",
   });
 
-  const todayGoal = user?.dailyTarget ?? 3000;
-  const goalPct = todayGoal ? Math.min(100, Math.round((kpis.revenueToday / todayGoal) * 100)) : 0;
+  // Same per-funnel computation Reyting uses (raw leads + pipeline_stages,
+  // not the dashboard_kpis RPC) -- these 8 cards are all about one funnel's
+  // real pipeline shape, which that RPC was never built to answer.
+  const funnelStats = useFunnelStats(funnel);
+  const callStats = useFunnelCallStats(funnel);
+  const taskStats = useAmoCrmTaskStats(funnel);
 
-  const kpiCards = [
-    {
-      id: "revenue-today",
-      label: t("kpi.revenueToday"),
-      value: format(kpis.revenueToday),
-      delta: 0,
-      comparison: t("kpi.revenueTodayHint"),
-      tooltip: t("kpi.revenueTodayTip"),
-      icon: Banknote,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "revenue-month",
-      label: t("kpi.revenueMonth"),
-      value: format(kpis.revenueMonth),
-      delta: 0,
-      comparison: t("kpi.revenueMonthHint"),
-      tooltip: t("kpi.revenueMonthTip"),
-      icon: CalendarRange,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "pipeline",
-      label: t("kpi.pipeline"),
-      value: format(kpis.pipelineValue),
-      delta: 0,
-      comparison: t("kpi.pipelineHint", { count: kpis.openDealsCount }),
-      tooltip: t("kpi.pipelineTip"),
-      icon: Layers3,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "new-leads",
-      label: t("kpi.newLeads"),
-      value: String(kpis.newLeadsToday),
-      delta: 0,
-      comparison: t("kpi.newLeadsHint"),
-      tooltip: t("kpi.newLeadsTip"),
-      icon: UserPlus,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "won",
-      label: t("kpi.won"),
-      value: String(kpis.wonThisWeek),
-      delta: 0,
-      comparison: t("kpi.wonHint"),
-      tooltip: t("kpi.wonTip"),
-      icon: Trophy,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "lost",
-      label: t("kpi.lost"),
-      value: String(kpis.lostThisWeek),
-      delta: 0,
-      comparison: t("kpi.lostHint"),
-      tooltip: t("kpi.lostTip"),
-      icon: XCircle,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "conversion",
-      label: t("kpi.conversion"),
-      value: `${kpis.conversion.toFixed(1)}%`,
-      delta: 0,
-      comparison: t("kpi.conversionHint"),
-      tooltip: t("kpi.conversionTip"),
-      icon: Percent,
-      spark: spark.length ? spark : [0],
-    },
-    {
-      id: "employee-kpi",
-      label: t("kpi.todayGoal"),
-      value: `${goalPct}%`,
-      delta: 0,
-      comparison: t("kpi.todayGoalHint", { target: format(todayGoal) }),
-      tooltip: t("kpi.todayGoalTip"),
-      icon: Gauge,
-      spark: spark.length ? spark : [0],
-    },
-  ];
+  // "Kutilayotgan konversiya" -- the org's fixed expected conversion rate,
+  // used only to project potential/lost revenue below (not a real measured
+  // number, so it isn't sourced from any hook).
+  const EXPECTED_CONVERSION = 0.15;
+  const potentialSalesCount = Math.round(funnelStats.totalLeads * EXPECTED_CONVERSION);
+  const potentialRevenue = potentialSalesCount * funnelStats.avgCheck;
+  const lostRevenue = funnelStats.lostCount * EXPECTED_CONVERSION * funnelStats.avgCheck;
+
+  function formatCallDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
 
   return (
     <>
@@ -294,7 +217,7 @@ function Dashboard() {
 
       <AsOfBanner value={asOfDate} />
 
-      <section className="mint-card grid gap-4 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <section className="mint-card grid gap-4 p-6">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
             {greeting()}, {user?.name?.split(" ")[0] ?? t("dash.friend")} 👋
@@ -307,32 +230,103 @@ function Dashboard() {
               : t("dash.weekSummaryEmpty")}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:w-[300px]">
-          <div className="min-w-0 rounded-xl bg-background p-3">
-            <p className="text-[11px] text-subtle">{t("dash.todayRevenue")}</p>
-            <p className="mt-1 truncate text-base font-semibold text-foreground sm:text-lg">
-              {format(kpis.revenueToday)}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-xl bg-background p-3">
-            <p className="text-[11px] text-subtle">{t("dash.todayGoal")}</p>
-            <p className="mt-1 truncate text-base font-semibold text-foreground sm:text-lg">
-              {format(todayGoal)}
-            </p>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-success transition-[width] duration-700"
-                style={{ width: `${goalPct}%` }}
-              />
-            </div>
-          </div>
-        </div>
       </section>
 
       <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {kpiCards.map((kpi) => (
-          <KpiCard key={kpi.id} kpi={kpi} />
-        ))}
+        <StatCard
+          label={t("dash.card.totalLeads")}
+          value={String(funnelStats.totalLeads)}
+          info={t("dash.card.totalLeadsInfo")}
+        />
+        <StatCard
+          label={t("dash.card.totalRevenue")}
+          value={format(funnelStats.totalRevenue)}
+          tone="mint"
+          info={t("dash.card.totalRevenueInfo")}
+        />
+        <StatCard
+          label={t("dash.card.conversion")}
+          value={`${funnelStats.conversion.toFixed(1)}%`}
+          hint={t("dash.card.expectedConversion")}
+          info={t("dash.card.conversionInfo")}
+        />
+        <StatCard
+          label={t("dash.card.potentialSales")}
+          value={String(potentialSalesCount)}
+          hint={format(potentialRevenue)}
+          tone="mint"
+          info={t("dash.card.potentialSalesInfo")}
+        />
+        <StatCard
+          label={t("dash.card.lostLeads")}
+          value={String(funnelStats.lostCount)}
+          info={t("dash.card.lostLeadsInfo")}
+        />
+        <StatCard
+          label={t("dash.card.lostRevenue")}
+          value={format(lostRevenue)}
+          tone="danger"
+          emphasize
+          info={t("dash.card.lostRevenueInfo")}
+        />
+
+        <div className="relative overflow-hidden rounded-2xl border border-border">
+          <p className="flex items-center gap-1.5 p-4 pb-0 text-[13px] font-medium text-muted-foreground">
+            {t("dash.card.tasks")}
+            <InfoTip text={t("dash.card.tasksInfo")} />
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-b-2xl bg-border">
+            <div className="bg-success/10 p-4">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-success">
+                <CalendarClock className="h-3.5 w-3.5" />
+                {t("dash.card.tasksDueToday")}
+              </p>
+              <p className="mt-2 text-[26px] font-semibold leading-none text-success">
+                {taskStats.data?.dueToday ?? 0}
+              </p>
+            </div>
+            <div className="bg-destructive/10 p-4">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+                <AlarmClockOff className="h-3.5 w-3.5" />
+                {t("dash.card.tasksOverdue")}
+              </p>
+              <p className="mt-2 text-[26px] font-semibold leading-none text-destructive">
+                {taskStats.data?.overdue ?? 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="surface-card relative overflow-hidden border-l-4 border-l-blue-500 p-6">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+            <PhoneCall className="h-3.5 w-3.5" />
+            {t("dash.card.callTime")}
+            <InfoTip text={t("dash.card.callTimeInfo")} />
+          </p>
+          <p className="mt-1 text-[11px] text-subtle">
+            {t("dash.card.callTimeManagers", { count: callStats.managerCount })}
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div>
+              <p className="text-lg font-semibold leading-none text-foreground">
+                {formatCallDuration(callStats.totalSeconds)}
+              </p>
+              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeTotal")}</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold leading-none text-foreground">
+                {formatCallDuration(callStats.avgSecondsPerManager)}
+              </p>
+              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeAvg")}</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold leading-none text-foreground">
+                {callStats.avgContactsPerManager}
+              </p>
+              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeContacts")}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-4">
