@@ -455,8 +455,8 @@ const en: Dict = {
     "This funnel's managers who made at least one call today, and their combined/average talk time and average number of people reached.",
   "dash.card.callTimeManagers": "{count} managers active today",
   "dash.card.callTimeTotal": "Total",
-  "dash.card.callTimeAvg": "Avg / manager",
-  "dash.card.callTimeContacts": "Avg contacts",
+  "dash.card.callTimeAvg": "Avg",
+  "dash.card.callTimeContacts": "Contacts",
 
   "kpi.revenueToday": "Revenue today",
   "kpi.revenueTodayHint": "won deals closed today",
@@ -2030,8 +2030,8 @@ const ru: Dict = {
     "Менеджеры этой воронки, сделавшие хотя бы один звонок сегодня, и их суммарное/среднее время разговора и среднее число собеседников.",
   "dash.card.callTimeManagers": "{count} менеджеров активны сегодня",
   "dash.card.callTimeTotal": "Всего",
-  "dash.card.callTimeAvg": "Среднее / менеджер",
-  "dash.card.callTimeContacts": "Ср. контактов",
+  "dash.card.callTimeAvg": "Средн.",
+  "dash.card.callTimeContacts": "Контакты",
 
   "kpi.revenueToday": "Выручка сегодня",
   "kpi.revenueTodayHint": "выигранных сделок сегодня",
@@ -3606,8 +3606,8 @@ const uz: Dict = {
     "Shu voronkada bugun kamida bitta qo'ng'iroq qilgan menejerlar, ularning jami/o'rtacha gaplashish vaqti va o'rtacha suhbatdosh soni.",
   "dash.card.callTimeManagers": "Bugun {count} menejer faol",
   "dash.card.callTimeTotal": "Jami",
-  "dash.card.callTimeAvg": "O'rtacha / menejer",
-  "dash.card.callTimeContacts": "O'rtacha suhbatdosh",
+  "dash.card.callTimeAvg": "O'rtacha",
+  "dash.card.callTimeContacts": "Suhbatdosh",
 
   "kpi.revenueToday": "Bugungi tushum",
   "kpi.revenueTodayHint": "bugun yopilgan bitimlar",
