@@ -114,22 +114,34 @@ export function StatCard({
       </p>
       <p
         className={cn(
-          "mt-3 font-semibold leading-none tracking-tight",
-          emphasize ? "text-[36px]" : "text-[28px]",
+          "mt-3 animate-in fade-in-0 slide-in-from-bottom-1 font-bold leading-none tracking-tight tabular-nums duration-500",
+          emphasize ? "text-[38px]" : "text-[30px]",
           tone === "danger" ? "text-destructive" : "text-foreground",
         )}
       >
         {value}
       </p>
-      <div className="mt-3 flex items-center gap-2 text-xs">
+      <div className="mt-2.5 flex items-center gap-2">
         {delta !== undefined && (
-          <span className={cn("font-semibold", delta >= 0 ? "text-success" : "text-destructive")}>
+          <span
+            className={cn(
+              "text-sm font-bold tabular-nums",
+              delta >= 0 ? "text-success" : "text-destructive",
+            )}
+          >
             {delta >= 0 ? "+" : ""}
             {delta}%
           </span>
         )}
         {hint && (
-          <span className={tone === "danger" ? "text-destructive/80" : "text-subtle"}>{hint}</span>
+          <span
+            className={cn(
+              "text-sm font-semibold tabular-nums",
+              tone === "danger" ? "text-destructive/80" : "text-foreground/65",
+            )}
+          >
+            {hint}
+          </span>
         )}
       </div>
     </div>

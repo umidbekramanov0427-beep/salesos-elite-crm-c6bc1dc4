@@ -281,7 +281,7 @@ function Dashboard() {
                 <CalendarClock className="h-3.5 w-3.5" />
                 {t("dash.card.tasksDueToday")}
               </p>
-              <p className="mt-2 text-[26px] font-semibold leading-none text-success">
+              <p className="mt-2 text-[28px] font-extrabold leading-none tabular-nums text-success">
                 {taskStats.data?.dueToday ?? 0}
               </p>
             </div>
@@ -290,7 +290,7 @@ function Dashboard() {
                 <AlarmClockOff className="h-3.5 w-3.5" />
                 {t("dash.card.tasksOverdue")}
               </p>
-              <p className="mt-2 text-[26px] font-semibold leading-none text-destructive">
+              <p className="mt-2 text-[28px] font-extrabold leading-none tabular-nums text-destructive">
                 {taskStats.data?.overdue ?? 0}
               </p>
             </div>
@@ -308,22 +308,28 @@ function Dashboard() {
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <div>
-              <p className="text-lg font-semibold leading-none text-foreground">
+              <p className="text-xl font-extrabold leading-none tabular-nums text-foreground">
                 {formatCallDuration(callStats.totalSeconds)}
               </p>
-              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeTotal")}</p>
+              <p className="mt-1.5 text-[11px] font-semibold text-subtle">
+                {t("dash.card.callTimeTotal")}
+              </p>
             </div>
             <div>
-              <p className="text-lg font-semibold leading-none text-foreground">
+              <p className="text-xl font-extrabold leading-none tabular-nums text-foreground">
                 {formatCallDuration(callStats.avgSecondsPerManager)}
               </p>
-              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeAvg")}</p>
+              <p className="mt-1.5 text-[11px] font-semibold text-subtle">
+                {t("dash.card.callTimeAvg")}
+              </p>
             </div>
             <div>
-              <p className="text-lg font-semibold leading-none text-foreground">
+              <p className="text-xl font-extrabold leading-none tabular-nums text-foreground">
                 {callStats.avgContactsPerManager}
               </p>
-              <p className="mt-1 text-[11px] text-subtle">{t("dash.card.callTimeContacts")}</p>
+              <p className="mt-1.5 text-[11px] font-semibold text-subtle">
+                {t("dash.card.callTimeContacts")}
+              </p>
             </div>
           </div>
         </div>
