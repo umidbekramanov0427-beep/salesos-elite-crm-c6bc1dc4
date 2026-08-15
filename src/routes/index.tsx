@@ -234,7 +234,7 @@ function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number
         </div>
         <div className="rounded-lg bg-surface p-2.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
-            {t("lb.colWonLeads")}
+            {t("lb.colSales")}
           </p>
           <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
             {row.wonLeads}
@@ -426,8 +426,31 @@ function Leaderboard() {
   const [topBusy, setTopBusy] = useState(false);
   const [bottomBusy, setBottomBusy] = useState(false);
 
-  const top3 = rows.slice(0, 3);
-  const bottom3 = rows.length > 3 ? [...rows].slice(-3).reverse() : [];
+  // The live-ranking table below reads its per-manager numbers from
+  // managerStats (sales-stage based: predoplata/yarim/toliq/won -- see
+  // SALES_STAGE_KEYWORDS), not from `rows`' own wonLeads/revenue (WON-stage
+  // only, via the leaderboard_stats RPC). Overlaying managerStats here keeps
+  // the top/bottom-3 cards showing the exact same numbers as that table
+  // instead of a narrower, WON-only slice of them.
+  const enrichedRows = useMemo(
+    () =>
+      rows.map((row) => {
+        const stats = managerStats.get(row.id);
+        const totalLeads = stats?.totalLeads ?? row.totalLeads;
+        const wonLeads = stats?.salesCount ?? row.wonLeads;
+        const revenue = stats?.salesRevenue ?? row.revenue;
+        return {
+          ...row,
+          totalLeads,
+          wonLeads,
+          revenue,
+          conversion: totalLeads ? (wonLeads / totalLeads) * 100 : 0,
+        };
+      }),
+    [rows, managerStats],
+  );
+  const top3 = enrichedRows.slice(0, 3);
+  const bottom3 = enrichedRows.length > 3 ? [...enrichedRows].slice(-3).reverse() : [];
 
   async function generateTopSummary() {
     if (top3.length === 0) return;
