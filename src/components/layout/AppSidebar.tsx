@@ -319,7 +319,7 @@ function FunnelsNavGroup({
     <div>
       <div
         className={cn(
-          "group flex w-full items-center gap-1 rounded-xl text-[15px] font-semibold transition-colors duration-200",
+          "group flex w-full items-center gap-1 rounded-xl text-[15px] font-bold transition-colors duration-200",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
             : "bg-card text-sidebar-foreground shadow-soft",
@@ -420,7 +420,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         to={item.to}
         title={collapsed ? t(`nav.${item.to}`) : undefined}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors duration-200",
+          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-bold transition-colors duration-200",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
             : "bg-card text-sidebar-foreground shadow-soft",
@@ -457,7 +457,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
     return (
       <>
         {!collapsed && (
-          <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted">
+          <p className="px-3 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wide text-sidebar-muted">
             {t(labelKey)}
           </p>
         )}
