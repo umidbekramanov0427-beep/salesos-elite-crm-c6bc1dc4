@@ -640,7 +640,7 @@ function Leaderboard() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-subtle">
+                <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
                   <th className="py-2.5 pr-4">{t("lb.colManager")}</th>
                   <th className="px-4 py-2.5 text-center">
                     <span className="inline-flex items-center gap-1.5">
@@ -700,7 +700,7 @@ function Leaderboard() {
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
                             {r.initials}
                           </span>
-                          <span className="truncate font-medium text-foreground">{r.name}</span>
+                          <span className="truncate font-bold text-foreground">{r.name}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-center tabular-nums">{stats.totalLeads}</td>

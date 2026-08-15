@@ -566,13 +566,13 @@ function AdminPanelContent() {
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
-                    <th className="px-6 py-3 font-medium">#</th>
-                    <th className="px-6 py-3 font-medium">{t("admin.colEmployee")}</th>
-                    <th className="px-6 py-3 font-medium">{t("admin.colDepartment")}</th>
-                    <th className="px-6 py-3 font-medium">{t("admin.colEmail")}</th>
-                    <th className="px-6 py-3 font-medium">{t("admin.colRole")}</th>
-                    <th className="px-6 py-3 font-medium">{t("admin.colManagerRop")}</th>
-                    <th className="px-6 py-3 text-right font-medium">{t("admin.colActions")}</th>
+                    <th className="px-6 py-3 font-bold">#</th>
+                    <th className="px-6 py-3 font-bold">{t("admin.colEmployee")}</th>
+                    <th className="px-6 py-3 font-bold">{t("admin.colDepartment")}</th>
+                    <th className="px-6 py-3 font-bold">{t("admin.colEmail")}</th>
+                    <th className="px-6 py-3 font-bold">{t("admin.colRole")}</th>
+                    <th className="px-6 py-3 font-bold">{t("admin.colManagerRop")}</th>
+                    <th className="px-6 py-3 text-right font-bold">{t("admin.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -584,7 +584,7 @@ function AdminPanelContent() {
                         className="border-b border-border last:border-0 hover:bg-surface"
                       >
                         <td className="px-6 py-4 text-sm font-bold text-amber-500">#{index + 1}</td>
-                        <td className="px-6 py-4 font-medium">{p.full_name || "—"}</td>
+                        <td className="px-6 py-4 font-bold">{p.full_name || "—"}</td>
                         <td className="px-6 py-4 text-muted-foreground">{p.department}</td>
                         <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
                         <td className="px-6 py-4">
@@ -719,7 +719,7 @@ function AdminPanelContent() {
                   <Link
                     to={c.to}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
+                      "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
                       c.important
                         ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
                         : "border-border bg-surface hover:bg-accent",
