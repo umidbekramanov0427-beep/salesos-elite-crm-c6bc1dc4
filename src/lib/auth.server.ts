@@ -50,6 +50,22 @@ export async function requireSuperAdmin(
   return userId ? requireSuperAdminForUser(userId) : null;
 }
 
+/** Returns the caller's user id + organization for any authenticated org member, no role check -- for data routes every role is allowed to read (e.g. their own Dashboard). */
+export async function requireOrgMember(
+  request: Request,
+): Promise<{ id: string; organizationId: string } | null> {
+  const userId = await getRequestUserId(request);
+  if (!userId) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("organization_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile?.organization_id) return null;
+  return { id: userId, organizationId: profile.organization_id };
+}
+
 /** Same check as requireSuperAdmin, given a user id already resolved from a token. Also admits platform_owner -- a platform owner administers their own organization with at least super_admin's privileges. */
 export async function requireSuperAdminForUser(
   userId: string,
