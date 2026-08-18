@@ -19,21 +19,27 @@ import {
 } from "recharts";
 import {
   AlertTriangle,
+  ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
   ExternalLink,
+  GitBranch,
+  ListFilter,
   Loader2,
   MessageSquareQuote,
   Phone,
+  PhoneCall,
   PhoneIncoming,
   PhoneOutgoing,
   Search,
   ShieldAlert,
   SlidersHorizontal,
+  Smile,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
   Upload,
+  User,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,6 +68,7 @@ import {
   amountInRange,
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
+import { FilterSelect, FilterSearchInput } from "@/components/filters/FilterSelect";
 import {
   Dialog,
   DialogContent,
@@ -1049,66 +1056,60 @@ function AudioAnalytics() {
       <div className="mt-8">
         <SectionCard title={t("audio.filters")}>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("audio.searchPlaceholder")}
-                className="h-9 w-64 rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              />
-            </div>
-            <select
+            <FilterSearchInput
+              icon={Search}
+              value={search}
+              onChange={setSearch}
+              placeholder={t("audio.searchPlaceholder")}
+              className="w-64"
+            />
+            <FilterSelect
+              icon={ArrowLeftRight}
               value={direction}
-              onChange={(e) => setDirection(e.target.value as "" | "in" | "out")}
-              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              onChange={(v) => setDirection(v as "" | "in" | "out")}
             >
               <option value="">{t("audio.filterAllDirections")}</option>
               <option value="in">{t("audio.filterIncoming")}</option>
               <option value="out">{t("audio.filterOutgoing")}</option>
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
+              icon={PhoneCall}
               value={connectedFilter}
-              onChange={(e) => setConnectedFilter(e.target.value as "" | "yes" | "no")}
-              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              onChange={(v) => setConnectedFilter(v as "" | "yes" | "no")}
             >
               <option value="">{t("audio.filterAllResults")}</option>
               <option value="yes">{t("audio.connected")}</option>
               <option value="no">{t("audio.notConnected")}</option>
-            </select>
-            <select
-              value={ownerId}
-              onChange={(e) => setOwnerId(e.target.value)}
-              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
+            </FilterSelect>
+            <FilterSelect icon={User} value={ownerId} onChange={setOwnerId}>
               <option value="">{t("audio.filterAllOwners")}</option>
               {owners.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
                 </option>
               ))}
-            </select>
+            </FilterSelect>
             <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
             <button
               type="button"
               onClick={() => setShowMoreFilters((v) => !v)}
               className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors",
+                "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border pl-3.5 pr-3 text-sm font-medium transition-colors",
                 showMoreFilters
                   ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-border bg-background text-muted-foreground hover:bg-accent",
               )}
             >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <SlidersHorizontal className="h-4 w-4" />
               {t("audio.moreFilters")}
             </button>
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
                 {t("audio.clearFilters")}
               </button>
             )}
@@ -1116,42 +1117,30 @@ function AudioAnalytics() {
 
           {showMoreFilters && (
             <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-border pt-3">
-              <select
-                value={funnelFilter}
-                onChange={(e) => setFunnelFilter(e.target.value)}
-                className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
+              <FilterSelect icon={GitBranch} value={funnelFilter} onChange={setFunnelFilter}>
                 <option value="">{t("leadFilter.allFunnels")}</option>
                 {funnelNames.map((f) => (
                   <option key={f} value={f}>
                     {f}
                   </option>
                 ))}
-              </select>
-              <select
-                value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
-                className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
+              </FilterSelect>
+              <FilterSelect icon={ListFilter} value={stageFilter} onChange={setStageFilter}>
                 <option value="">{t("audio.filterAllStages")}</option>
                 {stages.map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
                 ))}
-              </select>
-              <select
-                value={moodFilter}
-                onChange={(e) => setMoodFilter(e.target.value)}
-                className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
+              </FilterSelect>
+              <FilterSelect icon={Smile} value={moodFilter} onChange={setMoodFilter}>
                 <option value="">{t("audio.filterAllMoods")}</option>
                 {moods.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
                 ))}
-              </select>
+              </FilterSelect>
               <div>
                 <p className="mb-1 text-xs font-medium text-subtle">{t("audio.scoreRange")}</p>
                 <AmountRangeFilter value={scoreRange} onChange={setScoreRange} />

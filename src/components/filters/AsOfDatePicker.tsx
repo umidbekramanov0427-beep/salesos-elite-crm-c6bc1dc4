@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useI18n } from "@/lib/i18n";
@@ -24,14 +24,15 @@ export function AsOfDatePicker({
         <button
           type="button"
           className={cn(
-            "flex h-9 items-center gap-2 rounded-xl border px-3 text-sm outline-none transition-colors",
+            "flex h-10 items-center gap-2 rounded-full border pl-3.5 pr-3 text-sm font-medium outline-none transition-colors",
             value
               ? "border-warning/40 bg-warning/10 text-warning-foreground"
-              : "border-border bg-background text-foreground hover:border-primary/40",
+              : "border-border bg-background text-foreground hover:bg-accent",
           )}
         >
-          <CalendarClock className="h-4 w-4" />
+          <CalendarClock className="h-4 w-4 shrink-0" />
           {value ? value.toLocaleDateString(lang) : t("asOf.live")}
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-3">
