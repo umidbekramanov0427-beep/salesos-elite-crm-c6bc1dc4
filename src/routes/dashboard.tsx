@@ -173,7 +173,9 @@ function Dashboard() {
   // Same per-funnel computation Reyting uses (raw leads + pipeline_stages,
   // not the dashboard_kpis RPC) -- these 8 cards are all about one funnel's
   // real pipeline shape, which that RPC was never built to answer.
-  const funnelStats = useFunnelStats(funnel);
+  const funnelStats = useFunnelStats(funnel, {
+    overrideLeads: asOfDate ? (asOfLeads.data ?? []) : undefined,
+  });
   const callStats = useFunnelCallStats(funnel);
   const taskStats = useAmoCrmTaskStats(funnel);
 
