@@ -116,6 +116,55 @@ function scoreTone(score: number): "success" | "warning" | "danger" {
   return "danger";
 }
 
+function formatDateCell(iso: string, lang: Lang): { date: string; time: string } {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString(lang === "uz" ? "en-CA" : lang),
+    time: d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
+type SortKey = "date" | "duration" | "score";
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+  align?: "left" | "right" | "center";
+}) {
+  return (
+    <th
+      className={cn(
+        "px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-subtle",
+        align === "right" && "text-right",
+        align === "center" && "text-center",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "inline-flex items-center gap-1 transition-colors hover:text-foreground",
+          active && "text-primary",
+          align === "right" && "flex-row-reverse",
+        )}
+      >
+        {label}
+        <ChevronDown
+          className={cn("h-3 w-3 transition-transform", active && dir === "asc" && "rotate-180")}
+        />
+      </button>
+    </th>
+  );
+}
+
 function BulletList({
   icon: Icon,
   label,
@@ -523,10 +572,13 @@ function RecoverableRow({
   );
 }
 
-function CallRow({ call }: { call: AudioCallView }) {
+const CALL_TABLE_COLSPAN = 11;
+
+function CallTableRow({ call, lang }: { call: AudioCallView; lang: Lang }) {
   const { t } = useI18n();
   const analyze = useAnalyzeCall();
   const [expanded, setExpanded] = useState(false);
+  const { date, time } = formatDateCell(call.occurredAtRaw, lang);
 
   async function onAnalyze() {
     try {
@@ -540,219 +592,245 @@ function CallRow({ call }: { call: AudioCallView }) {
   }
 
   return (
-    <li className="px-6 py-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span
-          className={
-            call.direction === "in"
-              ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-              : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-mint text-mint-foreground"
-          }
-        >
-          {call.direction === "in" ? (
-            <PhoneIncoming className="h-4 w-4" />
-          ) : (
-            <PhoneOutgoing className="h-4 w-4" />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
+    <>
+      <tr className="border-b border-border last:border-0 hover:bg-accent/40">
+        <td className="whitespace-nowrap px-4 py-3">
+          <p className="text-sm font-medium text-foreground">{date}</p>
+          <p className="text-xs text-subtle">{time}</p>
+        </td>
+        <td className="max-w-[160px] truncate px-4 py-3 text-sm text-foreground">
+          {call.owner || "—"}
+        </td>
+        <td className="max-w-[200px] px-4 py-3">
           <p className="truncate text-sm font-medium text-foreground">
-            {call.company || call.leadName || call.phone || "—"}
+            {call.leadName || call.company || call.phone || "—"}
           </p>
-          <p className="truncate text-xs text-subtle">
-            {call.owner} · {call.occurredAt}
-            {call.stage && <span className="ml-1.5 text-subtle/70">· {call.stage}</span>}
-          </p>
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-3">
-          {call.score != null && (
-            <Pill tone={scoreTone(call.score)}>{t("audio.scorePill", { score: call.score })}</Pill>
+          {call.phone && <p className="truncate text-xs text-subtle">{call.phone}</p>}
+        </td>
+        <td className="px-4 py-3 text-center">
+          {call.direction === "in" ? (
+            <PhoneIncoming className="mx-auto h-4 w-4 text-primary" />
+          ) : (
+            <PhoneOutgoing className="mx-auto h-4 w-4 text-mint-foreground" />
           )}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-muted-foreground">
+          {formatDuration(call.durationSeconds, t("audio.min"))}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-right">
+          {call.score != null ? (
+            <Pill tone={scoreTone(call.score)}>{call.score}</Pill>
+          ) : (
+            <span className="text-xs text-subtle">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-center">
+          {call.connected ? (
+            <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
+          ) : (
+            <X className="mx-auto h-4 w-4 text-subtle" />
+          )}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
           <Pill tone={call.connected ? "success" : "neutral"}>
             {call.connected ? t("audio.connected") : t("audio.notConnected")}
           </Pill>
-          <span className="w-16 shrink-0 text-right text-xs font-medium text-muted-foreground">
-            {formatDuration(call.durationSeconds, t("audio.min"))}
-          </span>
-          {call.recordingUrl && (
-            <a
-              href={call.recordingUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent"
-            >
-              <Phone className="h-3.5 w-3.5" /> {t("audio.listen")}
-            </a>
-          )}
-          {call.recordingUrl &&
-            (call.aiSummary ? (
-              <button
-                type="button"
-                onClick={() => setExpanded((e) => !e)}
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+          {call.mood || "—"}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+          {call.stage || "—"}
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center justify-end gap-1.5">
+            {call.recordingUrl && (
+              <a
+                href={call.recordingUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={t("audio.listen")}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                {t("audio.viewAnalysis")}
-                <ChevronDown
-                  className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
-                />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void onAnalyze()}
-                disabled={analyze.isPending}
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-60"
-              >
-                {analyze.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
+                <Phone className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {call.recordingUrl &&
+              (call.aiSummary ? (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((e) => !e)}
+                  title={t("audio.viewAnalysis")}
+                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+                >
                   <Sparkles className="h-3.5 w-3.5" />
-                )}
-                {t("audio.analyze")}
-              </button>
-            ))}
-        </div>
-      </div>
+                  <ChevronDown
+                    className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
+                  />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void onAnalyze()}
+                  disabled={analyze.isPending}
+                  title={t("audio.analyze")}
+                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-60"
+                >
+                  {analyze.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              ))}
+          </div>
+        </td>
+      </tr>
 
       {expanded && call.aiSummary && (
-        <div className="mt-3 space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              {t("audio.aiSummary")}
-            </p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{call.aiSummary}</p>
-          </div>
-
-          {(call.mood || call.talkRatio != null) && (
-            <div className="flex flex-wrap gap-2">
-              {call.mood && (
-                <span className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
-                  {t("audio.mood")}: {call.mood}
-                </span>
-              )}
-              {call.talkRatio != null && (
-                <span className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
-                  {t("audio.talkRatio")}: {call.talkRatio}%
-                </span>
-              )}
-            </div>
-          )}
-
-          {call.nextStep && (
-            <div className="rounded-lg border border-mint/30 bg-mint/10 p-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-mint-foreground">
-                {t("audio.nextStep")}
-              </p>
-              <p className="mt-1 text-sm text-foreground">{call.nextStep}</p>
-              {call.amocrmTaskId && (
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-mint-foreground" />
-                  {t("audio.taskCreated")}
+        <tr className="border-b border-border last:border-0">
+          <td colSpan={CALL_TABLE_COLSPAN} className="bg-primary/5 px-4 py-4">
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  {t("audio.aiSummary")}
                 </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{call.aiSummary}</p>
+              </div>
+
+              {(call.mood || call.talkRatio != null) && (
+                <div className="flex flex-wrap gap-2">
+                  {call.mood && (
+                    <span className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
+                      {t("audio.mood")}: {call.mood}
+                    </span>
+                  )}
+                  {call.talkRatio != null && (
+                    <span className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
+                      {t("audio.talkRatio")}: {call.talkRatio}%
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {call.nextStep && (
+                <div className="rounded-lg border border-mint/30 bg-mint/10 p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-mint-foreground">
+                    {t("audio.nextStep")}
+                  </p>
+                  <p className="mt-1 text-sm text-foreground">{call.nextStep}</p>
+                  {call.amocrmTaskId && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-mint-foreground" />
+                      {t("audio.taskCreated")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {call.analysis && call.analysis.checklist.length > 0 && (
+                <div className="rounded-lg border border-border bg-surface p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
+                    {t("audio.checklist")}
+                  </p>
+                  <ul className="mt-1.5 space-y-1.5">
+                    {call.analysis.checklist.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <CheckCircle2
+                          className={cn(
+                            "mt-0.5 h-4 w-4 shrink-0",
+                            item.met ? "text-success" : "text-subtle",
+                          )}
+                        />
+                        <span className={cn("flex-1", !item.met && "text-muted-foreground")}>
+                          {item.step}
+                          {item.note && (
+                            <span className="block text-xs text-subtle">{item.note}</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs text-subtle">
+                          {item.points} {t("audio.pts")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {call.analysis && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <BulletList
+                    icon={ThumbsUp}
+                    label={t("audio.strengths")}
+                    items={call.analysis.strengths}
+                    tone="success"
+                  />
+                  <BulletList
+                    icon={ThumbsDown}
+                    label={t("audio.improvements")}
+                    items={call.analysis.improvements}
+                    tone="warning"
+                  />
+                  <BulletList
+                    icon={AlertTriangle}
+                    label={t("audio.warnings")}
+                    items={call.analysis.warnings}
+                    tone="danger"
+                  />
+                  <BulletList
+                    icon={ShieldAlert}
+                    label={t("audio.risks")}
+                    items={call.analysis.risks}
+                    tone="danger"
+                  />
+                  <BulletList
+                    icon={CheckCircle2}
+                    label={t("audio.agreements")}
+                    items={call.analysis.agreements}
+                    tone="neutral"
+                  />
+                  <BulletList
+                    icon={MessageSquareQuote}
+                    label={t("audio.topObjections")}
+                    items={call.analysis.topObjections}
+                    tone="neutral"
+                  />
+                </div>
+              )}
+
+              {call.analysis && call.analysis.keyQuotes.length > 0 && (
+                <div className="rounded-lg border border-border bg-surface p-2.5">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtle">
+                    <MessageSquareQuote className="h-3.5 w-3.5" /> {t("audio.keyQuotes")}
+                  </p>
+                  <ul className="mt-1.5 space-y-1.5">
+                    {call.analysis.keyQuotes.map((q, i) => (
+                      <li
+                        key={i}
+                        className="border-l-2 border-primary/30 pl-2 text-sm italic text-foreground"
+                      >
+                        "{q}"
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {call.transcript && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs font-medium text-subtle hover:text-foreground">
+                    {t("audio.viewTranscript")}
+                  </summary>
+                  <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+                    {call.transcript}
+                  </p>
+                </details>
               )}
             </div>
-          )}
-
-          {call.analysis && call.analysis.checklist.length > 0 && (
-            <div className="rounded-lg border border-border bg-surface p-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
-                {t("audio.checklist")}
-              </p>
-              <ul className="mt-1.5 space-y-1.5">
-                {call.analysis.checklist.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <CheckCircle2
-                      className={cn(
-                        "mt-0.5 h-4 w-4 shrink-0",
-                        item.met ? "text-success" : "text-subtle",
-                      )}
-                    />
-                    <span className={cn("flex-1", !item.met && "text-muted-foreground")}>
-                      {item.step}
-                      {item.note && <span className="block text-xs text-subtle">{item.note}</span>}
-                    </span>
-                    <span className="shrink-0 text-xs text-subtle">
-                      {item.points} {t("audio.pts")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {call.analysis && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <BulletList
-                icon={ThumbsUp}
-                label={t("audio.strengths")}
-                items={call.analysis.strengths}
-                tone="success"
-              />
-              <BulletList
-                icon={ThumbsDown}
-                label={t("audio.improvements")}
-                items={call.analysis.improvements}
-                tone="warning"
-              />
-              <BulletList
-                icon={AlertTriangle}
-                label={t("audio.warnings")}
-                items={call.analysis.warnings}
-                tone="danger"
-              />
-              <BulletList
-                icon={ShieldAlert}
-                label={t("audio.risks")}
-                items={call.analysis.risks}
-                tone="danger"
-              />
-              <BulletList
-                icon={CheckCircle2}
-                label={t("audio.agreements")}
-                items={call.analysis.agreements}
-                tone="neutral"
-              />
-              <BulletList
-                icon={MessageSquareQuote}
-                label={t("audio.topObjections")}
-                items={call.analysis.topObjections}
-                tone="neutral"
-              />
-            </div>
-          )}
-
-          {call.analysis && call.analysis.keyQuotes.length > 0 && (
-            <div className="rounded-lg border border-border bg-surface p-2.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtle">
-                <MessageSquareQuote className="h-3.5 w-3.5" /> {t("audio.keyQuotes")}
-              </p>
-              <ul className="mt-1.5 space-y-1.5">
-                {call.analysis.keyQuotes.map((q, i) => (
-                  <li
-                    key={i}
-                    className="border-l-2 border-primary/30 pl-2 text-sm italic text-foreground"
-                  >
-                    "{q}"
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {call.transcript && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs font-medium text-subtle hover:text-foreground">
-                {t("audio.viewTranscript")}
-              </summary>
-              <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
-                {call.transcript}
-              </p>
-            </details>
-          )}
-        </div>
+          </td>
+        </tr>
       )}
-    </li>
+    </>
   );
 }
 
@@ -901,7 +979,7 @@ function UploadCallDialog({
 }
 
 function AudioAnalytics() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<AmoCrmCallRow>("amocrm_calls", asOfDate);
   const {
@@ -931,7 +1009,18 @@ function AudioAnalytics() {
   });
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const { names: funnelNames } = useFunnelNames();
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
 
   const owners = useMemo(() => {
     const map = new Map<string, string>();
@@ -1013,6 +1102,22 @@ function AudioAnalytics() {
     durationRange,
     dateFilter,
   ]);
+
+  const sortedCalls = useMemo(() => {
+    const arr = [...filteredCalls];
+    arr.sort((a, b) => {
+      let diff = 0;
+      if (sortKey === "date") {
+        diff = new Date(a.occurredAtRaw).getTime() - new Date(b.occurredAtRaw).getTime();
+      } else if (sortKey === "duration") {
+        diff = a.durationSeconds - b.durationSeconds;
+      } else if (sortKey === "score") {
+        diff = (a.score ?? -1) - (b.score ?? -1);
+      }
+      return sortDir === "asc" ? diff : -diff;
+    });
+    return arr;
+  }, [filteredCalls, sortKey, sortDir]);
 
   return (
     <>
@@ -1156,51 +1261,103 @@ function AudioAnalytics() {
         </SectionCard>
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <SectionCard
-            title={t("audio.recentCalls")}
-            description={t("audio.callsShownCount", {
-              shown: Math.min(visibleCount, filteredCalls.length),
-              total: filteredCalls.length,
-            })}
-            actions={
-              <button
-                type="button"
-                onClick={() => setUploadOpen(true)}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                {t("audio.uploadCall")}
-              </button>
-            }
-          >
-            <UploadCallDialog open={uploadOpen} onOpenChange={setUploadOpen} />
-            {filteredCalls.length === 0 ? (
-              <p className="py-10 text-center text-sm text-subtle">{t("audio.noCalls")}</p>
-            ) : (
-              <>
-                <ul className="-m-6 divide-y divide-border">
-                  {filteredCalls.slice(0, visibleCount).map((c) => (
-                    <CallRow key={c.id} call={c} />
-                  ))}
-                </ul>
-                {visibleCount < filteredCalls.length && (
-                  <div className="mt-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => setVisibleCount((v) => v + 20)}
-                      className="inline-flex h-9 items-center rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
-                    >
-                      {t("audio.loadMore")}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </SectionCard>
-        </div>
+      <div className="mt-8">
+        <SectionCard
+          title={t("audio.recentCalls")}
+          description={t("audio.callsShownCount", {
+            shown: Math.min(visibleCount, sortedCalls.length),
+            total: sortedCalls.length,
+          })}
+          actions={
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {t("audio.uploadCall")}
+            </button>
+          }
+        >
+          <UploadCallDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+          {sortedCalls.length === 0 ? (
+            <p className="py-10 text-center text-sm text-subtle">{t("audio.noCalls")}</p>
+          ) : (
+            <>
+              <div className="-mx-6 -mb-6 overflow-x-auto">
+                <table className="w-full min-w-[1080px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <SortableHeader
+                        label={t("audio.colDate")}
+                        active={sortKey === "date"}
+                        dir={sortDir}
+                        onClick={() => toggleSort("date")}
+                      />
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colOperator")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colLead")}
+                      </th>
+                      <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colDirection")}
+                      </th>
+                      <SortableHeader
+                        label={t("audio.colDuration")}
+                        active={sortKey === "duration"}
+                        dir={sortDir}
+                        onClick={() => toggleSort("duration")}
+                        align="right"
+                      />
+                      <SortableHeader
+                        label={t("audio.colScore")}
+                        active={sortKey === "score"}
+                        dir={sortDir}
+                        onClick={() => toggleSort("score")}
+                        align="right"
+                      />
+                      <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colStatus")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colResult")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colMood")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colStage")}
+                      </th>
+                      <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wide text-subtle">
+                        {t("audio.colActions")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedCalls.slice(0, visibleCount).map((c) => (
+                      <CallTableRow key={c.id} call={c} lang={lang} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {visibleCount < sortedCalls.length && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((v) => v + 20)}
+                    className="inline-flex h-9 items-center rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                  >
+                    {t("audio.loadMore")}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </SectionCard>
+      </div>
 
+      <div className="mt-8 grid gap-6 xl:grid-cols-2">
         <SectionCard title={t("audio.perRep")} description={t("audio.perRepDesc")}>
           {perRep.length === 0 ? (
             <p className="text-sm text-subtle">{t("audio.noCalls")}</p>
@@ -1218,14 +1375,12 @@ function AudioAnalytics() {
             </ul>
           )}
         </SectionCard>
-      </div>
 
-      <div className="mt-8">
         <SectionCard title={t("audio.recoverable")} description={t("audio.recoverableDesc")}>
           {recoverable.length === 0 ? (
             <p className="py-6 text-center text-sm text-subtle">{t("audio.noRecoverable")}</p>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="grid gap-3">
               {recoverable.map((lead) => (
                 <RecoverableRow key={lead.id} lead={lead} getAmoLink={getAmoLink} />
               ))}
