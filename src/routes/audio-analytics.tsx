@@ -27,11 +27,14 @@ import {
   Phone,
   PhoneIncoming,
   PhoneOutgoing,
+  Search,
   ShieldAlert,
+  SlidersHorizontal,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
   Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
@@ -45,12 +48,20 @@ import {
   useAsOfSnapshot,
   useAudioAnalyticsView,
   useCrmLeads,
+  useFunnelNames,
   useUploadManualCall,
   type AmoCrmCallRow,
   type AudioCallView,
   type RecoverableLeadView,
 } from "@/hooks/use-crm-data";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
+import {
+  AmountRangeFilter,
+  EMPTY_AMOUNT_RANGE,
+  amountInRange,
+  type AmountRangeValue,
+} from "@/components/filters/AmountRangeFilter";
 import {
   Dialog,
   DialogContent,
@@ -543,6 +554,7 @@ function CallRow({ call }: { call: AudioCallView }) {
           </p>
           <p className="truncate text-xs text-subtle">
             {call.owner} · {call.occurredAt}
+            {call.stage && <span className="ml-1.5 text-subtle/70">· {call.stage}</span>}
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-3">
@@ -896,6 +908,105 @@ function AudioAnalytics() {
   const getAmoLink = useAmoCrmLink();
   const [uploadOpen, setUploadOpen] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [direction, setDirection] = useState<"" | "in" | "out">("");
+  const [connectedFilter, setConnectedFilter] = useState<"" | "yes" | "no">("");
+  const [ownerId, setOwnerId] = useState("");
+  const [funnelFilter, setFunnelFilter] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [moodFilter, setMoodFilter] = useState("");
+  const [scoreRange, setScoreRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
+  const [durationRange, setDurationRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const { names: funnelNames } = useFunnelNames();
+
+  const owners = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of recent) if (c.ownerId && c.owner) map.set(c.ownerId, c.owner);
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [recent]);
+  const stages = useMemo(
+    () => Array.from(new Set(recent.map((c) => c.stage).filter((s): s is string => !!s))).sort(),
+    [recent],
+  );
+  const moods = useMemo(
+    () => Array.from(new Set(recent.map((c) => c.mood).filter((m): m is string => !!m))).sort(),
+    [recent],
+  );
+
+  const hasActiveFilters =
+    !!search ||
+    !!direction ||
+    !!connectedFilter ||
+    !!ownerId ||
+    !!funnelFilter ||
+    !!stageFilter ||
+    !!moodFilter ||
+    scoreRange.min != null ||
+    scoreRange.max != null ||
+    durationRange.min != null ||
+    durationRange.max != null ||
+    !!dateFilter.from ||
+    !!dateFilter.to;
+
+  function clearFilters() {
+    setSearch("");
+    setDirection("");
+    setConnectedFilter("");
+    setOwnerId("");
+    setFunnelFilter("");
+    setStageFilter("");
+    setMoodFilter("");
+    setScoreRange(EMPTY_AMOUNT_RANGE);
+    setDurationRange(EMPTY_AMOUNT_RANGE);
+    setDateFilter({ from: null, to: null, label: t("lb.presetAll") });
+  }
+
+  const filteredCalls = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return recent.filter((c) => {
+      if (direction && c.direction !== direction) return false;
+      if (connectedFilter === "yes" && !c.connected) return false;
+      if (connectedFilter === "no" && c.connected) return false;
+      if (ownerId && c.ownerId !== ownerId) return false;
+      if (funnelFilter && c.funnel !== funnelFilter) return false;
+      if (stageFilter && c.stage !== stageFilter) return false;
+      if (moodFilter && c.mood !== moodFilter) return false;
+      if ((scoreRange.min != null || scoreRange.max != null) && c.score == null) return false;
+      if (c.score != null && !amountInRange(c.score, scoreRange)) return false;
+      if (!amountInRange(c.durationSeconds, durationRange)) return false;
+      if (dateFilter.from && new Date(c.occurredAtRaw) < dateFilter.from) return false;
+      if (dateFilter.to && new Date(c.occurredAtRaw) > dateFilter.to) return false;
+      if (q) {
+        const haystack = [c.leadName, c.company, c.owner, c.phone, c.transcript ?? ""]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [
+    recent,
+    search,
+    direction,
+    connectedFilter,
+    ownerId,
+    funnelFilter,
+    stageFilter,
+    moodFilter,
+    scoreRange,
+    durationRange,
+    dateFilter,
+  ]);
+
   return (
     <>
       <PageHeader
@@ -935,11 +1046,135 @@ function AudioAnalytics() {
         <AudioInsightsCharts calls={recent} />
       </div>
 
+      <div className="mt-8">
+        <SectionCard title={t("audio.filters")}>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("audio.searchPlaceholder")}
+                className="h-9 w-64 rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              />
+            </div>
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as "" | "in" | "out")}
+              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <option value="">{t("audio.filterAllDirections")}</option>
+              <option value="in">{t("audio.filterIncoming")}</option>
+              <option value="out">{t("audio.filterOutgoing")}</option>
+            </select>
+            <select
+              value={connectedFilter}
+              onChange={(e) => setConnectedFilter(e.target.value as "" | "yes" | "no")}
+              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <option value="">{t("audio.filterAllResults")}</option>
+              <option value="yes">{t("audio.connected")}</option>
+              <option value="no">{t("audio.notConnected")}</option>
+            </select>
+            <select
+              value={ownerId}
+              onChange={(e) => setOwnerId(e.target.value)}
+              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <option value="">{t("audio.filterAllOwners")}</option>
+              {owners.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+            <button
+              type="button"
+              onClick={() => setShowMoreFilters((v) => !v)}
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors",
+                showMoreFilters
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:bg-accent",
+              )}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {t("audio.moreFilters")}
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+              >
+                <X className="h-3.5 w-3.5" />
+                {t("audio.clearFilters")}
+              </button>
+            )}
+          </div>
+
+          {showMoreFilters && (
+            <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-border pt-3">
+              <select
+                value={funnelFilter}
+                onChange={(e) => setFunnelFilter(e.target.value)}
+                className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <option value="">{t("leadFilter.allFunnels")}</option>
+                {funnelNames.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={stageFilter}
+                onChange={(e) => setStageFilter(e.target.value)}
+                className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <option value="">{t("audio.filterAllStages")}</option>
+                {stages.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={moodFilter}
+                onChange={(e) => setMoodFilter(e.target.value)}
+                className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <option value="">{t("audio.filterAllMoods")}</option>
+                {moods.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <div>
+                <p className="mb-1 text-xs font-medium text-subtle">{t("audio.scoreRange")}</p>
+                <AmountRangeFilter value={scoreRange} onChange={setScoreRange} />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium text-subtle">
+                  {t("audio.durationRangeSec")}
+                </p>
+                <AmountRangeFilter value={durationRange} onChange={setDurationRange} />
+              </div>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
       <div className="mt-8 grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <SectionCard
             title={t("audio.recentCalls")}
-            description={t("audio.recentCallsDesc")}
+            description={t("audio.callsShownCount", {
+              shown: Math.min(visibleCount, filteredCalls.length),
+              total: filteredCalls.length,
+            })}
             actions={
               <button
                 type="button"
@@ -952,14 +1187,27 @@ function AudioAnalytics() {
             }
           >
             <UploadCallDialog open={uploadOpen} onOpenChange={setUploadOpen} />
-            {recent.length === 0 ? (
+            {filteredCalls.length === 0 ? (
               <p className="py-10 text-center text-sm text-subtle">{t("audio.noCalls")}</p>
             ) : (
-              <ul className="-m-6 divide-y divide-border">
-                {recent.slice(0, 20).map((c) => (
-                  <CallRow key={c.id} call={c} />
-                ))}
-              </ul>
+              <>
+                <ul className="-m-6 divide-y divide-border">
+                  {filteredCalls.slice(0, visibleCount).map((c) => (
+                    <CallRow key={c.id} call={c} />
+                  ))}
+                </ul>
+                {visibleCount < filteredCalls.length && (
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((v) => v + 20)}
+                      className="inline-flex h-9 items-center rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                    >
+                      {t("audio.loadMore")}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </SectionCard>
         </div>

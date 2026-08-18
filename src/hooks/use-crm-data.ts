@@ -1158,6 +1158,9 @@ export type AudioCallView = {
   leadName: string;
   company: string;
   owner: string;
+  ownerId: string | null;
+  funnel: string | null;
+  stage: string | null;
   phone: string;
   direction: "in" | "out";
   connected: boolean;
@@ -1217,6 +1220,9 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
           leadName: lead?.name ?? "",
           company: lead?.company ?? "",
           owner: lead?.owner ?? "",
+          ownerId: lead?.ownerId ?? null,
+          funnel: lead?.funnel ?? null,
+          stage: lead?.stage ?? null,
           phone: c.phone ?? lead?.phone ?? "",
           direction: c.direction === "in" ? "in" : "out",
           connected: c.connected,
