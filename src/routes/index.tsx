@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Loader2, Play, RefreshCw, Sparkles, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import {
+  ChevronDown,
+  GitBranch,
+  ListFilter,
+  Loader2,
+  Play,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Tag as TagIcon,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import {
   CartesianGrid,
   Legend,
@@ -43,6 +56,7 @@ import {
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { FilterSelect, FilterSearchInput } from "@/components/filters/FilterSelect";
 import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/")({
@@ -137,14 +151,16 @@ function TagFilter({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors hover:border-primary/40"
+        className="flex h-10 items-center gap-2 rounded-full border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent"
       >
+        <TagIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
         {t("lb.tagsFilter")}
         {selected.length > 0 && (
-          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
             {selected.length}
           </span>
         )}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
       {open && (
         <>
@@ -566,16 +582,17 @@ function Leaderboard() {
       <SectionCard title={t("lb.filters")}>
         <div className="flex flex-wrap items-end gap-3">
           <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
-          <input
+          <FilterSearchInput
+            icon={Search}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
             placeholder={t("lb.searchPlaceholder")}
-            className="h-9 w-56 rounded-xl border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="w-56"
           />
-          <select
+          <FilterSelect
+            icon={ListFilter}
             value={stageId ?? ""}
-            onChange={(e) => setStageId(e.target.value || null)}
-            className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            onChange={(v) => setStageId(v || null)}
           >
             <option value="">{t("lb.stageFilter")}</option>
             {(stageOptions ?? []).map((s) => (
@@ -583,11 +600,11 @@ function Leaderboard() {
                 {s.name}
               </option>
             ))}
-          </select>
-          <select
+          </FilterSelect>
+          <FilterSelect
+            icon={GitBranch}
             value={funnel ?? ""}
-            onChange={(e) => setFunnel(e.target.value || null)}
-            className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            onChange={(v) => setFunnel(v || null)}
           >
             <option value="">{t("leadFilter.allFunnels")}</option>
             {funnelNames.map((f) => (
@@ -595,7 +612,7 @@ function Leaderboard() {
                 {f}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <TagFilter
             options={tagSummary.map((tg) => tg.name)}
             selected={selectedTags}
