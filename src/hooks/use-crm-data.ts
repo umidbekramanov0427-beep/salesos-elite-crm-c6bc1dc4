@@ -3366,9 +3366,15 @@ export type FunnelStats = {
   isLoading: boolean;
 };
 
-export function useFunnelStats(funnel?: string | null): FunnelStats {
-  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+export function useFunnelStats(
+  funnel?: string | null,
+  opts?: { overrideLeads?: LeadRow[] | undefined },
+): FunnelStats {
+  const useOverride = !!opts?.overrideLeads;
+  const { data: liveLeads, isLoading: liveLeadsLoading } = useLeadsRaw();
   const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+  const leads = useOverride ? opts?.overrideLeads : liveLeads;
+  const leadsLoading = useOverride ? false : liveLeadsLoading;
 
   return useMemo(() => {
     const stagesById = byId(stages);
@@ -3507,9 +3513,13 @@ export function useAmoCrmTaskStats(funnel?: string | null) {
 
 export type ManagerFunnelStats = { totalLeads: number; salesCount: number; salesRevenue: number };
 
-export function useManagerFunnelStats(funnel?: string | null): Map<string, ManagerFunnelStats> {
-  const { data: leads } = useLeadsRaw();
+export function useManagerFunnelStats(
+  funnel?: string | null,
+  opts?: { overrideLeads?: LeadRow[] | undefined },
+): Map<string, ManagerFunnelStats> {
+  const { data: liveLeads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
+  const leads = opts?.overrideLeads ?? liveLeads;
   return useMemo(() => {
     const stagesById = byId(stages);
     const map = new Map<string, ManagerFunnelStats>();

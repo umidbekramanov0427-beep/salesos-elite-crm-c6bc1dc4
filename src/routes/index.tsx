@@ -375,7 +375,9 @@ function Leaderboard() {
   // (or an unmatched) owner still counted toward the funnel's real totals,
   // but never showed up in any manager's row, so summing `rows` silently
   // undercounted both totalLeads and revenue whenever that happened.
-  const funnelStats = useFunnelStats(funnel);
+  const funnelStats = useFunnelStats(funnel, {
+    overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
+  });
 
   // "Bugungi tushum" (today's revenue) — the funnel's total revenue right
   // now minus a time-travel snapshot of the same funnel as it stood at the
@@ -395,7 +397,9 @@ function Leaderboard() {
     return funnelStats.totalRevenue - before;
   }, [todayStartSnapshot.data, funnel, funnelStats.totalRevenue]);
 
-  const managerStats = useManagerFunnelStats(funnel);
+  const managerStats = useManagerFunnelStats(funnel, {
+    overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
+  });
   const [trendRange, setTrendRange] = useState<DateFilterValue>({
     from: null,
     to: null,
