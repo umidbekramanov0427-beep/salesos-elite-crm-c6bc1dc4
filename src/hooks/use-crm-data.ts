@@ -1768,6 +1768,271 @@ export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[
   }, [leads, stages, funnel]);
 }
 
+/* ------------------------------------------------------------------ */
+/* Kunlik/Haftalik/Oylik hisobot (Boshqaruv paneli's report section) — */
+/* a single period-scoped aggregate over leads/calls/stages, all       */
+/* already cached elsewhere in the app. Mirrors the "biggest picture"  */
+/* daily-report tools like metrixme produce, computed from our own     */
+/* real CRM data rather than a separate reporting backend.             */
+/* ------------------------------------------------------------------ */
+
+export type DailyReportScope = {
+  funnel: string | null;
+  teamId: string | null; // a ROP's profile id -- scopes to their whole team
+  operatorId: string | null; // a single manager's profile id
+};
+
+export type DailyReportStageDrop = { fromStage: string; toStage: string; dropPct: number };
+
+export type DailyReportStats = {
+  totalCalls: number;
+  connectedCalls: number;
+  missedCalls: number;
+  contactRatePct: number;
+  totalCallSeconds: number;
+  avgCallSeconds: number;
+  avgCallScore: number | null;
+  newLeads: number;
+  soldLeads: number;
+  soldLeadsPct: number;
+  openLeads: number;
+  wonLeadsCreated: number;
+  wonLeadsCreatedPct: number;
+  connectedLeadsCount: number;
+  wonFromConnectedCount: number;
+  wonFromConnectedPct: number;
+  // Only computable when a single funnel is selected -- stage positions
+  // aren't comparable across different AmoCRM pipelines. This reads each
+  // lead's *current* stage as how far it "reached" in the funnel (there's
+  // no per-lead stage-visit history to replay), so it's a snapshot
+  // approximation of a true cohort waterfall, not an exact one.
+  biggestStageDrop: DailyReportStageDrop | null;
+  periodRevenue: number;
+  prevPeriodRevenue: number;
+  revenueDeltaPct: number | null;
+  fullPaymentCount: number;
+  prevFullPaymentCount: number;
+  fullPaymentDeltaPct: number | null;
+  revenueTrend: { label: string; revenue: number }[];
+};
+
+const EMPTY_DAILY_REPORT_STATS: DailyReportStats = {
+  totalCalls: 0,
+  connectedCalls: 0,
+  missedCalls: 0,
+  contactRatePct: 0,
+  totalCallSeconds: 0,
+  avgCallSeconds: 0,
+  avgCallScore: null,
+  newLeads: 0,
+  soldLeads: 0,
+  soldLeadsPct: 0,
+  openLeads: 0,
+  wonLeadsCreated: 0,
+  wonLeadsCreatedPct: 0,
+  connectedLeadsCount: 0,
+  wonFromConnectedCount: 0,
+  wonFromConnectedPct: 0,
+  biggestStageDrop: null,
+  periodRevenue: 0,
+  prevPeriodRevenue: 0,
+  revenueDeltaPct: null,
+  fullPaymentCount: 0,
+  prevFullPaymentCount: 0,
+  fullPaymentDeltaPct: null,
+  revenueTrend: [],
+};
+
+// A narrower match than SALES_STAGE_KEYWORDS -- "full payment" specifically
+// (won or fully-paid), not prepayment/half-payment stages too.
+const FULL_PAYMENT_STAGE_KEYWORDS = ["toliq", "won", "успешно", "rop closed"];
+
+export function useDailyReportStats(
+  range: { from: Date; to: Date } | null,
+  prevRange: { from: Date; to: Date } | null,
+  scope: DailyReportScope,
+): DailyReportStats {
+  const { data: leads } = useLeadsRaw();
+  const { data: calls } = useAmoCrmCallsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: profiles } = useProfilesRaw();
+
+  return useMemo(() => {
+    if (!range || !prevRange) return EMPTY_DAILY_REPORT_STATS;
+
+    const stagesById = byId(stages);
+    const leadsById = byId(leads);
+    const leadFunnelOf = (l: LeadRow) => l.funnel || "Direct Sales";
+
+    let visibleOwnerIds: Set<string> | null = null;
+    if (scope.operatorId) {
+      visibleOwnerIds = new Set([scope.operatorId]);
+    } else if (scope.teamId) {
+      const ids = new Set<string>([scope.teamId]);
+      for (const p of profiles ?? []) if (p.manager_id === scope.teamId) ids.add(p.id);
+      visibleOwnerIds = ids;
+    }
+    const inScope = (ownerId: string | null): boolean => {
+      if (!ownerId) return false;
+      return !visibleOwnerIds || visibleOwnerIds.has(ownerId);
+    };
+
+    function leadsCreatedIn(r: { from: Date; to: Date }): LeadRow[] {
+      return (leads ?? []).filter((l) => {
+        if (scope.funnel && leadFunnelOf(l) !== scope.funnel) return false;
+        if (!inScope(l.owner_id)) return false;
+        const created = new Date(l.created_at);
+        return created >= r.from && created < r.to;
+      });
+    }
+
+    const leadsInRange = leadsCreatedIn(range);
+
+    let soldLeads = 0;
+    let wonLeadsCreated = 0;
+    let openLeads = 0;
+    let periodRevenue = 0;
+    let fullPaymentCount = 0;
+    const revenueByDay = new Map<string, number>();
+    for (const l of leadsInRange) {
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const stageName = stage ? normalizeStageName(stage.name) : "";
+      const isSalesStage = SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw));
+      if (isSalesStage) {
+        soldLeads += 1;
+        periodRevenue += l.expected_revenue;
+        const dayKey = new Date(l.created_at).toDateString();
+        revenueByDay.set(dayKey, (revenueByDay.get(dayKey) ?? 0) + l.expected_revenue);
+      }
+      if (FULL_PAYMENT_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) fullPaymentCount += 1;
+      if (stage?.is_won) wonLeadsCreated += 1;
+      if (!stage?.is_won && !stage?.is_lost) openLeads += 1;
+    }
+
+    const revenueTrend: DailyReportStats["revenueTrend"] = [];
+    for (let d = new Date(range.from); d < range.to; d.setDate(d.getDate() + 1)) {
+      revenueTrend.push({
+        label: `${d.getDate()}`,
+        revenue: revenueByDay.get(d.toDateString()) ?? 0,
+      });
+    }
+
+    const prevLeadsInRange = leadsCreatedIn(prevRange);
+    let prevPeriodRevenue = 0;
+    let prevFullPaymentCount = 0;
+    for (const l of prevLeadsInRange) {
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const stageName = stage ? normalizeStageName(stage.name) : "";
+      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
+        prevPeriodRevenue += l.expected_revenue;
+      }
+      if (FULL_PAYMENT_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
+        prevFullPaymentCount += 1;
+      }
+    }
+
+    const callsInRange = (calls ?? []).filter((c) => {
+      const occurred = new Date(c.occurred_at);
+      if (occurred < range.from || occurred >= range.to) return false;
+      const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+      if (scope.funnel && (lead ? leadFunnelOf(lead) : null) !== scope.funnel) return false;
+      return inScope(lead?.owner_id ?? null);
+    });
+
+    const totalCalls = callsInRange.length;
+    const connectedCalls = callsInRange.filter((c) => c.connected).length;
+    const totalCallSeconds = callsInRange.reduce((s, c) => s + c.duration_seconds, 0);
+    const scoredCalls = callsInRange.filter((c) => c.score != null);
+    const avgCallScore = scoredCalls.length
+      ? Math.round(scoredCalls.reduce((s, c) => s + (c.score ?? 0), 0) / scoredCalls.length)
+      : null;
+
+    const connectedLeadIds = new Set(
+      callsInRange.filter((c) => c.connected && c.lead_id).map((c) => c.lead_id!),
+    );
+    let wonFromConnectedCount = 0;
+    for (const id of connectedLeadIds) {
+      const lead = leadsById.get(id);
+      const stage = lead?.stage_id ? stagesById.get(lead.stage_id) : undefined;
+      if (stage?.is_won) wonFromConnectedCount += 1;
+    }
+
+    let biggestStageDrop: DailyReportStageDrop | null = null;
+    if (scope.funnel) {
+      const orderedStages = (stages ?? [])
+        .filter((s) => s.pipeline_name === scope.funnel && !s.is_lost)
+        .sort((a, b) => a.position - b.position);
+      if (orderedStages.length >= 2) {
+        const reach = orderedStages.map(
+          (s) =>
+            leadsInRange.filter((l) => {
+              const st = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+              return st && !st.is_lost && st.position >= s.position;
+            }).length,
+        );
+        let worstIdx = -1;
+        let worstDrop = -Infinity;
+        for (let i = 0; i < reach.length - 1; i++) {
+          if (reach[i] === 0) continue;
+          const drop = 100 - (reach[i + 1]! / reach[i]!) * 100;
+          if (drop > worstDrop) {
+            worstDrop = drop;
+            worstIdx = i;
+          }
+        }
+        if (worstIdx >= 0) {
+          biggestStageDrop = {
+            fromStage: orderedStages[worstIdx]!.name,
+            toStage: orderedStages[worstIdx + 1]!.name,
+            dropPct: Math.round(worstDrop),
+          };
+        }
+      }
+    }
+
+    return {
+      totalCalls,
+      connectedCalls,
+      missedCalls: totalCalls - connectedCalls,
+      contactRatePct: totalCalls ? Math.round((connectedCalls / totalCalls) * 1000) / 10 : 0,
+      totalCallSeconds,
+      avgCallSeconds: totalCalls ? Math.round(totalCallSeconds / totalCalls) : 0,
+      avgCallScore,
+      newLeads: leadsInRange.length,
+      soldLeads,
+      soldLeadsPct: leadsInRange.length
+        ? Math.round((soldLeads / leadsInRange.length) * 1000) / 10
+        : 0,
+      openLeads,
+      wonLeadsCreated,
+      wonLeadsCreatedPct: leadsInRange.length
+        ? Math.round((wonLeadsCreated / leadsInRange.length) * 1000) / 10
+        : 0,
+      connectedLeadsCount: connectedLeadIds.size,
+      wonFromConnectedCount,
+      wonFromConnectedPct: connectedLeadIds.size
+        ? Math.round((wonFromConnectedCount / connectedLeadIds.size) * 1000) / 10
+        : 0,
+      biggestStageDrop,
+      periodRevenue,
+      prevPeriodRevenue,
+      revenueDeltaPct:
+        prevPeriodRevenue > 0
+          ? Math.round(((periodRevenue - prevPeriodRevenue) / prevPeriodRevenue) * 1000) / 10
+          : null,
+      fullPaymentCount,
+      prevFullPaymentCount,
+      fullPaymentDeltaPct:
+        prevFullPaymentCount > 0
+          ? Math.round(
+              ((fullPaymentCount - prevFullPaymentCount) / prevFullPaymentCount) * 1000,
+            ) / 10
+          : null,
+      revenueTrend,
+    };
+  }, [leads, calls, stages, profiles, range, prevRange, scope.funnel, scope.teamId, scope.operatorId]);
+}
+
 // Both dashboard funnel widgets used to aggregate the deals table (which
 // this AmoCRM-synced setup never actually populates -- real revenue lives
 // on leads) and/or every pipeline_stages row across the whole org (~60
