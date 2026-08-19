@@ -222,7 +222,7 @@ function FunnelList({
             to="/funnels"
             search={{ funnel: f.name }}
             className={cn(
-              "group relative block overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-soft transition-all before:absolute before:inset-y-0 before:left-0 before:w-1.5 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card",
+              "group relative block overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-all before:absolute before:inset-y-0 before:left-0 before:w-1.5 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated",
               CARD_ACCENTS[i % CARD_ACCENTS.length],
             )}
           >
@@ -282,7 +282,7 @@ function LeadGalleryCard({
       to="/crm/leads/$leadId"
       params={{ leadId: lead.id }}
       search={{ from: "funnels" }}
-      className="group relative block rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
+      className="group relative block rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated"
     >
       {amoLink && (
         <a
