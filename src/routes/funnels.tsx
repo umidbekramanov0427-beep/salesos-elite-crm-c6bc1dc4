@@ -468,8 +468,29 @@ function FunnelDetail({
   const gallery = useMemo(() => filterLeads(leads, { ...filters, funnel: null }), [leads, filters]);
 
   const wonCount = leads.filter((l) => l.stageIsWon).length;
-  const lostValue = leads.filter((l) => l.stageIsLost).reduce((s, l) => s + l.expectedRevenue, 0);
   const conversionRate = leads.length ? Math.round((wonCount / leads.length) * 1000) / 10 : 0;
+
+  // This funnel's own analytics -- not the same generic 4 numbers every
+  // funnel showed before, since a funnel's actual makeup (avg deal size,
+  // how many leads are hot right now, which of its own stages is
+  // busiest) varies a lot funnel to funnel and is what's actually
+  // actionable when you've drilled into one specific pipeline.
+  const openLeads = leads.filter((l) => !l.stageIsWon && !l.stageIsLost);
+  const avgDealSize = openLeads.length
+    ? openLeads.reduce((s, l) => s + l.expectedRevenue, 0) / openLeads.length
+    : 0;
+  const hotLeadsCount = openLeads.filter(
+    (l) => l.temperature === "Hot" || l.temperature === "VeryHot",
+  ).length;
+  const busiestStage = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of openLeads) counts.set(l.stage, (counts.get(l.stage) ?? 0) + 1);
+    let best: { stage: string; count: number } | null = null;
+    for (const [stage, count] of counts) {
+      if (!best || count > best.count) best = { stage, count };
+    }
+    return best;
+  }, [openLeads]);
 
   return (
     <>
@@ -502,8 +523,13 @@ function FunnelDetail({
           value={`${conversionRate}%`}
           hint={t("funnels.conversion")}
         />
-        <StatCard label={t("funnels.wonDeals")} value={String(wonCount)} />
-        <StatCard label={t("funnels.lostValue")} value={format(lostValue)} />
+        <StatCard label={t("funnels.avgDealSize")} value={format(avgDealSize)} />
+        <StatCard
+          label={t("funnels.hotLeadsCount")}
+          value={String(hotLeadsCount)}
+          tone="danger-soft"
+          {...(busiestStage ? { hint: `${busiestStage.stage}: ${busiestStage.count}` } : {})}
+        />
       </div>
 
       <div className="mt-8">

@@ -80,7 +80,12 @@ function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): {
   // tint instead of Tailwind's "/5" opacity-modifier syntax, which only
   // works on class names.
   if (s.color.startsWith("#")) {
-    return { style: { backgroundColor: `${s.color}14`, borderColor: `${s.color}40` } };
+    // AmoCRM's own stage colors run the gamut from muted to eye-searing
+    // neon, and this column background sits behind everything on the
+    // board (lead cards, text) all day -- keep it faint enough to read as
+    // "a tint" rather than "a highlighter", regardless of how saturated
+    // the source hex is.
+    return { style: { backgroundColor: `${s.color}0A`, borderColor: `${s.color}26` } };
   }
   return { className: `${s.color}/5 border-border` };
 }

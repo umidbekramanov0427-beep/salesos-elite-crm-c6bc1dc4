@@ -42,7 +42,7 @@ import {
   useFunnelStats,
   useLeaderboardView,
   useManagerFunnelStats,
-  useManagerWeeklyTrend,
+  useManagerDailyTrend,
   useTagsSummary,
   type LeaderboardManagerRow,
   type LeadRow,
@@ -410,10 +410,10 @@ function Leaderboard() {
     to: null,
     label: t("lb.presetAll"),
   });
-  const managerTrend = useManagerWeeklyTrend(funnel, trendRange.from, trendRange.to);
+  const managerTrend = useManagerDailyTrend(funnel, trendRange.from, trendRange.to);
   const conversionChartData = useMemo(
     () =>
-      managerTrend.weekLabels.map((label, i) => {
+      managerTrend.dayLabels.map((label, i) => {
         const row: Record<string, string | number | null> = { label };
         for (const s of managerTrend.series) row[s.id] = s.conversion[i] ?? null;
         return row;
@@ -422,7 +422,7 @@ function Leaderboard() {
   );
   const revenueChartData = useMemo(
     () =>
-      managerTrend.weekLabels.map((label, i) => {
+      managerTrend.dayLabels.map((label, i) => {
         const row: Record<string, string | number | null> = { label };
         for (const s of managerTrend.series) row[s.id] = s.salesRevenue[i] ?? 0;
         return row;
