@@ -17,35 +17,11 @@ export type TaskCommentRow = Tables["task_comments"]["Row"];
 export type NotificationRow = Tables["notifications"]["Row"];
 export type LeadActivityRow = Tables["lead_activities"]["Row"];
 export type AmoCrmCallRow = Tables["amocrm_calls"]["Row"];
-export type QualificationGroupRow = Tables["call_qualification_groups"]["Row"];
-export type QualificationCriterionRow = Tables["call_qualification_criteria"]["Row"];
-export type CallCategoryRow = Tables["call_categories"]["Row"];
-export type CallSkillRow = Tables["call_skills"]["Row"];
-export type CallStageRow = Tables["call_stages"]["Row"];
-export type CallStageStepRow = Tables["call_stage_steps"]["Row"];
 
 /* ------------------------------------------------------------------ */
 /* Generic CRUD resource factory — one query key per table, list reads */
 /* plus create/update/delete mutations that invalidate that key.       */
 /* ------------------------------------------------------------------ */
-
-// Supabase/PostgREST caps a single select() response at 1000 rows by
-// default — a plain `.select("*")` with no `.range()` silently truncates
-// past that instead of erroring, so any org whose row count crosses 1000
-// (leads is the first table this happened to) quietly loses data off the
-// end with no error anywhere. Page through with `.range()` until a page
-// comes back short, keeping a stable `id` tiebreaker so results stay
-// disjoint across pages regardless of what orderBy the caller asked for.
-const RESOURCE_PAGE_SIZE = 1000;
-// Large AmoCRM-synced accounts can have several thousand rows per table
-// (leads/contacts/companies/pipeline_stages). Fetching pages one at a time,
-// each awaited before the next request even starts, meant every CRM page
-// load paid the full network round-trip cost of every page in sequence —
-// the dominant cause of "still loading" for these accounts. Requesting a
-// batch of pages concurrently (same pattern used for AmoCRM's own paginated
-// fetches in client.server.ts) cuts that wall-clock time roughly by the
-// batch size.
-const LIST_PAGE_CONCURRENCY = 4;
 
 function makeResource<TableName extends keyof Tables>(table: TableName, queryKey: QueryKey) {
   type Row = Tables[TableName]["Row"];
@@ -63,34 +39,12 @@ function makeResource<TableName extends keyof Tables>(table: TableName, queryKey
       enabled: config?.enabled ?? true,
       refetchInterval: config?.refetchInterval ?? false,
       queryFn: async (): Promise<Row[]> => {
-        const fetchPage = async (from: number): Promise<Row[]> => {
-          let query = supabase.from(table).select("*");
-          if (config?.orderBy)
-            query = query.order(config.orderBy, { ascending: config?.ascending ?? true });
-          query = query
-            .order("id" as never, { ascending: true })
-            .range(from, from + RESOURCE_PAGE_SIZE - 1);
-          const { data, error } = await query;
-          if (error) throw error;
-          return (data ?? []) as unknown as Row[];
-        };
-
-        const all: Row[] = [];
-        let from = 0;
-        let done = false;
-        while (!done) {
-          const starts = Array.from(
-            { length: LIST_PAGE_CONCURRENCY },
-            (_, i) => from + i * RESOURCE_PAGE_SIZE,
-          );
-          const pages = await Promise.all(starts.map(fetchPage));
-          for (const page of pages) {
-            all.push(...page);
-            if (page.length < RESOURCE_PAGE_SIZE) done = true;
-          }
-          from += LIST_PAGE_CONCURRENCY * RESOURCE_PAGE_SIZE;
-        }
-        return all;
+        let query = supabase.from(table).select("*");
+        if (config?.orderBy)
+          query = query.order(config.orderBy, { ascending: config?.ascending ?? true });
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data ?? []) as unknown as Row[];
       },
     });
   }
@@ -160,16 +114,6 @@ const callLogsResource = makeResource("call_logs", ["call_logs"]);
 const amocrmCallsResource = makeResource("amocrm_calls", ["amocrm_calls"]);
 const settingListsResource = makeResource("setting_lists", ["setting_lists"]);
 const rolePermissionsResource = makeResource("role_permissions", ["role_permissions"]);
-const qualificationGroupsResource = makeResource("call_qualification_groups", [
-  "call_qualification_groups",
-]);
-const qualificationCriteriaResource = makeResource("call_qualification_criteria", [
-  "call_qualification_criteria",
-]);
-const callCategoriesResource = makeResource("call_categories", ["call_categories"]);
-const callSkillsResource = makeResource("call_skills", ["call_skills"]);
-const callStagesResource = makeResource("call_stages", ["call_stages"]);
-const callStageStepsResource = makeResource("call_stage_steps", ["call_stage_steps"]);
 
 export const useCompaniesRaw = (opts?: Parameters<typeof companiesResource.useList>[0]) =>
   companiesResource.useList({ orderBy: "created_at", ascending: false, ...opts });
@@ -280,70 +224,9 @@ export const useCreateSettingListItem = settingListsResource.useCreate;
 export const useUpdateSettingListItem = settingListsResource.useUpdate;
 export const useDeleteSettingListItem = settingListsResource.useRemove;
 
-/* ------------------------------------------------------------------ */
-/* Qualification Groups: BANT-style weighted criteria, one group per   */
-/* funnel/use-case.                                                    */
-/* ------------------------------------------------------------------ */
-
-export const useQualificationGroups = (
-  opts?: Parameters<typeof qualificationGroupsResource.useList>[0],
-) => qualificationGroupsResource.useList({ orderBy: "position", ...opts });
-export const useCreateQualificationGroup = qualificationGroupsResource.useCreate;
-export const useUpdateQualificationGroup = qualificationGroupsResource.useUpdate;
-export const useDeleteQualificationGroup = qualificationGroupsResource.useRemove;
-
-export const useQualificationCriteria = (
-  opts?: Parameters<typeof qualificationCriteriaResource.useList>[0],
-) => qualificationCriteriaResource.useList({ orderBy: "position", ...opts });
-export const useCreateQualificationCriterion = qualificationCriteriaResource.useCreate;
-export const useUpdateQualificationCriterion = qualificationCriteriaResource.useUpdate;
-export const useDeleteQualificationCriterion = qualificationCriteriaResource.useRemove;
-
-/* ------------------------------------------------------------------ */
-/* Call-scoring rubric: Categories group Stages, Stages contain Steps, */
-/* each Step optionally scores against a Skill (radar-chart axis).     */
-/* ------------------------------------------------------------------ */
-
-export const useCallCategories = (opts?: Parameters<typeof callCategoriesResource.useList>[0]) =>
-  callCategoriesResource.useList({ orderBy: "position", ...opts });
-export const useCreateCallCategory = callCategoriesResource.useCreate;
-export const useUpdateCallCategory = callCategoriesResource.useUpdate;
-export const useDeleteCallCategory = callCategoriesResource.useRemove;
-
-export const useCallSkills = (opts?: Parameters<typeof callSkillsResource.useList>[0]) =>
-  callSkillsResource.useList({ orderBy: "position", ...opts });
-export const useCreateCallSkill = callSkillsResource.useCreate;
-export const useUpdateCallSkill = callSkillsResource.useUpdate;
-export const useDeleteCallSkill = callSkillsResource.useRemove;
-
-export const useCallStagesRaw = (opts?: Parameters<typeof callStagesResource.useList>[0]) =>
-  callStagesResource.useList({ orderBy: "position", ...opts });
-export const useCreateCallStage = callStagesResource.useCreate;
-export const useUpdateCallStage = callStagesResource.useUpdate;
-export const useDeleteCallStage = callStagesResource.useRemove;
-
-export const useCallStageStepsRaw = (opts?: Parameters<typeof callStageStepsResource.useList>[0]) =>
-  callStageStepsResource.useList({ orderBy: "position", ...opts });
-export const useCreateCallStageStep = callStageStepsResource.useCreate;
-export const useUpdateCallStageStep = callStageStepsResource.useUpdate;
-export const useDeleteCallStageStep = callStageStepsResource.useRemove;
-
 export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResource.useList>[0]) =>
   rolePermissionsResource.useList(opts);
 export const useUpdateRolePermission = rolePermissionsResource.useUpdate;
-export const useCreateRolePermission = rolePermissionsResource.useCreate;
-
-// Real enforcement, not just a stored preference: super_admin/platform_owner
-// always pass; rop/sotuv_menejeri are gated by their row in role_permissions
-// (see Huquqlar jadvali). No row for that action+role = denied, matching
-// "unconfigured means no access" rather than silently allowing everything.
-export function usePermission(action: string): boolean {
-  const { user } = useAuth();
-  const { data: permissions } = useRolePermissions();
-  if (!user) return false;
-  if (user.role === "super_admin" || user.role === "platform_owner") return true;
-  return (permissions ?? []).some((p) => p.action === action && p.role === user.role && p.allowed);
-}
 
 export const useCreateNotification = notificationsResource.useCreate;
 export const useUpdateNotification = notificationsResource.useUpdate;
@@ -422,14 +305,13 @@ export function useVisibleOwnerIds(): Set<string> | null {
   }, [user, profiles]);
 }
 
-export function useCrmBase(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
-  const companies = useCompaniesRaw({ enabled });
-  const contacts = useContactsRaw({ enabled });
-  const leads = useLeadsRaw({ enabled });
-  const deals = useDealsRaw({ enabled });
-  const stages = usePipelineStagesRaw({ enabled });
-  const profiles = useProfilesRaw({ enabled });
+export function useCrmBase() {
+  const companies = useCompaniesRaw();
+  const contacts = useContactsRaw();
+  const leads = useLeadsRaw();
+  const deals = useDealsRaw();
+  const stages = usePipelineStagesRaw();
+  const profiles = useProfilesRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
 
   const isLoading =
@@ -511,14 +393,6 @@ export type CrmLeadView = {
   address: string;
   stage: string;
   stageId: string;
-  // Comparing `stage` (a free-text stage name) against the literal string
-  // "Won"/"Lost" only works for the original demo-seeded stages — an
-  // AmoCRM-synced stage keeps AmoCRM's own status name (e.g. "Успешно
-  // реализовано"), so that comparison silently never matches for real
-  // AmoCRM data. These come straight from pipeline_stages.is_won/is_lost
-  // instead, which stay correct regardless of what the stage is named.
-  stageIsWon: boolean;
-  stageIsLost: boolean;
   funnel: string;
   nextFollowUp: string;
   lastContact: string;
@@ -528,67 +402,12 @@ export type CrmLeadView = {
   amocrmId: number | null;
 };
 
-// Shared lead-row -> display-view mapper, used by every hook that needs
-// CrmLeadView shape: the full-org useCrmLeads() below, plus the lean
-// single-lead and paginated-list hooks that don't fetch contacts at all
-// (contact is optional there — its fields just come back blank, which is
-// fine since the leads register table never renders them).
-function leadRowToView(
-  l: LeadRow,
-  contact: ContactRow | null | undefined,
-  profilesById: Map<string, ProfileRow>,
-  stagesById: Map<string, StageRow>,
-): CrmLeadView {
-  const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
-  const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
-  const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-  return {
-    id: l.id,
-    name: l.name,
-    initials: initialsOf(l.name),
-    company: l.company_name,
-    companyId: l.company_id ?? "",
-    position: contact?.position ?? "",
-    phone: contact?.phone ?? "",
-    altPhone: contact?.alt_phone ?? "",
-    email: contact?.email ?? "",
-    telegram: contact?.telegram ?? "",
-    whatsapp: contact?.whatsapp ?? "",
-    source: l.source ?? "",
-    campaign: l.campaign ?? "",
-    utm: l.utm ?? "",
-    owner: owner ? profileName(owner) : "Unassigned",
-    ownerId: l.owner_id ?? "",
-    manager: manager ? profileName(manager) : "—",
-    priority: l.priority,
-    score: l.score,
-    temperature: l.temperature,
-    budget: l.budget,
-    expectedRevenue: l.expected_revenue,
-    country: l.country ?? "",
-    region: l.region ?? "",
-    city: l.city ?? "",
-    address: l.address ?? "",
-    stage: stage?.name ?? "New Lead",
-    stageId: l.stage_id ?? "",
-    stageIsWon: stage?.is_won ?? false,
-    stageIsLost: stage?.is_lost ?? false,
-    funnel: l.funnel ?? "",
-    nextFollowUp: formatFollowUp(l.next_follow_up),
-    lastContact: timeAgo(l.last_contact_at),
-    created: formatDate(l.created_at),
-    updated: timeAgo(l.updated_at),
-    tags: l.tags ?? [],
-    amocrmId: l.amocrm_id,
-  };
-}
-
 // overrideLeads lets callers substitute a reconstructed "as of a past date"
 // snapshot (see useAsOfSnapshot) in place of the live leads table, while
 // still joining against the current contacts/profiles/stages for display
 // names — the same shape either way.
-export function useCrmLeads(overrideLeads?: LeadRow[], options?: { enabled?: boolean }) {
-  const base = useCrmBase(options);
+export function useCrmLeads(overrideLeads?: LeadRow[]) {
+  const base = useCrmBase();
   const visibleOwnerIds = useVisibleOwnerIds();
   // base.leads is already scoped, but an as-of-date override comes straight
   // from the (unscoped) audit trail — apply the same ownership filter to it
@@ -605,234 +424,8 @@ export function useCrmLeads(overrideLeads?: LeadRow[], options?: { enabled?: boo
     const profilesById = byId(base.profiles);
     const stagesById = byId(base.stages);
 
-    return sourceLeads.map((l) =>
-      leadRowToView(
-        l,
-        l.contact_id ? contactsById.get(l.contact_id) : undefined,
-        profilesById,
-        stagesById,
-      ),
-    );
-  }, [sourceLeads, base.contacts, base.profiles, base.stages]);
-
-  return { rows, ...base };
-}
-
-/* ------------------------------------------------------------------ */
-/* View: a single lead by id — fetched directly instead of pulling the */
-/* whole org's leads (useCrmLeads) just to .find() one of them. On a   */
-/* large AmoCRM account this turned "open any one lead" into the same  */
-/* multi-minute full-table fetch as the leads register itself. Applies */
-/* the same owner/team visibility rule as useCrmBase (JS-layer, since   */
-/* the leads SELECT RLS policy itself is org-wide) so a rep still can't */
-/* open a teammate's lead by guessing its URL.                          */
-/* ------------------------------------------------------------------ */
-
-export function useLeadById(leadId: string | undefined) {
-  const { data: stages } = usePipelineStagesRaw();
-  const { data: profiles } = useProfilesRaw();
-  const visibleOwnerIds = useVisibleOwnerIds();
-
-  const query = useQuery({
-    queryKey: ["lead_detail", leadId],
-    enabled: !!leadId,
-    queryFn: async (): Promise<{ lead: LeadRow; contact: ContactRow | null } | null> => {
-      const { data: lead, error } = await supabase
-        .from("leads")
-        .select("*")
-        .eq("id", leadId!)
-        .maybeSingle();
-      if (error) throw error;
-      if (!lead) return null;
-      let contact: ContactRow | null = null;
-      if (lead.contact_id) {
-        const { data: c } = await supabase
-          .from("contacts")
-          .select("*")
-          .eq("id", lead.contact_id)
-          .maybeSingle();
-        contact = c ?? null;
-      }
-      return { lead, contact };
-    },
-  });
-
-  const lead = useMemo<CrmLeadView | undefined>(() => {
-    const row = query.data?.lead;
-    if (!row) return undefined;
-    if (visibleOwnerIds && (!row.owner_id || !visibleOwnerIds.has(row.owner_id))) return undefined;
-    return leadRowToView(row, query.data?.contact, byId(profiles), byId(stages));
-  }, [query.data, visibleOwnerIds, profiles, stages]);
-
-  return { lead, isLoading: query.isLoading };
-}
-
-/* ------------------------------------------------------------------ */
-/* View: the leads register, paginated server-side. The register used  */
-/* to call useCrmLeads() (the whole org's leads) and render every row   */
-/* into one <table> with no pagination at all — on an account with tens */
-/* of thousands of leads that meant transferring the entire table AND   */
-/* rendering tens of thousands of DOM rows, the real cause of the page  */
-/* freezing for minutes. Only the current page's rows are fetched now;  */
-/* the summary stat cards come from a small SQL aggregate (leads_list_  */
-/* stats) instead of being reduced over every row client-side.          */
-/* ------------------------------------------------------------------ */
-
-export type LeadsListParams = {
-  page: number;
-  pageSize?: number;
-  search?: string;
-  stageId?: string | null;
-  sortDesc?: boolean;
-};
-
-type LeadsListStats = { total: number; hot: number; avgScore: number; revenue: number };
-
-export function useLeadsListPage(params: LeadsListParams) {
-  const { user } = useAuth();
-  const pageSize = params.pageSize ?? 50;
-  const search = params.search?.trim() || null;
-  const visibleOwnerIds = useVisibleOwnerIds();
-  const ownerScopeKey = visibleOwnerIds ? [...visibleOwnerIds].sort().join(",") : null;
-  const { data: stages } = usePipelineStagesRaw();
-  const { data: profiles } = useProfilesRaw();
-
-  const pageQuery = useQuery({
-    queryKey: [
-      "leads_list_page",
-      user?.organizationId,
-      params.page,
-      pageSize,
-      search,
-      params.stageId ?? null,
-      params.sortDesc ?? true,
-      ownerScopeKey,
-    ],
-    enabled: !!user?.organizationId,
-    queryFn: async (): Promise<LeadRow[]> => {
-      const from = params.page * pageSize;
-      let q = supabase.from("leads").select("*");
-      if (params.stageId) q = q.eq("stage_id", params.stageId);
-      if (search) q = q.or(`name.ilike.%${search}%,company_name.ilike.%${search}%`);
-      if (visibleOwnerIds) q = q.in("owner_id", [...visibleOwnerIds]);
-      q = q
-        .order("score", { ascending: !(params.sortDesc ?? true) })
-        .order("id", { ascending: true })
-        .range(from, from + pageSize - 1);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as LeadRow[];
-    },
-  });
-
-  const statsQuery = useQuery({
-    queryKey: [
-      "leads_list_stats",
-      user?.organizationId,
-      search,
-      params.stageId ?? null,
-      ownerScopeKey,
-    ],
-    enabled: !!user?.organizationId,
-    queryFn: async (): Promise<LeadsListStats> => {
-      const { data, error } = await supabase
-        .rpc("leads_list_stats", {
-          p_search: search,
-          p_stage_id: params.stageId ?? null,
-        })
-        .maybeSingle();
-      if (error) throw error;
-      return {
-        total: Number(data?.total ?? 0),
-        hot: Number(data?.hot ?? 0),
-        avgScore: Math.round(Number(data?.avg_score ?? 0)),
-        revenue: Number(data?.revenue ?? 0),
-      };
-    },
-  });
-
-  const rows = useMemo<CrmLeadView[]>(() => {
-    const stagesById = byId(stages);
-    const profilesById = byId(profiles);
-    return (pageQuery.data ?? []).map((l) => leadRowToView(l, undefined, profilesById, stagesById));
-  }, [pageQuery.data, stages, profiles]);
-
-  return {
-    rows,
-    stats: statsQuery.data ?? { total: 0, hot: 0, avgScore: 0, revenue: 0 },
-    isLoading: pageQuery.isLoading || statsQuery.isLoading,
-    isFetching: pageQuery.isFetching,
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* View: Pipeline board — one funnel's leads, fetched server-side      */
-/* instead of pulling the whole organization's leads (useCrmBase) and  */
-/* filtering client-side. Large AmoCRM accounts can have tens of       */
-/* thousands of leads spread across dozens of funnels; loading all of  */
-/* them just to show one funnel's Kanban board was the direct cause of */
-/* the board never finishing "Pipeline yuklanmoqda...". contacts/      */
-/* companies/deals aren't fetched at all here -- the board's cards only*/
-/* need fields already denormalized onto leads (company_name, tags,    */
-/* expected_revenue), not a contacts/companies join.                   */
-/* ------------------------------------------------------------------ */
-
-function usePipelineBoardLeadsRaw(funnel: string | null) {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["pipeline_board_leads", user?.organizationId, funnel],
-    enabled: !!user?.organizationId && !!funnel,
-    queryFn: async (): Promise<LeadRow[]> => {
-      const fetchPage = async (from: number): Promise<LeadRow[]> => {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("*")
-          .eq("funnel", funnel!)
-          .order("id", { ascending: true })
-          .range(from, from + RESOURCE_PAGE_SIZE - 1);
-        if (error) throw error;
-        return (data ?? []) as LeadRow[];
-      };
-
-      const all: LeadRow[] = [];
-      let from = 0;
-      let done = false;
-      while (!done) {
-        const starts = Array.from(
-          { length: LIST_PAGE_CONCURRENCY },
-          (_, i) => from + i * RESOURCE_PAGE_SIZE,
-        );
-        const pages = await Promise.all(starts.map(fetchPage));
-        for (const page of pages) {
-          all.push(...page);
-          if (page.length < RESOURCE_PAGE_SIZE) done = true;
-        }
-        from += LIST_PAGE_CONCURRENCY * RESOURCE_PAGE_SIZE;
-      }
-      return all;
-    },
-  });
-}
-
-/** Same shape as useCrmLeads, scoped to a single funnel and fetched server-side — see the comment above usePipelineBoardLeadsRaw for why. */
-export function usePipelineBoardLeads(funnel: string | null) {
-  const board = usePipelineBoardLeadsRaw(funnel);
-  const { data: stages } = usePipelineStagesRaw();
-  const { data: profiles } = useProfilesRaw();
-  const visibleOwnerIds = useVisibleOwnerIds();
-
-  const scopedLeads = useMemo(() => {
-    const leads = board.data ?? [];
-    return visibleOwnerIds
-      ? leads.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
-      : leads;
-  }, [board.data, visibleOwnerIds]);
-
-  const rows = useMemo<CrmLeadView[]>(() => {
-    const profilesById = byId(profiles ?? []);
-    const stagesById = byId(stages ?? []);
-
-    return scopedLeads.map((l): CrmLeadView => {
+    return sourceLeads.map((l): CrmLeadView => {
+      const contact = l.contact_id ? contactsById.get(l.contact_id) : undefined;
       const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
       const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
       const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
@@ -842,12 +435,12 @@ export function usePipelineBoardLeads(funnel: string | null) {
         initials: initialsOf(l.name),
         company: l.company_name,
         companyId: l.company_id ?? "",
-        position: "",
-        phone: "",
-        altPhone: "",
-        email: "",
-        telegram: "",
-        whatsapp: "",
+        position: contact?.position ?? "",
+        phone: contact?.phone ?? "",
+        altPhone: contact?.alt_phone ?? "",
+        email: contact?.email ?? "",
+        telegram: contact?.telegram ?? "",
+        whatsapp: contact?.whatsapp ?? "",
         source: l.source ?? "",
         campaign: l.campaign ?? "",
         utm: l.utm ?? "",
@@ -865,8 +458,6 @@ export function usePipelineBoardLeads(funnel: string | null) {
         address: l.address ?? "",
         stage: stage?.name ?? "New Lead",
         stageId: l.stage_id ?? "",
-        stageIsWon: stage?.is_won ?? false,
-        stageIsLost: stage?.is_lost ?? false,
         funnel: l.funnel ?? "",
         nextFollowUp: formatFollowUp(l.next_follow_up),
         lastContact: timeAgo(l.last_contact_at),
@@ -876,70 +467,9 @@ export function usePipelineBoardLeads(funnel: string | null) {
         amocrmId: l.amocrm_id,
       };
     });
-  }, [scopedLeads, profiles, stages]);
+  }, [sourceLeads, base.contacts, base.profiles, base.stages]);
 
-  return {
-    rows,
-    stages: stages ?? [],
-    isLoading: board.isLoading || !stages || !profiles,
-    isError: board.isError,
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* View: Funnels list -- one row per funnel, aggregated server-side.   */
-/* The /funnels page (no funnel selected) used to pull the whole org's */
-/* leads via useCrmLeads() just to group them into cards -- same full- */
-/* table problem as everywhere else on a large AmoCRM account.         */
-/* ------------------------------------------------------------------ */
-
-export type FunnelStat = {
-  name: string;
-  count: number;
-  value: number;
-  won: number;
-  hot: number;
-  warm: number;
-  cold: number;
-  conversion: number;
-};
-
-export function useFunnelListStats(enabled = true) {
-  const { user } = useAuth();
-  const enabledFunnels = useEnabledFunnelNames();
-  const query = useQuery({
-    queryKey: ["funnel_list_stats", user?.organizationId],
-    enabled: enabled && !!user?.organizationId,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("funnel_list_stats");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const funnels = useMemo<FunnelStat[]>(
-    () =>
-      (query.data ?? [])
-        .filter((r) => !enabledFunnels || enabledFunnels.has(r.funnel))
-        .map((r): FunnelStat => {
-          const count = Number(r.total);
-          const won = Number(r.won);
-          return {
-            name: r.funnel,
-            count,
-            value: Number(r.value),
-            won,
-            hot: Number(r.hot),
-            warm: Number(r.warm),
-            cold: Number(r.cold),
-            conversion: count ? Math.round((won / count) * 1000) / 10 : 0,
-          };
-        })
-        .sort((a, b) => b.count - a.count),
-    [query.data, enabledFunnels],
-  );
-
-  return { funnels, isLoading: query.isLoading };
+  return { rows, ...base };
 }
 
 /* ------------------------------------------------------------------ */
@@ -970,23 +500,19 @@ export type LeaderboardManagerRow = {
   targetCompletion: number;
 };
 
-type LeaderboardOwnerStats = { total: number; won: number; lost: number; revenue: number };
-
-// Live path (the overwhelming majority of calls, including the 3s "live"
-// poll on the Reyting landing page) used to re-fetch the whole org's leads
-// table -- tens of thousands of rows on a large AmoCRM account -- on every
-// poll tick, forever, for as long as the tab stayed open. leaderboard_stats
-// computes the same per-owner totals in Postgres and returns one row per
-// rep instead. The as-of-date override path (opts.overrideLeads) still
-// reduces client-side, since that snapshot only exists in memory (it comes
-// from the audit trail, not the live table) and is small by nature.
 export function useLeaderboardView(
   filters: LeaderboardFilters,
   opts?: { refetchInterval?: number | false; overrideLeads?: LeadRow[] | undefined },
 ) {
   const refetchInterval = opts?.refetchInterval ?? false;
-  const useOverride = !!opts?.overrideLeads;
-
+  const {
+    data: liveLeads,
+    isLoading: leadsLoading,
+    isFetching: leadsFetching,
+    refetch: refetchLeads,
+    dataUpdatedAt,
+  } = useLeadsRaw({ refetchInterval });
+  const leads = opts?.overrideLeads ?? liveLeads;
   const {
     data: profiles,
     isLoading: profilesLoading,
@@ -999,90 +525,26 @@ export function useLeaderboardView(
     isFetching: stagesFetching,
     refetch: refetchStages,
   } = usePipelineStagesRaw({ refetchInterval });
+  const isLoading = leadsLoading || profilesLoading || stagesLoading;
+  const isFetching = leadsFetching || profilesFetching || stagesFetching;
+
+  const refetch = () => Promise.all([refetchLeads(), refetchProfiles(), refetchStages()]);
+
   const stagesById = useMemo(() => byId(stages), [stages]);
 
-  const tagsKey = filters.tags.length ? [...filters.tags].sort().join(",") : "";
-  const statsQuery = useQuery({
-    queryKey: [
-      "leaderboard_stats",
-      filters.from,
-      filters.to,
-      filters.funnel,
-      filters.stageId,
-      tagsKey,
-    ],
-    enabled: !useOverride,
-    refetchInterval: useOverride ? false : refetchInterval,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("leaderboard_stats", {
-        p_from: filters.from,
-        p_to: filters.to,
-        p_funnel: filters.funnel,
-        p_stage_id: filters.stageId,
-        p_tags: filters.tags.length ? filters.tags : null,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const filteredOverrideLeads = useMemo(() => {
-    if (!useOverride) return [];
-    return (opts?.overrideLeads ?? []).filter((l) => {
-      if (filters.from && l.created_at < filters.from) return false;
-      if (filters.to && l.created_at > filters.to) return false;
-      if (filters.stageId && l.stage_id !== filters.stageId) return false;
-      if (filters.funnel && (l.funnel || "Direct Sales") !== filters.funnel) return false;
-      if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
-        return false;
-      return true;
-    });
-  }, [
-    useOverride,
-    opts?.overrideLeads,
-    filters.from,
-    filters.to,
-    filters.stageId,
-    filters.funnel,
-    filters.tags,
-  ]);
-
-  const statsByOwner = useMemo(() => {
-    const map = new Map<string, LeaderboardOwnerStats>();
-    if (useOverride) {
-      for (const l of filteredOverrideLeads) {
-        if (!l.owner_id) continue;
-        const entry = map.get(l.owner_id) ?? { total: 0, won: 0, lost: 0, revenue: 0 };
-        entry.total += 1;
-        const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-        if (stage?.is_won) {
-          entry.won += 1;
-          entry.revenue += l.expected_revenue;
-        }
-        if (stage?.is_lost) entry.lost += 1;
-        map.set(l.owner_id, entry);
-      }
-    } else {
-      for (const r of statsQuery.data ?? []) {
-        map.set(r.owner_id, {
-          total: Number(r.total_leads),
-          won: Number(r.won_leads),
-          lost: Number(r.lost_leads),
-          revenue: Number(r.revenue),
-        });
-      }
-    }
-    return map;
-  }, [useOverride, filteredOverrideLeads, stagesById, statsQuery.data]);
-
-  const isLoading = useOverride
-    ? profilesLoading || stagesLoading
-    : profilesLoading || stagesLoading || statsQuery.isLoading;
-  const isFetching = useOverride
-    ? profilesFetching || stagesFetching
-    : profilesFetching || stagesFetching || statsQuery.isFetching;
-  const refetch = () =>
-    Promise.all([refetchProfiles(), refetchStages(), useOverride ? null : statsQuery.refetch()]);
+  const filteredLeads = useMemo(
+    () =>
+      (leads ?? []).filter((l) => {
+        if (filters.from && l.created_at < filters.from) return false;
+        if (filters.to && l.created_at > filters.to) return false;
+        if (filters.stageId && l.stage_id !== filters.stageId) return false;
+        if (filters.funnel && (l.funnel || "Direct Sales") !== filters.funnel) return false;
+        if (filters.tags.length > 0 && !filters.tags.some((tag) => (l.tags ?? []).includes(tag)))
+          return false;
+        return true;
+      }),
+    [leads, filters.from, filters.to, filters.stageId, filters.funnel, filters.tags],
+  );
 
   const rows = useMemo<LeaderboardManagerRow[]>(() => {
     const q = filters.search.trim().toLowerCase();
@@ -1095,34 +557,38 @@ export function useLeaderboardView(
     );
     return eligible
       .map((p): LeaderboardManagerRow => {
-        const s = statsByOwner.get(p.id) ?? { total: 0, won: 0, lost: 0, revenue: 0 };
-        const conversion = s.total ? (s.won / s.total) * 100 : 0;
-        const targetCompletion = p.monthly_target > 0 ? (s.revenue / p.monthly_target) * 100 : 0;
+        const mine = filteredLeads.filter((l) => l.owner_id === p.id);
+        const won = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_won : false));
+        const lost = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_lost : false));
+        const revenue = won.reduce((s, l) => s + l.expected_revenue, 0);
+        const conversion = mine.length ? (won.length / mine.length) * 100 : 0;
+        const targetCompletion = p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
         return {
           id: p.id,
           name: profileName(p),
           initials: initialsOf(profileName(p)),
           avatarUrl: p.avatar_url,
-          totalLeads: s.total,
-          wonLeads: s.won,
-          lostLeads: s.lost,
-          revenue: s.revenue,
+          totalLeads: mine.length,
+          wonLeads: won.length,
+          lostLeads: lost.length,
+          revenue,
           conversion,
           kpiPercent: p.kpi_percent,
           monthlyTarget: p.monthly_target,
           targetCompletion,
         };
       })
-      .filter((row) => !filters.funnel || row.totalLeads > 0)
       .sort((a, b) => b.revenue - a.revenue);
-  }, [profiles, statsByOwner, filters.search, filters.funnel]);
+  }, [profiles, filteredLeads, stagesById, filters.search]);
 
   return {
     rows,
+    filteredLeads,
+    stages: stages ?? [],
     isLoading,
     isFetching,
     refetch,
-    dataUpdatedAt: statsQuery.dataUpdatedAt,
+    dataUpdatedAt,
   };
 }
 
@@ -1132,51 +598,23 @@ export function useLeaderboardView(
 /* OPENAI_API_KEY (transcription) and DEEPSEEK_API_KEY (summary) set.      */
 /* ------------------------------------------------------------------ */
 
-export type CallChecklistItem = {
-  stage: string;
-  step: string;
-  skill: string | null;
-  points: number;
-  met: boolean;
-  note: string;
-};
-
-export type CallAnalysis = {
-  checklist: CallChecklistItem[];
-  strengths: string[];
-  improvements: string[];
-  warnings: string[];
-  risks: string[];
-  agreements: string[];
-  keyQuotes: string[];
-  topObjections: string[];
-};
-
 export type AudioCallView = {
   id: string;
   leadId: string | null;
   leadName: string;
   company: string;
   owner: string;
-  ownerId: string | null;
-  funnel: string | null;
-  stage: string | null;
   phone: string;
   direction: "in" | "out";
   connected: boolean;
   durationSeconds: number;
   recordingUrl: string | null;
   occurredAt: string;
-  occurredAtRaw: string;
   transcript: string | null;
   aiSummary: string | null;
   nextStep: string | null;
   amocrmTaskId: number | null;
   amocrmId: number | null;
-  score: number | null;
-  mood: string | null;
-  talkRatio: number | null;
-  analysis: CallAnalysis | null;
 };
 
 export type RecoverableLeadView = {
@@ -1220,25 +658,17 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
           leadName: lead?.name ?? "",
           company: lead?.company ?? "",
           owner: lead?.owner ?? "",
-          ownerId: lead?.ownerId ?? null,
-          funnel: lead?.funnel ?? null,
-          stage: lead?.stage ?? null,
           phone: c.phone ?? lead?.phone ?? "",
           direction: c.direction === "in" ? "in" : "out",
           connected: c.connected,
           durationSeconds: c.duration_seconds,
           recordingUrl: c.recording_url,
           occurredAt: timeAgo(c.occurred_at),
-          occurredAtRaw: c.occurred_at,
           transcript: c.transcript,
           aiSummary: c.ai_summary,
           nextStep: c.next_step,
           amocrmTaskId: c.amocrm_task_id,
           amocrmId: lead?.amocrmId ?? null,
-          score: c.score,
-          mood: c.mood,
-          talkRatio: c.talk_ratio,
-          analysis: (c.analysis as CallAnalysis | null) ?? null,
         };
       }),
     [calls, leadsById],
@@ -1615,46 +1045,36 @@ export function useRevenueSeries() {
   }, [deals, visibleOwnerIds]);
 }
 
-// Both dashboard funnel widgets used to aggregate the deals table (which
-// this AmoCRM-synced setup never actually populates -- real revenue lives
-// on leads) and/or every pipeline_stages row across the whole org (~60
-// AmoCRM pipelines here, all sharing generic stage names like
-// "Неразобранное") with no funnel filter, producing a chart with dozens of
-// duplicate-labeled all-zero bars. Both now require an explicit funnel
-// selection and read real, funnel-scoped lead data -- the funnel-scoped
-// fetch is shared (same react-query key) between the two widgets, so
-// selecting a funnel costs one request, not two.
-export function usePipelineStageStats(funnel: string | null) {
-  const board = usePipelineBoardLeads(funnel);
+export function usePipelineStageStats() {
+  const { data: deals } = useDealsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+
   return useMemo(() => {
-    if (!funnel) return [];
-    const funnelStages = board.stages
-      .filter((s) => s.pipeline_name === funnel)
-      .sort((a, b) => a.position - b.position);
-    return funnelStages.map((s) => {
-      const inStage = board.rows.filter((l) => l.stageId === s.id);
+    const rows = visibleOwnerIds
+      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
+      : (deals ?? []);
+    return (stages ?? []).map((s) => {
+      const inStage = rows.filter((d) => d.stage_id === s.id);
       return {
         stage: s.name,
-        value: inStage.reduce((sum, l) => sum + l.expectedRevenue, 0),
+        value: inStage.reduce((sum, d) => sum + Number(d.value), 0),
         deals: inStage.length,
       };
     });
-  }, [funnel, board.stages, board.rows]);
+  }, [deals, stages, visibleOwnerIds]);
 }
 
-export function useFunnelFlow(funnel: string | null) {
-  const board = usePipelineBoardLeads(funnel);
+export function useFunnelFlow() {
+  const { rows: leads, stages } = useCrmLeads();
   return useMemo(() => {
-    if (!funnel) return [];
-    const funnelStages = board.stages
-      .filter((s) => s.pipeline_name === funnel)
-      .sort((a, b) => a.position - b.position);
-    const base = board.rows.length || 1;
-    return funnelStages.map((s) => {
-      const count = board.rows.filter((l) => l.stageId === s.id).length;
+    const ordered = [...stages].sort((a, b) => a.position - b.position);
+    const base = leads.length || 1;
+    return ordered.map((s) => {
+      const count = leads.filter((l) => l.stageId === s.id).length;
       return { stage: s.name, count, conversion: Math.round((count / base) * 1000) / 10 };
     });
-  }, [funnel, board.stages, board.rows]);
+  }, [leads, stages]);
 }
 
 export type DashboardKpi = {
@@ -1678,95 +1098,26 @@ export type DashboardFilters = {
   maxAmount?: number | null;
 };
 
-type DashboardKpiValues = {
-  revenueToday: number;
-  revenueMonth: number;
-  pipelineValue: number;
-  openDealsCount: number;
-  newLeadsToday: number;
-  wonThisWeek: number;
-  lostThisWeek: number;
-  conversion: number;
-};
-
-const EMPTY_DASHBOARD_KPIS: DashboardKpiValues = {
-  revenueToday: 0,
-  revenueMonth: 0,
-  pipelineValue: 0,
-  openDealsCount: 0,
-  newLeadsToday: 0,
-  wonThisWeek: 0,
-  lostThisWeek: 0,
-  conversion: 0,
-};
-
-// Live path (the default -- no overrides passed) used to pull the whole
-// org's leads + deals + stages client-side just to reduce them into these
-// eight numbers. dashboard_kpis computes the same numbers in Postgres.
-// The as-of-date override path still reduces client-side below, since that
-// snapshot only exists in memory (reconstructed from the audit trail) and
-// is small by nature -- there's nothing in the database to query it from.
-function useDashboardKpisLive(
-  filters: DashboardFilters | undefined,
-  enabled: boolean,
-): DashboardKpiValues {
-  const { user } = useAuth();
-  const from = filters?.from ?? null;
-  const to = filters?.to ?? null;
-  const funnel = filters?.funnel ?? null;
-  const minAmount = filters?.minAmount ?? null;
-  const maxAmount = filters?.maxAmount ?? null;
-
-  const query = useQuery({
-    queryKey: ["dashboard_kpis", user?.organizationId, from, to, funnel, minAmount, maxAmount],
-    enabled: enabled && !!user?.organizationId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .rpc("dashboard_kpis", {
-          p_from: from,
-          p_to: to,
-          p_funnel: funnel,
-          p_min_amount: minAmount,
-          p_max_amount: maxAmount,
-        })
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const d = query.data;
-  if (!d) return EMPTY_DASHBOARD_KPIS;
-  return {
-    revenueToday: Number(d.revenue_today ?? 0),
-    revenueMonth: Number(d.revenue_month ?? 0),
-    pipelineValue: Number(d.pipeline_value ?? 0),
-    openDealsCount: Number(d.open_deals_count ?? 0),
-    newLeadsToday: Number(d.new_leads_today ?? 0),
-    wonThisWeek: Number(d.won_this_week ?? 0),
-    lostThisWeek: Number(d.lost_this_week ?? 0),
-    conversion: Number(d.conversion ?? 0),
-  };
-}
-
-function useDashboardKpisFromOverride(
-  filters: DashboardFilters | undefined,
-  overrides: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
-): DashboardKpiValues {
+export function useDashboardKpis(
+  filters?: DashboardFilters,
+  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
+) {
+  const { data: liveDeals } = useDealsRaw();
+  const { data: liveLeads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
   const deals = useMemo(() => {
-    const rows = overrides.deals ?? [];
+    const rows = overrides?.deals ?? liveDeals ?? [];
     return visibleOwnerIds
       ? rows.filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
       : rows;
-  }, [overrides.deals, visibleOwnerIds]);
+  }, [overrides?.deals, liveDeals, visibleOwnerIds]);
   const leads = useMemo(() => {
-    const rows = overrides.leads ?? [];
+    const rows = overrides?.leads ?? liveLeads ?? [];
     return visibleOwnerIds
       ? rows.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
       : rows;
-  }, [overrides.leads, visibleOwnerIds]);
+  }, [overrides?.leads, liveLeads, visibleOwnerIds]);
 
   return useMemo(() => {
     const from = filters?.from ?? null;
@@ -1865,22 +1216,6 @@ function useDashboardKpisFromOverride(
   ]);
 }
 
-export function useDashboardKpis(
-  filters?: DashboardFilters,
-  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
-): DashboardKpiValues {
-  const useOverride = !!(overrides?.leads || overrides?.deals);
-  // Both branches are hooks, so both always run (React's rules of hooks) --
-  // only the relevant one's result is used, same pattern as useCrmLeads'
-  // as-of-date handling.
-  const live = useDashboardKpisLive(filters, !useOverride);
-  const overridden = useDashboardKpisFromOverride(filters, {
-    leads: useOverride ? overrides?.leads : [],
-    deals: useOverride ? overrides?.deals : [],
-  });
-  return useOverride ? overridden : live;
-}
-
 export type ActivityItem = {
   id: string;
   who: string;
@@ -1926,47 +1261,29 @@ export function useRecentActivity(limit = 6) {
   return { rows, isLoading: activityQuery.isLoading };
 }
 
-// Used to read the (essentially unused, since this is an AmoCRM-synced
-// setup where real revenue lives on leads) deals table -- always 0. Reuses
-// the same leaderboard_stats RPC the Reyting page itself uses, so this
-// widget's numbers actually match the full leaderboard.
 export function useTopPerformers(limit = 5) {
-  const { user } = useAuth();
+  const { data: deals } = useDealsRaw();
   const { data: profiles } = useProfilesRaw();
-  const statsQuery = useQuery({
-    queryKey: ["leaderboard_stats", null, null, null, null, ""],
-    enabled: !!user?.organizationId,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("leaderboard_stats", {
-        p_from: null,
-        p_to: null,
-        p_funnel: null,
-        p_stage_id: null,
-        p_tags: null,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
 
   return useMemo(() => {
-    const statsByOwner = new Map((statsQuery.data ?? []).map((r) => [r.owner_id, r]));
+    const rows = deals ?? [];
     const people = profiles ?? [];
     return people
       .map((p) => {
-        const stats = statsByOwner.get(p.id);
+        const won = rows.filter((d) => d.owner_id === p.id && d.status === "won");
+        const revenue = won.reduce((s, d) => s + Number(d.value), 0);
         return {
           id: p.id,
           name: p.full_name || p.email,
           department: p.department,
-          deals: stats?.won_leads ?? 0,
-          revenue: stats?.revenue ?? 0,
+          deals: won.length,
+          revenue,
           target: p.monthly_target || 1,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit);
-  }, [statsQuery.data, profiles, limit]);
+  }, [deals, profiles, limit]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2010,14 +1327,12 @@ export type AmoConnectionStatus = {
   last_sync_error: string | null;
 };
 
-/** The connected org's own AmoCRM sync status/error — super_admin only (RLS). Polls every 3s so the Integrations page reflects a sync as it happens, without a manual refresh. */
+/** The connected org's own AmoCRM sync status/error — super_admin only (RLS). */
 export function useAmoConnectionStatus() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["amocrm_connection_status", user?.organizationId],
-    enabled:
-      !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
-    refetchInterval: 3000,
+    enabled: !!user?.organizationId && user.role === "super_admin",
     queryFn: async (): Promise<AmoConnectionStatus | null> => {
       const { data, error } = await supabase
         .from("amocrm_connection")
@@ -2057,27 +1372,6 @@ export function useTriggerAmoCrmSync() {
       void qc.invalidateQueries({ queryKey: ["amocrm_calls"] });
       void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] });
       void qc.invalidateQueries({ queryKey: ["amocrm_connection_status"] });
-    },
-  });
-}
-
-export function useDisconnectAmoCrm() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/amocrm-disconnect", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not disconnect.");
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] });
-      void qc.invalidateQueries({ queryKey: ["amocrm_connection_status"] });
-      void qc.invalidateQueries({ queryKey: ["amocrm_catalog"] });
     },
   });
 }
@@ -2129,25 +1423,6 @@ export function useDeleteEmployee() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["profiles"] });
-    },
-  });
-}
-
-export function useSetEmployeePassword() {
-  return useMutation({
-    mutationFn: async (input: { id: string; password: string }): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/set-employee-password", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(input),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to set password");
     },
   });
 }
@@ -2456,10 +1731,6 @@ export function useAnalyzeCall() {
       summary: string;
       nextStep: string | null;
       taskWarning: string | null;
-      score: number | null;
-      mood: string | null;
-      talkRatio: number | null;
-      analysis: CallAnalysis | null;
     }> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -2601,10 +1872,6 @@ export async function notifyTaskAssigned(assigneeId: string, taskTitle: string):
 
 export type BusinessProfileRow = Tables["business_profile"]["Row"];
 
-export type ProductServiceItem = { name: string; description: string };
-export type ObjectionItem = { objection: string; response: string };
-export type GlossaryItem = { term: string; definition: string };
-
 export function useBusinessProfile() {
   const { user } = useAuth();
   return useQuery({
@@ -2630,18 +1897,7 @@ export function useUpdateBusinessProfile() {
       patch: Partial<
         Pick<
           BusinessProfileRow,
-          | "company_name"
-          | "description"
-          | "competitors"
-          | "terminology"
-          | "tone"
-          | "value_proposition"
-          | "target_customer"
-          | "qualified_lead_definition"
-          | "products_services"
-          | "objections"
-          | "glossary"
-          | "competitors_list"
+          "company_name" | "description" | "competitors" | "terminology" | "tone"
         >
       >,
     ) => {
@@ -2662,202 +1918,23 @@ export function useUpdateBusinessProfile() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Security Center — per-org password policy + 2FA-required flag.      */
-/* ------------------------------------------------------------------ */
-
-export type SecuritySettingsRow = Tables["security_settings"]["Row"];
-
-const DEFAULT_SECURITY_SETTINGS: Omit<SecuritySettingsRow, "organization_id"> = {
-  min_password_length: 8,
-  require_number: false,
-  require_uppercase: false,
-  require_symbol: false,
-  two_factor_required: false,
-  updated_at: "",
-  updated_by: null,
-};
-
-/** Falls back to the platform default policy when the org hasn't saved custom settings yet. */
-export function useSecuritySettings() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["security_settings", user?.organizationId],
-    enabled: !!user?.organizationId,
-    queryFn: async (): Promise<SecuritySettingsRow> => {
-      const { data, error } = await supabase
-        .from("security_settings")
-        .select("*")
-        .eq("organization_id", user!.organizationId!)
-        .maybeSingle();
-      if (error) throw error;
-      return data ?? { organization_id: user!.organizationId!, ...DEFAULT_SECURITY_SETTINGS };
-    },
-  });
-}
-
-export function useUpdateSecuritySettings() {
-  const qc = useQueryClient();
-  const { user } = useAuth();
-  return useMutation({
-    mutationFn: async (
-      patch: Partial<
-        Pick<
-          SecuritySettingsRow,
-          | "min_password_length"
-          | "require_number"
-          | "require_uppercase"
-          | "require_symbol"
-          | "two_factor_required"
-        >
-      >,
-    ) => {
-      const { data, error } = await supabase
-        .from("security_settings")
-        .upsert(
-          { organization_id: user!.organizationId!, ...patch, updated_by: user?.id ?? null },
-          { onConflict: "organization_id" },
-        )
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () =>
-      void qc.invalidateQueries({ queryKey: ["security_settings", user?.organizationId] }),
-  });
-}
-
-export type SecurityUserStatus = {
-  id: string;
-  last_sign_in_at: string | null;
-  banned_until: string | null;
-};
-
-/** Login activity + block status for the org's employees — lives on auth.users, so it's fetched via a service-role route rather than a direct table read. */
-export function useSecurityUsers() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["security_users", user?.organizationId],
-    enabled:
-      !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
-    queryFn: async (): Promise<SecurityUserStatus[]> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/security-users", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const json = (await res.json()) as { users?: SecurityUserStatus[]; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not load login activity.");
-      return json.users ?? [];
-    },
-  });
-}
-
-export function useToggleUserBan() {
-  const qc = useQueryClient();
-  const { user } = useAuth();
-  return useMutation({
-    mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/security-ban", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ userId, ban }),
-      });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not update the account.");
-      return json;
-    },
-    onSuccess: () =>
-      void qc.invalidateQueries({ queryKey: ["security_users", user?.organizationId] }),
-  });
-}
-
-/* ------------------------------------------------------------------ */
-/* AmoCRM import settings — pick which pipelines/operators to sync.    */
-/* ------------------------------------------------------------------ */
-
-export type AmoCatalogPipeline = { id: number; name: string; is_main: boolean };
-export type AmoCatalogOperator = {
-  id: number;
-  name: string;
-  email: string | null;
-  existingProfileEmail: string | null;
-};
-export type AmoCatalog = {
-  subdomain: string;
-  pipelines: AmoCatalogPipeline[];
-  operators: AmoCatalogOperator[];
-  enabledPipelineIds: number[] | null;
-  enabledUserIds: number[] | null;
-};
-
-export function useAmoCatalog() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["amocrm_catalog", user?.organizationId],
-    enabled:
-      !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
-    queryFn: async (): Promise<AmoCatalog> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/amocrm-catalog", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const json = (await res.json()) as AmoCatalog & { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not load AmoCRM catalog.");
-      return json;
-    },
-  });
-}
-
-export function useSaveAmoImportSettings() {
-  const qc = useQueryClient();
-  const { user } = useAuth();
-  return useMutation({
-    mutationFn: async ({ pipelineIds, userIds }: { pipelineIds: number[]; userIds: number[] }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/amocrm-import-settings", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ pipelineIds, userIds }),
-      });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not save.");
-      return json;
-    },
-    onSuccess: () =>
-      void qc.invalidateQueries({ queryKey: ["amocrm_catalog", user?.organizationId] }),
-  });
-}
-
-/* ------------------------------------------------------------------ */
 /* Tags — aggregated across every lead, with rename/delete that touch  */
 /* every lead carrying that tag.                                       */
 /* ------------------------------------------------------------------ */
 
 export type TagSummary = { name: string; count: number };
 
-export function useTagsSummary(funnel?: string | null) {
+export function useTagsSummary() {
   const { data: leads, ...rest } = useLeadsRaw();
   const tags = useMemo<TagSummary[]>(() => {
     const counts = new Map<string, number>();
     for (const l of leads ?? []) {
-      if (funnel && (l.funnel || "Direct Sales") !== funnel) continue;
       for (const tag of l.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
     return Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
-  }, [leads, funnel]);
+  }, [leads]);
   return { tags, ...rest };
 }
 
@@ -3282,384 +2359,21 @@ export function useUpdateAiAgent() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Which funnel (pipeline) names are enabled for import — every funnel  */
-/* filter in the app (sidebar, Dashboard, Reyting, Funnels, AmoCRM      */
-/* board) consults this so a pipeline unchecked in "Import qilinadigan  */
-/* voronkalar" never appears as a filter option. null = no restriction. */
-/* ------------------------------------------------------------------ */
-
-export function useEnabledFunnelNames(): Set<string> | null {
-  const { user } = useAuth();
-  const { data } = useQuery({
-    queryKey: ["enabled_funnel_names", user?.organizationId],
-    enabled: !!user?.organizationId,
-    staleTime: 5 * 60_000,
-    queryFn: async (): Promise<string[] | null> => {
-      const { data, error } = await supabase.rpc("enabled_funnel_names");
-      if (error) throw error;
-      return data ?? null;
-    },
-  });
-  return useMemo(() => (data ? new Set(data) : null), [data]);
-}
-
-/* ------------------------------------------------------------------ */
 /* Distinct funnel names — for the sidebar's expandable Funnels group. */
 /* ------------------------------------------------------------------ */
 
 export function useFunnelNames() {
   const { data: leads, isLoading } = useLeadsRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
-  const enabledFunnels = useEnabledFunnelNames();
   const names = useMemo(() => {
     const set = new Set<string>();
     for (const l of leads ?? []) {
       if (visibleOwnerIds && !(l.owner_id && visibleOwnerIds.has(l.owner_id))) continue;
-      const name = l.funnel || "Direct Sales";
-      if (enabledFunnels && !enabledFunnels.has(name)) continue;
-      set.add(name);
+      set.add(l.funnel || "Direct Sales");
     }
     return Array.from(set).sort();
-  }, [leads, visibleOwnerIds, enabledFunnels]);
+  }, [leads, visibleOwnerIds]);
   return { names, isLoading };
-}
-
-/* ------------------------------------------------------------------ */
-/* Funnel-level stat cards (Reyting) — computed directly from the raw   */
-/* leads table rather than summed across per-manager leaderboard rows,  */
-/* so a lead with no (or an unmatched) owner still counts toward the    */
-/* funnel's totals instead of silently vanishing from the sum.          */
-/* ------------------------------------------------------------------ */
-
-// AmoCRM stage names are whatever the org typed into their own pipeline, and
-// vary funnel to funnel -- confirmed real-world variants (per the user):
-//   Prepayment:   "Predoplata", "Predoplata qildi", "Predoplata qildi |
-//                 kelishuv bor", and the observed misspelling "Peredoplata"
-//   Half payment: always "Yarim to'lov"
-//   Full payment: "To'liq to'lov qildi", "WON | To'liq to'lov",
-//                 "Успешно реализовано" (ru), or bare "WON"
-//   Exception:    some funnels use "ROP Closed" in place of a full-payment
-//                 stage -- counts as a sale too when it shows up
-// Matched loosely (lowercased, apostrophes stripped) against any of these
-// as a substring, not an exact string.
-const SALES_STAGE_KEYWORDS = [
-  "predoplata",
-  "peredoplata",
-  "yarim",
-  "toliq",
-  "won",
-  "успешно",
-  "rop closed",
-];
-
-function normalizeStageName(name: string): string {
-  return name.toLowerCase().replace(/['’ʼ`]/g, "");
-}
-
-export type FunnelStats = {
-  totalLeads: number;
-  totalRevenue: number;
-  wonCount: number;
-  wonRevenue: number;
-  lostCount: number;
-  salesStageCount: number;
-  salesStageRevenue: number;
-  // Average deal size across sales-stage leads only (salesStageRevenue /
-  // salesStageCount) -- the "o'rtacha chek" the Dashboard's projection cards
-  // are built from.
-  avgCheck: number;
-  conversion: number;
-  isLoading: boolean;
-};
-
-export function useFunnelStats(
-  funnel?: string | null,
-  opts?: { overrideLeads?: LeadRow[] | undefined },
-): FunnelStats {
-  const useOverride = !!opts?.overrideLeads;
-  const { data: liveLeads, isLoading: liveLeadsLoading } = useLeadsRaw();
-  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
-  const leads = useOverride ? opts?.overrideLeads : liveLeads;
-  const leadsLoading = useOverride ? false : liveLeadsLoading;
-
-  return useMemo(() => {
-    const stagesById = byId(stages);
-    let totalLeads = 0;
-    let totalRevenue = 0;
-    let wonCount = 0;
-    let wonRevenue = 0;
-    let lostCount = 0;
-    let salesStageCount = 0;
-    let salesStageRevenue = 0;
-
-    for (const l of leads ?? []) {
-      const leadFunnel = l.funnel || "Direct Sales";
-      if (funnel && leadFunnel !== funnel) continue;
-      totalLeads += 1;
-      totalRevenue += l.expected_revenue;
-      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-      if (stage?.is_won) {
-        wonCount += 1;
-        wonRevenue += l.expected_revenue;
-      }
-      if (stage?.is_lost) lostCount += 1;
-      const stageName = stage ? normalizeStageName(stage.name) : "";
-      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
-        salesStageCount += 1;
-        salesStageRevenue += l.expected_revenue;
-      }
-    }
-
-    return {
-      totalLeads,
-      totalRevenue,
-      wonCount,
-      wonRevenue,
-      lostCount,
-      salesStageCount,
-      salesStageRevenue,
-      avgCheck: salesStageCount ? salesStageRevenue / salesStageCount : 0,
-      // Sales-stage count (prepayment/half-payment/full-payment), not WON --
-      // this is "Umumiy konversiya" as specified, distinct from the WON-only
-      // ratio a plain won/total conversion would give.
-      conversion: totalLeads ? (salesStageCount / totalLeads) * 100 : 0,
-      isLoading: leadsLoading || stagesLoading,
-    };
-  }, [leads, stages, funnel, leadsLoading, stagesLoading]);
-}
-
-/* ------------------------------------------------------------------ */
-/* Today's per-funnel call activity (Dashboard "Kunlik calltime" card)  */
-/* — how many managers made at least one call today in this funnel, how */
-/* much total/average talk time, and how many distinct leads each       */
-/* manager reached on average.                                          */
-/* ------------------------------------------------------------------ */
-
-export type FunnelCallStats = {
-  managerCount: number;
-  totalSeconds: number;
-  avgSecondsPerManager: number;
-  avgContactsPerManager: number;
-  isLoading: boolean;
-};
-
-export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
-  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsRaw();
-  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
-
-  return useMemo(() => {
-    const leadsById = byId(leads);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const byManager = new Map<string, { seconds: number; leadIds: Set<string> }>();
-    for (const c of calls ?? []) {
-      if (new Date(c.occurred_at) < startOfToday) continue;
-      if (!c.lead_id) continue;
-      const lead = leadsById.get(c.lead_id);
-      if (!lead?.owner_id) continue;
-      const leadFunnel = lead.funnel || "Direct Sales";
-      if (funnel && leadFunnel !== funnel) continue;
-      const cur = byManager.get(lead.owner_id) ?? { seconds: 0, leadIds: new Set<string>() };
-      cur.seconds += c.duration_seconds;
-      cur.leadIds.add(lead.id);
-      byManager.set(lead.owner_id, cur);
-    }
-
-    const managerCount = byManager.size;
-    const totalSeconds = Array.from(byManager.values()).reduce((s, m) => s + m.seconds, 0);
-    const totalContacts = Array.from(byManager.values()).reduce((s, m) => s + m.leadIds.size, 0);
-
-    return {
-      managerCount,
-      totalSeconds,
-      avgSecondsPerManager: managerCount ? Math.round(totalSeconds / managerCount) : 0,
-      avgContactsPerManager: managerCount
-        ? Math.round((totalContacts / managerCount) * 10) / 10
-        : 0,
-      isLoading: callsLoading || leadsLoading,
-    };
-  }, [calls, leads, funnel, callsLoading, leadsLoading]);
-}
-
-/* ------------------------------------------------------------------ */
-/* Open AmoCRM task counts (Dashboard "zadachalar" card) — live-fetched, */
-/* not stored locally, since this app never syncs AmoCRM's own task list */
-/* in (it only ever pushes single reminder tasks out to AmoCRM).         */
-/* ------------------------------------------------------------------ */
-
-export type AmoTaskCardStats = { dueToday: number; overdue: number };
-
-export function useAmoCrmTaskStats(funnel?: string | null) {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["amocrm_task_stats", user?.organizationId, funnel ?? null],
-    enabled: !!user?.organizationId,
-    refetchInterval: 60_000,
-    queryFn: async (): Promise<AmoTaskCardStats> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const params = new URLSearchParams();
-      if (funnel) params.set("funnel", funnel);
-      const res = await fetch(`/dashboard/amocrm-tasks?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const json = (await res.json()) as AmoTaskCardStats & { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not load AmoCRM tasks.");
-      return { dueToday: json.dueToday, overdue: json.overdue };
-    },
-  });
-}
-
-/* ------------------------------------------------------------------ */
-/* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
-/* computation as useFunnelStats above, grouped by owner instead of      */
-/* summed across the whole funnel.                                       */
-/* ------------------------------------------------------------------ */
-
-export type ManagerFunnelStats = { totalLeads: number; salesCount: number; salesRevenue: number };
-
-export function useManagerFunnelStats(
-  funnel?: string | null,
-  opts?: { overrideLeads?: LeadRow[] | undefined },
-): Map<string, ManagerFunnelStats> {
-  const { data: liveLeads } = useLeadsRaw();
-  const { data: stages } = usePipelineStagesRaw();
-  const leads = opts?.overrideLeads ?? liveLeads;
-  return useMemo(() => {
-    const stagesById = byId(stages);
-    const map = new Map<string, ManagerFunnelStats>();
-    for (const l of leads ?? []) {
-      if (!l.owner_id) continue;
-      const leadFunnel = l.funnel || "Direct Sales";
-      if (funnel && leadFunnel !== funnel) continue;
-      const cur = map.get(l.owner_id) ?? { totalLeads: 0, salesCount: 0, salesRevenue: 0 };
-      cur.totalLeads += 1;
-      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-      const stageName = stage ? normalizeStageName(stage.name) : "";
-      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
-        cur.salesCount += 1;
-        cur.salesRevenue += l.expected_revenue;
-      }
-      map.set(l.owner_id, cur);
-    }
-    return map;
-  }, [leads, stages, funnel]);
-}
-
-/* ------------------------------------------------------------------ */
-/* Weekly per-manager trend (Reyting charts) — conversion% and sales-    */
-/* stage revenue, bucketed by week of lead creation, for every manager   */
-/* with at least one lead in the funnel. "Conversion" here is each       */
-/* week's cohort of created leads that are *currently* sitting in a      */
-/* sales stage — there's no stored historical snapshot of conversion     */
-/* itself to chart directly, so this is the closest real approximation.  */
-/* ------------------------------------------------------------------ */
-
-const DEFAULT_TREND_WEEKS = 8;
-// A "Butun davr" (all-time) range with years of history would otherwise
-// bucket into hundreds of illegible weekly points -- cap it the same way
-// the chart itself is already capped for legibility.
-const MAX_TREND_WEEKS = 52;
-
-export type ManagerTrendSeries = {
-  id: string;
-  name: string;
-  conversion: (number | null)[];
-  salesRevenue: number[];
-};
-
-export type ManagerWeeklyTrend = { weekLabels: string[]; series: ManagerTrendSeries[] };
-
-function startOfWeek(d: Date): Date {
-  const copy = new Date(d);
-  const day = copy.getDay();
-  const diff = (day + 6) % 7; // Monday-start week
-  copy.setDate(copy.getDate() - diff);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
-export function useManagerWeeklyTrend(
-  funnel?: string | null,
-  from?: Date | null,
-  to?: Date | null,
-): ManagerWeeklyTrend {
-  const { data: leads } = useLeadsRaw();
-  const { data: stages } = usePipelineStagesRaw();
-  const { data: profiles } = useProfilesRaw();
-  const managerStats = useManagerFunnelStats(funnel);
-
-  return useMemo(() => {
-    const rangeEnd = startOfWeek(to ?? new Date());
-    const rangeStart = from
-      ? startOfWeek(from)
-      : new Date(rangeEnd.getTime() - (DEFAULT_TREND_WEEKS - 1) * 7 * 86400000);
-    const weekCount = Math.min(
-      MAX_TREND_WEEKS,
-      Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (7 * 86400000)) + 1),
-    );
-
-    const weekStarts: Date[] = [];
-    for (let i = weekCount - 1; i >= 0; i--) {
-      const d = new Date(rangeEnd);
-      d.setDate(d.getDate() - i * 7);
-      weekStarts.push(d);
-    }
-    const weekLabels = weekStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
-
-    const ownerIds = Array.from(managerStats.entries())
-      .sort((a, b) => b[1].salesRevenue - a[1].salesRevenue)
-      .map(([id]) => id);
-    if (ownerIds.length === 0) return { weekLabels, series: [] };
-
-    const profilesById = byId(profiles);
-    const stagesById = byId(stages);
-
-    type Bucket = { total: number; sales: number; salesRevenue: number };
-    const buckets = new Map<string, Bucket[]>();
-    for (const id of ownerIds) {
-      buckets.set(
-        id,
-        weekStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
-      );
-    }
-
-    for (const l of leads ?? []) {
-      if (!l.owner_id || !buckets.has(l.owner_id)) continue;
-      const leadFunnel = l.funnel || "Direct Sales";
-      if (funnel && leadFunnel !== funnel) continue;
-      const created = new Date(l.created_at);
-      let weekIndex = -1;
-      for (let i = weekStarts.length - 1; i >= 0; i--) {
-        if (created >= weekStarts[i]!) {
-          weekIndex = i;
-          break;
-        }
-      }
-      if (weekIndex === -1) continue;
-      const bucket = buckets.get(l.owner_id)![weekIndex]!;
-      bucket.total += 1;
-      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-      const stageName = stage ? normalizeStageName(stage.name) : "";
-      if (SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw))) {
-        bucket.sales += 1;
-        bucket.salesRevenue += l.expected_revenue;
-      }
-    }
-
-    const series: ManagerTrendSeries[] = ownerIds.map((id) => {
-      const b = buckets.get(id)!;
-      return {
-        id,
-        name: profileName(profilesById.get(id)),
-        conversion: b.map((w) => (w.total ? (w.sales / w.total) * 100 : null)),
-        salesRevenue: b.map((w) => w.salesRevenue),
-      };
-    });
-
-    return { weekLabels, series };
-  }, [leads, stages, profiles, managerStats, funnel, from, to]);
 }
 
 /* ------------------------------------------------------------------ */
