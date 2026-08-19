@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// The shared pill shape every filter on the platform now uses: a leading
+// The shared card shape every filter on the platform now uses: a leading
 // icon naming what the filter is (not just its current value), the native
 // <select>'s own selected-option text, and a trailing chevron -- all inside
-// one fully-rounded control instead of a bare rectangular <select>.
+// one soft-cornered control instead of a bare rectangular <select>.
 export function FilterSelect({
   icon: Icon,
   value,
@@ -22,7 +22,7 @@ export function FilterSelect({
   return (
     <div
       className={cn(
-        "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-background pl-3.5 pr-3 transition-colors focus-within:ring-2 focus-within:ring-primary/40 hover:bg-accent",
+        "inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-3 transition-colors focus-within:ring-2 focus-within:ring-primary/40 hover:bg-accent",
         className,
       )}
     >
@@ -57,7 +57,7 @@ export function FilterSearchInput({
   return (
     <div
       className={cn(
-        "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-background pl-3.5 pr-4 transition-colors focus-within:ring-2 focus-within:ring-primary/40",
+        "inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-4 transition-colors focus-within:ring-2 focus-within:ring-primary/40",
         className,
       )}
     >
