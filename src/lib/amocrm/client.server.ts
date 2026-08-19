@@ -312,12 +312,21 @@ type AmoLead = {
   pipeline_id: number;
   responsible_user_id: number | null;
   created_at: number;
+  loss_reason_id?: number | null;
   _embedded?: {
     tags?: { id: number; name: string }[];
     contacts?: { id: number; is_main?: boolean }[];
     companies?: { id: number }[];
   };
 };
+
+/** AmoCRM's account-wide loss-reasons catalog (Sozlamalar → Yo'qotish sabablari) -- fetched once per sync and looked up by id when building lead rows. */
+async function fetchLossReasons(conn: AmoConnection): Promise<Map<number, string>> {
+  const data = (await amoFetch(conn, "/api/v4/leads/loss_reasons?limit=250")) as {
+    _embedded?: { loss_reasons?: { id: number; name: string }[] };
+  } | null;
+  return new Map((data?._embedded?.loss_reasons ?? []).map((r) => [r.id, r.name]));
+}
 
 function amoTagNames(lead: AmoLead): string[] {
   return (lead._embedded?.tags ?? []).map((t) => t.name).filter(Boolean);
@@ -707,16 +716,21 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
     // statement timeout" (or any other DB/network error) previously landed
     // in last_sync_error with no way to tell which of these three calls,
     // let alone which one of dozens of leads pages, actually caused it.
-    const [{ stageByStatusId, pipelineNameById }, ownerByAmoUserId, fallbackStageId] =
-      await Promise.all([
-        syncPipelineStages(organizationId, conn).catch((e) => {
-          throw new Error(`[pipeline stages] ${describeError(e)}`);
-        }),
-        syncUserMapping(organizationId, conn),
-        defaultStageId(organizationId).catch((e) => {
-          throw new Error(`[default stage] ${describeError(e)}`);
-        }),
-      ]);
+    const [
+      { stageByStatusId, pipelineNameById },
+      ownerByAmoUserId,
+      fallbackStageId,
+      lossReasonById,
+    ] = await Promise.all([
+      syncPipelineStages(organizationId, conn).catch((e) => {
+        throw new Error(`[pipeline stages] ${describeError(e)}`);
+      }),
+      syncUserMapping(organizationId, conn),
+      defaultStageId(organizationId).catch((e) => {
+        throw new Error(`[default stage] ${describeError(e)}`);
+      }),
+      fetchLossReasons(conn).catch(() => new Map<number, string>()),
+    ]);
 
     // Leads used to be fetched into one array for the whole account (up to
     // thousands of objects, each carrying embedded tags/contacts/companies
@@ -841,7 +855,8 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           owner_id: l.responsible_user_id
             ? (ownerByAmoUserId.get(l.responsible_user_id) ?? null)
             : null,
-          temperature: "Warm" as const,
+          loss_reason:
+            l.loss_reason_id != null ? (lossReasonById.get(l.loss_reason_id) ?? null) : null,
           priority: "Normal" as const,
           tags: amoTagNames(l),
         };
@@ -1086,7 +1101,6 @@ export async function upsertSingleAmoLead(
       budget: price ?? 0,
       stage_id: stageId,
       owner_id: ownerId,
-      temperature: "Warm" as const,
       priority: "Normal" as const,
     },
     { onConflict: "organization_id,amocrm_id" },

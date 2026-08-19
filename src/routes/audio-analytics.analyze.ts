@@ -231,6 +231,17 @@ async function analyzeTranscript(
   }
 }
 
+// AmoCRM has no real "lead temperature" concept -- this is the only place a
+// lead's score/temperature ever gets set to something other than the
+// column defaults (score=50, temperature='Warm'), rolling up whatever the
+// AI call-analysis engine just found for its most recent call.
+function temperatureFromScore(score: number): "Cold" | "Warm" | "Hot" | "VeryHot" {
+  if (score >= 76) return "VeryHot";
+  if (score >= 51) return "Hot";
+  if (score >= 26) return "Warm";
+  return "Cold";
+}
+
 export const Route = createFileRoute("/audio-analytics/analyze")({
   server: {
     handlers: {
@@ -252,7 +263,9 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
 
         const { data: call } = await supabaseAdmin
           .from("amocrm_calls")
-          .select("id, recording_url, source, amocrm_task_id, leads:lead_id(amocrm_id, owner_id)")
+          .select(
+            "id, lead_id, recording_url, source, amocrm_task_id, leads:lead_id(amocrm_id, owner_id)",
+          )
           .eq("id", body.callId)
           .eq("organization_id", organizationId)
           .maybeSingle();
@@ -335,6 +348,13 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
               analyzed_at: new Date().toISOString(),
             })
             .eq("id", call.id);
+
+          if (call.lead_id && score != null) {
+            await supabaseAdmin
+              .from("leads")
+              .update({ score, temperature: temperatureFromScore(score) })
+              .eq("id", call.lead_id);
+          }
 
           // Hand the AI-suggested next step to the responsible manager as a
           // reminder inside AmoCRM — best-effort: a failure here shouldn't
