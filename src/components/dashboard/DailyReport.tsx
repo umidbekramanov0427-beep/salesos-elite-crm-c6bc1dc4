@@ -1,7 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   Pie,
@@ -13,10 +16,13 @@ import {
 } from "recharts";
 import {
   AlertTriangle,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   GitBranch,
+  ListChecks,
   Loader2,
+  PhoneMissed,
   Sparkles,
   User,
   Users,
@@ -29,10 +35,12 @@ import { useCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import {
   useAiAssistantChat,
+  useAmoCrmTaskStats,
   useDailyReportStats,
   useFunnelNames,
   useProfilesRaw,
   type DailyReportScope,
+  type DailyReportStats,
 } from "@/hooks/use-crm-data";
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
@@ -439,6 +447,7 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
   }, [period, selected]);
 
   const stats = useDailyReportStats(range, prevRange, scope);
+  const taskStats = useAmoCrmTaskStats(scope.funnel);
 
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
@@ -745,6 +754,344 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
           </div>
         </div>
       </div>
+
+      <div className="mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-subtle">
+          {t("dash.report.section03")}
+        </p>
+        <h3 className="mt-1 text-xl font-bold text-foreground">{t("dash.report.activityTitle")}</h3>
+        <p className="mt-1 text-sm text-subtle">{t("dash.report.activityDesc")}</p>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <SectionCard title={t("dash.report.operatorRanking")}>
+          {stats.operatorBreakdown.length === 0 ? (
+            <p className="py-8 text-center text-sm text-subtle">
+              {t("dash.report.noOperatorData")}
+            </p>
+          ) : (
+            <OperatorRankingList operators={stats.operatorBreakdown} />
+          )}
+        </SectionCard>
+
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <ListChecks className="h-4 w-4 text-primary" /> {t("dash.report.amoTasks")}
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-success/10 p-3">
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-success">
+                <CalendarClock className="h-3 w-3" /> {t("dash.card.tasksDueToday")}
+              </p>
+              <p className="mt-2 text-2xl font-bold leading-none tabular-nums text-success">
+                {taskStats.data?.dueToday ?? 0}
+              </p>
+            </div>
+            <div className="rounded-xl bg-destructive/10 p-3">
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
+                <PhoneMissed className="h-3 w-3" /> {t("dash.card.tasksOverdue")}
+              </p>
+              <p className="mt-2 text-2xl font-bold leading-none tabular-nums text-destructive">
+                {taskStats.data?.overdue ?? 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <SectionCard title={t("dash.report.talkTime")} description={t("dash.report.talkTimeDesc")}>
+          {stats.operatorBreakdown.length === 0 ? (
+            <p className="py-8 text-center text-sm text-subtle">
+              {t("dash.report.noOperatorData")}
+            </p>
+          ) : (
+            <TalkTimeBars operators={stats.operatorBreakdown} />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label={t("dash.report.avgCallScore")}
+          value={stats.avgCallScore != null ? `${stats.avgCallScore}/100` : "—"}
+        />
+        <StatCard
+          label={t("dash.report.newLeadsPeriod")}
+          value={String(stats.newLeads)}
+          tone="mint"
+        />
+        <StatCard
+          label={t("dash.report.openLeadsPeriod")}
+          value={String(stats.openLeads)}
+          tone="danger-soft"
+        />
+      </div>
+
+      <div className="mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-subtle">
+          {t("dash.report.section04")}
+        </p>
+        <h3 className="mt-1 text-xl font-bold text-foreground">{t("dash.report.callsTitle")}</h3>
+        <p className="mt-1 text-sm text-subtle">{t("dash.report.callsDesc")}</p>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <SectionCard title={t("dash.report.callFlow")} className="xl:col-span-2">
+          <div className="mb-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span>
+              {t("dash.report.totalCallsLabel")}:{" "}
+              <b className="text-foreground">{stats.totalCalls}</b>
+            </span>
+            <span className="text-success">
+              {t("audio.connected")}: <b>{stats.connectedCalls}</b>
+            </span>
+            <span className="text-destructive">
+              {t("dash.report.missedLabel")}: <b>{stats.missedCalls}</b>
+            </span>
+          </div>
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.callFlowByDay} margin={{ left: -14, right: 8, top: 8 }}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  stroke="var(--color-subtle)"
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  stroke="var(--color-subtle)"
+                />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar
+                  name={t("audio.connected")}
+                  dataKey="connected"
+                  stackId="a"
+                  fill="var(--color-success)"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  name={t("dash.report.missedLabel")}
+                  dataKey="missed"
+                  stackId="a"
+                  fill="var(--color-destructive)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
+
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="text-sm font-bold text-foreground">{t("dash.report.contactRate")}</p>
+          <p className="mt-1 text-xs text-subtle">{t("dash.report.contactRateDesc")}</p>
+          <p className="mt-4 text-4xl font-extrabold text-primary">{stats.contactRatePct}%</p>
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${Math.min(100, stats.contactRatePct)}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-subtle">{t("dash.report.targetHint", { pct: 80 })}</p>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-subtle">
+          {t("dash.report.section05")}
+        </p>
+        <h3 className="mt-1 text-xl font-bold text-foreground">{t("dash.report.funnelTitle")}</h3>
+        <p className="mt-1 text-sm text-subtle">{t("dash.report.funnelDesc")}</p>
+      </div>
+
+      <div className="mt-4">
+        <SectionCard title={t("dash.report.stageBreakdown")}>
+          {!reportFunnel ? (
+            <p className="py-10 text-center text-sm text-subtle">
+              {t("dash.report.pickFunnelForStages")}
+            </p>
+          ) : stats.stageBreakdown.length === 0 ? (
+            <p className="py-10 text-center text-sm text-subtle">{t("funnels.noLeads")}</p>
+          ) : (
+            <StageBreakdownList rows={stats.stageBreakdown} />
+          )}
+        </SectionCard>
+      </div>
     </div>
+  );
+}
+
+function OperatorRankingList({ operators }: { operators: DailyReportStats["operatorBreakdown"] }) {
+  const { t } = useI18n();
+  const max = Math.max(...operators.map((o) => o.calls), 1);
+  const top = operators.slice(0, 3);
+  const bottom = operators.length > 3 ? operators.slice(-3) : [];
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-subtle">
+          {t("dash.report.topPerformers")}
+        </p>
+        <div className="space-y-2.5">
+          {top.map((o, i) => (
+            <OperatorRankRow key={o.id} rank={i + 1} operator={o} max={max} />
+          ))}
+        </div>
+      </div>
+      {bottom.length > 0 && (
+        <div>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-subtle">
+            {t("dash.report.bottomPerformers")}
+          </p>
+          <div className="space-y-2.5">
+            {bottom.map((o, i) => (
+              <OperatorRankRow key={o.id} rank={top.length + i + 1} operator={o} max={max} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OperatorRankRow({
+  rank,
+  operator,
+  max,
+}: {
+  rank: number;
+  operator: DailyReportStats["operatorBreakdown"][number];
+  max: number;
+}) {
+  const scoreTone =
+    operator.avgScore == null
+      ? "text-subtle"
+      : operator.avgScore >= 75
+        ? "text-success"
+        : operator.avgScore >= 50
+          ? "text-warning"
+          : "text-destructive";
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-4 shrink-0 text-xs font-bold text-subtle">{rank}</span>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
+        {operator.name.slice(0, 2).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">{operator.name}</p>
+        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${(operator.calls / max) * 100}%` }}
+          />
+        </div>
+      </div>
+      <span className="shrink-0 text-right text-xs font-semibold text-foreground">
+        {operator.calls}
+      </span>
+      <span className={cn("w-9 shrink-0 text-right text-sm font-bold", scoreTone)}>
+        {operator.avgScore ?? "—"}
+      </span>
+    </div>
+  );
+}
+
+function TalkTimeBars({ operators }: { operators: DailyReportStats["operatorBreakdown"] }) {
+  const sorted = [...operators].sort((a, b) => b.totalSeconds - a.totalSeconds);
+  const max = Math.max(...sorted.map((o) => o.totalSeconds), 1);
+  const totalSeconds = sorted.reduce((s, o) => s + o.totalSeconds, 0);
+  const totalCalls = sorted.reduce((s, o) => s + o.calls, 0);
+  const { t } = useI18n();
+
+  function fmt(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return h > 0 ? `${h}h` : `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  return (
+    <div>
+      <div className="mb-4 grid grid-cols-3 gap-3 border-b border-border pb-4 text-center">
+        <div>
+          <p className="text-lg font-bold text-foreground">{fmt(totalSeconds)}</p>
+          <p className="text-[10px] uppercase tracking-wide text-subtle">
+            {t("dash.report.totalTalkTime")}
+          </p>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-foreground">
+            {totalCalls ? fmt(Math.round(totalSeconds / totalCalls)) : "0:00"}
+          </p>
+          <p className="text-[10px] uppercase tracking-wide text-subtle">
+            {t("dash.report.avgTalkTime")}
+          </p>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-foreground">{totalCalls}</p>
+          <p className="text-[10px] uppercase tracking-wide text-subtle">
+            {t("dash.report.totalCallsLabel")}
+          </p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {sorted.map((o) => (
+          <div key={o.id} className="flex items-center gap-3">
+            <span className="w-24 shrink-0 truncate text-xs font-medium text-foreground">
+              {o.name}
+            </span>
+            <div className="h-5 flex-1 overflow-hidden rounded-lg bg-muted">
+              <div
+                className="h-full rounded-lg bg-primary/70"
+                style={{ width: `${(o.totalSeconds / max) * 100}%` }}
+              />
+            </div>
+            <span className="w-12 shrink-0 text-right text-xs font-semibold text-foreground">
+              {fmt(o.totalSeconds)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StageBreakdownList({ rows }: { rows: DailyReportStats["stageBreakdown"] }) {
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  return (
+    <ul className="space-y-2.5">
+      {rows.map((r) => (
+        <li key={r.stage} className="flex items-center gap-3">
+          <span
+            className="w-40 shrink-0 truncate text-xs font-medium text-foreground"
+            title={r.stage}
+          >
+            {r.stage}
+          </span>
+          <div className="h-6 flex-1 overflow-hidden rounded-lg bg-muted">
+            <div
+              className="flex h-full items-center rounded-lg bg-primary/70 px-2"
+              style={{ width: `${(r.count / max) * 100}%` }}
+            >
+              <span className="text-[10px] font-bold text-primary-foreground">{r.count}</span>
+            </div>
+          </div>
+          <span className="w-12 shrink-0 text-right text-xs font-semibold text-subtle">
+            {r.pct}%
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
