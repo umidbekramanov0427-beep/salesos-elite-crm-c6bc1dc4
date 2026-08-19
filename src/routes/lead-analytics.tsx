@@ -1063,11 +1063,26 @@ function DirectionTab({
   );
 }
 
-const TABS: { key: Tab; icon: typeof Zap; labelKey: string }[] = [
-  { key: "action", icon: Zap, labelKey: "leadAnalytics.tabAction" },
-  { key: "quality", icon: Layers, labelKey: "leadAnalytics.tabQuality" },
-  { key: "current", icon: SlidersHorizontal, labelKey: "leadAnalytics.tabCurrent" },
-  { key: "direction", icon: Shuffle, labelKey: "leadAnalytics.tabDirection" },
+const TABS: { key: Tab; icon: typeof Zap; labelKey: string; iconColor: string }[] = [
+  { key: "action", icon: Zap, labelKey: "leadAnalytics.tabAction", iconColor: "text-amber-500" },
+  {
+    key: "quality",
+    icon: Layers,
+    labelKey: "leadAnalytics.tabQuality",
+    iconColor: "text-violet-500",
+  },
+  {
+    key: "current",
+    icon: SlidersHorizontal,
+    labelKey: "leadAnalytics.tabCurrent",
+    iconColor: "text-sky-500",
+  },
+  {
+    key: "direction",
+    icon: Shuffle,
+    labelKey: "leadAnalytics.tabDirection",
+    iconColor: "text-rose-500",
+  },
 ];
 
 function FilterTile({
@@ -1281,20 +1296,20 @@ function LeadAnalytics() {
     <>
       <PageHeader title={t("leadAnalytics.title")} description={t("leadAnalytics.desc")} />
 
-      <div className="mb-6 flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
+      <div className="mb-6 inline-flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
         {TABS.map((tb) => (
           <button
             key={tb.key}
             type="button"
             onClick={() => setTab(tb.key)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors",
+              "inline-flex items-center gap-2 rounded-xl bg-surface px-3.5 py-2 text-sm font-semibold ring-1 ring-transparent transition-colors",
               tab === tb.key
-                ? "bg-primary/10 text-primary"
+                ? "bg-primary/10 text-primary ring-primary/50"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
           >
-            <tb.icon className="h-4 w-4" />
+            <tb.icon className={cn("h-4 w-4", tb.iconColor)} />
             {t(tb.labelKey)}
           </button>
         ))}
