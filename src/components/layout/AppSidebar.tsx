@@ -462,7 +462,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
           </p>
         )}
         {collapsed && <div className="my-3 border-t border-sidebar-border" />}
-        <div className={cn("space-y-0.5", !collapsed && "rounded-2xl bg-mint p-1.5")}>
+        <div className={cn("space-y-0.5", !collapsed && "rounded-2xl bg-sidebar-group p-1.5")}>
           {items.map((item) =>
             item.to === "/funnels" ? (
               <FunnelsNavGroup
