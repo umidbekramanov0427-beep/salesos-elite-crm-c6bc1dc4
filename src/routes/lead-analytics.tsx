@@ -1196,8 +1196,8 @@ function MonthStrip({
                 selected
                   ? "border-primary bg-primary text-primary-foreground"
                   : isFuture
-                    ? "cursor-not-allowed border-border/50 text-subtle/50"
-                    : "border-border text-foreground hover:bg-accent",
+                    ? "cursor-not-allowed border-border/50 bg-surface/50 text-subtle/50"
+                    : "border-border bg-surface text-foreground hover:bg-accent",
               )}
             >
               <p
