@@ -61,6 +61,7 @@ import {
   type RecoverableLeadView,
 } from "@/hooks/use-crm-data";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import {
   AmountRangeFilter,
@@ -1135,7 +1136,155 @@ function AudioAnalytics() {
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <SectionCard title={t("audio.filters")}>
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterSearchInput
+            icon={Search}
+            value={search}
+            onChange={setSearch}
+            placeholder={t("audio.searchPlaceholder")}
+            className="w-64"
+          />
+          <FilterSelect
+            icon={PhoneCall}
+            value={connectedFilter}
+            onChange={(v) => setConnectedFilter(v as "" | "yes" | "no")}
+          >
+            <option value="">{t("audio.filterAllResults")}</option>
+            <option value="yes">{t("audio.connected")}</option>
+            <option value="no">{t("audio.notConnected")}</option>
+          </FilterSelect>
+          <FilterSelect
+            icon={ArrowLeftRight}
+            value={direction}
+            onChange={(v) => setDirection(v as "" | "in" | "out")}
+          >
+            <option value="">{t("audio.filterAllDirections")}</option>
+            <option value="in">{t("audio.filterIncoming")}</option>
+            <option value="out">{t("audio.filterOutgoing")}</option>
+          </FilterSelect>
+          <FilterSelect icon={User} value={ownerId} onChange={setOwnerId}>
+            <option value="">{t("audio.filterAllOwners")}</option>
+            {owners.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </FilterSelect>
+          <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+
+          <Popover open={showMoreFilters} onOpenChange={setShowMoreFilters}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border pl-3.5 pr-3 text-sm font-medium transition-colors",
+                  showMoreFilters
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent",
+                )}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                {t("audio.moreFilters")}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[min(640px,90vw)] p-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                    {t("leadFilter.allFunnels")}
+                  </p>
+                  <FilterSelect
+                    icon={GitBranch}
+                    value={funnelFilter}
+                    onChange={setFunnelFilter}
+                    className="w-full"
+                  >
+                    <option value="">{t("leadFilter.allFunnels")}</option>
+                    {funnelNames.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </FilterSelect>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                    {t("audio.filterAllStages")}
+                  </p>
+                  <FilterSelect
+                    icon={ListFilter}
+                    value={stageFilter}
+                    onChange={setStageFilter}
+                    className="w-full"
+                  >
+                    <option value="">{t("audio.filterAllStages")}</option>
+                    {stages.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </FilterSelect>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                    {t("audio.filterAllMoods")}
+                  </p>
+                  <FilterSelect
+                    icon={Smile}
+                    value={moodFilter}
+                    onChange={setMoodFilter}
+                    className="w-full"
+                  >
+                    <option value="">{t("audio.filterAllMoods")}</option>
+                    {moods.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </FilterSelect>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                    {t("audio.scoreRange")}
+                  </p>
+                  <AmountRangeFilter value={scoreRange} onChange={setScoreRange} />
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                    {t("audio.durationRangeSec")}
+                  </p>
+                  <AmountRangeFilter value={durationRange} onChange={setDurationRange} />
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end border-t border-border pt-3">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                >
+                  <X className="h-4 w-4" />
+                  {t("audio.clearFilters")}
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+            >
+              <X className="h-4 w-4" />
+              {t("audio.clearFilters")}
+            </button>
+          )}
+        </div>
+      </SectionCard>
+
+      <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("audio.callsToday")} value={String(totals.callsToday)} tone="mint" />
         <StatCard label={t("audio.connectionRate")} value={`${totals.connectionRate}%`} />
         <StatCard
@@ -1156,144 +1305,6 @@ function AudioAnalytics() {
 
       <div className="mt-8">
         <AudioInsightsCharts calls={recent} />
-      </div>
-
-      <div className="mt-8">
-        <SectionCard title={t("audio.filters")}>
-          <div className="flex flex-wrap items-center gap-3">
-            <FilterSearchInput
-              icon={Search}
-              value={search}
-              onChange={setSearch}
-              placeholder={t("audio.searchPlaceholder")}
-              className="w-64"
-            />
-            <FilterSelect
-              icon={PhoneCall}
-              value={connectedFilter}
-              onChange={(v) => setConnectedFilter(v as "" | "yes" | "no")}
-            >
-              <option value="">{t("audio.filterAllResults")}</option>
-              <option value="yes">{t("audio.connected")}</option>
-              <option value="no">{t("audio.notConnected")}</option>
-            </FilterSelect>
-            <FilterSelect
-              icon={ArrowLeftRight}
-              value={direction}
-              onChange={(v) => setDirection(v as "" | "in" | "out")}
-            >
-              <option value="">{t("audio.filterAllDirections")}</option>
-              <option value="in">{t("audio.filterIncoming")}</option>
-              <option value="out">{t("audio.filterOutgoing")}</option>
-            </FilterSelect>
-            <FilterSelect icon={User} value={ownerId} onChange={setOwnerId}>
-              <option value="">{t("audio.filterAllOwners")}</option>
-              {owners.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </FilterSelect>
-            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
-            <button
-              type="button"
-              onClick={() => setShowMoreFilters((v) => !v)}
-              className={cn(
-                "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border pl-3.5 pr-3 text-sm font-medium transition-colors",
-                showMoreFilters
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground hover:bg-accent",
-              )}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {t("audio.moreFilters")}
-            </button>
-          </div>
-
-          {hasActiveFilters && (
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
-              >
-                <X className="h-4 w-4" />
-                {t("audio.clearFilters")}
-              </button>
-            </div>
-          )}
-
-          {showMoreFilters && (
-            <div className="mt-3 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
-              <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("leadFilter.allFunnels")}
-                </p>
-                <FilterSelect
-                  icon={GitBranch}
-                  value={funnelFilter}
-                  onChange={setFunnelFilter}
-                  className="w-full"
-                >
-                  <option value="">{t("leadFilter.allFunnels")}</option>
-                  {funnelNames.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </FilterSelect>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("audio.filterAllStages")}
-                </p>
-                <FilterSelect
-                  icon={ListFilter}
-                  value={stageFilter}
-                  onChange={setStageFilter}
-                  className="w-full"
-                >
-                  <option value="">{t("audio.filterAllStages")}</option>
-                  {stages.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </FilterSelect>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("audio.filterAllMoods")}
-                </p>
-                <FilterSelect
-                  icon={Smile}
-                  value={moodFilter}
-                  onChange={setMoodFilter}
-                  className="w-full"
-                >
-                  <option value="">{t("audio.filterAllMoods")}</option>
-                  {moods.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </FilterSelect>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("audio.scoreRange")}
-                </p>
-                <AmountRangeFilter value={scoreRange} onChange={setScoreRange} />
-              </div>
-              <div className="sm:col-span-2">
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("audio.durationRangeSec")}
-                </p>
-                <AmountRangeFilter value={durationRange} onChange={setDurationRange} />
-              </div>
-            </div>
-          )}
-        </SectionCard>
       </div>
 
       <div className="mt-8">
