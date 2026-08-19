@@ -406,7 +406,13 @@ async function fetchAllUsers(conn: AmoConnection): Promise<AmoUser[]> {
   );
 }
 
-type AmoStatus = { id: number; name: string; sort: number; pipeline_id: number };
+type AmoStatus = {
+  id: number;
+  name: string;
+  sort: number;
+  pipeline_id: number;
+  color?: string | null;
+};
 type AmoPipeline = {
   id: number;
   name: string;
@@ -497,11 +503,18 @@ async function syncPipelineStages(
         name: status.name,
         pipeline_name: pipelineNameById.get(pipeline.id) ?? "Direct Sales",
         position: status.sort ?? index,
-        color: isWon
-          ? "bg-success"
-          : isLost
-            ? "bg-destructive"
-            : STAGE_COLOR_ROTATION[index % STAGE_COLOR_ROTATION.length]!,
+        // Mirror AmoCRM's own status color exactly (hex, e.g. "#fffeb2") so
+        // stage badges match what the org sees inside AmoCRM itself. Some
+        // custom statuses come back with no color set -- fall back to the
+        // old round-robin Tailwind palette for those (and for won/lost,
+        // whose AmoCRM color already reads as green/red in practice).
+        color:
+          status.color ||
+          (isWon
+            ? "bg-success"
+            : isLost
+              ? "bg-destructive"
+              : STAGE_COLOR_ROTATION[index % STAGE_COLOR_ROTATION.length]!),
         probability: isWon ? 100 : isLost ? 0 : Math.min(90, 20 + index * 15),
         is_won: isWon,
         is_lost: isLost,

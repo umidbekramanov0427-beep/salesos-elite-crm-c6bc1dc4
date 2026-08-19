@@ -9,7 +9,7 @@ import {
   Tag,
   User,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, stageColorProps } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { CrmLeadView, ProfileRow, StageRow } from "@/hooks/use-crm-data";
 import {
@@ -175,11 +175,14 @@ export function LeadFilterBar({
         <option value="">{t("leadFilter.allStages")}</option>
         {stages
           .filter((s) => !value.funnel || (s.pipeline_name || "Direct Sales") === value.funnel)
-          .map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
+          .map((s) => {
+            const { className, style } = stageColorProps(s.color);
+            return (
+              <option key={s.id} value={s.id} className={className} style={style}>
+                {s.name}
+              </option>
+            );
+          })}
       </FilterSelect>
 
       <TagMultiSelect
