@@ -3903,19 +3903,19 @@ export function useManagerFunnelStats(
 }
 
 /* ------------------------------------------------------------------ */
-/* Weekly per-manager trend (Reyting charts) — conversion% and sales-    */
-/* stage revenue, bucketed by week of lead creation, for every manager   */
+/* Daily per-manager trend (Reyting charts) — conversion% and sales-     */
+/* stage revenue, bucketed by day of lead creation, for every manager    */
 /* with at least one lead in the funnel. "Conversion" here is each       */
-/* week's cohort of created leads that are *currently* sitting in a      */
+/* day's cohort of created leads that are *currently* sitting in a       */
 /* sales stage — there's no stored historical snapshot of conversion     */
 /* itself to chart directly, so this is the closest real approximation.  */
 /* ------------------------------------------------------------------ */
 
-const DEFAULT_TREND_WEEKS = 8;
+const DEFAULT_TREND_DAYS = 30;
 // A "Butun davr" (all-time) range with years of history would otherwise
-// bucket into hundreds of illegible weekly points -- cap it the same way
+// bucket into hundreds of illegible daily points -- cap it the same way
 // the chart itself is already capped for legibility.
-const MAX_TREND_WEEKS = 52;
+const MAX_TREND_DAYS = 90;
 
 export type ManagerTrendSeries = {
   id: string;
@@ -3924,49 +3924,46 @@ export type ManagerTrendSeries = {
   salesRevenue: number[];
 };
 
-export type ManagerWeeklyTrend = { weekLabels: string[]; series: ManagerTrendSeries[] };
+export type ManagerDailyTrend = { dayLabels: string[]; series: ManagerTrendSeries[] };
 
-function startOfWeek(d: Date): Date {
+function startOfDay(d: Date): Date {
   const copy = new Date(d);
-  const day = copy.getDay();
-  const diff = (day + 6) % 7; // Monday-start week
-  copy.setDate(copy.getDate() - diff);
   copy.setHours(0, 0, 0, 0);
   return copy;
 }
 
-export function useManagerWeeklyTrend(
+export function useManagerDailyTrend(
   funnel?: string | null,
   from?: Date | null,
   to?: Date | null,
-): ManagerWeeklyTrend {
+): ManagerDailyTrend {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
   const { data: profiles } = useProfilesRaw();
   const managerStats = useManagerFunnelStats(funnel);
 
   return useMemo(() => {
-    const rangeEnd = startOfWeek(to ?? new Date());
+    const rangeEnd = startOfDay(to ?? new Date());
     const rangeStart = from
-      ? startOfWeek(from)
-      : new Date(rangeEnd.getTime() - (DEFAULT_TREND_WEEKS - 1) * 7 * 86400000);
-    const weekCount = Math.min(
-      MAX_TREND_WEEKS,
-      Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (7 * 86400000)) + 1),
+      ? startOfDay(from)
+      : new Date(rangeEnd.getTime() - (DEFAULT_TREND_DAYS - 1) * 86400000);
+    const dayCount = Math.min(
+      MAX_TREND_DAYS,
+      Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1),
     );
 
-    const weekStarts: Date[] = [];
-    for (let i = weekCount - 1; i >= 0; i--) {
+    const dayStarts: Date[] = [];
+    for (let i = dayCount - 1; i >= 0; i--) {
       const d = new Date(rangeEnd);
-      d.setDate(d.getDate() - i * 7);
-      weekStarts.push(d);
+      d.setDate(d.getDate() - i);
+      dayStarts.push(d);
     }
-    const weekLabels = weekStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
+    const dayLabels = dayStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
 
     const ownerIds = Array.from(managerStats.entries())
       .sort((a, b) => b[1].salesRevenue - a[1].salesRevenue)
       .map(([id]) => id);
-    if (ownerIds.length === 0) return { weekLabels, series: [] };
+    if (ownerIds.length === 0) return { dayLabels, series: [] };
 
     const profilesById = byId(profiles);
     const stagesById = byId(stages);
@@ -3976,7 +3973,7 @@ export function useManagerWeeklyTrend(
     for (const id of ownerIds) {
       buckets.set(
         id,
-        weekStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
+        dayStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
       );
     }
 
@@ -3985,15 +3982,15 @@ export function useManagerWeeklyTrend(
       const leadFunnel = l.funnel || "Direct Sales";
       if (funnel && leadFunnel !== funnel) continue;
       const created = new Date(l.created_at);
-      let weekIndex = -1;
-      for (let i = weekStarts.length - 1; i >= 0; i--) {
-        if (created >= weekStarts[i]!) {
-          weekIndex = i;
+      let dayIndex = -1;
+      for (let i = dayStarts.length - 1; i >= 0; i--) {
+        if (created >= dayStarts[i]!) {
+          dayIndex = i;
           break;
         }
       }
-      if (weekIndex === -1) continue;
-      const bucket = buckets.get(l.owner_id)![weekIndex]!;
+      if (dayIndex === -1) continue;
+      const bucket = buckets.get(l.owner_id)![dayIndex]!;
       bucket.total += 1;
       const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
       const stageName = stage ? normalizeStageName(stage.name) : "";
@@ -4013,7 +4010,7 @@ export function useManagerWeeklyTrend(
       };
     });
 
-    return { weekLabels, series };
+    return { dayLabels, series };
   }, [leads, stages, profiles, managerStats, funnel, from, to]);
 }
 

@@ -140,27 +140,28 @@ async function analyzeTranscript(
   keyQuotes: string[];
   topObjections: string[];
 }> {
-  const apiKey = requireEnv("DEEPSEEK_API_KEY");
+  const apiKey = requireEnv("GEMINI_API_KEY");
 
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "deepseek-chat",
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt + buildJsonInstruction(rubric) },
-        { role: "user", content: transcript },
-      ],
-    }),
-  });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt + buildJsonInstruction(rubric) }] },
+        contents: [{ role: "user", parts: [{ text: transcript }] }],
+        generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
+      }),
+    },
+  );
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`DeepSeek error (${res.status}): ${text}`);
+    throw new Error(`Gemini error (${res.status}): ${text}`);
   }
-  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const content = json.choices?.[0]?.message?.content?.trim() ?? "";
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const content = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
 
   const asStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
