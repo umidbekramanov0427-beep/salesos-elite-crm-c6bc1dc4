@@ -5,6 +5,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -15,7 +17,12 @@ import { toast } from "sonner";
 import { SectionCard } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import { useFunnelFlow, usePipelineStageStats, useRevenueSeries } from "@/hooks/use-crm-data";
+import {
+  useFunnelFlow,
+  usePipelineStageStats,
+  useRevenueSeries,
+  useSalesAnalyticsSummary,
+} from "@/hooks/use-crm-data";
 import { useI18n } from "@/lib/i18n";
 
 function ChooseFunnelPrompt() {
@@ -221,6 +228,103 @@ export function SalesFunnel({ funnel }: { funnel: string | null }) {
           </li>
         ))}
       </ol>
+    </SectionCard>
+  );
+}
+
+export function MonthlyRevenueTrendChart({ funnel }: { funnel: string | null }) {
+  const { t } = useI18n();
+  const { monthlyTrend } = useSalesAnalyticsSummary(funnel);
+
+  return (
+    <SectionCard title={t("dash.card.monthlyTrend")} description={t("dash.card.monthlyTrendDesc")}>
+      <div className="h-[300px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={monthlyTrend} margin={{ left: -14, right: 8, top: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <YAxis
+              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => currency(v)} />
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke="var(--color-primary)"
+              strokeWidth={2.5}
+              dot={false}
+              animationDuration={700}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </SectionCard>
+  );
+}
+
+export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
+  const { t } = useI18n();
+  const { perOwner } = useSalesAnalyticsSummary(funnel);
+
+  if (perOwner.length === 0) {
+    return (
+      <SectionCard
+        title={t("dash.card.revenueByOwner")}
+        description={t("dash.card.revenueByOwnerDesc")}
+      >
+        <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard
+      title={t("dash.card.revenueByOwner")}
+      description={t("dash.card.revenueByOwnerDesc")}
+    >
+      <div className="h-[300px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={perOwner} margin={{ left: -14, right: 8, top: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis
+              dataKey="name"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <YAxis
+              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <Tooltip
+              cursor={{ fill: "var(--color-accent)" }}
+              contentStyle={tooltipStyle}
+              formatter={(v: number) => currency(v)}
+            />
+            <Bar
+              dataKey="revenue"
+              fill="var(--color-primary)"
+              radius={[8, 8, 0, 0]}
+              maxBarSize={44}
+              animationDuration={700}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </SectionCard>
   );
 }

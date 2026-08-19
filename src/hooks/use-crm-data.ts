@@ -1628,6 +1628,119 @@ export function useRevenueSeries() {
   }, [deals, visibleOwnerIds]);
 }
 
+export type SalesAnalyticsSummary = {
+  forecast: number;
+  ytdRevenue: number;
+  ytdDelta: number;
+  avgDealSize: number;
+  lossRate: number;
+  lossRateDelta: number;
+  monthlyTrend: { label: string; revenue: number }[];
+  perOwner: { name: string; revenue: number }[];
+};
+
+// Real-data replacement for the old static "Sales Analytics" mock page --
+// same four headline numbers and two charts, computed straight from leads
+// + pipeline_stages (this AmoCRM-synced setup never populates the deals
+// table, so useRevenueSeries above would just read zeros here).
+export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalyticsSummary {
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: profiles } = useProfilesRaw();
+
+  return useMemo(() => {
+    const stagesById = byId(stages);
+    const profilesById = byId(profiles);
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+    const ninetyDaysAgo = new Date(now);
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const oneEightyDaysAgo = new Date(now);
+    oneEightyDaysAgo.setDate(oneEightyDaysAgo.getDate() - 180);
+
+    let forecast = 0;
+    let ytdRevenue = 0;
+    let lastYearRevenue = 0;
+    const dealSizes90d: number[] = [];
+    let recentLost = 0;
+    let recentClosed = 0;
+    let prevLost = 0;
+    let prevClosed = 0;
+    const revenueByOwner = new Map<string, number>();
+    const monthlyRevenue = new Map<string, number>();
+
+    for (const l of leads ?? []) {
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const createdAt = new Date(l.created_at);
+      const revenue = l.expected_revenue;
+
+      if (stage && !stage.is_won && !stage.is_lost) {
+        forecast += revenue * (stage.probability / 100);
+      }
+
+      if (stage?.is_won) {
+        if (createdAt >= yearStart) ytdRevenue += revenue;
+        else if (createdAt >= lastYearStart && createdAt < yearStart) lastYearRevenue += revenue;
+        if (createdAt >= ninetyDaysAgo) dealSizes90d.push(revenue);
+
+        const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
+        const ownerName = profileName(owner);
+        revenueByOwner.set(ownerName, (revenueByOwner.get(ownerName) ?? 0) + revenue);
+
+        const key = monthKey(l.created_at);
+        monthlyRevenue.set(key, (monthlyRevenue.get(key) ?? 0) + revenue);
+      }
+
+      if (stage?.is_won || stage?.is_lost) {
+        if (createdAt >= ninetyDaysAgo) {
+          recentClosed += 1;
+          if (stage.is_lost) recentLost += 1;
+        } else if (createdAt >= oneEightyDaysAgo) {
+          prevClosed += 1;
+          if (stage.is_lost) prevLost += 1;
+        }
+      }
+    }
+
+    const avgDealSize = dealSizes90d.length
+      ? dealSizes90d.reduce((s, v) => s + v, 0) / dealSizes90d.length
+      : 0;
+    const ytdDelta =
+      lastYearRevenue > 0 ? ((ytdRevenue - lastYearRevenue) / lastYearRevenue) * 100 : 0;
+    const lossRate = recentClosed ? (recentLost / recentClosed) * 100 : 0;
+    const prevLossRate = prevClosed ? (prevLost / prevClosed) * 100 : 0;
+
+    const monthlyTrend: { label: string; revenue: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      monthlyTrend.push({
+        label: MONTH_LABELS[d.getMonth()]!,
+        revenue: monthlyRevenue.get(key) ?? 0,
+      });
+    }
+
+    const perOwner = Array.from(revenueByOwner.entries())
+      .map(([name, revenue]) => ({ name: name.split(" ")[0]!, revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 6);
+
+    return {
+      forecast,
+      ytdRevenue,
+      ytdDelta,
+      avgDealSize,
+      lossRate,
+      lossRateDelta: lossRate - prevLossRate,
+      monthlyTrend,
+      perOwner,
+    };
+  }, [leads, stages, profiles, funnel]);
+}
+
 // Both dashboard funnel widgets used to aggregate the deals table (which
 // this AmoCRM-synced setup never actually populates -- real revenue lives
 // on leads) and/or every pipeline_stages row across the whole org (~60
