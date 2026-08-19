@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -13,7 +13,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Loader2, Zap, Layers, SlidersHorizontal, Shuffle, GitBranch, User } from "lucide-react";
+import {
+  Loader2,
+  Zap,
+  Layers,
+  SlidersHorizontal,
+  Shuffle,
+  GitBranch,
+  User,
+  Users,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import {
   useFunnelNames,
@@ -36,7 +48,6 @@ import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/PermissionGate";
-import { FilterSelect } from "@/components/filters/FilterSelect";
 
 export const Route = createFileRoute("/lead-analytics")({
   head: () => ({
@@ -62,7 +73,7 @@ function LeadAnalyticsGated() {
 type Tab = "action" | "quality" | "current" | "direction";
 type Period = "daily" | "weekly" | "monthly" | "all";
 
-function periodSince(period: Period): Date | null {
+function periodSince(period: Period, monthYear: number, monthIndex: number): Date | null {
   const now = new Date();
   if (period === "daily") {
     const d = new Date(now);
@@ -76,10 +87,25 @@ function periodSince(period: Period): Date | null {
     return d;
   }
   if (period === "monthly") {
-    return new Date(now.getFullYear(), now.getMonth(), 1);
+    return new Date(monthYear, monthIndex, 1);
   }
   return null;
 }
+
+const MONTH_TILE_LABELS = [
+  "Yan",
+  "Fev",
+  "Mar",
+  "Apr",
+  "May",
+  "Iyun",
+  "Iyul",
+  "Avg",
+  "Sen",
+  "Okt",
+  "Noy",
+  "Dek",
+];
 
 function TempPill({ temperature, t }: { temperature: string; t: (k: string) => string }) {
   const tone =
@@ -496,13 +522,19 @@ function TagCategoryChart({ rows }: { rows: LeadAnalyticsTagCategoryRow[] }) {
 function QualityTab({
   funnel,
   managerId,
+  teamId,
   t,
 }: {
   funnel: string;
   managerId: string;
+  teamId: string;
   t: (k: string, vars?: Record<string, string | number>) => string;
 }) {
-  const { data, isLoading } = useLeadAnalyticsQuality(funnel || null, managerId || null);
+  const { data, isLoading } = useLeadAnalyticsQuality(
+    funnel || null,
+    managerId || null,
+    teamId || null,
+  );
   return (
     <>
       <div className="mt-8">
@@ -684,13 +716,19 @@ function ManagerLoadChart({ rows }: { rows: LeadAnalyticsManagerLoadRow[] }) {
 function CurrentTab({
   funnel,
   managerId,
+  teamId,
   t,
 }: {
   funnel: string;
   managerId: string;
+  teamId: string;
   t: (k: string, vars?: Record<string, string | number>) => string;
 }) {
-  const { data, isLoading } = useLeadAnalyticsCurrent(funnel || null, managerId || null);
+  const { data, isLoading } = useLeadAnalyticsCurrent(
+    funnel || null,
+    managerId || null,
+    teamId || null,
+  );
   return (
     <>
       <div className="mt-8">
@@ -941,16 +979,23 @@ function ChurnRiskTable({
 function DirectionTab({
   funnel,
   managerId,
+  teamId,
   t,
 }: {
   funnel: string;
   managerId: string;
+  teamId: string;
   t: (k: string, vars?: Record<string, string | number>) => string;
 }) {
-  const { data, isLoading } = useLeadAnalyticsDirection(funnel || null, managerId || null);
+  const { data, isLoading } = useLeadAnalyticsDirection(
+    funnel || null,
+    managerId || null,
+    teamId || null,
+  );
   const { data: currentData, isLoading: currentLoading } = useLeadAnalyticsCurrent(
     funnel || null,
     managerId || null,
+    teamId || null,
   );
   return (
     <>
@@ -1025,29 +1070,211 @@ const TABS: { key: Tab; icon: typeof Zap; labelKey: string }[] = [
   { key: "direction", icon: Shuffle, labelKey: "leadAnalytics.tabDirection" },
 ];
 
+function FilterTile({
+  icon: Icon,
+  label,
+  value,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex min-w-[168px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
+            open
+              ? "border-primary ring-1 ring-primary/40"
+              : "border-border bg-card hover:bg-accent",
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">{label}</p>
+            <p className="truncate text-sm font-bold text-foreground">{value}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-subtle" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-80 w-64 overflow-y-auto p-1">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function TileOption({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors",
+        active ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-accent",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MonthStrip({
+  year,
+  monthIndex,
+  onSelect,
+  onPrevYear,
+  onNextYear,
+  onToday,
+  t,
+}: {
+  year: number;
+  monthIndex: number;
+  onSelect: (year: number, month: number) => void;
+  onPrevYear: () => void;
+  onNextYear: () => void;
+  onToday: () => void;
+  t: (k: string) => string;
+}) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-foreground">{year}</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onPrevYear}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onToday}
+            className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-bold text-foreground transition-colors hover:bg-accent"
+          >
+            {t("leadAnalytics.today")}
+          </button>
+          <button
+            type="button"
+            onClick={onNextYear}
+            disabled={year >= currentYear}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-12">
+        {MONTH_TILE_LABELS.map((label, i) => {
+          const isFuture = year > currentYear || (year === currentYear && i > currentMonth);
+          const selected = i === monthIndex;
+          return (
+            <button
+              key={label}
+              type="button"
+              disabled={isFuture}
+              onClick={() => onSelect(year, i)}
+              className={cn(
+                "rounded-xl border px-2 py-2.5 text-center transition-colors",
+                selected
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : isFuture
+                    ? "cursor-not-allowed border-border/50 text-subtle/50"
+                    : "border-border text-foreground hover:bg-accent",
+              )}
+            >
+              <p
+                className={cn(
+                  "text-[10px]",
+                  selected ? "text-primary-foreground/80" : "text-subtle",
+                )}
+              >
+                {year}
+              </p>
+              <p className="text-sm font-bold">{label}</p>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center gap-4 text-xs text-subtle">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-success" /> {t("leadAnalytics.legendAvailable")}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-warning" /> {t("leadAnalytics.legendIncomplete")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function LeadAnalytics() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const [tab, setTab] = useState<Tab>("action");
   const [period, setPeriod] = useState<Period>("monthly");
+  const now = useMemo(() => new Date(), []);
+  const [monthYear, setMonthYear] = useState(now.getFullYear());
+  const [monthIndex, setMonthIndex] = useState(now.getMonth());
   const [funnel, setFunnel] = useState("");
   const [managerId, setManagerId] = useState("");
+  const [teamId, setTeamId] = useState("");
   const { names: funnelNames } = useFunnelNames();
   const { data: profiles } = useProfilesRaw();
 
-  const since = useMemo(() => periodSince(period), [period]);
-  const { data, isLoading } = useLeadAnalyticsAction(funnel || null, managerId || null, since);
+  const since = useMemo(
+    () => periodSince(period, monthYear, monthIndex),
+    [period, monthYear, monthIndex],
+  );
+  const { data, isLoading } = useLeadAnalyticsAction(
+    funnel || null,
+    managerId || null,
+    since,
+    teamId || null,
+  );
 
-  const managers = useMemo(
-    () => (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name)),
+  const rops = useMemo(
+    () =>
+      (profiles ?? [])
+        .filter((p) => p.role === "rop")
+        .slice()
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
     [profiles],
   );
+
+  const managers = useMemo(() => {
+    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (!teamId) return all;
+    return all.filter((p) => p.id === teamId || p.manager_id === teamId);
+  }, [profiles, teamId]);
+
+  const selectedTeamName =
+    rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams");
+  const selectedManagerName =
+    managers.find((m) => m.id === managerId)?.full_name ?? t("leadAnalytics.allManagers");
+  const selectedFunnelName = funnel || t("leadFilter.allFunnels");
 
   const PERIODS: { key: Period; labelKey: string }[] = [
     { key: "daily", labelKey: "leadAnalytics.periodDaily" },
     { key: "weekly", labelKey: "leadAnalytics.periodWeekly" },
     { key: "monthly", labelKey: "leadAnalytics.periodMonthly" },
-    { key: "all", labelKey: "leadAnalytics.periodCustom" },
   ];
 
   return (
@@ -1091,23 +1318,82 @@ function LeadAnalytics() {
             </button>
           ))}
         </div>
-        <FilterSelect icon={User} value={managerId} onChange={setManagerId}>
-          <option value="">{t("leadAnalytics.allManagers")}</option>
+
+        <FilterTile icon={Users} label={t("leadAnalytics.jamoaLabel")} value={selectedTeamName}>
+          <TileOption
+            label={t("leadAnalytics.allTeams")}
+            active={!teamId}
+            onClick={() => {
+              setTeamId("");
+              setManagerId("");
+            }}
+          />
+          {rops.map((r) => (
+            <TileOption
+              key={r.id}
+              label={r.full_name}
+              active={teamId === r.id}
+              onClick={() => {
+                setTeamId(r.id);
+                setManagerId("");
+              }}
+            />
+          ))}
+        </FilterTile>
+
+        <FilterTile
+          icon={User}
+          label={t("leadAnalytics.operatorLabel")}
+          value={selectedManagerName}
+        >
+          <TileOption
+            label={t("leadAnalytics.allManagers")}
+            active={!managerId}
+            onClick={() => setManagerId("")}
+          />
           {managers.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.full_name}
-            </option>
+            <TileOption
+              key={m.id}
+              label={m.full_name}
+              active={managerId === m.id}
+              onClick={() => setManagerId(m.id)}
+            />
           ))}
-        </FilterSelect>
-        <FilterSelect icon={GitBranch} value={funnel} onChange={setFunnel}>
-          <option value="">{t("leadFilter.allFunnels")}</option>
+        </FilterTile>
+
+        <FilterTile
+          icon={GitBranch}
+          label={t("leadAnalytics.funnelLabel")}
+          value={selectedFunnelName}
+        >
+          <TileOption
+            label={t("leadFilter.allFunnels")}
+            active={!funnel}
+            onClick={() => setFunnel("")}
+          />
           {funnelNames.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
+            <TileOption key={f} label={f} active={funnel === f} onClick={() => setFunnel(f)} />
           ))}
-        </FilterSelect>
+        </FilterTile>
       </div>
+
+      {period === "monthly" && (
+        <MonthStrip
+          year={monthYear}
+          monthIndex={monthIndex}
+          onSelect={(y, m) => {
+            setMonthYear(y);
+            setMonthIndex(m);
+          }}
+          onPrevYear={() => setMonthYear((y) => y - 1)}
+          onNextYear={() => setMonthYear((y) => y + 1)}
+          onToday={() => {
+            setMonthYear(now.getFullYear());
+            setMonthIndex(now.getMonth());
+          }}
+          t={t}
+        />
+      )}
 
       <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -1137,11 +1423,11 @@ function LeadAnalytics() {
       {tab === "action" ? (
         <ActionTab data={data} isLoading={isLoading} format={format} t={t} />
       ) : tab === "quality" ? (
-        <QualityTab funnel={funnel} managerId={managerId} t={t} />
+        <QualityTab funnel={funnel} managerId={managerId} teamId={teamId} t={t} />
       ) : tab === "current" ? (
-        <CurrentTab funnel={funnel} managerId={managerId} t={t} />
+        <CurrentTab funnel={funnel} managerId={managerId} teamId={teamId} t={t} />
       ) : (
-        <DirectionTab funnel={funnel} managerId={managerId} t={t} />
+        <DirectionTab funnel={funnel} managerId={managerId} teamId={teamId} t={t} />
       )}
     </>
   );

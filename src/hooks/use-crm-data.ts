@@ -3693,16 +3693,25 @@ export function useLeadAnalyticsAction(
   funnel: string | null,
   manager: string | null,
   since: Date | null,
+  team: string | null,
 ) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_action", user?.organizationId, funnel, manager, since?.getTime()],
+    queryKey: [
+      "lead_analytics_action",
+      user?.organizationId,
+      funnel,
+      manager,
+      since?.getTime(),
+      team,
+    ],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsActionData> => {
       const { data, error } = await supabase.rpc("lead_analytics_action", {
         p_funnel: funnel,
         p_manager: manager,
         p_since: since ? since.toISOString() : null,
+        p_team: team,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsActionData;
@@ -3745,15 +3754,20 @@ export type LeadAnalyticsQualityData = {
   tagCategories: LeadAnalyticsTagCategoryRow[];
 };
 
-export function useLeadAnalyticsQuality(funnel: string | null, manager: string | null) {
+export function useLeadAnalyticsQuality(
+  funnel: string | null,
+  manager: string | null,
+  team: string | null,
+) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_quality", user?.organizationId, funnel, manager],
+    queryKey: ["lead_analytics_quality", user?.organizationId, funnel, manager, team],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsQualityData> => {
       const { data, error } = await supabase.rpc("lead_analytics_quality", {
         p_funnel: funnel,
         p_manager: manager,
+        p_team: team,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsQualityData;
@@ -3787,15 +3801,20 @@ export type LeadAnalyticsCurrentData = {
   managerLoad: LeadAnalyticsManagerLoadRow[];
 };
 
-export function useLeadAnalyticsCurrent(funnel: string | null, manager: string | null) {
+export function useLeadAnalyticsCurrent(
+  funnel: string | null,
+  manager: string | null,
+  team: string | null,
+) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_current", user?.organizationId, funnel, manager],
+    queryKey: ["lead_analytics_current", user?.organizationId, funnel, manager, team],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsCurrentData> => {
       const { data, error } = await supabase.rpc("lead_analytics_current", {
         p_funnel: funnel,
         p_manager: manager,
+        p_team: team,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsCurrentData;
@@ -3826,15 +3845,20 @@ export type LeadAnalyticsDirectionData = {
   churnRisk: LeadAnalyticsChurnRow[];
 };
 
-export function useLeadAnalyticsDirection(funnel: string | null, manager: string | null) {
+export function useLeadAnalyticsDirection(
+  funnel: string | null,
+  manager: string | null,
+  team: string | null,
+) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_direction", user?.organizationId, funnel, manager],
+    queryKey: ["lead_analytics_direction", user?.organizationId, funnel, manager, team],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsDirectionData> => {
       const { data, error } = await supabase.rpc("lead_analytics_direction", {
         p_funnel: funnel,
         p_manager: manager,
+        p_team: team,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsDirectionData;
