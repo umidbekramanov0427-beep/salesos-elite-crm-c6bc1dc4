@@ -299,10 +299,10 @@ function FunnelsNavGroup({
         to={item.to}
         title={t(`nav.${item.to}`)}
         className={cn(
-          "group flex w-full items-center justify-center rounded-xl px-0 py-2.5 transition-colors duration-200",
+          "group flex w-full items-center justify-center rounded-lg px-0 py-2.5 transition-colors duration-150",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
-            : "bg-card text-sidebar-foreground shadow-soft hover:bg-accent",
+            : "text-sidebar-foreground hover:bg-accent",
         )}
       >
         <item.icon
@@ -319,16 +319,16 @@ function FunnelsNavGroup({
     <div>
       <div
         className={cn(
-          "group flex w-full items-center gap-1 rounded-xl text-[15px] font-bold transition-colors duration-200",
+          "group flex w-full items-center gap-1 rounded-lg border-l-2 text-sm font-semibold transition-colors duration-150",
           active
-            ? "bg-sidebar-active text-sidebar-active-foreground"
-            : "bg-card text-sidebar-foreground shadow-soft",
+            ? "border-mint bg-sidebar-active text-sidebar-active-foreground"
+            : "border-transparent text-sidebar-foreground",
         )}
       >
         <Link
           to={item.to}
           className={cn(
-            "flex flex-1 items-center gap-3 rounded-xl px-3 py-2.5",
+            "flex flex-1 items-center gap-3 rounded-lg py-2 pl-[10px]",
             !active && "hover:bg-accent",
           )}
         >
@@ -420,14 +420,14 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         to={item.to}
         title={collapsed ? t(`nav.${item.to}`) : undefined}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-bold transition-colors duration-200",
+          "group flex w-full items-center gap-3 rounded-lg border-l-2 text-sm font-semibold transition-colors duration-150",
           active
-            ? "bg-sidebar-active text-sidebar-active-foreground"
-            : "bg-card text-sidebar-foreground shadow-soft",
+            ? "border-mint bg-sidebar-active text-sidebar-active-foreground"
+            : "border-transparent text-sidebar-foreground",
           !active && isSettings && "hover:bg-primary/15 hover:text-primary",
           !active && isActivityLog && "hover:bg-destructive/15 hover:text-destructive",
           !active && !isSettings && !isActivityLog && "hover:bg-accent",
-          collapsed && "justify-center px-0",
+          collapsed ? "justify-center border-l-0 px-0 py-2.5" : "py-2 pl-[10px] pr-3",
         )}
       >
         <item.icon
@@ -462,7 +462,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
           </p>
         )}
         {collapsed && <div className="my-3 border-t border-sidebar-border" />}
-        <div className="space-y-1.5">
+        <div className="space-y-0.5">
           {items.map((item) =>
             item.to === "/funnels" ? (
               <FunnelsNavGroup
@@ -506,7 +506,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
             </div>
           )}
         </div>
-        <nav className="flex-1 space-y-1.5 px-3 py-2">{platformItems.map(renderItem)}</nav>
+        <nav className="flex-1 space-y-0.5 px-3 py-2">{platformItems.map(renderItem)}</nav>
         <div className="border-t border-sidebar-border p-3">
           <UserMenu collapsed={collapsed} isAdmin={false} />
         </div>
@@ -540,7 +540,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         <BusinessProfileLink collapsed={collapsed} />
       </div>
 
-      <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
         {ungroupedItems.map((item) => renderItem(item))}
         {renderGroup("nav.groupGeneral", generalItems)}
         {renderGroup("nav.groupAnalytics", analysisItems)}
