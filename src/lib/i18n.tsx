@@ -1339,7 +1339,7 @@ const en: Dict = {
 
   "audio.title": "Audio Analytics",
   "audio.desc":
-    "Real call activity synced from AmoCRM — volume, connection rate and duration. Transcription and sentiment need a speech-to-text provider, which isn't connected to this workspace yet.",
+    "Real call activity synced from AmoCRM, automatically transcribed and scored by AI — volume, connection rate, duration, mood and quality score.",
   "audio.callsToday": "Calls today",
   "audio.connectionRate": "Connection rate",
   "audio.avgDuration": "Avg. call duration",
@@ -2948,7 +2948,7 @@ const ru: Dict = {
 
   "audio.title": "Аудио-аналитика",
   "audio.desc":
-    "Реальная активность звонков из AmoCRM — объём, дозвон и длительность. Транскрипция и тональность требуют сервис распознавания речи, который пока не подключён к этому воркспейсу.",
+    "Реальная активность звонков из AmoCRM, автоматически расшифрованная и оценённая ИИ — объём, дозвон, длительность, настроение и оценка качества.",
   "audio.callsToday": "Звонков сегодня",
   "audio.connectionRate": "Дозвон",
   "audio.avgDuration": "Ср. длительность звонка",
@@ -4582,7 +4582,7 @@ const uz: Dict = {
 
   "audio.title": "Audio tahlil",
   "audio.desc":
-    "AmoCRM'dan sinxronlangan haqiqiy qo'ng'iroq faoliyati — hajmi, ulanish darajasi va davomiyligi. Transkripsiya va kayfiyat tahlili uchun ovozni matnga aylantiruvchi xizmat kerak, u hali bu workspace'ga ulanmagan.",
+    "AmoCRM'dan sinxronlangan haqiqiy qo'ng'iroq faoliyati, AI tomonidan avtomatik matnga o'girilgan va baholangan — hajmi, ulanish darajasi, davomiyligi, kayfiyat va sifat balli.",
   "audio.callsToday": "Bugungi qo'ng'iroqlar",
   "audio.connectionRate": "Ulanish darajasi",
   "audio.avgDuration": "O'rtacha qo'ng'iroq davomiyligi",
