@@ -55,6 +55,9 @@ const MonthlyRevenueTrendChart = lazy(() =>
 const RevenueByOwnerChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueByOwnerChart })),
 );
+const LostReasonsChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.LostReasonsChart })),
+);
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (
@@ -466,6 +469,12 @@ function Dashboard() {
         </Suspense>
         <Suspense fallback={<ChartSkeleton />}>
           <RevenueByOwnerChart funnel={funnel} />
+        </Suspense>
+      </div>
+
+      <div className="mt-6">
+        <Suspense fallback={<ChartSkeleton />}>
+          <LostReasonsChart funnel={funnel} />
         </Suspense>
       </div>
 

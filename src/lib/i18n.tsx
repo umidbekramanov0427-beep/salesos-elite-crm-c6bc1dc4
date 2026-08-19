@@ -476,6 +476,8 @@ const en: Dict = {
   "dash.card.monthlyTrendDesc": "Won-lead revenue by month, last 8 months",
   "dash.card.revenueByOwner": "Revenue by rep",
   "dash.card.revenueByOwnerDesc": "Won-lead revenue per owner, top 6",
+  "dash.card.lostReasons": "Lost reasons",
+  "dash.card.lostReasonsDesc": "Why lost-stage leads in this funnel didn't close",
 
   "kpi.revenueToday": "Revenue today",
   "kpi.revenueTodayHint": "won deals closed today",
@@ -2209,6 +2211,8 @@ const ru: Dict = {
   "dash.card.monthlyTrendDesc": "Выручка по выигранным лидам за последние 8 месяцев",
   "dash.card.revenueByOwner": "Выручка по менеджерам",
   "dash.card.revenueByOwnerDesc": "Выручка по выигранным лидам, топ-6 менеджеров",
+  "dash.card.lostReasons": "Причины отказа",
+  "dash.card.lostReasonsDesc": "Почему лиды этой воронки не закрылись",
 
   "kpi.revenueToday": "Выручка сегодня",
   "kpi.revenueTodayHint": "выигранных сделок сегодня",
@@ -3946,6 +3950,8 @@ const uz: Dict = {
   "dash.card.monthlyTrendDesc": "Yutilgan lidlar bo'yicha tushum, so'nggi 8 oy",
   "dash.card.revenueByOwner": "Menejerlar bo'yicha tushum",
   "dash.card.revenueByOwnerDesc": "Yutilgan lidlar bo'yicha tushum, TOP-6 menejer",
+  "dash.card.lostReasons": "Yo'qotish sabablari",
+  "dash.card.lostReasonsDesc": "Shu voronkadagi yo'qotilgan lidlar nima uchun yopilmagan",
 
   "kpi.revenueToday": "Bugungi tushum",
   "kpi.revenueTodayHint": "bugun yopilgan bitimlar",

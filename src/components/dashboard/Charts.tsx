@@ -19,6 +19,7 @@ import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import {
   useFunnelFlow,
+  useLostReasonsSummary,
   usePipelineStageStats,
   useRevenueSeries,
   useSalesAnalyticsSummary,
@@ -320,6 +321,65 @@ export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
               fill="var(--color-primary)"
               radius={[8, 8, 0, 0]}
               maxBarSize={44}
+              animationDuration={700}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </SectionCard>
+  );
+}
+
+export function LostReasonsChart({ funnel }: { funnel: string | null }) {
+  const { t } = useI18n();
+  const reasons = useLostReasonsSummary(funnel);
+
+  if (reasons.length === 0) {
+    return (
+      <SectionCard title={t("dash.card.lostReasons")} description={t("dash.card.lostReasonsDesc")}>
+        <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+      </SectionCard>
+    );
+  }
+
+  // A reason string can run long ("Mijoz narxdan voz kechdi" etc.) -- a
+  // horizontal layout keeps the full label readable instead of truncating
+  // or rotating it under a vertical bar.
+  const chartHeight = Math.max(180, reasons.length * 40);
+
+  return (
+    <SectionCard title={t("dash.card.lostReasons")} description={t("dash.card.lostReasonsDesc")}>
+      <div className="w-full" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={reasons}
+            layout="vertical"
+            margin={{ left: 8, right: 24, top: 8, bottom: 8 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+            <XAxis
+              type="number"
+              allowDecimals={false}
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <YAxis
+              type="category"
+              dataKey="reason"
+              width={160}
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <Tooltip cursor={{ fill: "var(--color-accent)" }} contentStyle={tooltipStyle} />
+            <Bar
+              dataKey="count"
+              fill="var(--color-destructive)"
+              radius={[0, 8, 8, 0]}
+              maxBarSize={22}
               animationDuration={700}
             />
           </BarChart>

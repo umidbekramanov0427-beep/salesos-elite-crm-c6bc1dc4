@@ -1741,6 +1741,33 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
   }, [leads, stages, profiles, funnel]);
 }
 
+export type LostReasonBucket = { reason: string; count: number };
+
+// AmoCRM's own "Причина отказа" (loss reason) catalog, synced onto
+// leads.loss_reason -- real data that until now was only surfaced deep
+// inside Lead Analytics' Yo'nalish tab, not on the Dashboard itself.
+export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[] {
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+
+  return useMemo(() => {
+    const stagesById = byId(stages);
+    const counts = new Map<string, number>();
+    for (const l of leads ?? []) {
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      if (!stage?.is_lost) continue;
+      const reason = l.loss_reason?.trim() || "—";
+      counts.set(reason, (counts.get(reason) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([reason, count]): LostReasonBucket => ({ reason, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [leads, stages, funnel]);
+}
+
 // Both dashboard funnel widgets used to aggregate the deals table (which
 // this AmoCRM-synced setup never actually populates -- real revenue lives
 // on leads) and/or every pipeline_stages row across the whole org (~60
