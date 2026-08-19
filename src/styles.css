@@ -60,10 +60,10 @@
   --color-sidebar-active-foreground: var(--sidebar-active-foreground);
   --color-sidebar-border: var(--sidebar-border);
 
-  --shadow-soft: 0 1px 3px 0 oklch(0.129 0.042 264.695 / 0.08);
+  --shadow-soft: 0 1px 2px 0 oklch(0.129 0.042 264.695 / 0.04);
   --shadow-card:
-    0 2px 6px 0 oklch(0.129 0.042 264.695 / 0.1), 0 1px 3px -1px oklch(0.129 0.042 264.695 / 0.09);
-  --shadow-elevated: 0 8px 24px -12px oklch(0.129 0.042 264.695 / 0.2);
+    0 1px 3px 0 oklch(0.129 0.042 264.695 / 0.05), 0 1px 2px -1px oklch(0.129 0.042 264.695 / 0.04);
+  --shadow-elevated: 0 8px 24px -12px oklch(0.129 0.042 264.695 / 0.14);
 }
 
 :root {
@@ -75,7 +75,7 @@
      the two needs to be wide enough to read at a glance -- 0.955 was too
      close to 1.0 to tell apart from a white card with only a near-invisible
      border between them. */
-  --surface: oklch(0.89 0.006 264.5);
+  --surface: oklch(0.928 0.005 264.5);
   --foreground: oklch(0.21 0.034 264.4); /* #111827 */
 
   --card: oklch(1 0 0);
@@ -108,9 +108,9 @@
   --warning-foreground: oklch(0.21 0.034 264.4);
 
   --border: oklch(
-    0.78 0.007 264.5
+    0.87 0.006 264.5
   ); /* darker than the old #E5E7EB so card edges read clearly against both --surface and --card */
-  --input: oklch(0.78 0.007 264.5);
+  --input: oklch(0.87 0.006 264.5);
   --ring: oklch(0.58 0.17 152);
 
   --chart-1: oklch(0.546 0.223 262.9);
@@ -131,10 +131,10 @@
   --background: oklch(0.16 0.014 264.7);
   --surface: oklch(0.19 0.016 264.7);
   --foreground: oklch(0.97 0.003 247.9);
-  /* +0.09 over --surface (was +0.045, still too close to read at a glance
-     with only a near-invisible 10%-white border between them) -- matches
-     the widened light-mode surface-to-card gap. */
-  --card: oklch(0.32 0.022 264.7);
+  /* Was oklch(0.2 ...) -- only 0.01 lighter than --surface, so cards were
+     visually indistinguishable from the page background. Matches light
+     mode's own surface-to-card gap (0.928 -> 1.0) instead. */
+  --card: oklch(0.28 0.02 264.7);
   --card-foreground: oklch(0.97 0.003 247.9);
   --popover: oklch(0.235 0.018 264.7);
   --popover-foreground: oklch(0.97 0.003 247.9);
@@ -154,8 +154,8 @@
   --warning-foreground: oklch(0.9 0.1 80);
   --destructive: oklch(0.637 0.208 25.3);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(1 0 0 / 24%);
-  --input: oklch(1 0 0 / 26%);
+  --border: oklch(1 0 0 / 16%);
+  --input: oklch(1 0 0 / 18%);
   --ring: oklch(0.66 0.17 152);
   --sidebar: oklch(0.18 0.015 264.7);
   --sidebar-foreground: oklch(0.9 0.01 247.9);

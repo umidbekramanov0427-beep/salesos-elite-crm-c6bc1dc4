@@ -86,7 +86,7 @@ import {
   type SettingListType,
   type StageRow,
 } from "@/hooks/use-crm-data";
-import { cn } from "@/lib/utils";
+import { cn, stageColorProps } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { BusinessProfileBot } from "@/components/settings/BusinessProfileBot";
 
@@ -953,7 +953,10 @@ function StageRowEditor({
               </button>
             </div>
           )}
-          <span className={cn("h-2.5 w-2.5 rounded-full", stage.color)} />
+          <span
+            className={cn("h-2.5 w-2.5 rounded-full", stageColorProps(stage.color).className)}
+            style={stageColorProps(stage.color).style}
+          />
           <div>
             <p className="text-sm font-medium text-foreground">{stage.name}</p>
             <p className="text-xs text-subtle">

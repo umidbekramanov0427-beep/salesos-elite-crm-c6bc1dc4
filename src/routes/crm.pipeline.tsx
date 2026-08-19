@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ExternalLink, GripVertical, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
@@ -7,7 +7,7 @@ import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/c
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { cn, stageColorProps } from "@/lib/utils";
 import {
   useAmoCrmLink,
   useAsOfSnapshot,
@@ -69,10 +69,20 @@ function PipelinePageGated() {
   );
 }
 
-function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): string {
-  if (s.is_won) return "bg-success/10 border-success/30";
-  if (s.is_lost) return "bg-destructive/10 border-destructive/30";
-  return `${s.color}/5 border-border`;
+function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): {
+  className?: string;
+  style?: CSSProperties;
+} {
+  if (s.is_won) return { className: "bg-success/10 border-success/30" };
+  if (s.is_lost) return { className: "bg-destructive/10 border-destructive/30" };
+  // s.color is a real AmoCRM hex for synced stages, a Tailwind class for
+  // hand-created ones (see stageColorProps) -- hex needs an inline alpha
+  // tint instead of Tailwind's "/5" opacity-modifier syntax, which only
+  // works on class names.
+  if (s.color.startsWith("#")) {
+    return { style: { backgroundColor: `${s.color}14`, borderColor: `${s.color}40` } };
+  }
+  return { className: `${s.color}/5 border-border` };
 }
 
 function PipelinePage() {
@@ -230,6 +240,8 @@ function PipelinePage() {
                 .map((id) => filteredLeads.find((l) => l.id === id)!)
                 .filter(Boolean);
               const value = items.reduce((sum, l) => sum + l.expectedRevenue, 0);
+              const tint = stageTint(s);
+              const dot = stageColorProps(s.color);
               return (
                 <section
                   key={s.id}
@@ -243,12 +255,16 @@ function PipelinePage() {
                     "flex w-[300px] shrink-0 flex-col rounded-2xl border p-3 shadow-soft transition-colors",
                     over === s.id
                       ? "border-primary/50 bg-mint ring-2 ring-primary/20"
-                      : stageTint(s),
+                      : tint.className,
                   )}
+                  style={over === s.id ? undefined : tint.style}
                 >
                   <header className="flex items-center justify-between rounded-xl bg-background px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className={cn("h-2.5 w-2.5 rounded-full", s.color)} />
+                      <span
+                        className={cn("h-2.5 w-2.5 rounded-full", dot.className)}
+                        style={dot.style}
+                      />
                       <p className="text-sm font-semibold text-foreground">{s.name}</p>
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
                         {items.length}

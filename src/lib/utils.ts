@@ -5,6 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// pipeline_stages.color holds two different formats depending on where the
+// stage came from: a Tailwind class name (e.g. "bg-primary") for stages
+// created by hand in Settings, or a real hex value straight from AmoCRM's
+// own status color (e.g. "#fffeb2") for AmoCRM-synced stages -- so every
+// stage badge/dot/option needs to render whichever one it actually got.
+export function stageColorProps(color: string | null | undefined): {
+  className?: string;
+  style?: { backgroundColor: string };
+} {
+  if (!color) return {};
+  return color.startsWith("#") ? { style: { backgroundColor: color } } : { className: color };
+}
+
 // Supabase client errors (PostgrestError) carry a `.message` string but
 // aren't `instanceof Error` — a bare `err instanceof Error` check (the
 // pattern used all over this codebase's catch blocks) silently swaps the
