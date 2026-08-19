@@ -1836,6 +1836,22 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: string[] | null;
       };
+      lead_analytics_action: {
+        Args: { p_funnel: string | null; p_manager: string | null; p_since: string | null };
+        Returns: Json;
+      };
+      lead_analytics_quality: {
+        Args: { p_funnel: string | null; p_manager: string | null };
+        Returns: Json;
+      };
+      lead_analytics_current: {
+        Args: { p_funnel: string | null; p_manager: string | null };
+        Returns: Json;
+      };
+      lead_analytics_direction: {
+        Args: { p_funnel: string | null; p_manager: string | null };
+        Returns: Json;
+      };
     };
     Enums: {
       app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri";
