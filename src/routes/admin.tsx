@@ -39,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FilterSelect, FilterSearchInput } from "@/components/filters/FilterSelect";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, describeError, roleTone, timeAgo } from "@/lib/utils";
@@ -520,28 +521,21 @@ function AdminPanelContent() {
           actions={
             employees.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="h-10 rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                  aria-label={t("admin.rolesFilter")}
-                >
+                <FilterSelect icon={ListFilter} value={roleFilter} onChange={setRoleFilter}>
                   <option value="">{t("admin.allRoles")}</option>
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
                       {roleLabel[r]}
                     </option>
                   ))}
-                </select>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={t("admin.searchEmployees")}
-                    className="h-10 w-52 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
-                  />
-                </div>
+                </FilterSelect>
+                <FilterSearchInput
+                  icon={Search}
+                  value={query}
+                  onChange={setQuery}
+                  placeholder={t("admin.searchEmployees")}
+                  className="w-52"
+                />
               </div>
             )
           }

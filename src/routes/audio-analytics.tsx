@@ -1160,7 +1160,7 @@ function AudioAnalytics() {
 
       <div className="mt-8">
         <SectionCard title={t("audio.filters")}>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <FilterSearchInput
               icon={Search}
               value={search}
@@ -1169,15 +1169,6 @@ function AudioAnalytics() {
               className="w-64"
             />
             <FilterSelect
-              icon={ArrowLeftRight}
-              value={direction}
-              onChange={(v) => setDirection(v as "" | "in" | "out")}
-            >
-              <option value="">{t("audio.filterAllDirections")}</option>
-              <option value="in">{t("audio.filterIncoming")}</option>
-              <option value="out">{t("audio.filterOutgoing")}</option>
-            </FilterSelect>
-            <FilterSelect
               icon={PhoneCall}
               value={connectedFilter}
               onChange={(v) => setConnectedFilter(v as "" | "yes" | "no")}
@@ -1185,6 +1176,15 @@ function AudioAnalytics() {
               <option value="">{t("audio.filterAllResults")}</option>
               <option value="yes">{t("audio.connected")}</option>
               <option value="no">{t("audio.notConnected")}</option>
+            </FilterSelect>
+            <FilterSelect
+              icon={ArrowLeftRight}
+              value={direction}
+              onChange={(v) => setDirection(v as "" | "in" | "out")}
+            >
+              <option value="">{t("audio.filterAllDirections")}</option>
+              <option value="in">{t("audio.filterIncoming")}</option>
+              <option value="out">{t("audio.filterOutgoing")}</option>
             </FilterSelect>
             <FilterSelect icon={User} value={ownerId} onChange={setOwnerId}>
               <option value="">{t("audio.filterAllOwners")}</option>
@@ -1208,7 +1208,10 @@ function AudioAnalytics() {
               <SlidersHorizontal className="h-4 w-4" />
               {t("audio.moreFilters")}
             </button>
-            {hasActiveFilters && (
+          </div>
+
+          {hasActiveFilters && (
+            <div className="mt-3">
               <button
                 type="button"
                 onClick={clearFilters}
@@ -1217,41 +1220,73 @@ function AudioAnalytics() {
                 <X className="h-4 w-4" />
                 {t("audio.clearFilters")}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {showMoreFilters && (
-            <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-border pt-3">
-              <FilterSelect icon={GitBranch} value={funnelFilter} onChange={setFunnelFilter}>
-                <option value="">{t("leadFilter.allFunnels")}</option>
-                {funnelNames.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect icon={ListFilter} value={stageFilter} onChange={setStageFilter}>
-                <option value="">{t("audio.filterAllStages")}</option>
-                {stages.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect icon={Smile} value={moodFilter} onChange={setMoodFilter}>
-                <option value="">{t("audio.filterAllMoods")}</option>
-                {moods.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </FilterSelect>
+            <div className="mt-3 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
               <div>
-                <p className="mb-1 text-xs font-medium text-subtle">{t("audio.scoreRange")}</p>
-                <AmountRangeFilter value={scoreRange} onChange={setScoreRange} />
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                  {t("leadFilter.allFunnels")}
+                </p>
+                <FilterSelect
+                  icon={GitBranch}
+                  value={funnelFilter}
+                  onChange={setFunnelFilter}
+                  className="w-full"
+                >
+                  <option value="">{t("leadFilter.allFunnels")}</option>
+                  {funnelNames.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </FilterSelect>
               </div>
               <div>
-                <p className="mb-1 text-xs font-medium text-subtle">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                  {t("audio.filterAllStages")}
+                </p>
+                <FilterSelect
+                  icon={ListFilter}
+                  value={stageFilter}
+                  onChange={setStageFilter}
+                  className="w-full"
+                >
+                  <option value="">{t("audio.filterAllStages")}</option>
+                  {stages.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </FilterSelect>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                  {t("audio.filterAllMoods")}
+                </p>
+                <FilterSelect
+                  icon={Smile}
+                  value={moodFilter}
+                  onChange={setMoodFilter}
+                  className="w-full"
+                >
+                  <option value="">{t("audio.filterAllMoods")}</option>
+                  {moods.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </FilterSelect>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                  {t("audio.scoreRange")}
+                </p>
+                <AmountRangeFilter value={scoreRange} onChange={setScoreRange} />
+              </div>
+              <div className="sm:col-span-2">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
                   {t("audio.durationRangeSec")}
                 </p>
                 <AmountRangeFilter value={durationRange} onChange={setDurationRange} />
