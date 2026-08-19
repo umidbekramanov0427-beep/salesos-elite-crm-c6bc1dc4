@@ -59,6 +59,7 @@
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-active-foreground: var(--sidebar-active-foreground);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-group: var(--sidebar-group);
 
   --shadow-soft: 0 1px 2px 0 oklch(0.129 0.042 264.695 / 0.04);
   --shadow-card:
@@ -125,6 +126,7 @@
   --sidebar-active: oklch(0.87 0.07 155.8);
   --sidebar-active-foreground: oklch(0.3 0.09 156.5);
   --sidebar-border: oklch(0.9 0.006 264.5);
+  --sidebar-group: oklch(0.93 0.05 155);
 }
 
 .dark {
@@ -163,6 +165,7 @@
   --sidebar-active: oklch(0.26 0.03 156.5);
   --sidebar-active-foreground: oklch(0.97 0.003 247.9);
   --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-group: oklch(0.34 0.075 156.5);
 }
 
 @layer base {
