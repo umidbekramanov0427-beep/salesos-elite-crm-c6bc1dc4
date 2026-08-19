@@ -4,7 +4,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,11 +20,14 @@ import {
   useProfilesRaw,
   useLeadAnalyticsAction,
   useLeadAnalyticsQuality,
+  useLeadAnalyticsCurrent,
   type LeadAnalyticsRecoverableRow,
   type LeadAnalyticsHotRow,
   type LeadAnalyticsTagResultRow,
   type LeadAnalyticsTagMatrixRow,
   type LeadAnalyticsTagCategoryRow,
+  type LeadAnalyticsStageRow,
+  type LeadAnalyticsManagerLoadRow,
 } from "@/hooks/use-crm-data";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -550,6 +556,197 @@ function QualityTab({
   );
 }
 
+function TemperatureDonut({
+  temperature,
+  t,
+}: {
+  temperature: { cold: number; warm: number; hot: number; veryHot: number };
+  t: (k: string) => string;
+}) {
+  const data = [
+    { name: t("leadAnalytics.tempCold"), value: temperature.cold, color: "var(--color-primary)" },
+    {
+      name: t("leadAnalytics.tempWarm"),
+      value: temperature.warm,
+      color: "var(--color-mint-border)",
+    },
+    { name: t("leadAnalytics.tempHot"), value: temperature.hot, color: "var(--color-warning)" },
+    {
+      name: t("leadAnalytics.tempVeryHot"),
+      value: temperature.veryHot,
+      color: "var(--color-destructive)",
+    },
+  ];
+  const total = temperature.cold + temperature.warm + temperature.hot + temperature.veryHot;
+  return (
+    <div className="relative h-[240px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={data} dataKey="value" innerRadius={70} outerRadius={100} paddingAngle={2}>
+            {data.map((d) => (
+              <Cell key={d.name} fill={d.color} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={tooltipStyle} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <span className="text-2xl font-extrabold text-foreground">{total}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
+        {data.map((d) => (
+          <span key={d.name} className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+            {d.name} {d.value}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StageFunnelList({ rows, t }: { rows: LeadAnalyticsStageRow[]; t: (k: string) => string }) {
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noStages")}
+      </p>
+    );
+  }
+  const max = Math.max(...rows.map((r) => r.lead_count), 1);
+  return (
+    <ul className="space-y-2.5">
+      {rows.map((r) => (
+        <li key={r.stage} className="flex items-center gap-3">
+          <span
+            className="w-36 shrink-0 truncate text-xs font-medium text-foreground"
+            title={r.stage}
+          >
+            {r.stage}
+          </span>
+          <div className="h-6 flex-1 overflow-hidden rounded-lg bg-muted">
+            <div
+              className="flex h-full items-center rounded-lg bg-primary/70 px-2"
+              style={{ width: `${Math.max((r.lead_count / max) * 100, 8)}%` }}
+            >
+              <span className="text-[11px] font-bold text-primary-foreground">{r.lead_count}</span>
+            </div>
+          </div>
+          <span className="w-14 shrink-0 text-right text-xs tabular-nums text-subtle">
+            {r.avg_days != null ? `${r.avg_days}${t("leadAnalytics.daysSuffix")}` : "—"}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ManagerLoadChart({ rows }: { rows: LeadAnalyticsManagerLoadRow[] }) {
+  const data = rows.map((r) => ({
+    manager: r.manager,
+    Sovuq: r.cold,
+    Iliq: r.warm,
+    Issiq: r.hot,
+    "Juda issiq": r.very_hot,
+  }));
+  return (
+    <div className="h-[320px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ left: -14, right: 8, top: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="manager"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            stroke="var(--color-subtle)"
+            interval={0}
+            angle={-30}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-accent)" }} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Bar dataKey="Sovuq" stackId="a" fill="var(--color-primary)" />
+          <Bar dataKey="Iliq" stackId="a" fill="var(--color-mint-border)" />
+          <Bar dataKey="Issiq" stackId="a" fill="var(--color-warning)" />
+          <Bar dataKey="Juda issiq" stackId="a" fill="var(--color-destructive)" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function CurrentTab({
+  funnel,
+  managerId,
+  t,
+}: {
+  funnel: string;
+  managerId: string;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+}) {
+  const { data, isLoading } = useLeadAnalyticsCurrent(funnel || null, managerId || null);
+  return (
+    <>
+      <div className="mt-8">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+          03 &nbsp;{t("leadAnalytics.stagesLabel")}
+        </p>
+        <h2 className="mt-1 text-xl font-bold text-foreground">
+          {t("leadAnalytics.currentTitle")}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("leadAnalytics.currentDesc")}</p>
+      </div>
+
+      <div className="mt-4 grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title={t("leadAnalytics.temperatureTitle")}
+          description={t("leadAnalytics.temperatureDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <TemperatureDonut
+              temperature={data?.temperature ?? { cold: 0, warm: 0, hot: 0, veryHot: 0 }}
+              t={t}
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={t("leadAnalytics.stagesTitle")}
+          description={t("leadAnalytics.stagesDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <StageFunnelList rows={data?.stages ?? []} t={t} />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <SectionCard
+          title={t("leadAnalytics.managerLoadTitle")}
+          description={t("leadAnalytics.managerLoadDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (data?.managerLoad ?? []).length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {t("leadAnalytics.noManagerLoad")}
+            </p>
+          ) : (
+            <ManagerLoadChart rows={data?.managerLoad ?? []} />
+          )}
+        </SectionCard>
+      </div>
+    </>
+  );
+}
+
 const TABS: { key: Tab; icon: typeof Zap; labelKey: string }[] = [
   { key: "action", icon: Zap, labelKey: "leadAnalytics.tabAction" },
   { key: "quality", icon: Layers, labelKey: "leadAnalytics.tabQuality" },
@@ -670,6 +867,8 @@ function LeadAnalytics() {
         <ActionTab data={data} isLoading={isLoading} format={format} t={t} />
       ) : tab === "quality" ? (
         <QualityTab funnel={funnel} managerId={managerId} t={t} />
+      ) : tab === "current" ? (
+        <CurrentTab funnel={funnel} managerId={managerId} t={t} />
       ) : (
         <div className="mt-8">
           <SectionCard title={t(TABS.find((tb) => tb.key === tab)!.labelKey)}>

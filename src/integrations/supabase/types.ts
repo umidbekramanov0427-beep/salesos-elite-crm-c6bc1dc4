@@ -1844,6 +1844,10 @@ export type Database = {
         Args: { p_funnel: string | null; p_manager: string | null };
         Returns: Json;
       };
+      lead_analytics_current: {
+        Args: { p_funnel: string | null; p_manager: string | null };
+        Returns: Json;
+      };
     };
     Enums: {
       app_role: "super_admin" | "manager" | "rep" | "platform_owner" | "rop" | "sotuv_menejeri";

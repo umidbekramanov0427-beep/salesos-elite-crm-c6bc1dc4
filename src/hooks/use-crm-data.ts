@@ -3762,6 +3762,48 @@ export function useLeadAnalyticsQuality(funnel: string | null, manager: string |
 }
 
 /* ------------------------------------------------------------------ */
+/* Lead Analytics — "Hozirgi holat" tab. Same SQL-side-aggregation reasoning */
+/* as the other two lead_analytics_* hooks.                                 */
+/* ------------------------------------------------------------------ */
+
+export type LeadAnalyticsStageRow = {
+  stage: string;
+  lead_count: number;
+  avg_days: number | null;
+};
+
+export type LeadAnalyticsManagerLoadRow = {
+  manager: string;
+  cold: number;
+  warm: number;
+  hot: number;
+  very_hot: number;
+  total: number;
+};
+
+export type LeadAnalyticsCurrentData = {
+  temperature: { cold: number; warm: number; hot: number; veryHot: number };
+  stages: LeadAnalyticsStageRow[];
+  managerLoad: LeadAnalyticsManagerLoadRow[];
+};
+
+export function useLeadAnalyticsCurrent(funnel: string | null, manager: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["lead_analytics_current", user?.organizationId, funnel, manager],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadAnalyticsCurrentData> => {
+      const { data, error } = await supabase.rpc("lead_analytics_current", {
+        p_funnel: funnel,
+        p_manager: manager,
+      });
+      if (error) throw error;
+      return data as unknown as LeadAnalyticsCurrentData;
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
 /* computation as useFunnelStats above, grouped by owner instead of      */
 /* summed across the whole funnel.                                       */
