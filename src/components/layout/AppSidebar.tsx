@@ -319,7 +319,7 @@ function FunnelsNavGroup({
     <div>
       <div
         className={cn(
-          "group flex w-full items-center gap-1 rounded-lg border-l-2 text-sm font-semibold transition-colors duration-150",
+          "group flex w-full items-center gap-1 rounded-lg border-l-2 text-base font-bold transition-colors duration-150",
           active
             ? "border-mint bg-sidebar-active text-sidebar-active-foreground"
             : "border-transparent text-sidebar-foreground",
@@ -420,7 +420,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         to={item.to}
         title={collapsed ? t(`nav.${item.to}`) : undefined}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-lg border-l-2 text-sm font-semibold transition-colors duration-150",
+          "group flex w-full items-center gap-3 rounded-lg border-l-2 text-base font-bold transition-colors duration-150",
           active
             ? "border-mint bg-sidebar-active text-sidebar-active-foreground"
             : "border-transparent text-sidebar-foreground",
@@ -462,7 +462,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
           </p>
         )}
         {collapsed && <div className="my-3 border-t border-sidebar-border" />}
-        <div className="space-y-0.5">
+        <div className={cn("space-y-0.5", !collapsed && "rounded-2xl bg-mint p-1.5")}>
           {items.map((item) =>
             item.to === "/funnels" ? (
               <FunnelsNavGroup
