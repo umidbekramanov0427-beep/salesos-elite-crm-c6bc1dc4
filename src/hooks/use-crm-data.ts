@@ -3578,14 +3578,26 @@ export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
+    // Every call's duration/contact counts toward the card's totals as long
+    // as it resolves to a lead (regardless of whether that lead has an
+    // owner_id) -- a call shouldn't vanish from "today's activity" just
+    // because its lead's AmoCRM responsible user didn't map to a SalesOS
+    // profile. managerCount/per-manager averages still need a real owner_id
+    // to attribute to someone, so those are tracked separately.
     const byManager = new Map<string, { seconds: number; leadIds: Set<string> }>();
+    let totalSeconds = 0;
+    const allContacts = new Set<string>();
     for (const c of calls ?? []) {
       if (new Date(c.occurred_at) < startOfToday) continue;
       if (!c.lead_id) continue;
       const lead = leadsById.get(c.lead_id);
-      if (!lead?.owner_id) continue;
-      const leadFunnel = lead.funnel || "Direct Sales";
+      const leadFunnel = lead?.funnel || "Direct Sales";
       if (funnel && leadFunnel !== funnel) continue;
+
+      totalSeconds += c.duration_seconds;
+      allContacts.add(c.lead_id);
+
+      if (!lead?.owner_id) continue;
       const cur = byManager.get(lead.owner_id) ?? { seconds: 0, leadIds: new Set<string>() };
       cur.seconds += c.duration_seconds;
       cur.leadIds.add(lead.id);
@@ -3593,15 +3605,13 @@ export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
     }
 
     const managerCount = byManager.size;
-    const totalSeconds = Array.from(byManager.values()).reduce((s, m) => s + m.seconds, 0);
-    const totalContacts = Array.from(byManager.values()).reduce((s, m) => s + m.leadIds.size, 0);
 
     return {
       managerCount,
       totalSeconds,
       avgSecondsPerManager: managerCount ? Math.round(totalSeconds / managerCount) : 0,
       avgContactsPerManager: managerCount
-        ? Math.round((totalContacts / managerCount) * 10) / 10
+        ? Math.round((allContacts.size / managerCount) * 10) / 10
         : 0,
       isLoading: callsLoading || leadsLoading,
     };
