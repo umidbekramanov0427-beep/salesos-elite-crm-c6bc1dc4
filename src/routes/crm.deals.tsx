@@ -12,6 +12,7 @@ import { currency } from "@/lib/mock-data";
 import { useDealsView } from "@/hooks/use-crm-data";
 import { NewDealDialog } from "@/components/crm/quick-create";
 import { useI18n } from "@/lib/i18n";
+import { FilterSearchInput } from "@/components/filters/FilterSelect";
 
 export const Route = createFileRoute("/crm/deals")({
   head: () => ({
@@ -96,15 +97,13 @@ function DealsPage() {
         <SectionCard
           title={t("deals.all")}
           actions={
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("deals.searchPlaceholder")}
-                className="h-10 w-56 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
-              />
-            </div>
+            <FilterSearchInput
+              icon={Search}
+              value={query}
+              onChange={setQuery}
+              placeholder={t("deals.searchPlaceholder")}
+              className="w-56"
+            />
           }
         >
           {isLoading && (

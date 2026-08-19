@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useLeadsListPage, usePipelineStagesRaw } from "@/hooks/use-crm-data";
 import { NewLeadDialog } from "@/components/crm/quick-create";
 import { PermissionGate } from "@/components/PermissionGate";
+import { FilterSearchInput } from "@/components/filters/FilterSelect";
 
 export const Route = createFileRoute("/crm/leads/")({
   validateSearch: (
@@ -247,25 +248,23 @@ function LeadsPage() {
           description={t("leads.groupDesc", { shown: rows.length, total: stats.total })}
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-                <input
-                  value={queryInput}
-                  onChange={(e) => setQueryInput(e.target.value)}
-                  placeholder={t("leads.searchPlaceholder")}
-                  className="h-10 w-64 rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
-                />
-              </div>
+              <FilterSearchInput
+                icon={Search}
+                value={queryInput}
+                onChange={setQueryInput}
+                placeholder={t("leads.searchPlaceholder")}
+                className="w-64"
+              />
               <button
                 onClick={() => setSortDesc(!sortDesc)}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-accent"
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
               >
                 {t("leads.score")}{" "}
                 <ChevronDown
                   className={cn("h-4 w-4 transition-transform", !sortDesc && "rotate-180")}
                 />
               </button>
-              <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-accent">
+              <button className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
                 <Filter className="h-4 w-4" /> {t("leads.filters")}
               </button>
             </div>
