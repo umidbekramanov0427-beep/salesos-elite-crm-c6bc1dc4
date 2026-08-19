@@ -89,18 +89,30 @@ export function StatCard({
   value: string;
   delta?: number;
   hint?: string;
-  tone?: "default" | "mint" | "danger";
+  // "danger" is a strong alert card (red text throughout, meant to grab
+  // attention). "danger-soft" only tints the background/accent bar red —
+  // label/value/hint stay the same weight and color as every other card, for
+  // a metric that's red-flagged but shouldn't shout louder than its
+  // neighbors (e.g. Dashboard's "Yo'qotilgan summa").
+  tone?: "default" | "mint" | "danger" | "danger-soft";
   info?: string;
   // Bumps the value up a size for a card meant to read as an alert rather
-  // than a routine metric (e.g. Dashboard's "Yo'qotilgan summa").
+  // than a routine metric.
   emphasize?: boolean;
 }) {
+  const isDanger = tone === "danger" || tone === "danger-soft";
   return (
     <div
       className={cn(
         "relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5",
-        tone === "danger" ? "before:bg-destructive" : statAccent(label),
-        tone === "mint" ? "mint-card" : tone === "danger" ? "bg-destructive/10" : "surface-card",
+        isDanger ? "before:bg-destructive" : statAccent(label),
+        tone === "mint"
+          ? "mint-card"
+          : tone === "danger"
+            ? "bg-destructive/10"
+            : tone === "danger-soft"
+              ? "bg-destructive/5"
+              : "surface-card",
       )}
     >
       <p

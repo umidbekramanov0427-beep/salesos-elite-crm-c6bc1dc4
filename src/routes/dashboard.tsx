@@ -23,7 +23,6 @@ import {
   useFunnelCallStats,
   useFunnelNames,
   useFunnelStats,
-  useSalesAnalyticsSummary,
   type DealRow,
   type LeadRow,
 } from "@/hooks/use-crm-data";
@@ -186,7 +185,6 @@ function Dashboard() {
   });
   const callStats = useFunnelCallStats(funnel);
   const taskStats = useAmoCrmTaskStats(funnel);
-  const salesAnalytics = useSalesAnalyticsSummary(funnel);
 
   // "Kutilayotgan konversiya" -- the org's fixed expected conversion rate,
   // used only to project potential/lost revenue below (not a real measured
@@ -276,8 +274,7 @@ function Dashboard() {
         <StatCard
           label={t("dash.card.lostRevenue")}
           value={format(lostRevenue)}
-          tone="danger"
-          emphasize
+          tone="danger-soft"
           info={t("dash.card.lostRevenueInfo")}
         />
 
@@ -344,36 +341,6 @@ function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label={t("dash.card.forecast")}
-          value={format(salesAnalytics.forecast)}
-          hint={t("dash.card.forecastHint")}
-          tone="mint"
-          info={t("dash.card.forecastInfo")}
-        />
-        <StatCard
-          label={t("dash.card.ytdRevenue")}
-          value={format(salesAnalytics.ytdRevenue)}
-          delta={Math.round(salesAnalytics.ytdDelta * 10) / 10}
-          hint={t("dash.card.ytdRevenueHint")}
-          info={t("dash.card.ytdRevenueInfo")}
-        />
-        <StatCard
-          label={t("dash.card.avgDealSize")}
-          value={format(salesAnalytics.avgDealSize)}
-          hint={t("dash.card.avgDealSizeHint")}
-          info={t("dash.card.avgDealSizeInfo")}
-        />
-        <StatCard
-          label={t("dash.card.lossRate")}
-          value={`${salesAnalytics.lossRate.toFixed(1)}%`}
-          delta={Math.round(salesAnalytics.lossRateDelta * 10) / 10}
-          hint={t("dash.card.lossRateHint")}
-          info={t("dash.card.lossRateInfo")}
-        />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-4">
