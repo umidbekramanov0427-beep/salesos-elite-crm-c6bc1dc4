@@ -1,16 +1,9 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  AlarmClockOff,
-  CalendarClock,
-  GitBranch,
-  Loader2,
-  PhoneCall,
-  Sparkles,
-} from "lucide-react";
-import { toast } from "sonner";
+import { AlarmClockOff, CalendarClock, GitBranch, PhoneCall, Sparkles } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { DashboardDailyReport } from "@/components/dashboard/DailyReport";
 import {
   LeaderboardWidget,
   ImportantTasksWidget,
@@ -25,7 +18,6 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import {
-  useAiAssistantChat,
   useAmoCrmTaskStats,
   useAsOfSnapshot,
   useDashboardKpis,
@@ -102,89 +94,6 @@ function ChartSkeleton({ height = 300, className }: { height?: number; className
       <Skeleton className="mt-2 h-3 w-56" />
       <Skeleton className="mt-6 w-full rounded-xl" style={{ height }} />
     </div>
-  );
-}
-
-const DASH_LANG_NAME: Record<"uz" | "ru" | "en", string> = {
-  uz: "o'zbek",
-  ru: "русский",
-  en: "English",
-};
-
-function DashboardDailyReportCard({
-  newLeadsToday,
-  wonThisWeek,
-  totalLeads,
-  totalRevenue,
-  conversion,
-  tasksDueToday,
-  tasksOverdue,
-  lostRevenue,
-}: {
-  newLeadsToday: number;
-  wonThisWeek: number;
-  totalLeads: number;
-  totalRevenue: number;
-  conversion: number;
-  tasksDueToday: number;
-  tasksOverdue: number;
-  lostRevenue: number;
-}) {
-  const { t, lang } = useI18n();
-  const { format } = useCurrency();
-  const chat = useAiAssistantChat();
-  const [report, setReport] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function generate() {
-    setBusy(true);
-    try {
-      const reply = await chat.mutateAsync({
-        messages: [
-          {
-            role: "user",
-            content: `Here are today's real CRM numbers: ${newLeadsToday} new leads today, ${wonThisWeek} deals won this week, ${totalLeads} total leads in the funnel worth ${format(totalRevenue)}, ${conversion.toFixed(1)}% conversion rate, ${tasksDueToday} tasks due today, ${tasksOverdue} tasks overdue, ${format(lostRevenue)} in projected lost revenue. Write a short daily report (3-5 sentences): what these numbers suggest went well today and what needs attention, and one concrete thing to focus on. Only reason from these numbers — don't invent activity you don't have. Respond in ${DASH_LANG_NAME[lang]}.`,
-          },
-        ],
-      });
-      setReport(reply);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("dash.dailyReportFailed"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <SectionCard
-      title={t("dash.dailyReport")}
-      description={t("dash.dailyReportDesc")}
-      actions={
-        <button
-          type="button"
-          onClick={() => void generate()}
-          disabled={busy}
-          className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
-        >
-          {busy ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
-          {t("common.generate")}
-        </button>
-      }
-    >
-      {report ? (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-          {report}
-        </p>
-      ) : (
-        <p className="flex items-center gap-2 text-sm text-subtle">
-          <Sparkles className="h-4 w-4" /> {t("dash.dailyReportPlaceholder")}
-        </p>
-      )}
-    </SectionCard>
   );
 }
 
@@ -438,18 +347,7 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="mt-6">
-        <DashboardDailyReportCard
-          newLeadsToday={kpis.newLeadsToday}
-          wonThisWeek={kpis.wonThisWeek}
-          totalLeads={funnelStats.totalLeads}
-          totalRevenue={funnelStats.totalRevenue}
-          conversion={funnelStats.conversion}
-          tasksDueToday={taskStats.data?.dueToday ?? 0}
-          tasksOverdue={taskStats.data?.overdue ?? 0}
-          lostRevenue={lostRevenue}
-        />
-      </div>
+      <DashboardDailyReport funnel={funnel} />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-4">
         <Suspense fallback={<ChartSkeleton className="xl:col-span-2" />}>

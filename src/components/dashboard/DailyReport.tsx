@@ -1,0 +1,750 @@
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  GitBranch,
+  Loader2,
+  Sparkles,
+  User,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionCard, StatCard } from "@/components/layout/Primitives";
+import { useI18n, type Lang } from "@/lib/i18n";
+import { useCurrency } from "@/lib/currency";
+import { cn } from "@/lib/utils";
+import {
+  useAiAssistantChat,
+  useDailyReportStats,
+  useFunnelNames,
+  useProfilesRaw,
+  type DailyReportScope,
+} from "@/hooks/use-crm-data";
+
+const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
+
+const tooltipStyle = {
+  borderRadius: 12,
+  border: "1px solid var(--color-border)",
+  background: "var(--color-popover)",
+  boxShadow: "var(--shadow-elevated)",
+  fontSize: 12,
+};
+
+type Period = "daily" | "weekly" | "monthly";
+
+function startOfDay(d: Date): Date {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  return c;
+}
+function startOfWeek(d: Date): Date {
+  const c = startOfDay(d);
+  const day = c.getDay();
+  c.setDate(c.getDate() - ((day + 6) % 7)); // Monday-start week
+  return c;
+}
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function addDays(d: Date, n: number): Date {
+  const c = new Date(d);
+  c.setDate(c.getDate() + n);
+  return c;
+}
+function addMonths(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1);
+}
+const DAY_LABELS_SHORT = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+const MONTH_LABELS_SHORT = [
+  "Yan",
+  "Fev",
+  "Mar",
+  "Apr",
+  "May",
+  "Iyun",
+  "Iyul",
+  "Avg",
+  "Sen",
+  "Okt",
+  "Noy",
+  "Dek",
+];
+
+/* ------------------------------------------------------------------ */
+/* Filter tile -- same popover-menu pattern used in Lid tahlili's      */
+/* JAMOA/OPERATOR/VORONKA filters, duplicated here (page-local there). */
+/* ------------------------------------------------------------------ */
+
+function FilterTile({
+  icon: Icon,
+  label,
+  value,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex min-w-[160px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
+            open
+              ? "border-primary ring-1 ring-primary/40"
+              : "border-border bg-card hover:bg-accent",
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">{label}</p>
+            <p className="truncate text-sm font-bold text-foreground">{value}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-subtle" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-80 w-64 overflow-y-auto p-1">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function TileOption({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors",
+        active ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-accent",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Period strip -- a navigable row of day/week/month tiles, one        */
+/* selected at a time. Same dark-tile treatment as Lid tahlili's        */
+/* month-strip (bg-surface), generalized to day/week granularity too.  */
+/* ------------------------------------------------------------------ */
+
+function PeriodStrip({
+  period,
+  selected,
+  onSelect,
+  t,
+}: {
+  period: Period;
+  selected: Date;
+  onSelect: (d: Date) => void;
+  t: (k: string) => string;
+}) {
+  const today = startOfDay(new Date());
+  const [pageAnchor, setPageAnchor] = useState<Date>(() => {
+    if (period === "daily") return startOfWeek(selected);
+    if (period === "weekly") return startOfWeek(selected);
+    return new Date(selected.getFullYear(), 0, 1);
+  });
+
+  const tiles = useMemo(() => {
+    if (period === "daily") {
+      return Array.from({ length: 7 }, (_, i) => addDays(pageAnchor, i));
+    }
+    if (period === "weekly") {
+      return Array.from({ length: 8 }, (_, i) => addDays(pageAnchor, (i - 7) * 7));
+    }
+    return Array.from({ length: 12 }, (_, i) => new Date(pageAnchor.getFullYear(), i, 1));
+  }, [period, pageAnchor]);
+
+  function shiftPage(dir: 1 | -1) {
+    if (period === "daily") setPageAnchor((p) => addDays(p, dir * 7));
+    else if (period === "weekly") setPageAnchor((p) => addDays(p, dir * 8 * 7));
+    else setPageAnchor((p) => new Date(p.getFullYear() + dir, 0, 1));
+  }
+
+  function goToday() {
+    const wk = startOfWeek(today);
+    setPageAnchor(period === "monthly" ? new Date(today.getFullYear(), 0, 1) : wk);
+    onSelect(period === "weekly" ? wk : today);
+  }
+
+  const headerLabel = useMemo(() => {
+    if (period === "daily") {
+      const end = addDays(pageAnchor, 6);
+      return `${pageAnchor.getDate()} ${MONTH_LABELS_SHORT[pageAnchor.getMonth()]} – ${end.getDate()} ${MONTH_LABELS_SHORT[end.getMonth()]} ${end.getFullYear()}`;
+    }
+    if (period === "weekly") {
+      const start = tiles[0]!;
+      const end = tiles[tiles.length - 1]!;
+      return `${MONTH_LABELS_SHORT[start.getMonth()]}–${MONTH_LABELS_SHORT[end.getMonth()]} ${end.getFullYear()}`;
+    }
+    return `${pageAnchor.getFullYear()}`;
+  }, [period, pageAnchor, tiles]);
+
+  const nextDisabled =
+    period === "monthly"
+      ? pageAnchor.getFullYear() >= today.getFullYear()
+      : pageAnchor >= startOfWeek(today);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-foreground">{headerLabel}</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => shiftPage(-1)}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={goToday}
+            className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-bold text-foreground transition-colors hover:bg-accent"
+          >
+            {t("dash.report.today")}
+          </button>
+          <button
+            type="button"
+            onClick={() => shiftPage(1)}
+            disabled={nextDisabled}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div
+        className={cn(
+          "mt-3 grid gap-2",
+          period === "daily" && "grid-cols-4 sm:grid-cols-7",
+          period === "weekly" && "grid-cols-4 sm:grid-cols-8",
+          period === "monthly" && "grid-cols-4 sm:grid-cols-6 xl:grid-cols-12",
+        )}
+      >
+        {tiles.map((tile) => {
+          const isFuture =
+            period === "monthly"
+              ? (tile > today && tile.getMonth() !== today.getMonth()) || tile > today
+              : tile > today;
+          const isSelected =
+            period === "monthly"
+              ? tile.getFullYear() === selected.getFullYear() &&
+                tile.getMonth() === selected.getMonth()
+              : startOfDay(tile).getTime() === startOfDay(selected).getTime();
+          const topLabel =
+            period === "daily"
+              ? DAY_LABELS_SHORT[(tile.getDay() + 6) % 7]
+              : period === "weekly"
+                ? `${MONTH_LABELS_SHORT[tile.getMonth()]}`
+                : `${tile.getFullYear()}`;
+          const mainLabel =
+            period === "daily"
+              ? `${tile.getDate()}`
+              : period === "weekly"
+                ? `${tile.getDate()}–${addDays(tile, 6).getDate()}`
+                : MONTH_LABELS_SHORT[tile.getMonth()];
+          return (
+            <button
+              key={tile.toISOString()}
+              type="button"
+              disabled={isFuture}
+              onClick={() => onSelect(tile)}
+              className={cn(
+                "rounded-xl border px-2 py-2.5 text-center transition-colors",
+                isSelected
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : isFuture
+                    ? "cursor-not-allowed border-border/50 bg-surface/50 text-subtle/50"
+                    : "border-border bg-surface text-foreground hover:bg-accent",
+              )}
+            >
+              <p
+                className={cn(
+                  "text-[10px]",
+                  isSelected ? "text-primary-foreground/80" : "text-subtle",
+                )}
+              >
+                {topLabel}
+              </p>
+              <p className="text-sm font-bold">{mainLabel}</p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Donut with a center percentage and a below legend, matching the     */
+/* "Overall konversiya" / "Bog'langanlardan" cards from the reference. */
+/* ------------------------------------------------------------------ */
+
+function RatioDonut({
+  title,
+  centerPct,
+  slices,
+}: {
+  title: string;
+  centerPct: number;
+  slices: { name: string; value: number; pct: number; color: string }[];
+}) {
+  const data = slices.map((s) => ({ name: s.name, value: Math.max(s.value, 0.0001) }));
+  return (
+    <SectionCard title={title}>
+      <div className="relative h-[150px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} dataKey="value" innerRadius={54} outerRadius={72} paddingAngle={2}>
+              {slices.map((s) => (
+                <Cell key={s.name} fill={s.color} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-extrabold text-foreground">{centerPct}%</span>
+        </div>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {slices.map((s) => (
+          <div key={s.name} className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: s.color }}
+              />
+              {s.name}
+            </span>
+            <span className="font-semibold text-foreground">
+              {s.value} <span className="text-subtle">{s.pct}%</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function DeltaPill({ pct }: { pct: number | null }) {
+  const { t } = useI18n();
+  if (pct == null) return null;
+  const up = pct >= 0;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+        up ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
+      )}
+    >
+      {up ? "↗" : "↘"} {Math.abs(pct)}% {t("dash.report.vsPrevPeriod")}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main export -- wired into dashboard.tsx in place of the old FIX23   */
+/* AI-only daily report card.                                          */
+/* ------------------------------------------------------------------ */
+
+export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
+  const { t, lang } = useI18n();
+  const { format } = useCurrency();
+  const chat = useAiAssistantChat();
+  const { data: profiles } = useProfilesRaw();
+  const { names: funnelNames } = useFunnelNames();
+
+  const [period, setPeriod] = useState<Period>("daily");
+  const [selected, setSelected] = useState<Date>(() => startOfDay(new Date()));
+  const [teamId, setTeamId] = useState("");
+  const [operatorId, setOperatorId] = useState("");
+  const [reportFunnel, setReportFunnel] = useState(funnel ?? "");
+
+  const rops = useMemo(
+    () =>
+      (profiles ?? [])
+        .filter((p) => p.role === "rop")
+        .slice()
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
+    [profiles],
+  );
+  const operators = useMemo(() => {
+    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (!teamId) return all;
+    return all.filter((p) => p.id === teamId || p.manager_id === teamId);
+  }, [profiles, teamId]);
+
+  const scope: DailyReportScope = useMemo(
+    () => ({
+      funnel: reportFunnel || null,
+      teamId: teamId || null,
+      operatorId: operatorId || null,
+    }),
+    [reportFunnel, teamId, operatorId],
+  );
+
+  const { range, prevRange } = useMemo(() => {
+    if (period === "daily") {
+      const from = startOfDay(selected);
+      return {
+        range: { from, to: addDays(from, 1) },
+        prevRange: { from: addDays(from, -1), to: from },
+      };
+    }
+    if (period === "weekly") {
+      const from = startOfWeek(selected);
+      return {
+        range: { from, to: addDays(from, 7) },
+        prevRange: { from: addDays(from, -7), to: from },
+      };
+    }
+    const from = startOfMonth(selected);
+    return {
+      range: { from, to: addMonths(from, 1) },
+      prevRange: { from: addMonths(from, -1), to: from },
+    };
+  }, [period, selected]);
+
+  const stats = useDailyReportStats(range, prevRange, scope);
+
+  const [aiReport, setAiReport] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  function formatDuration(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return h > 0 ? `${h}.${Math.round((m / 60) * 10)}h` : `${m} daq`;
+  }
+
+  async function generateAiReport() {
+    setAiBusy(true);
+    try {
+      const reply = await chat.mutateAsync({
+        messages: [
+          {
+            role: "user",
+            content: `Here is a ${period} sales-team report: ${stats.totalCalls} total calls made, ${stats.connectedCalls} connected, ${stats.missedCalls} missed (contact rate ${stats.contactRatePct}%), total talk time ${formatDuration(stats.totalCallSeconds)}, average call quality score ${stats.avgCallScore ?? "n/a"}/100. ${stats.newLeads} leads created, ${stats.soldLeads} reached a sales stage (conversion ${stats.soldLeadsPct}%), ${stats.openLeads} still open in the pipeline. Revenue this period: ${format(stats.periodRevenue)}. Write a short, dense summary (3-4 sentences) in the exact tone of an operational report: state the raw numbers, flag anything concerning (low conversion, low contact rate), and end with one concrete recommendation. Respond in ${LANG_NAME[lang]}.`,
+          },
+        ],
+      });
+      setAiReport(reply);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("dash.dailyReportFailed"));
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  const overallDonut = [
+    {
+      name: t("dash.report.purchasedLeads"),
+      value: stats.wonLeadsCreated,
+      pct: stats.wonLeadsCreatedPct,
+      color: "var(--color-success)",
+    },
+    {
+      name: t("dash.report.createdLeads"),
+      value: stats.newLeads,
+      pct: 100,
+      color: "var(--color-muted-foreground)",
+    },
+  ];
+  const connectedDonut = [
+    {
+      name: t("dash.report.sales"),
+      value: stats.wonFromConnectedCount,
+      pct: stats.wonFromConnectedPct,
+      color: "var(--color-primary)",
+    },
+    {
+      name: t("dash.report.connectedNoSale"),
+      value: Math.max(stats.connectedLeadsCount - stats.wonFromConnectedCount, 0),
+      pct: stats.connectedLeadsCount
+        ? Math.round(
+            ((stats.connectedLeadsCount - stats.wonFromConnectedCount) /
+              stats.connectedLeadsCount) *
+              1000,
+          ) / 10
+        : 0,
+      color: "var(--color-muted-foreground)",
+    },
+  ];
+
+  return (
+    <div className="mt-6">
+      <SectionCard
+        title={t("dash.dailyReport")}
+        description={t("dash.dailyReportDesc")}
+        actions={
+          <div className="inline-flex items-center gap-1 rounded-2xl border border-border bg-card p-1">
+            {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  "rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors",
+                  period === p
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent",
+                )}
+              >
+                {t(`dash.report.period.${p}`)}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTile
+            icon={Users}
+            label={t("leadAnalytics.jamoaLabel")}
+            value={rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams")}
+          >
+            <TileOption
+              label={t("leadAnalytics.allTeams")}
+              active={!teamId}
+              onClick={() => {
+                setTeamId("");
+                setOperatorId("");
+              }}
+            />
+            {rops.map((r) => (
+              <TileOption
+                key={r.id}
+                label={r.full_name}
+                active={teamId === r.id}
+                onClick={() => {
+                  setTeamId(r.id);
+                  setOperatorId("");
+                }}
+              />
+            ))}
+          </FilterTile>
+          <FilterTile
+            icon={User}
+            label={t("leadAnalytics.operatorLabel")}
+            value={
+              operators.find((m) => m.id === operatorId)?.full_name ??
+              t("leadAnalytics.allManagers")
+            }
+          >
+            <TileOption
+              label={t("leadAnalytics.allManagers")}
+              active={!operatorId}
+              onClick={() => setOperatorId("")}
+            />
+            {operators.map((m) => (
+              <TileOption
+                key={m.id}
+                label={m.full_name}
+                active={operatorId === m.id}
+                onClick={() => setOperatorId(m.id)}
+              />
+            ))}
+          </FilterTile>
+          <FilterTile
+            icon={GitBranch}
+            label={t("leadAnalytics.funnelLabel")}
+            value={reportFunnel || t("leadFilter.allFunnels")}
+          >
+            <TileOption
+              label={t("leadFilter.allFunnels")}
+              active={!reportFunnel}
+              onClick={() => setReportFunnel("")}
+            />
+            {funnelNames.map((f) => (
+              <TileOption
+                key={f}
+                label={f}
+                active={reportFunnel === f}
+                onClick={() => setReportFunnel(f)}
+              />
+            ))}
+          </FilterTile>
+        </div>
+
+        <PeriodStrip period={period} selected={selected} onSelect={setSelected} t={t} />
+      </SectionCard>
+
+      <div className="mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-subtle">
+          {t("dash.report.section01")}
+        </p>
+        <h3 className="mt-1 text-xl font-bold text-foreground">{t("dash.report.summaryTitle")}</h3>
+        <p className="mt-1 text-sm text-subtle">{t("dash.report.summaryDesc")}</p>
+      </div>
+
+      <div className="mt-4">
+        <SectionCard
+          title={t("dash.dailyReport")}
+          actions={
+            <button
+              type="button"
+              onClick={() => void generateAiReport()}
+              disabled={aiBusy}
+              className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
+            >
+              {aiBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {t("common.generate")}
+            </button>
+          }
+        >
+          {aiReport ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {aiReport}
+            </p>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-subtle">
+              <Sparkles className="h-4 w-4" /> {t("dash.dailyReportPlaceholder")}
+            </p>
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 xl:col-span-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <AlertTriangle className="h-4 w-4 text-destructive" />{" "}
+              {t("dash.report.needsAttention")}
+            </p>
+            <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">
+              {stats.biggestStageDrop ? 1 : 0}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-subtle">{t("dash.report.needsAttentionDesc")}</p>
+          {stats.biggestStageDrop ? (
+            <div className="mt-3 rounded-xl bg-background/60 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-destructive">
+                  {t("dash.report.biggestStageDrop")}
+                </p>
+                <span className="text-lg font-extrabold text-destructive">
+                  -{stats.biggestStageDrop.dropPct}%
+                </span>
+              </div>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {stats.biggestStageDrop.fromStage} → {stats.biggestStageDrop.toStage}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-3 py-4 text-center text-xs text-subtle">
+              {reportFunnel ? t("dash.report.noAlerts") : t("dash.report.pickFunnelForAlerts")}
+            </p>
+          )}
+        </div>
+
+        <RatioDonut
+          title={t("dash.report.overallConversion")}
+          centerPct={stats.wonLeadsCreatedPct}
+          slices={overallDonut}
+        />
+        <RatioDonut
+          title={t("dash.report.fromConnected")}
+          centerPct={stats.wonFromConnectedPct}
+          slices={connectedDonut}
+        />
+      </div>
+
+      <div className="mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-subtle">
+          {t("dash.report.section02")}
+        </p>
+        <h3 className="mt-1 text-xl font-bold text-foreground">{t("dash.report.financeTitle")}</h3>
+        <p className="mt-1 text-sm text-subtle">{t("dash.report.financeDesc")}</p>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-4">
+        <SectionCard title={t("dash.report.revenueTrend")} className="xl:col-span-2">
+          <div className="h-[200px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.revenueTrend} margin={{ left: -14, right: 8, top: 8 }}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  stroke="var(--color-subtle)"
+                />
+                <YAxis
+                  tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  stroke="var(--color-subtle)"
+                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => format(v)} />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="var(--color-success)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  animationDuration={700}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
+        <StatCard
+          label={t("dash.report.periodRevenue")}
+          value={format(stats.periodRevenue)}
+          tone="mint"
+          hint={t(`dash.report.period.${period}`)}
+        />
+        <div className="surface-card p-6">
+          <p className="text-[13px] font-medium text-muted-foreground">
+            {t("dash.report.fullPayments")}
+          </p>
+          <p className="mt-2 text-2xl font-extrabold text-foreground">{stats.fullPaymentCount}</p>
+          <div className="mt-2">
+            <DeltaPill pct={stats.fullPaymentDeltaPct} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
