@@ -3648,6 +3648,120 @@ export function useAmoCrmTaskStats(funnel?: string | null) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Lead Analytics — "Harakat kerak" tab. Computed entirely in SQL (see    */
+/* lead_analytics_action RPC) since this runs over the org's full lead    */
+/* table, not the small filtered slices useLeadsRaw()'s callers work with. */
+/* ------------------------------------------------------------------ */
+
+export type LeadAnalyticsRecoverableRow = {
+  lead_id: string;
+  name: string;
+  manager: string;
+  days_since_closed: number;
+  next_follow_up: string | null;
+};
+
+export type LeadAnalyticsHotRow = {
+  lead_id: string;
+  name: string;
+  manager: string;
+  score: number;
+  temperature: string;
+  stage: string;
+  value: number;
+};
+
+export type LeadAnalyticsOperatorRow = {
+  manager: string;
+  won_connected: number;
+  won_attempts: number;
+  lost_connected: number;
+  lost_attempts: number;
+};
+
+export type LeadAnalyticsActionData = {
+  totalLeads: number;
+  avgConversion: number;
+  hotLeads: number;
+  churnRisk: number;
+  recoverable: LeadAnalyticsRecoverableRow[];
+  hotPipeline: LeadAnalyticsHotRow[];
+  operatorActivity: LeadAnalyticsOperatorRow[];
+};
+
+export function useLeadAnalyticsAction(
+  funnel: string | null,
+  manager: string | null,
+  since: Date | null,
+) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["lead_analytics_action", user?.organizationId, funnel, manager, since?.getTime()],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadAnalyticsActionData> => {
+      const { data, error } = await supabase.rpc("lead_analytics_action", {
+        p_funnel: funnel,
+        p_manager: manager,
+        p_since: since ? since.toISOString() : null,
+      });
+      if (error) throw error;
+      return data as unknown as LeadAnalyticsActionData;
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Lead Analytics — "Lead sifati" tab. Per-tag aggregation, also SQL-side */
+/* (unnest(leads.tags)) for the same scale reason as the action tab.      */
+/* ------------------------------------------------------------------ */
+
+export type LeadAnalyticsTagResultRow = {
+  tag: string;
+  sold: number;
+  lost: number;
+  open: number;
+  total: number;
+};
+
+export type LeadAnalyticsTagMatrixRow = {
+  tag: string;
+  total: number;
+  avg_score: number | null;
+  conversion: number | null;
+  low_sample: boolean;
+};
+
+export type LeadAnalyticsTagCategoryRow = {
+  tag: string;
+  cold: number;
+  warm: number;
+  hot: number;
+  very_hot: number;
+};
+
+export type LeadAnalyticsQualityData = {
+  tagResults: LeadAnalyticsTagResultRow[];
+  tagMatrix: LeadAnalyticsTagMatrixRow[];
+  tagCategories: LeadAnalyticsTagCategoryRow[];
+};
+
+export function useLeadAnalyticsQuality(funnel: string | null, manager: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["lead_analytics_quality", user?.organizationId, funnel, manager],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadAnalyticsQualityData> => {
+      const { data, error } = await supabase.rpc("lead_analytics_quality", {
+        p_funnel: funnel,
+        p_manager: manager,
+      });
+      if (error) throw error;
+      return data as unknown as LeadAnalyticsQualityData;
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
 /* computation as useFunnelStats above, grouped by owner instead of      */
 /* summed across the whole funnel.                                       */
