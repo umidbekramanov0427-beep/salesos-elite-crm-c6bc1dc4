@@ -3804,6 +3804,45 @@ export function useLeadAnalyticsCurrent(funnel: string | null, manager: string |
 }
 
 /* ------------------------------------------------------------------ */
+/* Lead Analytics — "Yo'nalish" tab. Same SQL-side-aggregation reasoning as */
+/* the other three lead_analytics_* hooks.                                  */
+/* ------------------------------------------------------------------ */
+
+export type LeadAnalyticsLostReasonRow = { reason: string; count: number };
+
+export type LeadAnalyticsChurnRow = {
+  lead_id: string;
+  name: string;
+  manager: string;
+  days_since_contact: number | null;
+  risk_percent: number;
+  score: number;
+  temperature: string;
+};
+
+export type LeadAnalyticsDirectionData = {
+  direction: { closingSoon: number; neutral: number; losingSoon: number };
+  lostReasons: LeadAnalyticsLostReasonRow[];
+  churnRisk: LeadAnalyticsChurnRow[];
+};
+
+export function useLeadAnalyticsDirection(funnel: string | null, manager: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["lead_analytics_direction", user?.organizationId, funnel, manager],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadAnalyticsDirectionData> => {
+      const { data, error } = await supabase.rpc("lead_analytics_direction", {
+        p_funnel: funnel,
+        p_manager: manager,
+      });
+      if (error) throw error;
+      return data as unknown as LeadAnalyticsDirectionData;
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
 /* computation as useFunnelStats above, grouped by owner instead of      */
 /* summed across the whole funnel.                                       */

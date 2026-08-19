@@ -21,6 +21,7 @@ import {
   useLeadAnalyticsAction,
   useLeadAnalyticsQuality,
   useLeadAnalyticsCurrent,
+  useLeadAnalyticsDirection,
   type LeadAnalyticsRecoverableRow,
   type LeadAnalyticsHotRow,
   type LeadAnalyticsTagResultRow,
@@ -28,6 +29,8 @@ import {
   type LeadAnalyticsTagCategoryRow,
   type LeadAnalyticsStageRow,
   type LeadAnalyticsManagerLoadRow,
+  type LeadAnalyticsLostReasonRow,
+  type LeadAnalyticsChurnRow,
 } from "@/hooks/use-crm-data";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -747,6 +750,274 @@ function CurrentTab({
   );
 }
 
+function TrajectoryDonut({
+  direction,
+  t,
+}: {
+  direction: { closingSoon: number; neutral: number; losingSoon: number };
+  t: (k: string) => string;
+}) {
+  const data = [
+    {
+      name: t("leadAnalytics.closingSoon"),
+      value: direction.closingSoon,
+      color: "var(--color-success)",
+    },
+    { name: t("leadAnalytics.neutral"), value: direction.neutral, color: "var(--color-primary)" },
+    {
+      name: t("leadAnalytics.losingSoon"),
+      value: direction.losingSoon,
+      color: "var(--color-destructive)",
+    },
+  ];
+  return (
+    <div className="h-[240px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={data} dataKey="value" innerRadius={70} outerRadius={100} paddingAngle={2}>
+            {data.map((d) => (
+              <Cell key={d.name} fill={d.color} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={tooltipStyle} />
+          <Legend
+            wrapperStyle={{ fontSize: 11 }}
+            formatter={(value: string) => {
+              const d = data.find((x) => x.name === value);
+              return `${value} ${d?.value ?? 0}`;
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+const LOST_REASON_COLORS = [
+  "var(--color-destructive)",
+  "var(--color-warning)",
+  "var(--color-primary)",
+  "var(--color-mint-border)",
+  "var(--color-success)",
+];
+
+function LostReasonsDonut({
+  rows,
+  t,
+}: {
+  rows: LeadAnalyticsLostReasonRow[];
+  t: (k: string) => string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noLostReasons")}
+      </p>
+    );
+  }
+  const total = rows.reduce((s, r) => s + r.count, 0);
+  return (
+    <div className="relative h-[240px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={rows}
+            dataKey="count"
+            nameKey="reason"
+            innerRadius={70}
+            outerRadius={100}
+            paddingAngle={2}
+          >
+            {rows.map((r, i) => (
+              <Cell key={r.reason} fill={LOST_REASON_COLORS[i % LOST_REASON_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={tooltipStyle} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <span className="text-2xl font-extrabold text-foreground">{total}</span>
+      </div>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        {rows[0]!.reason} — {t("leadAnalytics.legendLost")}
+      </p>
+    </div>
+  );
+}
+
+function StageSpeedChart({ rows, t }: { rows: LeadAnalyticsStageRow[]; t: (k: string) => string }) {
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noStages")}
+      </p>
+    );
+  }
+  return (
+    <div className="h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={{ left: -14, right: 8, top: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="stage"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            stroke="var(--color-subtle)"
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={50}
+          />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-accent)" }} />
+          <Bar dataKey="avg_days" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ChurnRiskTable({
+  rows,
+  t,
+}: {
+  rows: LeadAnalyticsChurnRow[];
+  t: (k: string, vars?: Record<string, string | number>) => string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noChurnRisk")}
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+            <th className="py-2 pr-3">{t("leadAnalytics.colLead")}</th>
+            <th className="py-2 pr-3">{t("leadAnalytics.colManager")}</th>
+            <th className="py-2 pr-3">{t("leadAnalytics.colLastContact")}</th>
+            <th className="py-2 pl-3">{t("leadAnalytics.colRisk")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.lead_id} className="border-b border-border/60 last:border-0">
+              <td className="max-w-[140px] truncate py-2 pr-3 font-semibold text-foreground">
+                {r.name}
+              </td>
+              <td className="max-w-[120px] truncate py-2 pr-3 text-muted-foreground">
+                {r.manager}
+              </td>
+              <td className="py-2 pr-3 tabular-nums text-foreground">
+                {r.days_since_contact != null
+                  ? `${r.days_since_contact}${t("leadAnalytics.daysSuffix")}`
+                  : t("leadAnalytics.neverContacted")}
+              </td>
+              <td className="py-2 pl-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-destructive"
+                      style={{ width: `${r.risk_percent}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold tabular-nums text-destructive">
+                    {r.risk_percent}%
+                  </span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DirectionTab({
+  funnel,
+  managerId,
+  t,
+}: {
+  funnel: string;
+  managerId: string;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+}) {
+  const { data, isLoading } = useLeadAnalyticsDirection(funnel || null, managerId || null);
+  const { data: currentData, isLoading: currentLoading } = useLeadAnalyticsCurrent(
+    funnel || null,
+    managerId || null,
+  );
+  return (
+    <>
+      <div className="mt-8">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+          04 &nbsp;{t("leadAnalytics.trajectoryTitle")}
+        </p>
+        <h2 className="mt-1 text-xl font-bold text-foreground">
+          {t("leadAnalytics.directionTitle")}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("leadAnalytics.directionDesc")}</p>
+      </div>
+
+      <div className="mt-4 grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title={t("leadAnalytics.trajectoryTitle")}
+          description={t("leadAnalytics.trajectoryDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <TrajectoryDonut
+              direction={data?.direction ?? { closingSoon: 0, neutral: 0, losingSoon: 0 }}
+              t={t}
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={t("leadAnalytics.lostReasonsTitle")}
+          description={t("leadAnalytics.lostReasonsDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <LostReasonsDonut rows={data?.lostReasons ?? []} t={t} />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title={t("leadAnalytics.speedTitle")}
+          description={t("leadAnalytics.speedDesc")}
+        >
+          {currentLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <StageSpeedChart rows={currentData?.stages ?? []} t={t} />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={t("leadAnalytics.churnRiskTitle")}
+          description={t("leadAnalytics.churnRiskDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <ChurnRiskTable rows={data?.churnRisk ?? []} t={t} />
+          )}
+        </SectionCard>
+      </div>
+    </>
+  );
+}
+
 const TABS: { key: Tab; icon: typeof Zap; labelKey: string }[] = [
   { key: "action", icon: Zap, labelKey: "leadAnalytics.tabAction" },
   { key: "quality", icon: Layers, labelKey: "leadAnalytics.tabQuality" },
@@ -870,13 +1141,7 @@ function LeadAnalytics() {
       ) : tab === "current" ? (
         <CurrentTab funnel={funnel} managerId={managerId} t={t} />
       ) : (
-        <div className="mt-8">
-          <SectionCard title={t(TABS.find((tb) => tb.key === tab)!.labelKey)}>
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              {t("leadAnalytics.comingSoon")}
-            </p>
-          </SectionCard>
-        </div>
+        <DirectionTab funnel={funnel} managerId={managerId} t={t} />
       )}
     </>
   );
