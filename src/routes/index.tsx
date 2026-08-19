@@ -218,11 +218,7 @@ function RankBadge({ place }: { place: number }) {
 function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number }) {
   const { t } = useI18n();
   const { format } = useCurrency();
-  const toneByPlace = [
-    "border-amber-400/50 bg-amber-400/5",
-    "border-slate-400/40",
-    "border-orange-400/40",
-  ];
+  const toneByPlace = ["border-amber-400/50", "border-slate-400/40", "border-orange-400/40"];
   return (
     <div className={cn("surface-card relative space-y-3 border p-5", toneByPlace[place])}>
       <div className="absolute right-4 top-4">
