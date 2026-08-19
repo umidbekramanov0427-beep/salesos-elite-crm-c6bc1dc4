@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
@@ -20,6 +19,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FunnelsRouteImport } from './routes/funnels'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as LeadAnalyticsRouteImport } from './routes/lead-analytics'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
@@ -41,6 +41,7 @@ import { Route as AdminPermissionsRouteImport } from './routes/admin.permissions
 import { Route as AdminSecurityRouteImport } from './routes/admin.security'
 import { Route as AdminSecurityBanRouteImport } from './routes/admin.security-ban'
 import { Route as AdminSecurityUsersRouteImport } from './routes/admin.security-users'
+import { Route as AdminSetEmployeePasswordRouteImport } from './routes/admin.set-employee-password'
 import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
 import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analytics.analyze'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
@@ -91,11 +92,6 @@ const AiAssistantRoute = AiAssistantRouteImport.update({
   path: '/ai-assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AttendanceRoute = AttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
@@ -129,6 +125,11 @@ const InboxRoute = InboxRouteImport.update({
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadAnalyticsRoute = LeadAnalyticsRouteImport.update({
+  id: '/lead-analytics',
+  path: '/lead-analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadTasksRoute = LeadTasksRouteImport.update({
@@ -239,6 +240,12 @@ const AdminSecurityUsersRoute = AdminSecurityUsersRouteImport.update({
   path: '/security-users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSetEmployeePasswordRoute =
+  AdminSetEmployeePasswordRouteImport.update({
+    id: '/set-employee-password',
+    path: '/set-employee-password',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AiAssistantChatRoute = AiAssistantChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -423,7 +430,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
-  '/analytics': typeof AnalyticsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
@@ -431,6 +437,7 @@ export interface FileRoutesByFullPath {
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
+  '/lead-analytics': typeof LeadAnalyticsRoute
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByFullPath {
   '/admin/security': typeof AdminSecurityRoute
   '/admin/security-ban': typeof AdminSecurityBanRoute
   '/admin/security-users': typeof AdminSecurityUsersRoute
+  '/admin/set-employee-password': typeof AdminSetEmployeePasswordRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -491,7 +499,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
-  '/analytics': typeof AnalyticsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
@@ -499,6 +506,7 @@ export interface FileRoutesByTo {
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
+  '/lead-analytics': typeof LeadAnalyticsRoute
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -520,6 +528,7 @@ export interface FileRoutesByTo {
   '/admin/security': typeof AdminSecurityRoute
   '/admin/security-ban': typeof AdminSecurityBanRoute
   '/admin/security-users': typeof AdminSecurityUsersRoute
+  '/admin/set-employee-password': typeof AdminSetEmployeePasswordRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -560,7 +569,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
-  '/analytics': typeof AnalyticsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
@@ -568,6 +576,7 @@ export interface FileRoutesById {
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
+  '/lead-analytics': typeof LeadAnalyticsRoute
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -589,6 +598,7 @@ export interface FileRoutesById {
   '/admin/security': typeof AdminSecurityRoute
   '/admin/security-ban': typeof AdminSecurityBanRoute
   '/admin/security-users': typeof AdminSecurityUsersRoute
+  '/admin/set-employee-password': typeof AdminSetEmployeePasswordRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
   '/crm/companies': typeof CrmCompaniesRoute
@@ -630,7 +640,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-assistant'
-    | '/analytics'
     | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
@@ -638,6 +647,7 @@ export interface FileRouteTypes {
     | '/funnels'
     | '/inbox'
     | '/integrations'
+    | '/lead-analytics'
     | '/lead-tasks'
     | '/login'
     | '/mcp'
@@ -659,6 +669,7 @@ export interface FileRouteTypes {
     | '/admin/security'
     | '/admin/security-ban'
     | '/admin/security-users'
+    | '/admin/set-employee-password'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
     | '/crm/companies'
@@ -698,7 +709,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-assistant'
-    | '/analytics'
     | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
@@ -706,6 +716,7 @@ export interface FileRouteTypes {
     | '/funnels'
     | '/inbox'
     | '/integrations'
+    | '/lead-analytics'
     | '/lead-tasks'
     | '/login'
     | '/mcp'
@@ -727,6 +738,7 @@ export interface FileRouteTypes {
     | '/admin/security'
     | '/admin/security-ban'
     | '/admin/security-users'
+    | '/admin/set-employee-password'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
     | '/crm/companies'
@@ -766,7 +778,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-assistant'
-    | '/analytics'
     | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
@@ -774,6 +785,7 @@ export interface FileRouteTypes {
     | '/funnels'
     | '/inbox'
     | '/integrations'
+    | '/lead-analytics'
     | '/lead-tasks'
     | '/login'
     | '/mcp'
@@ -795,6 +807,7 @@ export interface FileRouteTypes {
     | '/admin/security'
     | '/admin/security-ban'
     | '/admin/security-users'
+    | '/admin/set-employee-password'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
     | '/crm/companies'
@@ -835,7 +848,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AiAssistantRoute: typeof AiAssistantRouteWithChildren
-  AnalyticsRoute: typeof AnalyticsRoute
   AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   CrmStagesRoute: typeof CrmStagesRoute
@@ -843,6 +855,7 @@ export interface RootRouteChildren {
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
   IntegrationsRoute: typeof IntegrationsRouteWithChildren
+  LeadAnalyticsRoute: typeof LeadAnalyticsRoute
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
@@ -902,13 +915,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiAssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/attendance': {
       id: '/attendance'
       path: '/attendance'
@@ -956,6 +962,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lead-analytics': {
+      id: '/lead-analytics'
+      path: '/lead-analytics'
+      fullPath: '/lead-analytics'
+      preLoaderRoute: typeof LeadAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lead-tasks': {
@@ -1103,6 +1116,13 @@ declare module '@tanstack/react-router' {
       path: '/security-users'
       fullPath: '/admin/security-users'
       preLoaderRoute: typeof AdminSecurityUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/set-employee-password': {
+      id: '/admin/set-employee-password'
+      path: '/set-employee-password'
+      fullPath: '/admin/set-employee-password'
+      preLoaderRoute: typeof AdminSetEmployeePasswordRouteImport
       parentRoute: typeof AdminRoute
     }
     '/ai-assistant/chat': {
@@ -1360,6 +1380,7 @@ interface AdminRouteChildren {
   AdminSecurityRoute: typeof AdminSecurityRoute
   AdminSecurityBanRoute: typeof AdminSecurityBanRoute
   AdminSecurityUsersRoute: typeof AdminSecurityUsersRoute
+  AdminSetEmployeePasswordRoute: typeof AdminSetEmployeePasswordRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -1376,6 +1397,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSecurityRoute: AdminSecurityRoute,
   AdminSecurityBanRoute: AdminSecurityBanRoute,
   AdminSecurityUsersRoute: AdminSecurityUsersRoute,
+  AdminSetEmployeePasswordRoute: AdminSetEmployeePasswordRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -1440,7 +1462,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AiAssistantRoute: AiAssistantRouteWithChildren,
-  AnalyticsRoute: AnalyticsRoute,
   AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   CrmStagesRoute: CrmStagesRoute,
@@ -1448,6 +1469,7 @@ const rootRouteChildren: RootRouteChildren = {
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,
   IntegrationsRoute: IntegrationsRouteWithChildren,
+  LeadAnalyticsRoute: LeadAnalyticsRoute,
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,

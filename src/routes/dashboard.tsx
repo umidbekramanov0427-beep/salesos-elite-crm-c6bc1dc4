@@ -23,6 +23,7 @@ import {
   useFunnelCallStats,
   useFunnelNames,
   useFunnelStats,
+  useSalesAnalyticsSummary,
   type DealRow,
   type LeadRow,
 } from "@/hooks/use-crm-data";
@@ -39,6 +40,12 @@ const PipelineChart = lazy(() =>
 );
 const SalesFunnel = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.SalesFunnel })),
+);
+const MonthlyRevenueTrendChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.MonthlyRevenueTrendChart })),
+);
+const RevenueByOwnerChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueByOwnerChart })),
 );
 
 export const Route = createFileRoute("/dashboard")({
@@ -179,6 +186,7 @@ function Dashboard() {
   });
   const callStats = useFunnelCallStats(funnel);
   const taskStats = useAmoCrmTaskStats(funnel);
+  const salesAnalytics = useSalesAnalyticsSummary(funnel);
 
   // "Kutilayotgan konversiya" -- the org's fixed expected conversion rate,
   // used only to project potential/lost revenue below (not a real measured
@@ -338,6 +346,36 @@ function Dashboard() {
         </div>
       </div>
 
+      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label={t("dash.card.forecast")}
+          value={format(salesAnalytics.forecast)}
+          hint={t("dash.card.forecastHint")}
+          tone="mint"
+          info={t("dash.card.forecastInfo")}
+        />
+        <StatCard
+          label={t("dash.card.ytdRevenue")}
+          value={format(salesAnalytics.ytdRevenue)}
+          delta={Math.round(salesAnalytics.ytdDelta * 10) / 10}
+          hint={t("dash.card.ytdRevenueHint")}
+          info={t("dash.card.ytdRevenueInfo")}
+        />
+        <StatCard
+          label={t("dash.card.avgDealSize")}
+          value={format(salesAnalytics.avgDealSize)}
+          hint={t("dash.card.avgDealSizeHint")}
+          info={t("dash.card.avgDealSizeInfo")}
+        />
+        <StatCard
+          label={t("dash.card.lossRate")}
+          value={`${salesAnalytics.lossRate.toFixed(1)}%`}
+          delta={Math.round(salesAnalytics.lossRateDelta * 10) / 10}
+          hint={t("dash.card.lossRateHint")}
+          info={t("dash.card.lossRateInfo")}
+        />
+      </div>
+
       <div className="mt-6 grid gap-6 xl:grid-cols-4">
         <Suspense fallback={<ChartSkeleton className="xl:col-span-2" />}>
           <RevenueChart />
@@ -347,6 +385,15 @@ function Dashboard() {
         </Suspense>
         <Suspense fallback={<ChartSkeleton height={220} />}>
           <SalesFunnel funnel={funnel} />
+        </Suspense>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <Suspense fallback={<ChartSkeleton />}>
+          <MonthlyRevenueTrendChart funnel={funnel} />
+        </Suspense>
+        <Suspense fallback={<ChartSkeleton />}>
+          <RevenueByOwnerChart funnel={funnel} />
         </Suspense>
       </div>
 

@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   History,
   Bell,
-  LineChart,
   Target,
   type LucideIcon,
 } from "lucide-react";
@@ -70,13 +69,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: AudioLines,
     group: "analysis",
     iconColor: "text-pink-500",
-  },
-  {
-    label: "Sales Analytics",
-    to: "/analytics",
-    icon: LineChart,
-    group: "analysis",
-    iconColor: "text-emerald-500",
   },
   {
     label: "Lead Analytics",
