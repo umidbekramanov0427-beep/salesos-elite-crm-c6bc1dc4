@@ -3,7 +3,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
   GitBranch,
-  ListFilter,
   Loader2,
   Play,
   RefreshCw,
@@ -44,7 +43,6 @@ import {
   useLeaderboardView,
   useManagerFunnelStats,
   useManagerWeeklyTrend,
-  usePipelineStagesRaw,
   useTagsSummary,
   type LeaderboardManagerRow,
   type LeadRow,
@@ -151,7 +149,7 @@ function TagFilter({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-10 items-center gap-2 rounded-full border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent"
+        className="flex h-10 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent"
       >
         <TagIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
         {t("lb.tagsFilter")}
@@ -304,7 +302,6 @@ function Leaderboard() {
     [routeSearch.from, routeSearch.to, routeSearch.label, t],
   );
   const search = routeSearch.q ?? "";
-  const stageId = routeSearch.stage ?? null;
   const funnel = routeSearch.funnel ?? null;
   const selectedTags = useMemo(
     () => (routeSearch.tags ? routeSearch.tags.split(",").filter(Boolean) : []),
@@ -331,9 +328,6 @@ function Leaderboard() {
   function setSearch(v: string) {
     patchSearch({ q: v || undefined });
   }
-  function setStageId(v: string | null) {
-    patchSearch({ stage: v ?? undefined });
-  }
   function setFunnel(v: string | null) {
     patchSearch({ funnel: v ?? undefined });
   }
@@ -351,7 +345,6 @@ function Leaderboard() {
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
 
-  const { data: stageOptions } = usePipelineStagesRaw();
   const { names: funnelNames } = useFunnelNames();
   const { tags: tagSummary } = useTagsSummary(funnel);
 
@@ -360,11 +353,11 @@ function Leaderboard() {
       from: dateFilter.from ? dateFilter.from.toISOString() : null,
       to: dateFilter.to ? dateFilter.to.toISOString() : null,
       search,
-      stageId,
+      stageId: null,
       funnel,
       tags: selectedTags,
     }),
-    [dateFilter, search, stageId, funnel, selectedTags],
+    [dateFilter, search, funnel, selectedTags],
   );
   const {
     rows: allRows,
@@ -582,25 +575,6 @@ function Leaderboard() {
       <SectionCard title={t("lb.filters")}>
         <div className="flex flex-wrap items-end gap-3">
           <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
-          <FilterSearchInput
-            icon={Search}
-            value={search}
-            onChange={setSearch}
-            placeholder={t("lb.searchPlaceholder")}
-            className="w-56"
-          />
-          <FilterSelect
-            icon={ListFilter}
-            value={stageId ?? ""}
-            onChange={(v) => setStageId(v || null)}
-          >
-            <option value="">{t("lb.stageFilter")}</option>
-            {(stageOptions ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </FilterSelect>
           <FilterSelect
             icon={GitBranch}
             value={funnel ?? ""}
@@ -620,6 +594,13 @@ function Leaderboard() {
           />
           <AmountRangeFilter value={revenueRange} onChange={setRevenueRange} />
           <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
+          <FilterSearchInput
+            icon={Search}
+            value={search}
+            onChange={setSearch}
+            placeholder={t("lb.searchPlaceholder")}
+            className="w-56"
+          />
         </div>
       </SectionCard>
 

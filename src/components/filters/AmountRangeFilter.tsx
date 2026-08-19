@@ -37,7 +37,7 @@ export function AmountRangeFilter({
         value={value.min ?? ""}
         onChange={(e) => onChange({ ...value, min: parse(e.target.value) })}
         placeholder={t("amountFilter.min")}
-        className="h-10 w-28 rounded-full border border-border bg-background px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="h-10 w-28 rounded-2xl border border-border bg-background px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
       <span className="text-xs text-subtle">{t("amountFilter.to")}</span>
       <input
@@ -46,7 +46,7 @@ export function AmountRangeFilter({
         value={value.max ?? ""}
         onChange={(e) => onChange({ ...value, max: parse(e.target.value) })}
         placeholder={t("amountFilter.max")}
-        className="h-10 w-28 rounded-full border border-border bg-background px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="h-10 w-28 rounded-2xl border border-border bg-background px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
     </div>
   );

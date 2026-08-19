@@ -24,7 +24,7 @@ export function AsOfDatePicker({
         <button
           type="button"
           className={cn(
-            "flex h-10 items-center gap-2 rounded-full border pl-3.5 pr-3 text-sm font-medium outline-none transition-colors",
+            "flex h-10 items-center gap-2 rounded-2xl border pl-3.5 pr-3 text-sm font-medium outline-none transition-colors",
             value
               ? "border-warning/40 bg-warning/10 text-warning-foreground"
               : "border-border bg-background text-foreground hover:bg-accent",

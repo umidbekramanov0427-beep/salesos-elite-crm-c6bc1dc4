@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlarmClockOff, CalendarClock, PhoneCall, Sparkles } from "lucide-react";
+import { AlarmClockOff, CalendarClock, GitBranch, PhoneCall, Sparkles } from "lucide-react";
 import { PageHeader, SectionCard, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import {
@@ -29,6 +29,7 @@ import {
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { FilterSelect } from "@/components/filters/FilterSelect";
 
 const RevenueChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })),
@@ -200,10 +201,10 @@ function Dashboard() {
       <SectionCard title={t("lb.filters")} className="mb-6">
         <div className="flex flex-wrap items-end gap-3">
           <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
-          <select
+          <FilterSelect
+            icon={GitBranch}
             value={funnel ?? ""}
-            onChange={(e) => setFunnel(e.target.value || null)}
-            className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            onChange={(v) => setFunnel(v || null)}
           >
             <option value="">{t("leadFilter.allFunnels")}</option>
             {funnelNames.map((f) => (
@@ -211,7 +212,7 @@ function Dashboard() {
                 {f}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <AmountRangeFilter value={amountRange} onChange={setAmountRange} />
           <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
         </div>

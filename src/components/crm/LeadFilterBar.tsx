@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { LayoutGrid, List, Search } from "lucide-react";
+import {
+  ChevronDown,
+  GitBranch,
+  LayoutGrid,
+  List,
+  ListFilter,
+  Search,
+  Tag,
+  User,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { CrmLeadView, ProfileRow, StageRow } from "@/hooks/use-crm-data";
@@ -8,6 +17,7 @@ import {
   amountInRange,
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
+import { FilterSelect, FilterSearchInput } from "@/components/filters/FilterSelect";
 
 export type LeadFilterState = {
   funnel: string | null;
@@ -64,14 +74,16 @@ function TagMultiSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors hover:border-primary/40"
+        className="flex h-10 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent"
       >
+        <Tag className="h-4 w-4 shrink-0 text-muted-foreground" />
         {t("leadFilter.allTags")}
         {selected.length > 0 && (
-          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
             {selected.length}
           </span>
         )}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
       {open && (
         <>
@@ -129,10 +141,10 @@ export function LeadFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <select
+      <FilterSelect
+        icon={GitBranch}
         value={value.funnel ?? ""}
-        onChange={(e) => onChange({ ...value, funnel: e.target.value || null })}
-        className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        onChange={(v) => onChange({ ...value, funnel: v || null })}
       >
         <option value="">{t("leadFilter.allFunnels")}</option>
         {funnels.map((f) => (
@@ -140,12 +152,12 @@ export function LeadFilterBar({
             {f}
           </option>
         ))}
-      </select>
+      </FilterSelect>
 
-      <select
+      <FilterSelect
+        icon={User}
         value={value.ownerId ?? ""}
-        onChange={(e) => onChange({ ...value, ownerId: e.target.value || null })}
-        className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        onChange={(v) => onChange({ ...value, ownerId: v || null })}
       >
         <option value="">{t("leadFilter.allOwners")}</option>
         {owners.map((o) => (
@@ -153,12 +165,12 @@ export function LeadFilterBar({
             {o.full_name || o.email}
           </option>
         ))}
-      </select>
+      </FilterSelect>
 
-      <select
+      <FilterSelect
+        icon={ListFilter}
         value={value.stageId ?? ""}
-        onChange={(e) => onChange({ ...value, stageId: e.target.value || null })}
-        className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        onChange={(v) => onChange({ ...value, stageId: v || null })}
       >
         <option value="">{t("leadFilter.allStages")}</option>
         {stages
@@ -168,7 +180,7 @@ export function LeadFilterBar({
               {s.name}
             </option>
           ))}
-      </select>
+      </FilterSelect>
 
       <TagMultiSelect
         options={tags}
@@ -178,18 +190,16 @@ export function LeadFilterBar({
 
       <AmountRangeFilter value={value.amount} onChange={(v) => onChange({ ...value, amount: v })} />
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
-        <input
-          value={value.search}
-          onChange={(e) => onChange({ ...value, search: e.target.value })}
-          placeholder={t("leadFilter.searchPlaceholder")}
-          className="h-9 w-64 rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-primary/40"
-        />
-      </div>
+      <FilterSearchInput
+        icon={Search}
+        value={value.search}
+        onChange={(v) => onChange({ ...value, search: v })}
+        placeholder={t("leadFilter.searchPlaceholder")}
+        className="w-64"
+      />
 
       {view && onViewChange && (
-        <div className="ml-auto inline-flex items-center gap-1 rounded-xl border border-border p-1">
+        <div className="ml-auto inline-flex h-10 items-center gap-1 rounded-full border border-border p-1">
           <button
             type="button"
             onClick={() => onViewChange("gallery")}

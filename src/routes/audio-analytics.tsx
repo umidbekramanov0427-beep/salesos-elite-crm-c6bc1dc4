@@ -1199,7 +1199,7 @@ function AudioAnalytics() {
               type="button"
               onClick={() => setShowMoreFilters((v) => !v)}
               className={cn(
-                "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border pl-3.5 pr-3 text-sm font-medium transition-colors",
+                "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border pl-3.5 pr-3 text-sm font-medium transition-colors",
                 showMoreFilters
                   ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-border bg-background text-muted-foreground hover:bg-accent",
@@ -1215,7 +1215,7 @@ function AudioAnalytics() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
               >
                 <X className="h-4 w-4" />
                 {t("audio.clearFilters")}
@@ -1322,7 +1322,7 @@ function AudioAnalytics() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                  className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-2xl border border-border bg-background px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
                 >
                   <X className="h-4 w-4" />
                   {t("audio.clearFilters")}
