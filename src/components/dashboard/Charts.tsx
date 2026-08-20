@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -5,6 +6,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -18,6 +21,8 @@ import { SectionCard } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import {
+  useConversionQualityWeekly,
+  useDealFlowWeekly,
   useFunnelFlow,
   useLostReasonsSummary,
   usePipelineStageStats,
@@ -385,6 +390,213 @@ export function LostReasonsChart({ funnel }: { funnel: string | null }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+    </SectionCard>
+  );
+}
+
+export function DealFlowChart({ funnel }: { funnel: string | null }) {
+  const { t } = useI18n();
+  const data = useDealFlowWeekly(funnel);
+
+  if (data.length === 0) {
+    return (
+      <SectionCard title={t("dash.card.dealFlow")} description={t("dash.card.dealFlowDesc")}>
+        <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard title={t("dash.card.dealFlow")} description={t("dash.card.dealFlowDesc")}>
+      <div className="h-[320px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ left: -14, right: 8, top: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis
+              dataKey="week"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <YAxis
+              yAxisId="count"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+              label={{
+                value: t("dash.card.dealFlowDeals"),
+                angle: -90,
+                position: "insideLeft",
+                fontSize: 11,
+                fill: "var(--color-subtle)",
+              }}
+            />
+            <YAxis
+              yAxisId="revenue"
+              orientation="right"
+              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              stroke="var(--color-subtle)"
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(v: number, name: string) =>
+                name === t("dash.card.dealFlowRevenue") ? currency(v) : v
+              }
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar
+              yAxisId="count"
+              dataKey="created"
+              name={t("dash.card.dealFlowCreated")}
+              fill="var(--color-muted)"
+              stroke="var(--color-border)"
+              strokeDasharray="4 3"
+              radius={[6, 6, 0, 0]}
+              maxBarSize={40}
+              animationDuration={700}
+            />
+            <Bar
+              yAxisId="count"
+              dataKey="won"
+              name={t("dash.card.dealFlowWon")}
+              stackId="outcome"
+              fill="var(--color-success)"
+              maxBarSize={40}
+              animationDuration={700}
+            />
+            <Bar
+              yAxisId="count"
+              dataKey="lost"
+              name={t("dash.card.dealFlowLost")}
+              stackId="outcome"
+              fill="var(--color-destructive)"
+              radius={[6, 6, 0, 0]}
+              maxBarSize={40}
+              animationDuration={700}
+            />
+            <Line
+              yAxisId="revenue"
+              type="monotone"
+              dataKey="revenue"
+              name={t("dash.card.dealFlowRevenue")}
+              stroke="var(--color-warning)"
+              strokeWidth={2.5}
+              dot={{ r: 3 }}
+              animationDuration={700}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </SectionCard>
+  );
+}
+
+export function ConversionQualityChart({ funnel }: { funnel: string | null }) {
+  const { t } = useI18n();
+  const [scoreMin, setScoreMin] = useState(70);
+  const [scoreMax, setScoreMax] = useState(100);
+  const { rows, correlation } = useConversionQualityWeekly(funnel, scoreMin, scoreMax);
+
+  return (
+    <SectionCard
+      title={t("dash.card.conversionQuality")}
+      description={t("dash.card.conversionQualityDesc")}
+      actions={
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-subtle">{t("dash.card.scoreRange")}</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={scoreMin}
+            onChange={(e) => setScoreMin(Math.min(Number(e.target.value), scoreMax))}
+            className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-sm text-foreground"
+          />
+          <span className="text-xs text-subtle">–</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={scoreMax}
+            onChange={(e) => setScoreMax(Math.max(Number(e.target.value), scoreMin))}
+            className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-sm text-foreground"
+          />
+          {correlation != null && (
+            <span className="ml-2 rounded-lg bg-accent px-2 py-1 text-xs font-semibold text-foreground">
+              {t("dash.card.correlation")}:{" "}
+              <span className={correlation >= 0 ? "text-success" : "text-destructive"}>
+                {correlation >= 0 ? "+" : ""}
+                {correlation}
+              </span>
+            </span>
+          )}
+        </div>
+      }
+    >
+      {rows.length === 0 ? (
+        <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+      ) : (
+        <>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={rows} margin={{ left: -14, right: 8, top: 8 }}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="week"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  stroke="var(--color-subtle)"
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tickFormatter={(v: number) => `${v}`}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  stroke="var(--color-subtle)"
+                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${v}%`} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line
+                  type="monotone"
+                  dataKey="conversionPct"
+                  name={t("dash.card.conversionPct")}
+                  stroke="var(--color-success)"
+                  strokeWidth={2.5}
+                  dot={{ r: 3 }}
+                  connectNulls
+                  animationDuration={700}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="inRangePct"
+                  name={t("dash.card.inRangePct", {
+                    min: String(scoreMin),
+                    max: String(scoreMax),
+                  })}
+                  stroke="var(--color-primary)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={{ r: 3 }}
+                  connectNulls
+                  animationDuration={700}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="mt-2 text-xs text-subtle">{t("dash.card.conversionQualityHint")}</p>
+        </>
+      )}
     </SectionCard>
   );
 }

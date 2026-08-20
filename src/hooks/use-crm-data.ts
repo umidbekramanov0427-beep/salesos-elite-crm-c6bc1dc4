@@ -1156,6 +1156,12 @@ export type CallChecklistItem = {
   note: string;
 };
 
+export type ServiceStandardCheck = {
+  name: string;
+  violated: boolean;
+  evidence: string;
+};
+
 export type CallAnalysis = {
   checklist: CallChecklistItem[];
   strengths: string[];
@@ -1165,6 +1171,7 @@ export type CallAnalysis = {
   agreements: string[];
   keyQuotes: string[];
   topObjections: string[];
+  serviceStandards: ServiceStandardCheck[];
 };
 
 export type AudioCallView = {
@@ -1781,6 +1788,191 @@ export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
   }, [leads, stages, funnel]);
+}
+
+// ISO 8601 week number (Monday-start, week 1 = the week containing the
+// year's first Thursday) -- the standard definition, matching what "W31",
+// "W32" etc. conventionally mean.
+function isoWeekLabel(d: Date): string {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `W${weekNo}`;
+}
+
+export type DealFlowWeek = {
+  week: string;
+  created: number;
+  won: number;
+  lost: number;
+  revenue: number;
+};
+
+/* ------------------------------------------------------------------ */
+/* Dashboard — "Sotuv dinamikasi": weekly deal flow (created vs. their   */
+/* current won/lost outcome) plus revenue. Since there's no per-lead     */
+/* stage-visit history in this schema (same limitation as the daily      */
+/* report's biggestStageDrop), "won this week"/"lost this week" really   */
+/* means "created this week, and currently sitting in a won/lost stage"  */
+/* -- a cohort-outcome view, not a true week-by-week transition ledger.  */
+/* ------------------------------------------------------------------ */
+export function useDealFlowWeekly(funnel: string | null, weeks = 8): DealFlowWeek[] {
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+
+  return useMemo(() => {
+    const stagesById = byId(stages);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeks * 7);
+
+    const byWeek = new Map<
+      string,
+      { created: number; won: number; lost: number; revenue: number; weekStart: Date }
+    >();
+
+    for (const l of leads ?? []) {
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const createdAt = new Date(l.created_at);
+      if (createdAt < cutoff) continue;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const label = isoWeekLabel(createdAt);
+      const bucket = byWeek.get(label) ?? {
+        created: 0,
+        won: 0,
+        lost: 0,
+        revenue: 0,
+        weekStart: createdAt,
+      };
+      bucket.created += 1;
+      if (stage?.is_won) {
+        bucket.won += 1;
+        bucket.revenue += l.expected_revenue;
+      } else if (stage?.is_lost) {
+        bucket.lost += 1;
+      }
+      if (createdAt < bucket.weekStart) bucket.weekStart = createdAt;
+      byWeek.set(label, bucket);
+    }
+
+    return Array.from(byWeek.entries())
+      .sort((a, b) => a[1].weekStart.getTime() - b[1].weekStart.getTime())
+      .map(([week, b]) => ({
+        week,
+        created: b.created,
+        won: b.won,
+        lost: b.lost,
+        revenue: b.revenue,
+      }));
+  }, [leads, stages, funnel, weeks]);
+}
+
+export type ConversionQualityWeek = {
+  week: string;
+  conversionPct: number | null;
+  inRangePct: number | null;
+};
+
+/* ------------------------------------------------------------------ */
+/* Dashboard — "Konversiya va qo'ng'iroq sifati": does a higher share of */
+/* good-scoring calls in a week line up with a higher conversion rate    */
+/* for leads created that week? Correlation is Pearson's r over the      */
+/* weeks where both series have a value.                                 */
+/* ------------------------------------------------------------------ */
+export function useConversionQualityWeekly(
+  funnel: string | null,
+  scoreMin: number,
+  scoreMax: number,
+  weeks = 12,
+): { rows: ConversionQualityWeek[]; correlation: number | null } {
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
+  const { data: calls } = useAmoCrmCallsRaw();
+
+  return useMemo(() => {
+    const stagesById = byId(stages);
+    const leadsById = byId(leads);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeks * 7);
+
+    type Bucket = {
+      created: number;
+      won: number;
+      totalCalls: number;
+      inRangeCalls: number;
+      weekStart: Date;
+    };
+    const byWeek = new Map<string, Bucket>();
+    const bucketFor = (label: string, start: Date): Bucket => {
+      let b = byWeek.get(label);
+      if (!b) {
+        b = { created: 0, won: 0, totalCalls: 0, inRangeCalls: 0, weekStart: start };
+        byWeek.set(label, b);
+      }
+      return b;
+    };
+
+    for (const l of leads ?? []) {
+      const leadFunnel = l.funnel || "Direct Sales";
+      if (funnel && leadFunnel !== funnel) continue;
+      const createdAt = new Date(l.created_at);
+      if (createdAt < cutoff) continue;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const b = bucketFor(isoWeekLabel(createdAt), createdAt);
+      b.created += 1;
+      if (stage?.is_won) b.won += 1;
+    }
+
+    for (const c of calls ?? []) {
+      if (c.score == null) continue;
+      const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+      const leadFunnel = lead ? lead.funnel || "Direct Sales" : null;
+      if (funnel && leadFunnel !== funnel) continue;
+      const occurredAt = new Date(c.occurred_at);
+      if (occurredAt < cutoff) continue;
+      const b = bucketFor(isoWeekLabel(occurredAt), occurredAt);
+      b.totalCalls += 1;
+      if (c.score >= scoreMin && c.score <= scoreMax) b.inRangeCalls += 1;
+    }
+
+    const rows = Array.from(byWeek.entries())
+      .sort((a, b) => a[1].weekStart.getTime() - b[1].weekStart.getTime())
+      .map(([week, b]) => ({
+        week,
+        conversionPct: b.created > 0 ? Math.round((b.won / b.created) * 1000) / 10 : null,
+        inRangePct:
+          b.totalCalls > 0 ? Math.round((b.inRangeCalls / b.totalCalls) * 1000) / 10 : null,
+      }));
+
+    const pairs = rows.filter(
+      (r): r is { week: string; conversionPct: number; inRangePct: number } =>
+        r.conversionPct != null && r.inRangePct != null,
+    );
+    let correlation: number | null = null;
+    if (pairs.length >= 2) {
+      const xs = pairs.map((p) => p.conversionPct);
+      const ys = pairs.map((p) => p.inRangePct);
+      const n = xs.length;
+      const meanX = xs.reduce((s, v) => s + v, 0) / n;
+      const meanY = ys.reduce((s, v) => s + v, 0) / n;
+      let num = 0;
+      let denX = 0;
+      let denY = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = xs[i]! - meanX;
+        const dy = ys[i]! - meanY;
+        num += dx * dy;
+        denX += dx * dx;
+        denY += dy * dy;
+      }
+      const den = Math.sqrt(denX * denY);
+      correlation = den > 0 ? Math.round((num / den) * 100) / 100 : null;
+    }
+
+    return { rows, correlation };
+  }, [leads, stages, calls, funnel, scoreMin, scoreMax, weeks]);
 }
 
 /* ------------------------------------------------------------------ */

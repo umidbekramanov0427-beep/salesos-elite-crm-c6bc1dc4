@@ -49,6 +49,18 @@ type RubricStep = {
   points: number;
 };
 
+// A fixed baseline set of conduct rules every call is checked against,
+// separate from the org's own configurable stage/step rubric above -- these
+// don't vary funnel to funnel or org to org the way sales technique does,
+// so they aren't backed by a settings table like call_stages is.
+const SERVICE_STANDARDS = [
+  "Vakolatdan tashqari va'da bermaslik",
+  "Mijozni bo'lmaslik",
+  "Mijozga ismi bilan murojaat qilish",
+  "Hurmatli va xushmuomala ohang",
+  "Mijoz bilan bahslashmaslik",
+];
+
 async function loadRubric(organizationId: string): Promise<RubricStep[]> {
   const { data: stages } = await supabaseAdmin
     .from("call_stages")
@@ -98,10 +110,18 @@ function buildJsonInstruction(rubric: RubricStep[]): string {
     "\"risks\": [\"bitim yo'qolish xavfi bilan bog'liq holatlar, bo'lmasa bo'sh ro'yxat\"], " +
     '"agreements": ["tomonlar kelishib olgan narsalar, bo\'lmasa bo\'sh ro\'yxat"], ' +
     '"key_quotes": ["suhbatdan 2-4 ta muhim, so\'zma-so\'z iqtibos"], ' +
-    "\"top_objections\": [\"mijoz bildirgan e'tirozlar, bo'lmasa bo'sh ro'yxat\"]";
+    "\"top_objections\": [\"mijoz bildirgan e'tirozlar, bo'lmasa bo'sh ro'yxat\"], " +
+    '"service_standards": [{"n": 1, "violated": false, "evidence": "buzilgan bo\'lsa qisqa dalil/iqtibos, aks holda bo\'sh matn"}, ...]';
+
+  const standardsLines = SERVICE_STANDARDS.map((s, i) => `${i + 1}. ${s}`).join("\n");
+  const standardsInstruction =
+    "\n\nQuyidagi xizmat standartlari ro'yxatini ham tekshir — har biri buzilganmi yoki yo'qmi (violated: true/false) va buzilgan bo'lsa qisqa dalil (evidence):\n" +
+    standardsLines +
+    '\n\n"service_standards" massivida yuqoridagi RO\'YXATDAGI HAR BIR band uchun aynan bitta yozuv bo\'lishi kerak, "n" band raqamiga mos kelishi kerak.';
 
   if (rubric.length === 0) {
     return (
+      standardsInstruction +
       "\n\nJavobni faqat quyidagi JSON formatida qaytar, boshqa hech qanday matn yozma:\n{" +
       base.slice(1) +
       ', "score": "qo\'ng\'iroqqa umumiy baho, 0 dan 100 gacha butun son"}'
@@ -113,6 +133,7 @@ function buildJsonInstruction(rubric: RubricStep[]): string {
     .join("\n");
 
   return (
+    standardsInstruction +
     "\n\nQuyidagi tekshiruv ro'yxati (checklist) asosida qo'ng'iroqni bahola. Har bir band uchun menejer buni bajarganmi yoki yo'qmi (met: true/false) va qisqa izoh (note) ber:\n" +
     checklistLines +
     "\n\nJavobni faqat quyidagi JSON formatida qaytar, boshqa hech qanday matn yozma:\n{" +
@@ -139,6 +160,7 @@ async function analyzeTranscript(
   agreements: string[];
   keyQuotes: string[];
   topObjections: string[];
+  serviceStandards: { n: number; violated: boolean; evidence: string }[];
 }> {
   const apiKey = requireEnv("GEMINI_API_KEY");
 
@@ -181,6 +203,7 @@ async function analyzeTranscript(
       agreements?: string[];
       key_quotes?: string[];
       top_objections?: string[];
+      service_standards?: { n?: number; violated?: boolean; evidence?: string }[];
     };
     if (!parsed.summary) throw new Error("no summary");
 
@@ -208,6 +231,12 @@ async function analyzeTranscript(
       agreements: asStringArray(parsed.agreements),
       keyQuotes: asStringArray(parsed.key_quotes),
       topObjections: asStringArray(parsed.top_objections),
+      serviceStandards: Array.isArray(parsed.service_standards)
+        ? parsed.service_standards.filter(
+            (s): s is { n: number; violated: boolean; evidence: string } =>
+              typeof s.n === "number" && typeof s.violated === "boolean",
+          )
+        : [],
     };
   } catch {
     // Model didn't return valid JSON (can happen with a heavily customized
@@ -228,6 +257,7 @@ async function analyzeTranscript(
       agreements: [],
       keyQuotes: [],
       topObjections: [],
+      serviceStandards: [],
     };
   }
 }
@@ -318,6 +348,12 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
 
           const noteByN = new Map(result.checklist.map((c) => [c.n, c.note ?? ""]));
           const metByN = new Map(result.checklist.map((c) => [c.n, c.met]));
+          const standardByN = new Map(
+            result.serviceStandards.map((s) => [
+              s.n,
+              { violated: s.violated, evidence: s.evidence ?? "" },
+            ]),
+          );
           const analysis = {
             checklist: rubric.map((r) => ({
               stage: r.stage,
@@ -334,6 +370,11 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
             agreements: result.agreements,
             keyQuotes: result.keyQuotes,
             topObjections: result.topObjections,
+            serviceStandards: SERVICE_STANDARDS.map((name, i) => ({
+              name,
+              violated: standardByN.get(i + 1)?.violated ?? false,
+              evidence: standardByN.get(i + 1)?.evidence ?? "",
+            })),
           };
 
           await supabaseAdmin
