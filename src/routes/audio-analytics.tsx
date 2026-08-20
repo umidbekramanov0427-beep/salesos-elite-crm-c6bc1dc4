@@ -33,6 +33,8 @@ import {
   PhoneOutgoing,
   Search,
   ShieldAlert,
+  ShieldCheck,
+  ShieldX,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -58,6 +60,7 @@ import {
   useUploadManualCall,
   type AmoCrmCallRow,
   type AudioCallView,
+  type CallChecklistItem,
   type RecoverableLeadView,
 } from "@/hooks/use-crm-data";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
@@ -575,6 +578,38 @@ function RecoverableRow({
 
 const CALL_TABLE_COLSPAN = 11;
 
+// The checklist comes back flat (one row per rubric step, already in stage
+// order from the rubric) -- grouped here into per-stage sections with a
+// points-weighted score, matching the "Sotuv bosqichlari" breakdown from
+// the reference tool rather than one long undifferentiated list.
+function groupChecklistByStage(checklist: CallChecklistItem[]): {
+  stage: string;
+  items: CallChecklistItem[];
+  metCount: number;
+  pct: number;
+}[] {
+  const order: string[] = [];
+  const byStage = new Map<string, CallChecklistItem[]>();
+  for (const item of checklist) {
+    if (!byStage.has(item.stage)) {
+      byStage.set(item.stage, []);
+      order.push(item.stage);
+    }
+    byStage.get(item.stage)!.push(item);
+  }
+  return order.map((stage) => {
+    const items = byStage.get(stage)!;
+    const totalPoints = items.reduce((s, i) => s + i.points, 0);
+    const metPoints = items.reduce((s, i) => s + (i.met ? i.points : 0), 0);
+    return {
+      stage,
+      items,
+      metCount: items.filter((i) => i.met).length,
+      pct: totalPoints > 0 ? Math.round((metPoints / totalPoints) * 100) : 0,
+    };
+  });
+}
+
 function CallTableRow({ call, lang }: { call: AudioCallView; lang: Lang }) {
   const { t } = useI18n();
   const analyze = useAnalyzeCall();
@@ -734,23 +769,81 @@ function CallTableRow({ call, lang }: { call: AudioCallView; lang: Lang }) {
                   <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
                     {t("audio.checklist")}
                   </p>
+                  <div className="mt-1.5 space-y-2">
+                    {groupChecklistByStage(call.analysis.checklist).map((group) => (
+                      <div key={group.stage} className="rounded-lg border border-border/60 p-2">
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-foreground">
+                            {group.stage}
+                          </span>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold",
+                              group.pct >= 70
+                                ? "bg-success/15 text-success"
+                                : group.pct > 0
+                                  ? "bg-warning/15 text-warning-foreground"
+                                  : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {group.metCount}/{group.items.length} · {group.pct}%
+                          </span>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {group.items.map((item, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm">
+                              <CheckCircle2
+                                className={cn(
+                                  "mt-0.5 h-4 w-4 shrink-0",
+                                  item.met ? "text-success" : "text-subtle",
+                                )}
+                              />
+                              <span className={cn("flex-1", !item.met && "text-muted-foreground")}>
+                                {item.step}
+                                {item.note && (
+                                  <span className="block text-xs text-subtle">{item.note}</span>
+                                )}
+                              </span>
+                              <span className="shrink-0 text-xs text-subtle">
+                                {item.points} {t("audio.pts")}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {call.analysis && call.analysis.serviceStandards.length > 0 && (
+                <div className="rounded-lg border border-border bg-surface p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
+                    {t("audio.serviceStandards")}
+                  </p>
                   <ul className="mt-1.5 space-y-1.5">
-                    {call.analysis.checklist.map((item, i) => (
+                    {call.analysis.serviceStandards.map((s, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2
-                          className={cn(
-                            "mt-0.5 h-4 w-4 shrink-0",
-                            item.met ? "text-success" : "text-subtle",
-                          )}
-                        />
-                        <span className={cn("flex-1", !item.met && "text-muted-foreground")}>
-                          {item.step}
-                          {item.note && (
-                            <span className="block text-xs text-subtle">{item.note}</span>
+                        {s.violated ? (
+                          <ShieldX className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                        ) : (
+                          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                        )}
+                        <span className="flex-1">
+                          {s.name}
+                          {s.violated && s.evidence && (
+                            <span className="block text-xs text-destructive/80">{s.evidence}</span>
                           )}
                         </span>
-                        <span className="shrink-0 text-xs text-subtle">
-                          {item.points} {t("audio.pts")}
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase",
+                            s.violated
+                              ? "bg-destructive/15 text-destructive"
+                              : "bg-success/15 text-success",
+                          )}
+                        >
+                          {s.violated ? t("audio.violated") : t("audio.notViolated")}
                         </span>
                       </li>
                     ))}

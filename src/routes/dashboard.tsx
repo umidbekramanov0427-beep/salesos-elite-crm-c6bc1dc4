@@ -50,6 +50,12 @@ const RevenueByOwnerChart = lazy(() =>
 const LostReasonsChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.LostReasonsChart })),
 );
+const DealFlowChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.DealFlowChart })),
+);
+const ConversionQualityChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.ConversionQualityChart })),
+);
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (
@@ -349,8 +355,8 @@ function Dashboard() {
 
       <DashboardDailyReport funnel={funnel} />
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-4">
-        <Suspense fallback={<ChartSkeleton className="xl:col-span-2" />}>
+      <div className="mt-6 space-y-6">
+        <Suspense fallback={<ChartSkeleton />}>
           <RevenueChart />
         </Suspense>
         <Suspense fallback={<ChartSkeleton height={180} />}>
@@ -361,7 +367,7 @@ function Dashboard() {
         </Suspense>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <div className="mt-6 space-y-6">
         <Suspense fallback={<ChartSkeleton />}>
           <MonthlyRevenueTrendChart funnel={funnel} />
         </Suspense>
@@ -376,13 +382,22 @@ function Dashboard() {
         </Suspense>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mt-6 space-y-6">
+        <Suspense fallback={<ChartSkeleton height={320} />}>
+          <DealFlowChart funnel={funnel} />
+        </Suspense>
+        <Suspense fallback={<ChartSkeleton height={340} />}>
+          <ConversionQualityChart funnel={funnel} />
+        </Suspense>
+      </div>
+
+      <div className="mt-6 space-y-6">
         <LeaderboardWidget />
         <ImportantTasksWidget />
         <LeadTasksWidget />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mt-6 space-y-6">
         <InboxWidget />
         <ActivityWidget />
         <AudioPreviewWidget />
