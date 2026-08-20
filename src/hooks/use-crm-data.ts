@@ -3953,10 +3953,22 @@ export type NormativeRow = {
 export function useNormativesView() {
   const { user } = useAuth();
   const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
-  const { data: deals, isLoading: dealsLoading } = useDealsRaw();
+  // Revenue used to come from the `deals` table — but this AmoCRM-synced
+  // setup never populates deals (leads carry the real revenue), so every
+  // rep's revenueToday/revenueMonth here was silently always 0. Compute it
+  // from won leads instead, same as Dashboard/Reyting already do. Leads
+  // have no close_date of their own, so updated_at is used as a proxy for
+  // "when it closed" — the same snapshot-proxy approach used elsewhere in
+  // this schema (there's no per-lead stage-change history to read instead).
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
 
   const rows = useMemo<NormativeRow[]>(() => {
-    const dealRows = deals ?? [];
+    const stagesById = byId(stages);
+    const wonLeads = (leads ?? []).filter((l) => {
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      return stage?.is_won ?? false;
+    });
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
@@ -3977,17 +3989,19 @@ export function useNormativesView() {
     });
 
     return roster.map((p): NormativeRow => {
-      const won = dealRows.filter((d) => d.owner_id === p.id && d.status === "won" && d.close_date);
+      const won = wonLeads.filter((l) => l.owner_id === p.id);
       const revenueToday = won
-        .filter((d) => new Date(d.close_date!) >= startOfToday)
-        .reduce((s, d) => s + Number(d.value), 0);
+        .filter((l) => new Date(l.updated_at) >= startOfToday)
+        .reduce((s, l) => s + Number(l.expected_revenue), 0);
       const revenueMonth = won
-        .filter((d) => new Date(d.close_date!) >= startOfMonth)
-        .reduce((s, d) => s + Number(d.value), 0);
-      const monthlyTarget = p.monthly_target || 1;
-      const monthlyPct = Math.round((revenueMonth / monthlyTarget) * 1000) / 10;
+        .filter((l) => new Date(l.updated_at) >= startOfMonth)
+        .reduce((s, l) => s + Number(l.expected_revenue), 0);
+      const monthlyTarget = p.monthly_target;
+      const monthlyPct =
+        monthlyTarget > 0 ? Math.round((revenueMonth / monthlyTarget) * 1000) / 10 : 0;
       const expectedByNow = monthlyTarget * expectedPaceFraction;
-      const pacePct = Math.round((revenueMonth / Math.max(1, expectedByNow)) * 1000) / 10;
+      const pacePct =
+        expectedByNow > 0 ? Math.round((revenueMonth / expectedByNow) * 1000) / 10 : 0;
       const status: NormativeStatus =
         pacePct >= 90 ? "onTrack" : pacePct >= 60 ? "atRisk" : "behind";
       return {
@@ -4004,9 +4018,9 @@ export function useNormativesView() {
         status,
       };
     });
-  }, [profiles, deals, user]);
+  }, [profiles, leads, stages, user]);
 
-  return { rows, isLoading: profilesLoading || dealsLoading };
+  return { rows, isLoading: profilesLoading || leadsLoading || stagesLoading };
 }
 
 /* ------------------------------------------------------------------ */
