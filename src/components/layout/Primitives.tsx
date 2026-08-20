@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import { ChevronDown, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { ChevronDown, Download, FileSpreadsheet, FileText, Sheet } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import { downloadCsv, exportAsPdf } from "@/lib/export-csv";
+import { downloadCsv, exportAsPdf, exportToGoogleSheets } from "@/lib/export-csv";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -248,6 +249,14 @@ export function ExportButton({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => exportAsPdf(filename, rows)}>
           <FileText className="h-4 w-4" /> {t("common.exportPdf")}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            exportToGoogleSheets(filename, rows);
+            toast.info(t("common.exportGoogleSheetsHint"), { duration: 8000 });
+          }}
+        >
+          <Sheet className="h-4 w-4" /> {t("common.exportGoogleSheets")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
