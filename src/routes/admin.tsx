@@ -540,7 +540,6 @@ function AdminPanelContent() {
                   value={query}
                   onChange={setQuery}
                   placeholder={t("admin.searchEmployees")}
-                  className="w-52"
                 />
               </div>
             )

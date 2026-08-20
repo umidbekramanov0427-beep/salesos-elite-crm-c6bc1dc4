@@ -196,24 +196,6 @@ function Dashboard() {
     <>
       <PageHeader title={t("dash.title")} description={t("dash.desc")} />
 
-      <DashboardDailyReport
-        funnel={funnel}
-        onFunnelChange={setFunnel}
-        teamId={teamId || null}
-        onTeamChange={(v) => setTeamId(v ?? "")}
-        operatorId={operatorId || null}
-        onOperatorChange={(v) => setOperatorId(v ?? "")}
-        dateFilter={dateFilter}
-        onDateFilterChange={setDateFilter}
-        amountRange={amountRange}
-        onAmountRangeChange={setAmountRange}
-        asOfDate={asOfDate}
-        onAsOfDateChange={setAsOfDate}
-        funnelNames={funnelNames}
-        rops={rops}
-        operators={operators}
-      />
-
       <section className="mint-card mt-6 grid gap-4 p-6">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
@@ -330,6 +312,24 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      <DashboardDailyReport
+        funnel={funnel}
+        onFunnelChange={setFunnel}
+        teamId={teamId || null}
+        onTeamChange={(v) => setTeamId(v ?? "")}
+        operatorId={operatorId || null}
+        onOperatorChange={(v) => setOperatorId(v ?? "")}
+        dateFilter={dateFilter}
+        onDateFilterChange={setDateFilter}
+        amountRange={amountRange}
+        onAmountRangeChange={setAmountRange}
+        asOfDate={asOfDate}
+        onAsOfDateChange={setAsOfDate}
+        funnelNames={funnelNames}
+        rops={rops}
+        operators={operators}
+      />
 
       <div className="mt-6 space-y-6">
         <Suspense fallback={<ChartSkeleton />}>

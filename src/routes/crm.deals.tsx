@@ -103,7 +103,6 @@ function DealsPage() {
               value={query}
               onChange={setQuery}
               placeholder={t("deals.searchPlaceholder")}
-              className="w-56"
             />
           }
         >

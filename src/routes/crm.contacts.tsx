@@ -105,7 +105,6 @@ function ContactsPage() {
               value={query}
               onChange={setQuery}
               placeholder={t("contacts.searchPlaceholder")}
-              className="w-56"
             />
           }
         >

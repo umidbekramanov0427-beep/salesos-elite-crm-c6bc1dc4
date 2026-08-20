@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   Bar,
   BarChart,
@@ -25,7 +25,7 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { FilterTile, TileOption } from "@/components/filters/FilterTile";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import {
   useFunnelNames,
@@ -1085,68 +1085,6 @@ const TABS: { key: Tab; icon: typeof Zap; labelKey: string; iconColor: string }[
     iconColor: "text-rose-500",
   },
 ];
-
-function FilterTile({
-  icon: Icon,
-  label,
-  value,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "flex min-w-[168px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
-            open
-              ? "border-primary ring-1 ring-primary/40"
-              : "border-border bg-card hover:bg-accent",
-          )}
-        >
-          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">{label}</p>
-            <p className="truncate text-sm font-bold text-foreground">{value}</p>
-          </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-subtle" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-80 w-64 overflow-y-auto p-1">
-        {children}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function TileOption({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors",
-        active ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-accent",
-      )}
-    >
-      {label}
-    </button>
-  );
-}
 
 function MonthStrip({
   year,
