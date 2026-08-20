@@ -367,22 +367,6 @@ function RatioDonut({
   );
 }
 
-function DeltaPill({ pct }: { pct: number | null }) {
-  const { t } = useI18n();
-  if (pct == null) return null;
-  const up = pct >= 0;
-  return (
-    <span
-      className={cn(
-        "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-        up ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
-      )}
-    >
-      {up ? "↗" : "↘"} {Math.abs(pct)}% {t("dash.report.vsPrevPeriod")}
-    </span>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Main export -- wired into dashboard.tsx in place of the old FIX23   */
 /* AI-only daily report card.                                          */
@@ -701,8 +685,8 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
         <p className="mt-1 text-sm text-subtle">{t("dash.report.financeDesc")}</p>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-4">
-        <SectionCard title={t("dash.report.revenueTrend")} className="xl:col-span-2">
+      <div className="mt-4">
+        <SectionCard title={t("dash.report.revenueTrend")}>
           <div className="h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={stats.revenueTrend} margin={{ left: -14, right: 8, top: 8 }}>
@@ -738,21 +722,6 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
             </ResponsiveContainer>
           </div>
         </SectionCard>
-        <StatCard
-          label={t("dash.report.periodRevenue")}
-          value={format(stats.periodRevenue)}
-          tone="mint"
-          hint={t(`dash.report.period.${period}`)}
-        />
-        <div className="surface-card p-6">
-          <p className="text-[13px] font-medium text-muted-foreground">
-            {t("dash.report.fullPayments")}
-          </p>
-          <p className="mt-2 text-2xl font-extrabold text-foreground">{stats.fullPaymentCount}</p>
-          <div className="mt-2">
-            <DeltaPill pct={stats.fullPaymentDeltaPct} />
-          </div>
-        </div>
       </div>
 
       <div className="mt-6">
