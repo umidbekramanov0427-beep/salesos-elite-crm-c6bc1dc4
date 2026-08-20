@@ -1,0 +1,530 @@
+diff --git a/src/hooks/use-crm-data.ts b/src/hooks/use-crm-data.ts
+index 2910137..69cb37c 100644
+--- a/src/hooks/use-crm-data.ts
++++ b/src/hooks/use-crm-data.ts
+@@ -3903,19 +3903,19 @@ export function useManagerFunnelStats(
+ }
+ 
+ /* ------------------------------------------------------------------ */
+-/* Weekly per-manager trend (Reyting charts) — conversion% and sales-    */
+-/* stage revenue, bucketed by week of lead creation, for every manager   */
++/* Daily per-manager trend (Reyting charts) — conversion% and sales-     */
++/* stage revenue, bucketed by day of lead creation, for every manager    */
+ /* with at least one lead in the funnel. "Conversion" here is each       */
+-/* week's cohort of created leads that are *currently* sitting in a      */
++/* day's cohort of created leads that are *currently* sitting in a       */
+ /* sales stage — there's no stored historical snapshot of conversion     */
+ /* itself to chart directly, so this is the closest real approximation.  */
+ /* ------------------------------------------------------------------ */
+ 
+-const DEFAULT_TREND_WEEKS = 8;
++const DEFAULT_TREND_DAYS = 30;
+ // A "Butun davr" (all-time) range with years of history would otherwise
+-// bucket into hundreds of illegible weekly points -- cap it the same way
++// bucket into hundreds of illegible daily points -- cap it the same way
+ // the chart itself is already capped for legibility.
+-const MAX_TREND_WEEKS = 52;
++const MAX_TREND_DAYS = 90;
+ 
+ export type ManagerTrendSeries = {
+   id: string;
+@@ -3924,49 +3924,46 @@ export type ManagerTrendSeries = {
+   salesRevenue: number[];
+ };
+ 
+-export type ManagerWeeklyTrend = { weekLabels: string[]; series: ManagerTrendSeries[] };
++export type ManagerDailyTrend = { dayLabels: string[]; series: ManagerTrendSeries[] };
+ 
+-function startOfWeek(d: Date): Date {
++function startOfDay(d: Date): Date {
+   const copy = new Date(d);
+-  const day = copy.getDay();
+-  const diff = (day + 6) % 7; // Monday-start week
+-  copy.setDate(copy.getDate() - diff);
+   copy.setHours(0, 0, 0, 0);
+   return copy;
+ }
+ 
+-export function useManagerWeeklyTrend(
++export function useManagerDailyTrend(
+   funnel?: string | null,
+   from?: Date | null,
+   to?: Date | null,
+-): ManagerWeeklyTrend {
++): ManagerDailyTrend {
+   const { data: leads } = useLeadsRaw();
+   const { data: stages } = usePipelineStagesRaw();
+   const { data: profiles } = useProfilesRaw();
+   const managerStats = useManagerFunnelStats(funnel);
+ 
+   return useMemo(() => {
+-    const rangeEnd = startOfWeek(to ?? new Date());
++    const rangeEnd = startOfDay(to ?? new Date());
+     const rangeStart = from
+-      ? startOfWeek(from)
+-      : new Date(rangeEnd.getTime() - (DEFAULT_TREND_WEEKS - 1) * 7 * 86400000);
+-    const weekCount = Math.min(
+-      MAX_TREND_WEEKS,
+-      Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (7 * 86400000)) + 1),
++      ? startOfDay(from)
++      : new Date(rangeEnd.getTime() - (DEFAULT_TREND_DAYS - 1) * 86400000);
++    const dayCount = Math.min(
++      MAX_TREND_DAYS,
++      Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1),
+     );
+ 
+-    const weekStarts: Date[] = [];
+-    for (let i = weekCount - 1; i >= 0; i--) {
++    const dayStarts: Date[] = [];
++    for (let i = dayCount - 1; i >= 0; i--) {
+       const d = new Date(rangeEnd);
+-      d.setDate(d.getDate() - i * 7);
+-      weekStarts.push(d);
++      d.setDate(d.getDate() - i);
++      dayStarts.push(d);
+     }
+-    const weekLabels = weekStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
++    const dayLabels = dayStarts.map((d) => `${d.getDate()}.${d.getMonth() + 1}`);
+ 
+     const ownerIds = Array.from(managerStats.entries())
+       .sort((a, b) => b[1].salesRevenue - a[1].salesRevenue)
+       .map(([id]) => id);
+-    if (ownerIds.length === 0) return { weekLabels, series: [] };
++    if (ownerIds.length === 0) return { dayLabels, series: [] };
+ 
+     const profilesById = byId(profiles);
+     const stagesById = byId(stages);
+@@ -3976,7 +3973,7 @@ export function useManagerWeeklyTrend(
+     for (const id of ownerIds) {
+       buckets.set(
+         id,
+-        weekStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
++        dayStarts.map(() => ({ total: 0, sales: 0, salesRevenue: 0 })),
+       );
+     }
+ 
+@@ -3985,15 +3982,15 @@ export function useManagerWeeklyTrend(
+       const leadFunnel = l.funnel || "Direct Sales";
+       if (funnel && leadFunnel !== funnel) continue;
+       const created = new Date(l.created_at);
+-      let weekIndex = -1;
+-      for (let i = weekStarts.length - 1; i >= 0; i--) {
+-        if (created >= weekStarts[i]!) {
+-          weekIndex = i;
++      let dayIndex = -1;
++      for (let i = dayStarts.length - 1; i >= 0; i--) {
++        if (created >= dayStarts[i]!) {
++          dayIndex = i;
+           break;
+         }
+       }
+-      if (weekIndex === -1) continue;
+-      const bucket = buckets.get(l.owner_id)![weekIndex]!;
++      if (dayIndex === -1) continue;
++      const bucket = buckets.get(l.owner_id)![dayIndex]!;
+       bucket.total += 1;
+       const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+       const stageName = stage ? normalizeStageName(stage.name) : "";
+@@ -4013,7 +4010,7 @@ export function useManagerWeeklyTrend(
+       };
+     });
+ 
+-    return { weekLabels, series };
++    return { dayLabels, series };
+   }, [leads, stages, profiles, managerStats, funnel, from, to]);
+ }
+ 
+diff --git a/src/lib/i18n.tsx b/src/lib/i18n.tsx
+index 1571180..529cfc7 100644
+--- a/src/lib/i18n.tsx
++++ b/src/lib/i18n.tsx
+@@ -849,9 +849,9 @@ const en: Dict = {
+   "lb.info.colKpi": "This manager's KPI completion percentage.",
+   "lb.info.colKpiMonthly": "5% of this manager's Sales-stage revenue.",
+   "lb.info.chartConversion":
+-    "Each manager's weekly conversion rate — the share of that week's new leads currently sitting in a sales stage.",
++    "Each manager's daily conversion rate — the share of that day's new leads currently sitting in a sales stage.",
+   "lb.info.chartRevenue":
+-    "Each manager's weekly Sales-stage revenue (prepayment/half-payment/full-payment leads).",
++    "Each manager's daily Sales-stage revenue (prepayment/half-payment/full-payment leads).",
+   "lb.topStrengths": "Top performers — strengths",
+   "lb.bottomWeaknesses": "Lowest performers — feedback",
+   "lb.aiPlaceholder": "Click Generate for an AI summary.",
+@@ -1461,6 +1461,10 @@ const en: Dict = {
+   "audio.dailyReportDesc": "AI summary written from today's real call numbers",
+   "audio.dailyReportPlaceholder": "Click Generate for today's summary.",
+   "audio.dailyReportFailed": "Couldn't generate the report",
++  "dash.dailyReport": "Daily report",
++  "dash.dailyReportDesc": "AI summary written from today's real CRM numbers",
++  "dash.dailyReportPlaceholder": "Click Generate for today's summary.",
++  "dash.dailyReportFailed": "Couldn't generate the report",
+   "audio.recentCalls": "Recent calls",
+   "audio.recentCallsDesc": "Latest synced call activity",
+   "audio.callsShownCount": "Showing {shown} of {total}",
+@@ -1643,6 +1647,8 @@ const en: Dict = {
+   "funnels.synced": "Synced",
+   "funnels.wonDeals": "Won deals",
+   "funnels.lostValue": "Lost value",
++  "funnels.avgDealSize": "Avg. deal size",
++  "funnels.hotLeadsCount": "Hot leads",
+   "funnels.pipelineFunnel": "Pipeline funnel",
+   "funnels.volumeValue": "Volume and value per stage",
+   "funnels.leadsCount": "{count} leads",
+@@ -2563,9 +2569,9 @@ const ru: Dict = {
+   "lb.info.colKpi": "Процент выполнения KPI этого менеджера.",
+   "lb.info.colKpiMonthly": "5% от выручки этапов продаж этого менеджера.",
+   "lb.info.chartConversion":
+-    "Еженедельная конверсия каждого менеджера — доля новых лидов недели, находящихся сейчас на этапе продаж.",
++    "Ежедневная конверсия каждого менеджера — доля новых лидов дня, находящихся сейчас на этапе продаж.",
+   "lb.info.chartRevenue":
+-    "Еженедельная выручка каждого менеджера по этапам продаж (предоплата/частичная/полная оплата).",
++    "Ежедневная выручка каждого менеджера по этапам продаж (предоплата/частичная/полная оплата).",
+   "lb.topStrengths": "Лучшие — сильные стороны",
+   "lb.bottomWeaknesses": "Отстающие — обратная связь",
+   "lb.aiPlaceholder": "Нажмите «Сгенерировать» для AI-сводки.",
+@@ -3179,6 +3185,10 @@ const ru: Dict = {
+   "audio.dailyReportDesc": "AI-сводка по сегодняшним реальным цифрам звонков",
+   "audio.dailyReportPlaceholder": "Нажмите «Сгенерировать» для сводки за сегодня.",
+   "audio.dailyReportFailed": "Не удалось сгенерировать отчёт",
++  "dash.dailyReport": "Дневной отчёт",
++  "dash.dailyReportDesc": "AI-сводка по сегодняшним реальным цифрам CRM",
++  "dash.dailyReportPlaceholder": "Нажмите «Сгенерировать» для сводки за сегодня.",
++  "dash.dailyReportFailed": "Не удалось сгенерировать отчёт",
+   "audio.recentCalls": "Последние звонки",
+   "audio.recentCallsDesc": "Недавно синхронизированная активность звонков",
+   "audio.callsShownCount": "Показано {shown} из {total}",
+@@ -3362,6 +3372,8 @@ const ru: Dict = {
+   "funnels.synced": "Синхронизировано",
+   "funnels.wonDeals": "Успешные сделки",
+   "funnels.lostValue": "Сумма проигранных",
++  "funnels.avgDealSize": "Ср. сумма сделки",
++  "funnels.hotLeadsCount": "Горячие лиды",
+   "funnels.pipelineFunnel": "Воронка пайплайна",
+   "funnels.volumeValue": "Объём и сумма по этапам",
+   "funnels.leadsCount": "{count} лидов",
+@@ -4302,9 +4314,9 @@ const uz: Dict = {
+   "lb.info.colKpi": "Shu menejerning KPI bajarilish foizi.",
+   "lb.info.colKpiMonthly": "Shu menejerning sotuv bosqichi tushumidan 5%.",
+   "lb.info.chartConversion":
+-    "Har bir menejerning haftalik konversiyasi — o'sha hafta yaratilgan lidlardan hozir sotuv bosqichida turganlarining ulushi.",
++    "Har bir menejerning kunlik konversiyasi — o'sha kuni yaratilgan lidlardan hozir sotuv bosqichida turganlarining ulushi.",
+   "lb.info.chartRevenue":
+-    "Har bir menejerning haftalik sotuv bosqichi tushumi (predoplata/yarim to'lov/to'liq to'lov).",
++    "Har bir menejerning kunlik sotuv bosqichi tushumi (predoplata/yarim to'lov/to'liq to'lov).",
+   "lb.topStrengths": "Top menejerlar — ustunliklari",
+   "lb.bottomWeaknesses": "Eng past ko'rsatkichlilar — feedback",
+   "lb.aiPlaceholder": 'AI xulosa uchun "Yaratish"ni bosing.',
+@@ -4923,6 +4935,10 @@ const uz: Dict = {
+   "audio.dailyReportDesc": "Bugungi haqiqiy qo'ng'iroq raqamlaridan AI xulosa",
+   "audio.dailyReportPlaceholder": 'Bugungi xulosa uchun "Yaratish"ni bosing.',
+   "audio.dailyReportFailed": "Hisobot yaratib bo'lmadi",
++  "dash.dailyReport": "Kunlik hisobot",
++  "dash.dailyReportDesc": "Bugungi haqiqiy CRM raqamlaridan AI xulosa",
++  "dash.dailyReportPlaceholder": 'Bugungi xulosa uchun "Yaratish"ni bosing.',
++  "dash.dailyReportFailed": "Hisobot yaratib bo'lmadi",
+   "audio.recentCalls": "So'nggi qo'ng'iroqlar",
+   "audio.recentCallsDesc": "Yaqinda sinxronlangan qo'ng'iroq faoliyati",
+   "audio.callsShownCount": "{total} tadan {shown} tasi ko'rsatilmoqda",
+@@ -5108,6 +5124,8 @@ const uz: Dict = {
+   "funnels.synced": "Sinxronlangan",
+   "funnels.wonDeals": "Yutilgan bitimlar",
+   "funnels.lostValue": "Yo‘qotilgan summa",
++  "funnels.avgDealSize": "O'rtacha bitim qiymati",
++  "funnels.hotLeadsCount": "Issiq lidlar",
+   "funnels.pipelineFunnel": "Pipeline voronkasi",
+   "funnels.volumeValue": "Bosqich bo‘yicha hajm va summa",
+   "funnels.leadsCount": "{count} ta lid",
+diff --git a/src/routes/audio-analytics.analyze.ts b/src/routes/audio-analytics.analyze.ts
+index 47a96eb..74b8acd 100644
+--- a/src/routes/audio-analytics.analyze.ts
++++ b/src/routes/audio-analytics.analyze.ts
+@@ -140,27 +140,28 @@ async function analyzeTranscript(
+   keyQuotes: string[];
+   topObjections: string[];
+ }> {
+-  const apiKey = requireEnv("DEEPSEEK_API_KEY");
+-
+-  const res = await fetch("https://api.deepseek.com/chat/completions", {
+-    method: "POST",
+-    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+-    body: JSON.stringify({
+-      model: "deepseek-chat",
+-      temperature: 0.3,
+-      response_format: { type: "json_object" },
+-      messages: [
+-        { role: "system", content: systemPrompt + buildJsonInstruction(rubric) },
+-        { role: "user", content: transcript },
+-      ],
+-    }),
+-  });
++  const apiKey = requireEnv("GEMINI_API_KEY");
++
++  const res = await fetch(
++    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
++    {
++      method: "POST",
++      headers: { "content-type": "application/json" },
++      body: JSON.stringify({
++        systemInstruction: { parts: [{ text: systemPrompt + buildJsonInstruction(rubric) }] },
++        contents: [{ role: "user", parts: [{ text: transcript }] }],
++        generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
++      }),
++    },
++  );
+   if (!res.ok) {
+     const text = await res.text();
+-    throw new Error(`DeepSeek error (${res.status}): ${text}`);
++    throw new Error(`Gemini error (${res.status}): ${text}`);
+   }
+-  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+-  const content = json.choices?.[0]?.message?.content?.trim() ?? "";
++  const json = (await res.json()) as {
++    candidates?: { content?: { parts?: { text?: string }[] } }[];
++  };
++  const content = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+ 
+   const asStringArray = (v: unknown): string[] =>
+     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
+diff --git a/src/routes/crm.pipeline.tsx b/src/routes/crm.pipeline.tsx
+index 6ac4959..1b7bd17 100644
+--- a/src/routes/crm.pipeline.tsx
++++ b/src/routes/crm.pipeline.tsx
+@@ -80,7 +80,12 @@ function stageTint(s: { is_won: boolean; is_lost: boolean; color: string }): {
+   // tint instead of Tailwind's "/5" opacity-modifier syntax, which only
+   // works on class names.
+   if (s.color.startsWith("#")) {
+-    return { style: { backgroundColor: `${s.color}14`, borderColor: `${s.color}40` } };
++    // AmoCRM's own stage colors run the gamut from muted to eye-searing
++    // neon, and this column background sits behind everything on the
++    // board (lead cards, text) all day -- keep it faint enough to read as
++    // "a tint" rather than "a highlighter", regardless of how saturated
++    // the source hex is.
++    return { style: { backgroundColor: `${s.color}0A`, borderColor: `${s.color}26` } };
+   }
+   return { className: `${s.color}/5 border-border` };
+ }
+diff --git a/src/routes/dashboard.tsx b/src/routes/dashboard.tsx
+index a4d4af3..30ad3e4 100644
+--- a/src/routes/dashboard.tsx
++++ b/src/routes/dashboard.tsx
+@@ -1,6 +1,14 @@
+ import { lazy, Suspense, useMemo, useState } from "react";
+ import { createFileRoute } from "@tanstack/react-router";
+-import { AlarmClockOff, CalendarClock, GitBranch, PhoneCall, Sparkles } from "lucide-react";
++import {
++  AlarmClockOff,
++  CalendarClock,
++  GitBranch,
++  Loader2,
++  PhoneCall,
++  Sparkles,
++} from "lucide-react";
++import { toast } from "sonner";
+ import { PageHeader, SectionCard, StatCard, InfoTip } from "@/components/layout/Primitives";
+ import { QuickActions } from "@/components/dashboard/QuickActions";
+ import {
+@@ -17,6 +25,7 @@ import { useAuth } from "@/lib/auth";
+ import { useI18n } from "@/lib/i18n";
+ import { useCurrency } from "@/lib/currency";
+ import {
++  useAiAssistantChat,
+   useAmoCrmTaskStats,
+   useAsOfSnapshot,
+   useDashboardKpis,
+@@ -93,6 +102,89 @@ function ChartSkeleton({ height = 300, className }: { height?: number; className
+   );
+ }
+ 
++const DASH_LANG_NAME: Record<"uz" | "ru" | "en", string> = {
++  uz: "o'zbek",
++  ru: "русский",
++  en: "English",
++};
++
++function DashboardDailyReportCard({
++  newLeadsToday,
++  wonThisWeek,
++  totalLeads,
++  totalRevenue,
++  conversion,
++  tasksDueToday,
++  tasksOverdue,
++  lostRevenue,
++}: {
++  newLeadsToday: number;
++  wonThisWeek: number;
++  totalLeads: number;
++  totalRevenue: number;
++  conversion: number;
++  tasksDueToday: number;
++  tasksOverdue: number;
++  lostRevenue: number;
++}) {
++  const { t, lang } = useI18n();
++  const { format } = useCurrency();
++  const chat = useAiAssistantChat();
++  const [report, setReport] = useState<string | null>(null);
++  const [busy, setBusy] = useState(false);
++
++  async function generate() {
++    setBusy(true);
++    try {
++      const reply = await chat.mutateAsync({
++        messages: [
++          {
++            role: "user",
++            content: `Here are today's real CRM numbers: ${newLeadsToday} new leads today, ${wonThisWeek} deals won this week, ${totalLeads} total leads in the funnel worth ${format(totalRevenue)}, ${conversion.toFixed(1)}% conversion rate, ${tasksDueToday} tasks due today, ${tasksOverdue} tasks overdue, ${format(lostRevenue)} in projected lost revenue. Write a short daily report (3-5 sentences): what these numbers suggest went well today and what needs attention, and one concrete thing to focus on. Only reason from these numbers — don't invent activity you don't have. Respond in ${DASH_LANG_NAME[lang]}.`,
++          },
++        ],
++      });
++      setReport(reply);
++    } catch (err) {
++      toast.error(err instanceof Error ? err.message : t("dash.dailyReportFailed"));
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  return (
++    <SectionCard
++      title={t("dash.dailyReport")}
++      description={t("dash.dailyReportDesc")}
++      actions={
++        <button
++          type="button"
++          onClick={() => void generate()}
++          disabled={busy}
++          className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
++        >
++          {busy ? (
++            <Loader2 className="h-3.5 w-3.5 animate-spin" />
++          ) : (
++            <Sparkles className="h-3.5 w-3.5" />
++          )}
++          {t("common.generate")}
++        </button>
++      }
++    >
++      {report ? (
++        <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
++          {report}
++        </p>
++      ) : (
++        <p className="flex items-center gap-2 text-sm text-subtle">
++          <Sparkles className="h-4 w-4" /> {t("dash.dailyReportPlaceholder")}
++        </p>
++      )}
++    </SectionCard>
++  );
++}
++
+ function Dashboard() {
+   const { user } = useAuth();
+   const { t, lang } = useI18n();
+@@ -343,6 +435,19 @@ function Dashboard() {
+         </div>
+       </div>
+ 
++      <div className="mt-6">
++        <DashboardDailyReportCard
++          newLeadsToday={kpis.newLeadsToday}
++          wonThisWeek={kpis.wonThisWeek}
++          totalLeads={funnelStats.totalLeads}
++          totalRevenue={funnelStats.totalRevenue}
++          conversion={funnelStats.conversion}
++          tasksDueToday={taskStats.data?.dueToday ?? 0}
++          tasksOverdue={taskStats.data?.overdue ?? 0}
++          lostRevenue={lostRevenue}
++        />
++      </div>
++
+       <div className="mt-6 grid gap-6 xl:grid-cols-4">
+         <Suspense fallback={<ChartSkeleton className="xl:col-span-2" />}>
+           <RevenueChart />
+diff --git a/src/routes/funnels.tsx b/src/routes/funnels.tsx
+index ccb59f8..17264d7 100644
+--- a/src/routes/funnels.tsx
++++ b/src/routes/funnels.tsx
+@@ -468,9 +468,30 @@ function FunnelDetail({
+   const gallery = useMemo(() => filterLeads(leads, { ...filters, funnel: null }), [leads, filters]);
+ 
+   const wonCount = leads.filter((l) => l.stageIsWon).length;
+-  const lostValue = leads.filter((l) => l.stageIsLost).reduce((s, l) => s + l.expectedRevenue, 0);
+   const conversionRate = leads.length ? Math.round((wonCount / leads.length) * 1000) / 10 : 0;
+ 
++  // This funnel's own analytics -- not the same generic 4 numbers every
++  // funnel showed before, since a funnel's actual makeup (avg deal size,
++  // how many leads are hot right now, which of its own stages is
++  // busiest) varies a lot funnel to funnel and is what's actually
++  // actionable when you've drilled into one specific pipeline.
++  const openLeads = leads.filter((l) => !l.stageIsWon && !l.stageIsLost);
++  const avgDealSize = openLeads.length
++    ? openLeads.reduce((s, l) => s + l.expectedRevenue, 0) / openLeads.length
++    : 0;
++  const hotLeadsCount = openLeads.filter(
++    (l) => l.temperature === "Hot" || l.temperature === "VeryHot",
++  ).length;
++  const busiestStage = useMemo(() => {
++    const counts = new Map<string, number>();
++    for (const l of openLeads) counts.set(l.stage, (counts.get(l.stage) ?? 0) + 1);
++    let best: { stage: string; count: number } | null = null;
++    for (const [stage, count] of counts) {
++      if (!best || count > best.count) best = { stage, count };
++    }
++    return best;
++  }, [openLeads]);
++
+   return (
+     <>
+       <Link
+@@ -502,8 +523,13 @@ function FunnelDetail({
+           value={`${conversionRate}%`}
+           hint={t("funnels.conversion")}
+         />
+-        <StatCard label={t("funnels.wonDeals")} value={String(wonCount)} />
+-        <StatCard label={t("funnels.lostValue")} value={format(lostValue)} />
++        <StatCard label={t("funnels.avgDealSize")} value={format(avgDealSize)} />
++        <StatCard
++          label={t("funnels.hotLeadsCount")}
++          value={String(hotLeadsCount)}
++          tone="danger-soft"
++          {...(busiestStage ? { hint: `${busiestStage.stage}: ${busiestStage.count}` } : {})}
++        />
+       </div>
+ 
+       <div className="mt-8">
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index adba590..a78a187 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -42,7 +42,7 @@ import {
+   useFunnelStats,
+   useLeaderboardView,
+   useManagerFunnelStats,
+-  useManagerWeeklyTrend,
++  useManagerDailyTrend,
+   useTagsSummary,
+   type LeaderboardManagerRow,
+   type LeadRow,
+@@ -410,10 +410,10 @@ function Leaderboard() {
+     to: null,
+     label: t("lb.presetAll"),
+   });
+-  const managerTrend = useManagerWeeklyTrend(funnel, trendRange.from, trendRange.to);
++  const managerTrend = useManagerDailyTrend(funnel, trendRange.from, trendRange.to);
+   const conversionChartData = useMemo(
+     () =>
+-      managerTrend.weekLabels.map((label, i) => {
++      managerTrend.dayLabels.map((label, i) => {
+         const row: Record<string, string | number | null> = { label };
+         for (const s of managerTrend.series) row[s.id] = s.conversion[i] ?? null;
+         return row;
+@@ -422,7 +422,7 @@ function Leaderboard() {
+   );
+   const revenueChartData = useMemo(
+     () =>
+-      managerTrend.weekLabels.map((label, i) => {
++      managerTrend.dayLabels.map((label, i) => {
+         const row: Record<string, string | number | null> = { label };
+         for (const s of managerTrend.series) row[s.id] = s.salesRevenue[i] ?? 0;
+         return row;
