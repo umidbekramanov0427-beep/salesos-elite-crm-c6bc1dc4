@@ -1873,8 +1873,14 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
       });
     }
 
+    // Used to show only the first word of the name (assuming a western
+    // "First Last" pattern) to keep chart labels short — but this org's
+    // rep names follow a "Rus tili 117 | Fotima Axmedova" convention, so
+    // every rep starting with "Rus tili ..." collapsed to the identical
+    // label "Rus" on the chart. Keep the full name; RevenueByOwnerChart's
+    // XAxis truncates long labels itself.
     const perOwner = Array.from(revenueByOwner.entries())
-      .map(([name, revenue]) => ({ name: name.split(" ")[0]!, revenue }))
+      .map(([name, revenue]) => ({ name, revenue }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 6);
 
@@ -2822,7 +2828,11 @@ export function useTopPerformers(limit = 5) {
           department: p.department,
           deals: stats?.won_leads ?? 0,
           revenue: stats?.revenue ?? 0,
-          target: p.monthly_target || 1,
+          // null (not a fake "1") when no real target is set — dividing
+          // revenue by a placeholder target of 1 produced nonsensical
+          // percentages in the millions (e.g. "7,399,960%") for anyone
+          // without a monthly_target configured.
+          target: p.monthly_target || null,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
