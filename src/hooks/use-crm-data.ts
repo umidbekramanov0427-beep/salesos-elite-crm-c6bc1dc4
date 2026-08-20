@@ -1212,11 +1212,56 @@ export type RecoverableLeadView = {
   amocrmId: number | null;
 };
 
+type AudioLeadLite = {
+  id: string;
+  name: string;
+  company: string;
+  ownerId: string;
+  owner: string;
+  funnel: string;
+  stage: string;
+  tags: string[];
+  amocrmId: number | null;
+};
+
 export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
   const { user } = useAuth();
   const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsRaw();
-  const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
-  const isLoading = callsLoading || leadsLoading;
+  // Only the handful of display fields below (name/company/owner/funnel/
+  // stage/tags) are needed here — useCrmLeads() used to pull this via
+  // useCrmBase, which also fetched every company and contact in the org
+  // (unused on this page) plus ran the full CrmLeadView join per lead. On a
+  // large AmoCRM account that made "open Audio tahlil" pay the same
+  // multi-thousand-row cost as the leads register itself. Build the lookup
+  // straight from the lighter raw tables instead.
+  const { data: rawLeads, isLoading: rawLeadsLoading } = useLeadsRaw();
+  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+  const isLoading = callsLoading || rawLeadsLoading || profilesLoading || stagesLoading;
+
+  const leads = useMemo<AudioLeadLite[]>(() => {
+    const profilesById = byId(profiles);
+    const stagesById = byId(stages);
+    const scoped = visibleOwnerIds
+      ? (rawLeads ?? []).filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : (rawLeads ?? []);
+    return scoped.map((l) => {
+      const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
+      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      return {
+        id: l.id,
+        name: l.name,
+        company: l.company_name,
+        ownerId: l.owner_id ?? "",
+        owner: owner ? profileName(owner) : "Unassigned",
+        funnel: l.funnel ?? "",
+        stage: stage?.name ?? "New Lead",
+        tags: l.tags ?? [],
+        amocrmId: l.amocrm_id,
+      };
+    });
+  }, [rawLeads, profiles, stages, visibleOwnerIds]);
 
   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
 
@@ -1249,7 +1294,10 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
           // "Direct Sales" filter option and silently vanishes from results.
           funnel: lead ? lead.funnel || "Direct Sales" : null,
           stage: lead?.stage ?? null,
-          phone: c.phone ?? lead?.phone ?? "",
+          // A lead's own phone lives on its linked contact, which this view
+          // no longer fetches (see the lite-lookup comment above) — fall
+          // back to the call's own phone only.
+          phone: c.phone ?? "",
           direction: c.direction === "in" ? "in" : "out",
           connected: c.connected,
           durationSeconds: c.duration_seconds,

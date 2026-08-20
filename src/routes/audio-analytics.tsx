@@ -410,74 +410,6 @@ function AudioInsightsCharts({ calls }: { calls: AudioCallView[] }) {
   );
 }
 
-function DailyReportCard({
-  callsToday,
-  connectionRate,
-  avgDuration,
-  connected,
-}: {
-  callsToday: number;
-  connectionRate: number;
-  avgDuration: number;
-  connected: number;
-}) {
-  const { t, lang } = useI18n();
-  const chat = useAiAssistantChat();
-  const [report, setReport] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function generate() {
-    setBusy(true);
-    try {
-      const reply = await chat.mutateAsync({
-        messages: [
-          {
-            role: "user",
-            content: `Here are today's real sales call numbers: ${callsToday} calls made, ${connected} connected, connection rate ${connectionRate}%, average call duration ${avgDuration} seconds. Write a short daily report (3-5 sentences): what the numbers suggest went well today and what should improve, and one concrete thing to focus on tomorrow. Only reason from these numbers — don't invent call content you don't have. Respond in ${LANG_NAME[lang]}.`,
-          },
-        ],
-      });
-      setReport(reply);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("audio.dailyReportFailed"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <SectionCard
-      title={t("audio.dailyReport")}
-      description={t("audio.dailyReportDesc")}
-      actions={
-        <button
-          type="button"
-          onClick={() => void generate()}
-          disabled={busy}
-          className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
-        >
-          {busy ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
-          {t("common.generate")}
-        </button>
-      }
-    >
-      {report ? (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-          {report}
-        </p>
-      ) : (
-        <p className="flex items-center gap-2 text-sm text-subtle">
-          <Sparkles className="h-4 w-4" /> {t("audio.dailyReportPlaceholder")}
-        </p>
-      )}
-    </SectionCard>
-  );
-}
-
 function RecoverableRow({
   lead,
   getAmoLink,
@@ -936,7 +868,10 @@ function UploadCallDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useI18n();
-  const { rows: leads } = useCrmLeads();
+  // Only fetch the (expensive, whole-org) leads picker list once the dialog
+  // is actually opened — this used to run unconditionally on every Audio
+  // Analytics page load just to populate a dropdown nobody looked at yet.
+  const { rows: leads } = useCrmLeads(undefined, { enabled: open });
   const uploadCall = useUploadManualCall();
   const [file, setFile] = useState<File | null>(null);
   const [leadId, setLeadId] = useState("");
@@ -1381,15 +1316,6 @@ function AudioAnalytics() {
           value={formatDuration(totals.avgDuration, t("audio.min"))}
         />
         <StatCard label={t("audio.totalCalls")} value={String(totals.total)} />
-      </div>
-
-      <div className="mt-8">
-        <DailyReportCard
-          callsToday={totals.callsToday}
-          connectionRate={totals.connectionRate}
-          avgDuration={totals.avgDuration}
-          connected={totals.connected}
-        />
       </div>
 
       <div className="mt-8">
