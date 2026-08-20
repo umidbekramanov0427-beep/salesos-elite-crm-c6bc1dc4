@@ -597,7 +597,6 @@ function Leaderboard() {
             value={search}
             onChange={setSearch}
             placeholder={t("lb.searchPlaceholder")}
-            className="w-56"
           />
         </div>
       </SectionCard>

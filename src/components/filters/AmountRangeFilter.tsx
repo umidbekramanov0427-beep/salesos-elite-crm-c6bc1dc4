@@ -1,5 +1,6 @@
 import { Wallet } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export type AmountRangeValue = { min: number | null; max: number | null };
 
@@ -18,9 +19,13 @@ export function amountInRange(value: number, range: AmountRangeValue): boolean {
 export function AmountRangeFilter({
   value,
   onChange,
+  label,
+  className,
 }: {
   value: AmountRangeValue;
   onChange: (v: AmountRangeValue) => void;
+  label?: string;
+  className?: string;
 }) {
   const { t } = useI18n();
 
@@ -31,11 +36,16 @@ export function AmountRangeFilter({
   }
 
   return (
-    <div className="flex min-w-[200px] items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 hover:bg-accent">
+    <div
+      className={cn(
+        "flex h-14 w-48 shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 hover:bg-accent",
+        className,
+      )}
+    >
       <Wallet className="h-4 w-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">
-          {t("amountFilter.label")}
+          {label ?? t("amountFilter.label")}
         </p>
         <div className="flex items-center gap-1">
           <input

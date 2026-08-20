@@ -26,7 +26,7 @@ export function FilterTile({
         <button
           type="button"
           className={cn(
-            "flex min-w-[160px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
+            "flex h-14 w-48 shrink-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
             open
               ? "border-primary ring-1 ring-primary/40"
               : "border-border bg-surface hover:bg-accent",

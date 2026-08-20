@@ -295,18 +295,17 @@ function LeadsPage() {
                 value={queryInput}
                 onChange={setQueryInput}
                 placeholder={t("leads.searchPlaceholder")}
-                className="w-64"
               />
               <button
                 onClick={() => setSortDesc(!sortDesc)}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                className="inline-flex h-14 w-48 shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-border bg-background text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
               >
                 {t("leads.score")}{" "}
                 <ChevronDown
                   className={cn("h-4 w-4 transition-transform", !sortDesc && "rotate-180")}
                 />
               </button>
-              <button className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
+              <button className="inline-flex h-14 w-48 shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-border bg-background text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
                 <Filter className="h-4 w-4" /> {t("leads.filters")}
               </button>
             </div>

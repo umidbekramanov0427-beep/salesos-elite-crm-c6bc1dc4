@@ -107,7 +107,6 @@ function CompaniesPage() {
               value={query}
               onChange={setQuery}
               placeholder={t("companies.searchPlaceholder")}
-              className="w-56"
             />
           }
         >
