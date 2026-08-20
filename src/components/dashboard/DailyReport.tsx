@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -19,16 +19,12 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
-  GitBranch,
   ListChecks,
   Loader2,
   PhoneMissed,
   Sparkles,
-  User,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionCard, StatCard } from "@/components/layout/Primitives";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -37,8 +33,6 @@ import {
   useAiAssistantChat,
   useAmoCrmTaskStats,
   useDailyReportStats,
-  useFunnelNames,
-  useProfilesRaw,
   type DailyReportScope,
   type DailyReportStats,
 } from "@/hooks/use-crm-data";
@@ -92,73 +86,6 @@ const MONTH_LABELS_SHORT = [
   "Noy",
   "Dek",
 ];
-
-/* ------------------------------------------------------------------ */
-/* Filter tile -- same popover-menu pattern used in Lid tahlili's      */
-/* JAMOA/OPERATOR/VORONKA filters, duplicated here (page-local there). */
-/* ------------------------------------------------------------------ */
-
-function FilterTile({
-  icon: Icon,
-  label,
-  value,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "flex min-w-[160px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
-            open
-              ? "border-primary ring-1 ring-primary/40"
-              : "border-border bg-surface hover:bg-accent",
-          )}
-        >
-          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">{label}</p>
-            <p className="truncate text-sm font-bold text-foreground">{value}</p>
-          </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-subtle" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-80 w-64 overflow-y-auto p-1">
-        {children}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function TileOption({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors",
-        active ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-accent",
-      )}
-    >
-      {label}
-    </button>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Period strip -- a navigable row of day/week/month tiles, one        */
@@ -372,40 +299,29 @@ function RatioDonut({
 /* AI-only daily report card.                                          */
 /* ------------------------------------------------------------------ */
 
-export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
+// funnel/teamId/operatorId now come from the page-level filter row
+// (dashboard.tsx) instead of living here — this section used to have its
+// own independent copies of the same three filters, which is exactly the
+// "two filter rows for one dashboard" duplication that got removed.
+export function DashboardDailyReport({
+  funnel,
+  teamId,
+  operatorId,
+}: {
+  funnel: string | null;
+  teamId: string | null;
+  operatorId: string | null;
+}) {
   const { t, lang } = useI18n();
   const { format } = useCurrency();
   const chat = useAiAssistantChat();
-  const { data: profiles } = useProfilesRaw();
-  const { names: funnelNames } = useFunnelNames();
 
   const [period, setPeriod] = useState<Period>("daily");
   const [selected, setSelected] = useState<Date>(() => startOfDay(new Date()));
-  const [teamId, setTeamId] = useState("");
-  const [operatorId, setOperatorId] = useState("");
-  const [reportFunnel, setReportFunnel] = useState(funnel ?? "");
-
-  const rops = useMemo(
-    () =>
-      (profiles ?? [])
-        .filter((p) => p.role === "rop")
-        .slice()
-        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
-    [profiles],
-  );
-  const operators = useMemo(() => {
-    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
-    if (!teamId) return all;
-    return all.filter((p) => p.id === teamId || p.manager_id === teamId);
-  }, [profiles, teamId]);
 
   const scope: DailyReportScope = useMemo(
-    () => ({
-      funnel: reportFunnel || null,
-      teamId: teamId || null,
-      operatorId: operatorId || null,
-    }),
-    [reportFunnel, teamId, operatorId],
+    () => ({ funnel, teamId, operatorId }),
+    [funnel, teamId, operatorId],
   );
 
   const { range, prevRange } = useMemo(() => {
@@ -521,75 +437,6 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
           </div>
         }
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <FilterTile
-            icon={Users}
-            label={t("leadAnalytics.jamoaLabel")}
-            value={rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams")}
-          >
-            <TileOption
-              label={t("leadAnalytics.allTeams")}
-              active={!teamId}
-              onClick={() => {
-                setTeamId("");
-                setOperatorId("");
-              }}
-            />
-            {rops.map((r) => (
-              <TileOption
-                key={r.id}
-                label={r.full_name}
-                active={teamId === r.id}
-                onClick={() => {
-                  setTeamId(r.id);
-                  setOperatorId("");
-                }}
-              />
-            ))}
-          </FilterTile>
-          <FilterTile
-            icon={User}
-            label={t("leadAnalytics.operatorLabel")}
-            value={
-              operators.find((m) => m.id === operatorId)?.full_name ??
-              t("leadAnalytics.allManagers")
-            }
-          >
-            <TileOption
-              label={t("leadAnalytics.allManagers")}
-              active={!operatorId}
-              onClick={() => setOperatorId("")}
-            />
-            {operators.map((m) => (
-              <TileOption
-                key={m.id}
-                label={m.full_name}
-                active={operatorId === m.id}
-                onClick={() => setOperatorId(m.id)}
-              />
-            ))}
-          </FilterTile>
-          <FilterTile
-            icon={GitBranch}
-            label={t("leadAnalytics.funnelLabel")}
-            value={reportFunnel || t("leadFilter.allFunnels")}
-          >
-            <TileOption
-              label={t("leadFilter.allFunnels")}
-              active={!reportFunnel}
-              onClick={() => setReportFunnel("")}
-            />
-            {funnelNames.map((f) => (
-              <TileOption
-                key={f}
-                label={f}
-                active={reportFunnel === f}
-                onClick={() => setReportFunnel(f)}
-              />
-            ))}
-          </FilterTile>
-        </div>
-
         <PeriodStrip period={period} selected={selected} onSelect={setSelected} t={t} />
       </SectionCard>
 
@@ -660,7 +507,7 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
             </div>
           ) : (
             <p className="mt-3 py-4 text-center text-xs text-subtle">
-              {reportFunnel ? t("dash.report.noAlerts") : t("dash.report.pickFunnelForAlerts")}
+              {funnel ? t("dash.report.noAlerts") : t("dash.report.pickFunnelForAlerts")}
             </p>
           )}
         </div>
@@ -886,7 +733,7 @@ export function DashboardDailyReport({ funnel }: { funnel: string | null }) {
 
       <div className="mt-4">
         <SectionCard title={t("dash.report.stageBreakdown")}>
-          {!reportFunnel ? (
+          {!funnel ? (
             <p className="py-10 text-center text-sm text-subtle">
               {t("dash.report.pickFunnelForStages")}
             </p>
