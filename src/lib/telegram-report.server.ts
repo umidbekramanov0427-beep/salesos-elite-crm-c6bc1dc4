@@ -24,14 +24,24 @@ export async function buildDailyReportText(organizationId: string): Promise<stri
   startOfToday.setHours(0, 0, 0, 0);
   const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
 
-  const [profilesRes, dealsRes, sessionsRes, callsRes] = await Promise.all([
+  const [profilesRes, leadsRes, stagesRes, sessionsRes, callsRes] = await Promise.all([
     supabaseAdmin
       .from("profiles")
       .select("id, full_name, email, role, monthly_target")
       .eq("organization_id", organizationId),
+    // Revenue used to come from `deals` — but this AmoCRM-synced setup
+    // never populates that table (leads carry the real revenue), so the
+    // report's revenue lines were always 0. Read won leads instead, same
+    // as the rest of the app. Leads have no close_date, so updated_at is
+    // used as a "when it closed" proxy (no per-lead stage-history to read
+    // instead in this schema).
     supabaseAdmin
-      .from("deals")
-      .select("owner_id, value, status, close_date")
+      .from("leads")
+      .select("owner_id, expected_revenue, updated_at, stage_id")
+      .eq("organization_id", organizationId),
+    supabaseAdmin
+      .from("pipeline_stages")
+      .select("id, is_won")
       .eq("organization_id", organizationId),
     supabaseAdmin
       .from("work_sessions")
@@ -44,7 +54,8 @@ export async function buildDailyReportText(organizationId: string): Promise<stri
   ]);
 
   const profiles = profilesRes.data ?? [];
-  const deals = dealsRes.data ?? [];
+  const leads = leadsRes.data ?? [];
+  const wonStageIds = new Set((stagesRes.data ?? []).filter((s) => s.is_won).map((s) => s.id));
   const sessions = sessionsRes.data ?? [];
   const calls = callsRes.data ?? [];
 
@@ -59,28 +70,32 @@ export async function buildDailyReportText(organizationId: string): Promise<stri
   let topRevenue = 0;
 
   for (const p of reps) {
-    const won = deals.filter((d) => d.owner_id === p.id && d.status === "won" && d.close_date);
+    const won = leads.filter(
+      (l) => l.owner_id === p.id && l.stage_id && wonStageIds.has(l.stage_id),
+    );
     const today = won
-      .filter((d) => new Date(d.close_date!) >= startOfToday)
-      .reduce((s, d) => s + Number(d.value), 0);
+      .filter((l) => new Date(l.updated_at) >= startOfToday)
+      .reduce((s, l) => s + Number(l.expected_revenue), 0);
     const month = won
-      .filter((d) => new Date(d.close_date!) >= startOfMonth)
-      .reduce((s, d) => s + Number(d.value), 0);
+      .filter((l) => new Date(l.updated_at) >= startOfMonth)
+      .reduce((s, l) => s + Number(l.expected_revenue), 0);
     revenueToday += today;
     revenueMonth += month;
     if (today > topRevenue) {
       topRevenue = today;
       topName = p.full_name || p.email;
     }
-    const monthlyTarget = p.monthly_target || 1;
-    const dayOfMonth = new Date().getDate();
-    const daysInMonth = new Date(
-      startOfToday.getFullYear(),
-      startOfToday.getMonth() + 1,
-      0,
-    ).getDate();
-    const expectedByNow = monthlyTarget * (dayOfMonth / daysInMonth);
-    if (month < expectedByNow * 0.6) behindCount++;
+    const monthlyTarget = p.monthly_target;
+    if (monthlyTarget > 0) {
+      const dayOfMonth = new Date().getDate();
+      const daysInMonth = new Date(
+        startOfToday.getFullYear(),
+        startOfToday.getMonth() + 1,
+        0,
+      ).getDate();
+      const expectedByNow = monthlyTarget * (dayOfMonth / daysInMonth);
+      if (month < expectedByNow * 0.6) behindCount++;
+    }
   }
 
   const clockedInToday = new Set(
