@@ -27,7 +27,7 @@ export function FilterSelect({
   return (
     <div
       className={cn(
-        "inline-flex h-14 w-48 shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 hover:bg-accent",
+        "inline-flex h-14 w-64 shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 hover:bg-accent",
         className,
       )}
     >
@@ -68,7 +68,7 @@ export function FilterSearchInput({
   return (
     <div
       className={cn(
-        "inline-flex h-14 w-48 shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40",
+        "inline-flex h-14 w-64 shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40",
         className,
       )}
     >

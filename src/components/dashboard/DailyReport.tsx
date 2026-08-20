@@ -21,19 +21,15 @@ import {
   ChevronRight,
   GitBranch,
   ListChecks,
-  Loader2,
   PhoneMissed,
-  Sparkles,
   User,
   Users,
 } from "lucide-react";
-import { toast } from "sonner";
 import { SectionCard, StatCard } from "@/components/layout/Primitives";
-import { useI18n, type Lang } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import {
-  useAiAssistantChat,
   useAmoCrmTaskStats,
   useDailyReportStats,
   type DailyReportScope,
@@ -44,8 +40,6 @@ import { FilterTile, TileOption } from "@/components/filters/FilterTile";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
-
-const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -346,9 +340,8 @@ export function DashboardDailyReport({
   rops: ProfileRow[];
   operators: ProfileRow[];
 }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const { format } = useCurrency();
-  const chat = useAiAssistantChat();
 
   const [period, setPeriod] = useState<Period>("daily");
   const [selected, setSelected] = useState<Date>(() => startOfDay(new Date()));
@@ -382,34 +375,6 @@ export function DashboardDailyReport({
 
   const stats = useDailyReportStats(range, prevRange, scope);
   const taskStats = useAmoCrmTaskStats(scope.funnel);
-
-  const [aiReport, setAiReport] = useState<string | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
-
-  function formatDuration(seconds: number): string {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return h > 0 ? `${h}.${Math.round((m / 60) * 10)}h` : `${m} daq`;
-  }
-
-  async function generateAiReport() {
-    setAiBusy(true);
-    try {
-      const reply = await chat.mutateAsync({
-        messages: [
-          {
-            role: "user",
-            content: `Here is a ${period} sales-team report: ${stats.totalCalls} total calls made, ${stats.connectedCalls} connected, ${stats.missedCalls} missed (contact rate ${stats.contactRatePct}%), total talk time ${formatDuration(stats.totalCallSeconds)}, average call quality score ${stats.avgCallScore ?? "n/a"}/100. ${stats.newLeads} leads created, ${stats.soldLeads} reached a sales stage (conversion ${stats.soldLeadsPct}%), ${stats.openLeads} still open in the pipeline. Revenue this period: ${format(stats.periodRevenue)}. Write a short, dense summary (3-4 sentences) in the exact tone of an operational report: state the raw numbers, flag anything concerning (low conversion, low contact rate), and end with one concrete recommendation. Respond in ${LANG_NAME[lang]}.`,
-          },
-        ],
-      });
-      setAiReport(reply);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("dash.dailyReportFailed"));
-    } finally {
-      setAiBusy(false);
-    }
-  }
 
   const overallDonut = [
     {
@@ -449,9 +414,6 @@ export function DashboardDailyReport({
   return (
     <div className="mt-6">
       <SectionCard
-        title={t("dash.dailyReport")}
-        description={t("dash.dailyReportDesc")}
-        info={t("dash.filtersInfo")}
         actions={
           <div className="inline-flex items-center gap-1 rounded-2xl border border-border bg-card p-1">
             {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
@@ -555,37 +517,6 @@ export function DashboardDailyReport({
         </p>
         <h3 className="mt-1 text-xl font-bold text-foreground">{t("dash.report.summaryTitle")}</h3>
         <p className="mt-1 text-sm text-subtle">{t("dash.report.summaryDesc")}</p>
-      </div>
-
-      <div className="mt-4">
-        <SectionCard
-          title={t("dash.dailyReport")}
-          actions={
-            <button
-              type="button"
-              onClick={() => void generateAiReport()}
-              disabled={aiBusy}
-              className="inline-flex items-center gap-2 rounded-xl bg-mint px-3 py-1.5 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border disabled:opacity-50"
-            >
-              {aiBusy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              {t("common.generate")}
-            </button>
-          }
-        >
-          {aiReport ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {aiReport}
-            </p>
-          ) : (
-            <p className="flex items-center gap-2 text-sm text-subtle">
-              <Sparkles className="h-4 w-4" /> {t("dash.dailyReportPlaceholder")}
-            </p>
-          )}
-        </SectionCard>
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">

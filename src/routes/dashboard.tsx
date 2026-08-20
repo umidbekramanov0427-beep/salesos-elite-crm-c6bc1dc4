@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlarmClockOff, CalendarClock, PhoneCall, Sparkles } from "lucide-react";
+import { AlarmClockOff, CalendarClock, PhoneCall } from "lucide-react";
 import { PageHeader, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { DashboardDailyReport } from "@/components/dashboard/DailyReport";
@@ -14,18 +14,15 @@ import {
   AiInsightsWidget,
 } from "@/components/dashboard/Widgets";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import {
   useAmoCrmTaskStats,
   useAsOfSnapshot,
-  useDashboardKpis,
   useFunnelCallStats,
   useFunnelNames,
   useFunnelStats,
   useProfilesRaw,
-  type DealRow,
   type LeadRow,
 } from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
@@ -93,8 +90,7 @@ function ChartSkeleton({ height = 300, className }: { height?: number; className
 }
 
 function Dashboard() {
-  const { user } = useAuth();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const { format } = useCurrency();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -140,34 +136,6 @@ function Dashboard() {
   }, [profiles, teamId]);
 
   const asOfLeads = useAsOfSnapshot<LeadRow>("leads", asOfDate);
-  const asOfDeals = useAsOfSnapshot<DealRow>("deals", asOfDate);
-  const dashboardFilters = useMemo(
-    () => ({
-      from: dateFilter.from ? dateFilter.from.toISOString() : null,
-      to: dateFilter.to ? dateFilter.to.toISOString() : null,
-      funnel,
-      minAmount: amountRange.min,
-      maxAmount: amountRange.max,
-    }),
-    [dateFilter, funnel, amountRange],
-  );
-  const kpis = useDashboardKpis(
-    dashboardFilters,
-    asOfDate ? { leads: asOfLeads.data ?? [], deals: asOfDeals.data ?? [] } : undefined,
-  );
-  function greeting() {
-    const h = new Date().getHours();
-    if (h < 12) return t("dash.greetingMorning");
-    if (h < 18) return t("dash.greetingAfternoon");
-    return t("dash.greetingEvening");
-  }
-
-  const today = new Date().toLocaleDateString(lang === "uz" ? "en-US" : lang, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 
   // Same per-funnel computation Reyting uses (raw leads + pipeline_stages,
   // not the dashboard_kpis RPC) -- these 8 cards are all about one funnel's
@@ -196,20 +164,23 @@ function Dashboard() {
     <>
       <PageHeader title={t("dash.title")} description={t("dash.desc")} />
 
-      <section className="mint-card mt-6 grid gap-4 p-6">
-        <div className="min-w-0">
-          <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
-            {greeting()}, {user?.name?.split(" ")[0] ?? t("dash.friend")} 👋
-          </h2>
-          <p className="mt-1 text-xs text-subtle">{today}</p>
-          <p className="mt-3 flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-mint-foreground" />
-            {kpis.wonThisWeek > 0 || kpis.newLeadsToday > 0
-              ? t("dash.weekSummary", { won: kpis.wonThisWeek, leads: kpis.newLeadsToday })
-              : t("dash.weekSummaryEmpty")}
-          </p>
-        </div>
-      </section>
+      <DashboardDailyReport
+        funnel={funnel}
+        onFunnelChange={setFunnel}
+        teamId={teamId || null}
+        onTeamChange={(v) => setTeamId(v ?? "")}
+        operatorId={operatorId || null}
+        onOperatorChange={(v) => setOperatorId(v ?? "")}
+        dateFilter={dateFilter}
+        onDateFilterChange={setDateFilter}
+        amountRange={amountRange}
+        onAmountRangeChange={setAmountRange}
+        asOfDate={asOfDate}
+        onAsOfDateChange={setAsOfDate}
+        funnelNames={funnelNames}
+        rops={rops}
+        operators={operators}
+      />
 
       <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -312,24 +283,6 @@ function Dashboard() {
           </div>
         </div>
       </div>
-
-      <DashboardDailyReport
-        funnel={funnel}
-        onFunnelChange={setFunnel}
-        teamId={teamId || null}
-        onTeamChange={(v) => setTeamId(v ?? "")}
-        operatorId={operatorId || null}
-        onOperatorChange={(v) => setOperatorId(v ?? "")}
-        dateFilter={dateFilter}
-        onDateFilterChange={setDateFilter}
-        amountRange={amountRange}
-        onAmountRangeChange={setAmountRange}
-        asOfDate={asOfDate}
-        onAsOfDateChange={setAsOfDate}
-        funnelNames={funnelNames}
-        rops={rops}
-        operators={operators}
-      />
 
       <div className="mt-6 space-y-6">
         <Suspense fallback={<ChartSkeleton />}>
