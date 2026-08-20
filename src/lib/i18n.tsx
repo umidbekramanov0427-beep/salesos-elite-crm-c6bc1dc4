@@ -477,12 +477,19 @@ const en: Dict = {
   "dash.card.lossRateHint": "Last 90 days",
   "dash.card.monthlyTrend": "Monthly revenue trend",
   "dash.card.monthlyTrendDesc": "Won-lead revenue by month, last 8 months",
+  "dash.card.monthlyTrendInfo":
+    "Revenue from won leads, month by month — spot growth or decline trends.",
   "dash.card.revenueByOwner": "Revenue by rep",
   "dash.card.revenueByOwnerDesc": "Won-lead revenue per owner, top 6",
+  "dash.card.revenueByOwnerInfo": "Which reps are generating the most closed revenue, top 6.",
   "dash.card.lostReasons": "Lost reasons",
   "dash.card.lostReasonsDesc": "Why lost-stage leads in this funnel didn't close",
+  "dash.card.lostReasonsInfo":
+    "The stated reasons behind lost leads in this funnel, ranked by frequency — spot the biggest recurring blocker.",
   "dash.card.dealFlow": "Sales dynamics",
   "dash.card.dealFlowDesc": "Deal flow and revenue, by week",
+  "dash.card.dealFlowInfo":
+    "New leads created vs. won/lost outcomes and revenue, week by week — is the pipeline growing or shrinking?",
   "dash.card.dealFlowDeals": "deals",
   "dash.card.dealFlowCreated": "Created (context)",
   "dash.card.dealFlowWon": "Won",
@@ -490,6 +497,8 @@ const en: Dict = {
   "dash.card.dealFlowRevenue": "Revenue",
   "dash.card.conversionQuality": "Conversion & call quality",
   "dash.card.conversionQualityDesc": "Do good calls lift the win rate? — by week",
+  "dash.card.conversionQualityInfo":
+    "Compares the win-rate trend against the share of calls scoring in your chosen range — do better calls actually drive more wins?",
   "dash.card.conversionQualityHint":
     "The dashed line isn't final: leads created in recent weeks haven't finished converting yet, so the number can still rise.",
   "dash.card.scoreRange": "Score range",
@@ -1343,15 +1352,21 @@ const en: Dict = {
 
   "charts.revenue.title": "Revenue",
   "charts.revenue.desc": "Monthly won revenue against open pipeline",
+  "charts.revenue.info":
+    "Won revenue vs. open pipeline value, over time — shows whether the pipeline is actually converting into closed revenue.",
   "charts.pdf": "PDF",
   "charts.excel": "Excel",
   "charts.revenue.pdfQueued": "Revenue report queued as PDF",
   "charts.revenue.excelQueued": "Revenue report queued as Excel",
   "charts.pipeline.title": "Pipeline",
   "charts.pipeline.desc": "Deal value per stage",
+  "charts.pipeline.info":
+    "Total deal value sitting in each pipeline stage right now — where the money is concentrated in the funnel.",
   "charts.pipeline.deals": "{count} deals",
   "charts.funnel.title": "Sales funnel",
   "charts.funnel.desc": "Lead to won conversion",
+  "charts.funnel.info":
+    "How many leads reach each stage and what share converts onward — where deals are being lost along the way.",
   "charts.chooseFunnel": "Choose a funnel above to see this chart",
 
   "notfound.title": "Page not found",
@@ -1452,6 +1467,7 @@ const en: Dict = {
   "settings.moveUp": "Move up",
   "settings.moveDown": "Move down",
   "widget.dealsCount": "{count} deals",
+  "widget.noTarget": "No target set",
 
   "leadFilter.allFunnels": "All funnels",
   "leadFilter.allOwners": "All owners",
@@ -2321,12 +2337,20 @@ const ru: Dict = {
   "dash.card.lossRateHint": "Последние 90 дней",
   "dash.card.monthlyTrend": "Динамика выручки по месяцам",
   "dash.card.monthlyTrendDesc": "Выручка по выигранным лидам за последние 8 месяцев",
+  "dash.card.monthlyTrendInfo":
+    "Выручка по выигранным лидам, по месяцам — чтобы увидеть рост или спад.",
   "dash.card.revenueByOwner": "Выручка по менеджерам",
   "dash.card.revenueByOwnerDesc": "Выручка по выигранным лидам, топ-6 менеджеров",
+  "dash.card.revenueByOwnerInfo":
+    "Кто из менеджеров приносит больше всего закрытой выручки, топ-6.",
   "dash.card.lostReasons": "Причины отказа",
   "dash.card.lostReasonsDesc": "Почему лиды этой воронки не закрылись",
+  "dash.card.lostReasonsInfo":
+    "Указанные причины проигрыша лидов в этой воронке, по частоте — помогает найти главный повторяющийся блокер.",
   "dash.card.dealFlow": "Динамика продаж",
   "dash.card.dealFlowDesc": "Поток сделок и выручка по неделям",
+  "dash.card.dealFlowInfo":
+    "Новые лиды против выигранных/проигранных и выручки, по неделям — растёт воронка или сжимается?",
   "dash.card.dealFlowDeals": "сделок",
   "dash.card.dealFlowCreated": "Создано (контекст)",
   "dash.card.dealFlowWon": "Выиграно",
@@ -2334,6 +2358,8 @@ const ru: Dict = {
   "dash.card.dealFlowRevenue": "Выручка",
   "dash.card.conversionQuality": "Конверсия и качество звонков",
   "dash.card.conversionQualityDesc": "Влияют ли хорошие звонки на конверсию? — по неделям",
+  "dash.card.conversionQualityInfo":
+    "Сравнивает тренд конверсии с долей звонков, попавших в выбранный диапазон баллов — влияют ли хорошие звонки на победы.",
   "dash.card.conversionQualityHint":
     "Пунктирная линия не окончательна: лиды, созданные в последние недели, ещё не завершили конверсию, поэтому число может вырасти.",
   "dash.card.scoreRange": "Диапазон баллов",
@@ -3177,15 +3203,21 @@ const ru: Dict = {
 
   "charts.revenue.title": "Выручка",
   "charts.revenue.desc": "Выигранная выручка по месяцам против открытой воронки",
+  "charts.revenue.info":
+    "Выигранная выручка против стоимости открытой воронки во времени — показывает, реально ли воронка превращается в закрытую выручку.",
   "charts.pdf": "PDF",
   "charts.excel": "Excel",
   "charts.revenue.pdfQueued": "Отчёт по выручке поставлен в очередь как PDF",
   "charts.revenue.excelQueued": "Отчёт по выручке поставлен в очередь как Excel",
   "charts.pipeline.title": "Воронка",
   "charts.pipeline.desc": "Сумма сделок по этапам",
+  "charts.pipeline.info":
+    "Суммарная стоимость сделок на каждом этапе воронки прямо сейчас — где сосредоточены деньги.",
   "charts.pipeline.deals": "сделок: {count}",
   "charts.funnel.title": "Воронка продаж",
   "charts.funnel.desc": "Конверсия от лида до выигрыша",
+  "charts.funnel.info":
+    "Сколько лидов доходит до каждого этапа и какая доля конвертируется дальше — где теряются сделки.",
   "charts.chooseFunnel": "Выберите воронку выше, чтобы увидеть этот график",
 
   "notfound.title": "Страница не найдена",
@@ -3287,6 +3319,7 @@ const ru: Dict = {
   "settings.moveUp": "Переместить вверх",
   "settings.moveDown": "Переместить вниз",
   "widget.dealsCount": "сделок: {count}",
+  "widget.noTarget": "Цель не задана",
 
   "leadFilter.allFunnels": "Все воронки",
   "leadFilter.allOwners": "Все owners",
@@ -4170,12 +4203,20 @@ const uz: Dict = {
   "dash.card.lossRateHint": "Oxirgi 90 kun",
   "dash.card.monthlyTrend": "Oylik tushum dinamikasi",
   "dash.card.monthlyTrendDesc": "Yutilgan lidlar bo'yicha tushum, so'nggi 8 oy",
+  "dash.card.monthlyTrendInfo":
+    "Yutilgan lidlar bo'yicha tushum, oy-oy — o'sish yoki pasayish tendensiyasini ko'rish uchun.",
   "dash.card.revenueByOwner": "Menejerlar bo'yicha tushum",
   "dash.card.revenueByOwnerDesc": "Yutilgan lidlar bo'yicha tushum, TOP-6 menejer",
+  "dash.card.revenueByOwnerInfo":
+    "Qaysi menejerlar eng ko'p yopilgan tushum keltirayotgani, TOP-6.",
   "dash.card.lostReasons": "Yo'qotish sabablari",
   "dash.card.lostReasonsDesc": "Shu voronkadagi yo'qotilgan lidlar nima uchun yopilmagan",
+  "dash.card.lostReasonsInfo":
+    "Shu voronkadagi yo'qotilgan lidlarning ko'rsatilgan sabablari, chastotasi bo'yicha — eng ko'p takrorlanadigan to'siqni topishga yordam beradi.",
   "dash.card.dealFlow": "Sotuv dinamikasi",
   "dash.card.dealFlowDesc": "Bitimlar oqimi va tushum, hafta bo'yicha",
+  "dash.card.dealFlowInfo":
+    "Yaratilgan yangi lidlar va yutilgan/yo'qotilgan natijalar hamda tushum, hafta bo'yicha — voronka o'sayaptimi yoki qisqarayaptimi?",
   "dash.card.dealFlowDeals": "bitimlar",
   "dash.card.dealFlowCreated": "Yaratildi (kontekst)",
   "dash.card.dealFlowWon": "Yutildi",
@@ -4184,6 +4225,8 @@ const uz: Dict = {
   "dash.card.conversionQuality": "Konversiya va qo'ng'iroq sifati",
   "dash.card.conversionQualityDesc":
     "Yaxshi qo'ng'iroqlar yutuq darajasini oshiradimi? — hafta bo'yicha",
+  "dash.card.conversionQualityInfo":
+    "Konversiya trendini siz tanlagan ball oralig'idagi qo'ng'iroqlar ulushi bilan solishtiradi — yaxshi qo'ng'iroqlar haqiqatan ko'proq yutuqqa olib kelayotganini ko'rish uchun.",
   "dash.card.conversionQualityHint":
     "Uzuq chiziq yakuniy emas: u yerdagi lidlar hali konversiya muddatini tugatmagan, shuning uchun raqam oshishi mumkin.",
   "dash.card.scoreRange": "Ball oralig'i",
@@ -5038,15 +5081,21 @@ const uz: Dict = {
 
   "charts.revenue.title": "Tushum",
   "charts.revenue.desc": "Oylik yutilgan tushum va ochiq voronka solishtiruvi",
+  "charts.revenue.info":
+    "Vaqt bo'yicha yutilgan tushum va ochiq voronka qiymati — voronka haqiqatan yopilgan tushumga aylanayotganini ko'rsatadi.",
   "charts.pdf": "PDF",
   "charts.excel": "Excel",
   "charts.revenue.pdfQueued": "Tushum hisoboti PDF sifatida navbatga qo'yildi",
   "charts.revenue.excelQueued": "Tushum hisoboti Excel sifatida navbatga qo'yildi",
   "charts.pipeline.title": "Voronka",
   "charts.pipeline.desc": "Har bir etap bo'yicha bitim summasi",
+  "charts.pipeline.info":
+    "Hozirgi holatda har bir voronka bosqichida turgan jami bitim summasi — pul qayerda to'planganini ko'rsatadi.",
   "charts.pipeline.deals": "{count} ta bitim",
   "charts.funnel.title": "Savdo voronkasi",
   "charts.funnel.desc": "Liddan yutishgacha bo'lgan konversiya",
+  "charts.funnel.info":
+    "Har bir bosqichga necha lid yetib borishi va qay foizi keyingi bosqichga o'tishi — bitimlar qayerda yo'qolayotganini ko'rsatadi.",
   "charts.chooseFunnel": "Bu grafikani ko'rish uchun yuqoridan voronkani tanlang",
 
   "notfound.title": "Sahifa topilmadi",
@@ -5150,6 +5199,7 @@ const uz: Dict = {
   "settings.moveUp": "Yuqoriga surish",
   "settings.moveDown": "Pastga surish",
   "widget.dealsCount": "{count} ta bitim",
+  "widget.noTarget": "Maqsad belgilanmagan",
 
   "leadFilter.allFunnels": "Barcha voronkalar",
   "leadFilter.allOwners": "Barcha egalar",

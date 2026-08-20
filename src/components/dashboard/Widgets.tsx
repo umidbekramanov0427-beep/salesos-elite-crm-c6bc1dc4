@@ -55,7 +55,7 @@ export function LeaderboardWidget() {
       )}
       <ul className="space-y-3">
         {ranked.map((rep, i) => {
-          const pct = Math.round((rep.revenue / rep.target) * 100);
+          const pct = rep.target ? Math.round((rep.revenue / rep.target) * 100) : null;
           return (
             <li
               key={rep.id}
@@ -78,19 +78,23 @@ export function LeaderboardWidget() {
                 <p className="truncate text-[11px] text-subtle">
                   {rep.department} · {t("widget.dealsCount", { count: rep.deals })}
                 </p>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-[width] duration-700",
-                      pct >= 100 ? "bg-success" : "bg-primary",
-                    )}
-                    style={{ width: `${Math.min(pct, 100)}%` }}
-                  />
-                </div>
+                {pct != null && (
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-[width] duration-700",
+                        pct >= 100 ? "bg-success" : "bg-primary",
+                      )}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                )}
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-semibold text-foreground">{format(rep.revenue)}</p>
-                <p className="text-[11px] text-subtle">{pct}%</p>
+                <p className="text-[11px] text-subtle">
+                  {pct != null ? `${pct}%` : t("widget.noTarget")}
+                </p>
               </div>
             </li>
           );

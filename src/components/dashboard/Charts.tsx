@@ -49,6 +49,17 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
+// Currency Y-axis labels used to always divide by 1000 ("15000k" for a
+// revenue in the tens of millions), which ran wider than the chart's
+// margin allowed for and got clipped down to "0000k" on the left edge for
+// any account with enough revenue. Step up to "M" once a value crosses a
+// million so the label stays short regardless of scale.
+function abbreviateAxisValue(v: number): string {
+  if (v >= 1_000_000) return `${Math.round(v / 1_000_000)}M`;
+  if (v >= 1000) return `${Math.round(v / 1000)}k`;
+  return `${v}`;
+}
+
 export function RevenueChart() {
   const { t } = useI18n();
   const data = useRevenueSeries();
@@ -57,6 +68,7 @@ export function RevenueChart() {
     <SectionCard
       title={t("charts.revenue.title")}
       description={t("charts.revenue.desc")}
+      info={t("charts.revenue.info")}
       className="xl:col-span-2"
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -97,7 +109,7 @@ export function RevenueChart() {
               stroke="var(--color-subtle)"
             />
             <YAxis
-              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickFormatter={abbreviateAxisValue}
               tickLine={false}
               axisLine={false}
               fontSize={12}
@@ -132,13 +144,21 @@ export function PipelineChart({ funnel }: { funnel: string | null }) {
   const stats = usePipelineStageStats(funnel);
   if (!funnel) {
     return (
-      <SectionCard title={t("charts.pipeline.title")} description={t("charts.pipeline.desc")}>
+      <SectionCard
+        title={t("charts.pipeline.title")}
+        description={t("charts.pipeline.desc")}
+        info={t("charts.pipeline.info")}
+      >
         <ChooseFunnelPrompt />
       </SectionCard>
     );
   }
   return (
-    <SectionCard title={t("charts.pipeline.title")} description={t("charts.pipeline.desc")}>
+    <SectionCard
+      title={t("charts.pipeline.title")}
+      description={t("charts.pipeline.desc")}
+      info={t("charts.pipeline.info")}
+    >
       <div className="h-[180px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={stats} margin={{ left: -18, right: 8, top: 4 }}>
@@ -152,7 +172,7 @@ export function PipelineChart({ funnel }: { funnel: string | null }) {
               interval={0}
             />
             <YAxis
-              tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
+              tickFormatter={abbreviateAxisValue}
               tickLine={false}
               axisLine={false}
               fontSize={11}
@@ -199,16 +219,29 @@ export function PipelineChart({ funnel }: { funnel: string | null }) {
 export function SalesFunnel({ funnel }: { funnel: string | null }) {
   const { t } = useI18n();
   const flow = useFunnelFlow(funnel);
-  const max = flow[0]?.count ?? 1;
+  // Bar width is each stage's count relative to the largest stage — not
+  // flow[0], which broke whenever the first stage in pipeline order (e.g.
+  // an unused "Неразобранное") happened to have 0 leads: dividing by that
+  // 0 made every other bar's width Infinity/NaN, rendering full-width
+  // regardless of the stage's real share.
+  const max = Math.max(1, ...flow.map((s) => s.count));
   if (!funnel) {
     return (
-      <SectionCard title={t("charts.funnel.title")} description={t("charts.funnel.desc")}>
+      <SectionCard
+        title={t("charts.funnel.title")}
+        description={t("charts.funnel.desc")}
+        info={t("charts.funnel.info")}
+      >
         <ChooseFunnelPrompt />
       </SectionCard>
     );
   }
   return (
-    <SectionCard title={t("charts.funnel.title")} description={t("charts.funnel.desc")}>
+    <SectionCard
+      title={t("charts.funnel.title")}
+      description={t("charts.funnel.desc")}
+      info={t("charts.funnel.info")}
+    >
       <ol className="space-y-3">
         {flow.map((s) => (
           <li key={s.stage}>
@@ -243,7 +276,11 @@ export function MonthlyRevenueTrendChart({ funnel }: { funnel: string | null }) 
   const { monthlyTrend } = useSalesAnalyticsSummary(funnel);
 
   return (
-    <SectionCard title={t("dash.card.monthlyTrend")} description={t("dash.card.monthlyTrendDesc")}>
+    <SectionCard
+      title={t("dash.card.monthlyTrend")}
+      description={t("dash.card.monthlyTrendDesc")}
+      info={t("dash.card.monthlyTrendInfo")}
+    >
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={monthlyTrend} margin={{ left: -14, right: 8, top: 8 }}>
@@ -256,7 +293,7 @@ export function MonthlyRevenueTrendChart({ funnel }: { funnel: string | null }) 
               stroke="var(--color-subtle)"
             />
             <YAxis
-              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickFormatter={abbreviateAxisValue}
               tickLine={false}
               axisLine={false}
               fontSize={12}
@@ -287,6 +324,7 @@ export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
       <SectionCard
         title={t("dash.card.revenueByOwner")}
         description={t("dash.card.revenueByOwnerDesc")}
+        info={t("dash.card.revenueByOwnerInfo")}
       >
         <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
       </SectionCard>
@@ -297,20 +335,26 @@ export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
     <SectionCard
       title={t("dash.card.revenueByOwner")}
       description={t("dash.card.revenueByOwnerDesc")}
+      info={t("dash.card.revenueByOwnerInfo")}
     >
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={perOwner} margin={{ left: -14, right: 8, top: 8 }}>
+          <BarChart data={perOwner} margin={{ left: -14, right: 8, top: 8, bottom: 24 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
             <XAxis
               dataKey="name"
               tickLine={false}
               axisLine={false}
-              fontSize={12}
+              fontSize={11}
               stroke="var(--color-subtle)"
+              interval={0}
+              angle={-20}
+              textAnchor="end"
+              height={50}
+              tickFormatter={(name: string) => (name.length > 14 ? `${name.slice(0, 14)}…` : name)}
             />
             <YAxis
-              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickFormatter={abbreviateAxisValue}
               tickLine={false}
               axisLine={false}
               fontSize={12}
@@ -341,7 +385,11 @@ export function LostReasonsChart({ funnel }: { funnel: string | null }) {
 
   if (reasons.length === 0) {
     return (
-      <SectionCard title={t("dash.card.lostReasons")} description={t("dash.card.lostReasonsDesc")}>
+      <SectionCard
+        title={t("dash.card.lostReasons")}
+        description={t("dash.card.lostReasonsDesc")}
+        info={t("dash.card.lostReasonsInfo")}
+      >
         <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
       </SectionCard>
     );
@@ -353,7 +401,11 @@ export function LostReasonsChart({ funnel }: { funnel: string | null }) {
   const chartHeight = Math.max(180, reasons.length * 40);
 
   return (
-    <SectionCard title={t("dash.card.lostReasons")} description={t("dash.card.lostReasonsDesc")}>
+    <SectionCard
+      title={t("dash.card.lostReasons")}
+      description={t("dash.card.lostReasonsDesc")}
+      info={t("dash.card.lostReasonsInfo")}
+    >
       <div className="w-full" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -400,14 +452,22 @@ export function DealFlowChart({ funnel }: { funnel: string | null }) {
 
   if (data.length === 0) {
     return (
-      <SectionCard title={t("dash.card.dealFlow")} description={t("dash.card.dealFlowDesc")}>
+      <SectionCard
+        title={t("dash.card.dealFlow")}
+        description={t("dash.card.dealFlowDesc")}
+        info={t("dash.card.dealFlowInfo")}
+      >
         <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
       </SectionCard>
     );
   }
 
   return (
-    <SectionCard title={t("dash.card.dealFlow")} description={t("dash.card.dealFlowDesc")}>
+    <SectionCard
+      title={t("dash.card.dealFlow")}
+      description={t("dash.card.dealFlowDesc")}
+      info={t("dash.card.dealFlowInfo")}
+    >
       <div className="h-[320px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ left: -14, right: 8, top: 8 }}>
@@ -436,7 +496,7 @@ export function DealFlowChart({ funnel }: { funnel: string | null }) {
             <YAxis
               yAxisId="revenue"
               orientation="right"
-              tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              tickFormatter={abbreviateAxisValue}
               tickLine={false}
               axisLine={false}
               fontSize={12}
@@ -506,6 +566,7 @@ export function ConversionQualityChart({ funnel }: { funnel: string | null }) {
     <SectionCard
       title={t("dash.card.conversionQuality")}
       description={t("dash.card.conversionQualityDesc")}
+      info={t("dash.card.conversionQualityInfo")}
       actions={
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-subtle">{t("dash.card.scoreRange")}</span>
