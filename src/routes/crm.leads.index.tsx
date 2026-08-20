@@ -291,6 +291,7 @@ function LeadsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <FilterSearchInput
                 icon={Search}
+                label={t("leadFilter.searchLabel")}
                 value={queryInput}
                 onChange={setQueryInput}
                 placeholder={t("leads.searchPlaceholder")}

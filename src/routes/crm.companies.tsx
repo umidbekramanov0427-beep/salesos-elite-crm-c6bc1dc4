@@ -103,6 +103,7 @@ function CompaniesPage() {
           actions={
             <FilterSearchInput
               icon={Search}
+              label={t("leadFilter.searchLabel")}
               value={query}
               onChange={setQuery}
               placeholder={t("companies.searchPlaceholder")}

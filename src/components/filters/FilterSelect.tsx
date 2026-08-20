@@ -3,17 +3,22 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The shared card shape every filter on the platform now uses: a leading
-// icon naming what the filter is (not just its current value), the native
-// <select>'s own selected-option text, and a trailing chevron -- all inside
-// one soft-cornered control instead of a bare rectangular <select>.
+// icon, a small uppercase label naming what the filter is (not just its
+// current value), the value itself in bold underneath, and a trailing
+// chevron -- the same two-line tile shape as Kunlik hisobot / Lid tahlili's
+// JAMOA/OPERATOR/VORONKA filters (see FilterTile), applied here so a plain
+// <select>-backed filter reads identically instead of the platform having
+// two different filter shapes side by side.
 export function FilterSelect({
   icon: Icon,
+  label,
   value,
   onChange,
   children,
   className,
 }: {
   icon: React.ComponentType<{ className?: string }>;
+  label: string;
   value: string;
   onChange: (value: string) => void;
   children: ReactNode;
@@ -22,33 +27,39 @@ export function FilterSelect({
   return (
     <div
       className={cn(
-        "inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-3 transition-colors focus-within:ring-2 focus-within:ring-primary/40 hover:bg-accent",
+        "inline-flex min-w-[160px] shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 hover:bg-accent",
         className,
       )}
     >
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="cursor-pointer appearance-none bg-transparent text-sm font-medium text-foreground outline-none"
-      >
-        {children}
-      </select>
-      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">{label}</p>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full cursor-pointer appearance-none truncate bg-transparent text-sm font-bold text-foreground outline-none"
+        >
+          {children}
+        </select>
+      </div>
+      <ChevronDown className="h-4 w-4 shrink-0 text-subtle" />
     </div>
   );
 }
 
-// The matching pill-shaped search input, so a text filter sits visually
-// consistent next to FilterSelect pills instead of the old plain rectangle.
+// The matching tile-shaped search input, so a text filter sits visually
+// consistent next to FilterSelect tiles instead of a differently-shaped
+// plain rectangle.
 export function FilterSearchInput({
   icon: Icon,
+  label,
   value,
   onChange,
   placeholder,
   className,
 }: {
   icon: React.ComponentType<{ className?: string }>;
+  label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -57,17 +68,20 @@ export function FilterSearchInput({
   return (
     <div
       className={cn(
-        "inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-4 transition-colors focus-within:ring-2 focus-within:ring-primary/40",
+        "inline-flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40",
         className,
       )}
     >
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-subtle placeholder:font-normal"
-      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">{label}</p>
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-transparent text-sm font-bold text-foreground outline-none placeholder:text-subtle placeholder:font-normal"
+        />
+      </div>
     </div>
   );
 }

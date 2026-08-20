@@ -573,6 +573,7 @@ function Leaderboard() {
           <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
           <FilterSelect
             icon={GitBranch}
+            label={t("leadFilter.funnelLabel")}
             value={funnel ?? ""}
             onChange={(v) => setFunnel(v || null)}
           >
@@ -592,6 +593,7 @@ function Leaderboard() {
           <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
           <FilterSearchInput
             icon={Search}
+            label={t("leadFilter.searchLabel")}
             value={search}
             onChange={setSearch}
             placeholder={t("lb.searchPlaceholder")}

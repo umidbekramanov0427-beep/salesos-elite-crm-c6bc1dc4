@@ -521,7 +521,12 @@ function AdminPanelContent() {
           actions={
             employees.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <FilterSelect icon={ListFilter} value={roleFilter} onChange={setRoleFilter}>
+                <FilterSelect
+                  icon={ListFilter}
+                  label={t("admin.roleLabel")}
+                  value={roleFilter}
+                  onChange={setRoleFilter}
+                >
                   <option value="">{t("admin.allRoles")}</option>
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -531,6 +536,7 @@ function AdminPanelContent() {
                 </FilterSelect>
                 <FilterSearchInput
                   icon={Search}
+                  label={t("leadFilter.searchLabel")}
                   value={query}
                   onChange={setQuery}
                   placeholder={t("admin.searchEmployees")}

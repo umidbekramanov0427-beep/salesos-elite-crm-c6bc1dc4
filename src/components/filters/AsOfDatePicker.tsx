@@ -24,15 +24,22 @@ export function AsOfDatePicker({
         <button
           type="button"
           className={cn(
-            "flex h-10 items-center gap-2 rounded-2xl border pl-3.5 pr-3 text-sm font-medium outline-none transition-colors",
+            "flex min-w-[160px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left outline-none transition-colors",
             value
               ? "border-warning/40 bg-warning/10 text-warning-foreground"
-              : "border-border bg-background text-foreground hover:bg-accent",
+              : "border-border bg-surface text-foreground hover:bg-accent",
           )}
         >
           <CalendarClock className="h-4 w-4 shrink-0" />
-          {value ? value.toLocaleDateString(lang) : t("asOf.live")}
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
+              {t("asOf.label")}
+            </p>
+            <p className="truncate text-sm font-bold">
+              {value ? value.toLocaleDateString(lang) : t("asOf.live")}
+            </p>
+          </div>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-3">
