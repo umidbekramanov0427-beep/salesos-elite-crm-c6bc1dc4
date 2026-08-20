@@ -1517,6 +1517,8 @@ const en: Dict = {
   "audio.dailyReportFailed": "Couldn't generate the report",
   "dash.dailyReport": "Daily report",
   "dash.dailyReportDesc": "AI summary written from today's real CRM numbers",
+  "dash.filtersInfo":
+    "Funnel filters the whole page. Team and operator additionally narrow the Kunlik hisobot section below — the 8 cards and charts above only respond to the funnel.",
   "dash.dailyReportPlaceholder": "Click Generate for today's summary.",
   "dash.dailyReportFailed": "Couldn't generate the report",
   "dash.report.today": "TODAY",
@@ -3369,6 +3371,8 @@ const ru: Dict = {
   "audio.dailyReportFailed": "Не удалось сгенерировать отчёт",
   "dash.dailyReport": "Дневной отчёт",
   "dash.dailyReportDesc": "AI-сводка по сегодняшним реальным цифрам CRM",
+  "dash.filtersInfo":
+    "Воронка фильтрует всю страницу. Команда и оператор дополнительно сужают раздел «Дневной отчёт» ниже — 8 карточек и графики выше реагируют только на воронку.",
   "dash.dailyReportPlaceholder": "Нажмите «Сгенерировать» для сводки за сегодня.",
   "dash.dailyReportFailed": "Не удалось сгенерировать отчёт",
   "dash.report.today": "СЕГОДНЯ",
@@ -5250,6 +5254,8 @@ const uz: Dict = {
   "audio.dailyReportFailed": "Hisobot yaratib bo'lmadi",
   "dash.dailyReport": "Kunlik hisobot",
   "dash.dailyReportDesc": "Bugungi haqiqiy CRM raqamlaridan AI xulosa",
+  "dash.filtersInfo":
+    "Voronka butun sahifani filtrlaydi. Jamoa va operator esa qo'shimcha ravishda pastdagi Kunlik hisobot bo'limini toraytiradi — yuqoridagi 8 ta karta va grafiklar faqat voronkaga javob beradi.",
   "dash.dailyReportPlaceholder": 'Bugungi xulosa uchun "Yaratish"ni bosing.',
   "dash.dailyReportFailed": "Hisobot yaratib bo'lmadi",
   "dash.report.today": "BUGUN",

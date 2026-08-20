@@ -1,6 +1,14 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlarmClockOff, CalendarClock, GitBranch, PhoneCall, Sparkles } from "lucide-react";
+import {
+  AlarmClockOff,
+  CalendarClock,
+  GitBranch,
+  PhoneCall,
+  Sparkles,
+  User,
+  Users,
+} from "lucide-react";
 import { PageHeader, SectionCard, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { DashboardDailyReport } from "@/components/dashboard/DailyReport";
@@ -19,18 +27,13 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import {
   useAmoCrmTaskStats,
-  useAsOfSnapshot,
   useDashboardKpis,
   useFunnelCallStats,
   useFunnelNames,
   useFunnelStats,
-  type DealRow,
-  type LeadRow,
+  useProfilesRaw,
 } from "@/hooks/use-crm-data";
-import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
-import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
-import { FilterSelect } from "@/components/filters/FilterSelect";
+import { FilterTile, TileOption } from "@/components/filters/FilterTile";
 
 const RevenueChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })),
@@ -61,19 +64,9 @@ export const Route = createFileRoute("/dashboard")({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
-    from?: string | undefined;
-    to?: string | undefined;
-    label?: string | undefined;
     funnel?: string | undefined;
-    min?: string | undefined;
-    max?: string | undefined;
   } => ({
-    from: typeof search["from"] === "string" ? search["from"] : undefined,
-    to: typeof search["to"] === "string" ? search["to"] : undefined,
-    label: typeof search["label"] === "string" ? search["label"] : undefined,
     funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
-    min: typeof search["min"] === "string" ? search["min"] : undefined,
-    max: typeof search["max"] === "string" ? search["max"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -110,69 +103,36 @@ function Dashboard() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  // Filters live in the URL (not local state) so refreshing the page or
+  // Funnel lives in the URL (not local state) so refreshing the page or
   // navigating back keeps whatever was picked instead of resetting to
   // "nothing selected" -- same pattern used across Funnels/AmoCRM/Reyting.
-  const dateFilter: DateFilterValue = useMemo(
-    () => ({
-      from: search.from ? new Date(search.from) : null,
-      to: search.to ? new Date(search.to) : null,
-      label: search.label ?? t("lb.presetAll"),
-    }),
-    [search.from, search.to, search.label, t],
-  );
+  // Team/operator are page-session-only, matching how the rest of the
+  // platform's JAMOA/OPERATOR filters (Lid tahlili, this same tile) behave.
   const funnel = search.funnel ?? null;
-  const amountRange: AmountRangeValue = useMemo(
-    () => ({
-      min: search.min !== undefined ? Number(search.min) : null,
-      max: search.max !== undefined ? Number(search.max) : null,
-    }),
-    [search.min, search.max],
-  );
+  const [teamId, setTeamId] = useState("");
+  const [operatorId, setOperatorId] = useState("");
 
-  function setDateFilter(v: DateFilterValue) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        from: v.from ? v.from.toISOString() : undefined,
-        to: v.to ? v.to.toISOString() : undefined,
-        label: v.label || undefined,
-      }),
-      replace: true,
-    });
-  }
   function setFunnel(v: string | null) {
     void navigate({ search: (prev) => ({ ...prev, funnel: v ?? undefined }), replace: true });
   }
-  function setAmountRange(v: AmountRangeValue) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        min: v.min != null ? String(v.min) : undefined,
-        max: v.max != null ? String(v.max) : undefined,
-      }),
-      replace: true,
-    });
-  }
 
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfLeads = useAsOfSnapshot<LeadRow>("leads", asOfDate);
-  const asOfDeals = useAsOfSnapshot<DealRow>("deals", asOfDate);
   const { names: funnelNames } = useFunnelNames();
-  const dashboardFilters = useMemo(
-    () => ({
-      from: dateFilter.from ? dateFilter.from.toISOString() : null,
-      to: dateFilter.to ? dateFilter.to.toISOString() : null,
-      funnel,
-      minAmount: amountRange.min,
-      maxAmount: amountRange.max,
-    }),
-    [dateFilter, funnel, amountRange],
+  const { data: profiles } = useProfilesRaw();
+  const rops = useMemo(
+    () =>
+      (profiles ?? [])
+        .filter((p) => p.role === "rop")
+        .slice()
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
+    [profiles],
   );
-  const kpis = useDashboardKpis(
-    dashboardFilters,
-    asOfDate ? { leads: asOfLeads.data ?? [], deals: asOfDeals.data ?? [] } : undefined,
-  );
+  const operators = useMemo(() => {
+    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (!teamId) return all;
+    return all.filter((p) => p.id === teamId || p.manager_id === teamId);
+  }, [profiles, teamId]);
+
+  const kpis = useDashboardKpis({ from: null, to: null, funnel });
   function greeting() {
     const h = new Date().getHours();
     if (h < 12) return t("dash.greetingMorning");
@@ -190,9 +150,7 @@ function Dashboard() {
   // Same per-funnel computation Reyting uses (raw leads + pipeline_stages,
   // not the dashboard_kpis RPC) -- these 8 cards are all about one funnel's
   // real pipeline shape, which that RPC was never built to answer.
-  const funnelStats = useFunnelStats(funnel, {
-    overrideLeads: asOfDate ? (asOfLeads.data ?? []) : undefined,
-  });
+  const funnelStats = useFunnelStats(funnel);
   const callStats = useFunnelCallStats(funnel);
   const taskStats = useAmoCrmTaskStats(funnel);
 
@@ -214,27 +172,71 @@ function Dashboard() {
     <>
       <PageHeader title={t("dash.title")} description={t("dash.desc")} />
 
-      <SectionCard title={t("lb.filters")} className="mb-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
-          <FilterSelect
-            icon={GitBranch}
-            value={funnel ?? ""}
-            onChange={(v) => setFunnel(v || null)}
+      <SectionCard title={t("dash.dailyReport")} className="mb-6" info={t("dash.filtersInfo")}>
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTile
+            icon={Users}
+            label={t("leadAnalytics.jamoaLabel")}
+            value={rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams")}
           >
-            <option value="">{t("leadFilter.allFunnels")}</option>
-            {funnelNames.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
+            <TileOption
+              label={t("leadAnalytics.allTeams")}
+              active={!teamId}
+              onClick={() => {
+                setTeamId("");
+                setOperatorId("");
+              }}
+            />
+            {rops.map((r) => (
+              <TileOption
+                key={r.id}
+                label={r.full_name}
+                active={teamId === r.id}
+                onClick={() => {
+                  setTeamId(r.id);
+                  setOperatorId("");
+                }}
+              />
             ))}
-          </FilterSelect>
-          <AmountRangeFilter value={amountRange} onChange={setAmountRange} />
-          <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
+          </FilterTile>
+          <FilterTile
+            icon={User}
+            label={t("leadAnalytics.operatorLabel")}
+            value={
+              operators.find((m) => m.id === operatorId)?.full_name ??
+              t("leadAnalytics.allManagers")
+            }
+          >
+            <TileOption
+              label={t("leadAnalytics.allManagers")}
+              active={!operatorId}
+              onClick={() => setOperatorId("")}
+            />
+            {operators.map((m) => (
+              <TileOption
+                key={m.id}
+                label={m.full_name}
+                active={operatorId === m.id}
+                onClick={() => setOperatorId(m.id)}
+              />
+            ))}
+          </FilterTile>
+          <FilterTile
+            icon={GitBranch}
+            label={t("leadAnalytics.funnelLabel")}
+            value={funnel ?? t("leadFilter.allFunnels")}
+          >
+            <TileOption
+              label={t("leadFilter.allFunnels")}
+              active={!funnel}
+              onClick={() => setFunnel(null)}
+            />
+            {funnelNames.map((f) => (
+              <TileOption key={f} label={f} active={funnel === f} onClick={() => setFunnel(f)} />
+            ))}
+          </FilterTile>
         </div>
       </SectionCard>
-
-      <AsOfBanner value={asOfDate} />
 
       <section className="mint-card grid gap-4 p-6">
         <div className="min-w-0">
@@ -353,7 +355,11 @@ function Dashboard() {
         </div>
       </div>
 
-      <DashboardDailyReport funnel={funnel} />
+      <DashboardDailyReport
+        funnel={funnel}
+        teamId={teamId || null}
+        operatorId={operatorId || null}
+      />
 
       <div className="mt-6 space-y-6">
         <Suspense fallback={<ChartSkeleton />}>
