@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -323,6 +323,7 @@ export function DashboardDailyReport({
   funnelNames,
   rops,
   operators,
+  kpiCards,
 }: {
   funnel: string | null;
   onFunnelChange: (v: string | null) => void;
@@ -339,6 +340,11 @@ export function DashboardDailyReport({
   funnelNames: string[];
   rops: ProfileRow[];
   operators: ProfileRow[];
+  // The page's 8 headline KPI cards -- computed in dashboard.tsx (they need
+  // funnelStats/callStats/taskStats from that scope) but rendered here, right
+  // below the day-strip, so they visually sit inside this card instead of
+  // appearing far down the page after the whole report body.
+  kpiCards: ReactNode;
 }) {
   const { t } = useI18n();
   const { format } = useCurrency();
@@ -510,6 +516,8 @@ export function DashboardDailyReport({
 
         <PeriodStrip period={period} selected={selected} onSelect={setSelected} t={t} />
       </SectionCard>
+
+      <div className="mt-6">{kpiCards}</div>
 
       <div className="mt-6">
         <p className="text-[11px] font-bold uppercase tracking-wide text-subtle">

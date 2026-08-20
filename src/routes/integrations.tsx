@@ -302,6 +302,12 @@ function AmoCrmCard() {
   const amoStages = (stages ?? []).filter((s) => s.amocrm_status_id != null);
   const pipelineCount = new Set(amoStages.map((s) => s.amocrm_pipeline_id)).size;
 
+  // amocrm_connection.last_synced_at (via connectionStatus) refetches every
+  // 3s, so it reflects the pg_cron auto-sync's writes live; the
+  // integration_settings.config copy only updates on this page's own
+  // queries, so non-admins (who don't load connectionStatus) fall back to it.
+  const lastSyncedAt = isAdmin ? connectionStatus?.last_synced_at : config.last_synced_at;
+
   return (
     <SectionCard title={t("amocrm.settingsTitle")} description={t("amocrm.desc")}>
       {isLoading ? (
@@ -323,9 +329,16 @@ function AmoCrmCard() {
               {connected && (
                 <p className="mt-2 text-xs text-subtle">
                   {t("amocrm.lastSync")}:{" "}
-                  {config.last_synced_at
-                    ? new Date(config.last_synced_at).toLocaleString()
-                    : t("amocrm.never")}
+                  {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : t("amocrm.never")}
+                </p>
+              )}
+              {isAdmin && connected && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-success">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                  </span>
+                  {t("amocrm.autoSyncActive")}
                 </p>
               )}
               {!isAdmin && <p className="mt-2 text-xs text-subtle">{t("amocrm.adminOnly")}</p>}
