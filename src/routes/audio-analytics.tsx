@@ -1163,6 +1163,7 @@ function AudioAnalytics() {
       <div className="mb-8 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-3 shadow-soft">
         <FilterSearchInput
           icon={Search}
+          label={t("leadFilter.searchLabel")}
           value={search}
           onChange={setSearch}
           placeholder={t("audio.searchPlaceholder")}
@@ -1170,6 +1171,7 @@ function AudioAnalytics() {
         />
         <FilterSelect
           icon={PhoneCall}
+          label={t("audio.resultLabel")}
           value={connectedFilter}
           onChange={(v) => setConnectedFilter(v as "" | "yes" | "no")}
         >
@@ -1179,6 +1181,7 @@ function AudioAnalytics() {
         </FilterSelect>
         <FilterSelect
           icon={ArrowLeftRight}
+          label={t("audio.directionLabel")}
           value={direction}
           onChange={(v) => setDirection(v as "" | "in" | "out")}
         >
@@ -1186,7 +1189,12 @@ function AudioAnalytics() {
           <option value="in">{t("audio.filterIncoming")}</option>
           <option value="out">{t("audio.filterOutgoing")}</option>
         </FilterSelect>
-        <FilterSelect icon={User} value={ownerId} onChange={setOwnerId}>
+        <FilterSelect
+          icon={User}
+          label={t("leadFilter.ownerLabel")}
+          value={ownerId}
+          onChange={setOwnerId}
+        >
           <option value="">{t("audio.filterAllOwners")}</option>
           {owners.map((o) => (
             <option key={o.id} value={o.id}>
@@ -1214,11 +1222,9 @@ function AudioAnalytics() {
           <PopoverContent align="start" className="w-[min(640px,90vw)] p-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("leadFilter.allFunnels")}
-                </p>
                 <FilterSelect
                   icon={GitBranch}
+                  label={t("leadFilter.funnelLabel")}
                   value={funnelFilter}
                   onChange={setFunnelFilter}
                   className="w-full"
@@ -1232,11 +1238,9 @@ function AudioAnalytics() {
                 </FilterSelect>
               </div>
               <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("audio.filterAllStages")}
-                </p>
                 <FilterSelect
                   icon={ListFilter}
+                  label={t("leadFilter.stageLabel")}
                   value={stageFilter}
                   onChange={setStageFilter}
                   className="w-full"
@@ -1250,11 +1254,9 @@ function AudioAnalytics() {
                 </FilterSelect>
               </div>
               <div>
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                  {t("audio.filterAllMoods")}
-                </p>
                 <FilterSelect
                   icon={Smile}
+                  label={t("audio.moodLabel")}
                   value={moodFilter}
                   onChange={setMoodFilter}
                   className="w-full"

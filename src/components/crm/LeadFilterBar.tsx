@@ -143,6 +143,7 @@ export function LeadFilterBar({
     <div className="flex flex-wrap items-center gap-3">
       <FilterSelect
         icon={GitBranch}
+        label={t("leadFilter.funnelLabel")}
         value={value.funnel ?? ""}
         onChange={(v) => onChange({ ...value, funnel: v || null })}
       >
@@ -156,6 +157,7 @@ export function LeadFilterBar({
 
       <FilterSelect
         icon={User}
+        label={t("leadFilter.ownerLabel")}
         value={value.ownerId ?? ""}
         onChange={(v) => onChange({ ...value, ownerId: v || null })}
       >
@@ -169,6 +171,7 @@ export function LeadFilterBar({
 
       <FilterSelect
         icon={ListFilter}
+        label={t("leadFilter.stageLabel")}
         value={value.stageId ?? ""}
         onChange={(v) => onChange({ ...value, stageId: v || null })}
       >
@@ -195,6 +198,7 @@ export function LeadFilterBar({
 
       <FilterSearchInput
         icon={Search}
+        label={t("leadFilter.searchLabel")}
         value={value.search}
         onChange={(v) => onChange({ ...value, search: v })}
         placeholder={t("leadFilter.searchPlaceholder")}

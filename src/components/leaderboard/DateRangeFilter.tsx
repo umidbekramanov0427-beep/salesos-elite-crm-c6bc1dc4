@@ -90,11 +90,16 @@ export function DateRangeFilter({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-10 items-center gap-2 rounded-2xl border border-border bg-background pl-3.5 pr-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex min-w-[160px] items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 text-left outline-none transition-colors hover:bg-accent focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40"
         >
           <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
-          {value.label}
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">
+              {t("lb.dateRangeLabel")}
+            </p>
+            <p className="truncate text-sm font-bold text-foreground">{value.label}</p>
+          </div>
+          <ChevronDown className="h-4 w-4 shrink-0 text-subtle" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-auto gap-3 p-3">

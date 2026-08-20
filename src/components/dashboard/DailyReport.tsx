@@ -19,10 +19,13 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  GitBranch,
   ListChecks,
   Loader2,
   PhoneMissed,
   Sparkles,
+  User,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard, StatCard } from "@/components/layout/Primitives";
@@ -35,7 +38,12 @@ import {
   useDailyReportStats,
   type DailyReportScope,
   type DailyReportStats,
+  type ProfileRow,
 } from "@/hooks/use-crm-data";
+import { FilterTile, TileOption } from "@/components/filters/FilterTile";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
+import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
+import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en: "English" };
 
@@ -299,18 +307,44 @@ function RatioDonut({
 /* AI-only daily report card.                                          */
 /* ------------------------------------------------------------------ */
 
-// funnel/teamId/operatorId now come from the page-level filter row
-// (dashboard.tsx) instead of living here — this section used to have its
-// own independent copies of the same three filters, which is exactly the
-// "two filter rows for one dashboard" duplication that got removed.
+// The whole page's filter state (funnel/team/operator/date/amount/as-of)
+// lives one level up in dashboard.tsx, since funnel and as-of also drive
+// the 8 KPI cards and charts elsewhere on the page — but the filter *tiles*
+// themselves render here, inside this one card at the top of the page, so
+// there's exactly one filter row instead of it being split across two
+// places.
 export function DashboardDailyReport({
   funnel,
+  onFunnelChange,
   teamId,
+  onTeamChange,
   operatorId,
+  onOperatorChange,
+  dateFilter,
+  onDateFilterChange,
+  amountRange,
+  onAmountRangeChange,
+  asOfDate,
+  onAsOfDateChange,
+  funnelNames,
+  rops,
+  operators,
 }: {
   funnel: string | null;
+  onFunnelChange: (v: string | null) => void;
   teamId: string | null;
+  onTeamChange: (v: string | null) => void;
   operatorId: string | null;
+  onOperatorChange: (v: string | null) => void;
+  dateFilter: DateFilterValue;
+  onDateFilterChange: (v: DateFilterValue) => void;
+  amountRange: AmountRangeValue;
+  onAmountRangeChange: (v: AmountRangeValue) => void;
+  asOfDate: Date | null;
+  onAsOfDateChange: (v: Date | null) => void;
+  funnelNames: string[];
+  rops: ProfileRow[];
+  operators: ProfileRow[];
 }) {
   const { t, lang } = useI18n();
   const { format } = useCurrency();
@@ -417,6 +451,7 @@ export function DashboardDailyReport({
       <SectionCard
         title={t("dash.dailyReport")}
         description={t("dash.dailyReportDesc")}
+        info={t("dash.filtersInfo")}
         actions={
           <div className="inline-flex items-center gap-1 rounded-2xl border border-border bg-card p-1">
             {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
@@ -437,6 +472,80 @@ export function DashboardDailyReport({
           </div>
         }
       >
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTile
+            icon={Users}
+            label={t("leadAnalytics.jamoaLabel")}
+            value={rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams")}
+          >
+            <TileOption
+              label={t("leadAnalytics.allTeams")}
+              active={!teamId}
+              onClick={() => {
+                onTeamChange(null);
+                onOperatorChange(null);
+              }}
+            />
+            {rops.map((r) => (
+              <TileOption
+                key={r.id}
+                label={r.full_name}
+                active={teamId === r.id}
+                onClick={() => {
+                  onTeamChange(r.id);
+                  onOperatorChange(null);
+                }}
+              />
+            ))}
+          </FilterTile>
+          <FilterTile
+            icon={User}
+            label={t("leadAnalytics.operatorLabel")}
+            value={
+              operators.find((m) => m.id === operatorId)?.full_name ??
+              t("leadAnalytics.allManagers")
+            }
+          >
+            <TileOption
+              label={t("leadAnalytics.allManagers")}
+              active={!operatorId}
+              onClick={() => onOperatorChange(null)}
+            />
+            {operators.map((m) => (
+              <TileOption
+                key={m.id}
+                label={m.full_name}
+                active={operatorId === m.id}
+                onClick={() => onOperatorChange(m.id)}
+              />
+            ))}
+          </FilterTile>
+          <FilterTile
+            icon={GitBranch}
+            label={t("leadAnalytics.funnelLabel")}
+            value={funnel ?? t("leadFilter.allFunnels")}
+          >
+            <TileOption
+              label={t("leadFilter.allFunnels")}
+              active={!funnel}
+              onClick={() => onFunnelChange(null)}
+            />
+            {funnelNames.map((f) => (
+              <TileOption
+                key={f}
+                label={f}
+                active={funnel === f}
+                onClick={() => onFunnelChange(f)}
+              />
+            ))}
+          </FilterTile>
+          <DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
+          <AmountRangeFilter value={amountRange} onChange={onAmountRangeChange} />
+          <AsOfDatePicker value={asOfDate} onChange={onAsOfDateChange} />
+        </div>
+
+        <AsOfBanner value={asOfDate} />
+
         <PeriodStrip period={period} selected={selected} onSelect={setSelected} t={t} />
       </SectionCard>
 

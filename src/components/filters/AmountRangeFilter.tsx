@@ -1,3 +1,4 @@
+import { Wallet } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export type AmountRangeValue = { min: number | null; max: number | null };
@@ -30,24 +31,32 @@ export function AmountRangeFilter({
   }
 
   return (
-    <div className="flex items-center gap-1.5">
-      <input
-        type="number"
-        inputMode="decimal"
-        value={value.min ?? ""}
-        onChange={(e) => onChange({ ...value, min: parse(e.target.value) })}
-        placeholder={t("amountFilter.min")}
-        className="h-10 w-28 rounded-2xl border border-border bg-background px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      />
-      <span className="text-xs text-subtle">{t("amountFilter.to")}</span>
-      <input
-        type="number"
-        inputMode="decimal"
-        value={value.max ?? ""}
-        onChange={(e) => onChange({ ...value, max: parse(e.target.value) })}
-        placeholder={t("amountFilter.max")}
-        className="h-10 w-28 rounded-2xl border border-border bg-background px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      />
+    <div className="flex min-w-[200px] items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 hover:bg-accent">
+      <Wallet className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-subtle">
+          {t("amountFilter.label")}
+        </p>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            inputMode="decimal"
+            value={value.min ?? ""}
+            onChange={(e) => onChange({ ...value, min: parse(e.target.value) })}
+            placeholder={t("amountFilter.min")}
+            className="w-full min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder:font-normal placeholder:text-subtle"
+          />
+          <span className="shrink-0 text-xs text-subtle">{t("amountFilter.to")}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={value.max ?? ""}
+            onChange={(e) => onChange({ ...value, max: parse(e.target.value) })}
+            placeholder={t("amountFilter.max")}
+            className="w-full min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder:font-normal placeholder:text-subtle"
+          />
+        </div>
+      </div>
     </div>
   );
 }
