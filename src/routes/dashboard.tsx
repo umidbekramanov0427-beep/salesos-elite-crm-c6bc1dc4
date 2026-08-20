@@ -394,13 +394,13 @@ function Dashboard() {
       <div className="mt-6 space-y-6">
         <LeaderboardWidget />
         <ImportantTasksWidget />
-        <LeadTasksWidget />
+        <LeadTasksWidget funnel={funnel} />
       </div>
 
       <div className="mt-6 space-y-6">
         <InboxWidget />
-        <ActivityWidget />
-        <AudioPreviewWidget />
+        <ActivityWidget funnel={funnel} />
+        <AudioPreviewWidget funnel={funnel} />
       </div>
 
       <div className="mt-6">

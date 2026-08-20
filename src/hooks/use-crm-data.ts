@@ -1396,6 +1396,82 @@ export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
   return { recent, totals, perRep, recoverable, isLoading };
 }
 
+// A small, cheap preview for widgets (Dashboard's Audio tahlil card) that
+// only need "the last few AI-scored calls" — not the full useAudioAnalyticsView
+// (every call, every column, for the whole org). Filtering server-side on
+// score IS NOT NULL keeps this to the small analyzed subset instead of the
+// whole calls table.
+export type RecentAnalyzedCall = {
+  id: string;
+  leadId: string | null;
+  leadName: string;
+  score: number;
+  mood: string | null;
+  nextStep: string | null;
+  occurredAt: string;
+};
+
+type CallScorePreviewRow = {
+  id: string;
+  lead_id: string | null;
+  occurred_at: string;
+  score: number | null;
+  mood: string | null;
+  next_step: string | null;
+};
+
+export function useRecentAnalyzedCalls(funnel: string | null, limit = 5) {
+  const { user } = useAuth();
+  const { data: leads } = useLeadsRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+  const leadsById = useMemo(() => byId(leads), [leads]);
+
+  const needsScoping = !!funnel || !!visibleOwnerIds;
+  const scopedLeadIds = useMemo(() => {
+    if (!needsScoping) return null;
+    return (leads ?? [])
+      .filter((l) => {
+        if (funnel && (l.funnel || "Direct Sales") !== funnel) return false;
+        if (visibleOwnerIds && (!l.owner_id || !visibleOwnerIds.has(l.owner_id))) return false;
+        return true;
+      })
+      .map((l) => l.id);
+  }, [leads, funnel, visibleOwnerIds, needsScoping]);
+  const scopeKey = scopedLeadIds ? scopedLeadIds.slice().sort().join(",") : null;
+
+  const query = useQuery({
+    queryKey: ["recent-analyzed-calls", limit, funnel ?? null, scopeKey],
+    enabled: !!user && (!needsScoping || leads !== undefined),
+    queryFn: async (): Promise<CallScorePreviewRow[]> => {
+      if (scopedLeadIds && scopedLeadIds.length === 0) return [];
+      let q = supabase
+        .from("amocrm_calls")
+        .select("id, lead_id, occurred_at, score, mood, next_step")
+        .not("score", "is", null);
+      if (scopedLeadIds) q = q.in("lead_id", scopedLeadIds);
+      const { data, error } = await q.order("occurred_at", { ascending: false }).limit(limit);
+      if (error) throw error;
+      return (data ?? []) as unknown as CallScorePreviewRow[];
+    },
+  });
+
+  const rows = useMemo<RecentAnalyzedCall[]>(
+    () =>
+      (query.data ?? []).map((c) => ({
+        id: c.id,
+        leadId: c.lead_id,
+        leadName: (c.lead_id ? leadsById.get(c.lead_id)?.name : null) ?? "—",
+        score: c.score!,
+        mood: c.mood,
+        nextStep: c.next_step,
+        occurredAt: timeAgo(c.occurred_at),
+      })),
+    [query.data, leadsById],
+  );
+
+  return { rows, isLoading: query.isLoading };
+}
+
 /* ------------------------------------------------------------------ */
 /* View: Companies                                                     */
 /* ------------------------------------------------------------------ */
@@ -1574,6 +1650,9 @@ export type TaskView = {
   progress: number;
   leadId: string | null;
   leadName: string | null;
+  // null when the task has no linked lead (e.g. Important Tasks' general,
+  // non-lead-specific items) — those are funnel-agnostic by definition.
+  funnel: string | null;
 };
 
 export function useTasksView(overrideTasks?: TaskRow[]) {
@@ -1607,6 +1686,7 @@ export function useTasksView(overrideTasks?: TaskRow[]) {
         progress: t.progress,
         leadId: t.lead_id,
         leadName: lead?.name ?? null,
+        funnel: lead ? lead.funnel || "Direct Sales" : null,
       };
     });
   }, [sourceTasks, profiles.data, leads.data]);
@@ -2650,23 +2730,43 @@ export type ActivityItem = {
   leadName: string | null;
 };
 
-export function useRecentActivity(limit = 6) {
+export function useRecentActivity(limit = 6, funnel?: string | null) {
   const { user } = useAuth();
+  const { data: leads } = useLeadsRaw();
+  const { data: profiles } = useProfilesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+
+  // A funnel filter (or an owner-scoped role) has to narrow the lead set
+  // *before* the row limit is applied, not after — otherwise "8 most recent
+  // org-wide" gets client-filtered down to whatever's left, which can be
+  // empty even when plenty of matching activity exists further back. This
+  // also closes a real gap: this query previously had no owner scoping at
+  // all, so a rep could see a teammate's activity here.
+  const needsScoping = !!funnel || !!visibleOwnerIds;
+  const scopedLeadIds = useMemo(() => {
+    if (!needsScoping) return null;
+    return (leads ?? [])
+      .filter((l) => {
+        if (funnel && (l.funnel || "Direct Sales") !== funnel) return false;
+        if (visibleOwnerIds && (!l.owner_id || !visibleOwnerIds.has(l.owner_id))) return false;
+        return true;
+      })
+      .map((l) => l.id);
+  }, [leads, funnel, visibleOwnerIds, needsScoping]);
+  const scopeKey = scopedLeadIds ? scopedLeadIds.slice().sort().join(",") : null;
+
   const activityQuery = useQuery({
-    queryKey: ["recent-activity"],
-    enabled: !!user,
+    queryKey: ["recent-activity", limit, funnel ?? null, scopeKey],
+    enabled: !!user && (!needsScoping || leads !== undefined),
     queryFn: async (): Promise<LeadActivityRow[]> => {
-      const { data, error } = await supabase
-        .from("lead_activities")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(limit);
+      if (scopedLeadIds && scopedLeadIds.length === 0) return [];
+      let query = supabase.from("lead_activities").select("*");
+      if (scopedLeadIds) query = query.in("lead_id", scopedLeadIds);
+      const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
       if (error) throw error;
       return data ?? [];
     },
   });
-  const { data: leads } = useLeadsRaw();
-  const { data: profiles } = useProfilesRaw();
 
   const rows = useMemo<ActivityItem[]>(() => {
     const leadsById = byId(leads);

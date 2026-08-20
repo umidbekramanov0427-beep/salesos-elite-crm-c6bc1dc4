@@ -81,7 +81,9 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Important Tasks",
     to: "/tasks",
     icon: ClipboardList,
-    badge: "8",
+    // No static count here — AppSidebar computes the real open-task badge
+    // itself (see importantTasksCount) from the same data ImportantTasksWidget
+    // shows, instead of a fixed placeholder number.
     group: "control",
     iconColor: "text-orange-500",
   },

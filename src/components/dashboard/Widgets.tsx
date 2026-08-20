@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, CircleAlert, Inbox as InboxIcon, Sparkles } from "lucide-react";
+import { Check, CircleAlert, Inbox as InboxIcon, Mic, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard, Pill } from "@/components/layout/Primitives";
 import { useCurrency } from "@/lib/currency";
@@ -12,6 +12,7 @@ import {
   useMarkNotificationRead,
   useNotificationsView,
   useRecentActivity,
+  useRecentAnalyzedCalls,
   useTasksView,
   useTopPerformers,
   useUpdateTask,
@@ -39,6 +40,7 @@ export function LeaderboardWidget() {
     <SectionCard
       title={t("widget.leaderboardTitle")}
       description={t("widget.leaderboardDesc")}
+      info={t("widget.leaderboardInfo")}
       actions={
         <Link to="/" className="text-xs font-semibold text-primary hover:underline">
           {t("widget.viewAll")}
@@ -132,6 +134,7 @@ export function ImportantTasksWidget() {
     <SectionCard
       title={t("widget.importantTasksTitle")}
       description={t("widget.importantTasksDesc")}
+      info={t("widget.importantTasksInfo")}
     >
       <div className="space-y-5">
         {buckets.map((bucket) => {
@@ -186,12 +189,15 @@ export function ImportantTasksWidget() {
   );
 }
 
-export function LeadTasksWidget() {
+export function LeadTasksWidget({ funnel = null }: { funnel?: string | null }) {
   const { t } = useI18n();
   const { rows: tasks } = useTasksView();
   const leadTasks = useMemo(
-    () => tasks.filter((task) => task.leadId && task.status !== "Done"),
-    [tasks],
+    () =>
+      tasks.filter(
+        (task) => task.leadId && task.status !== "Done" && (!funnel || task.funnel === funnel),
+      ),
+    [tasks, funnel],
   );
 
   const groups: Array<{ label: string; items: TaskView[] }> = useMemo(() => {
@@ -220,7 +226,11 @@ export function LeadTasksWidget() {
   }, [leadTasks, t]);
 
   return (
-    <SectionCard title={t("widget.leadTasksTitle")} description={t("widget.leadTasksDesc")}>
+    <SectionCard
+      title={t("widget.leadTasksTitle")}
+      description={t("widget.leadTasksDesc")}
+      info={t("widget.leadTasksInfo")}
+    >
       <div className="space-y-5">
         {leadTasks.length === 0 && <p className="text-sm text-subtle">{t("widget.noLeadTasks")}</p>}
         {groups.map((g) =>
@@ -259,6 +269,7 @@ export function InboxWidget() {
     <SectionCard
       title={t("widget.inboxTitle")}
       description={t("widget.inboxDesc")}
+      info={t("widget.inboxInfo")}
       actions={
         <Link to="/inbox" className="text-xs font-semibold text-primary hover:underline">
           {t("widget.openInbox")}
@@ -294,11 +305,15 @@ export function InboxWidget() {
   );
 }
 
-export function ActivityWidget() {
+export function ActivityWidget({ funnel = null }: { funnel?: string | null }) {
   const { t } = useI18n();
-  const { rows: activity } = useRecentActivity(8);
+  const { rows: activity } = useRecentActivity(8, funnel);
   return (
-    <SectionCard title={t("widget.activityTitle")} description={t("widget.activityDesc")}>
+    <SectionCard
+      title={t("widget.activityTitle")}
+      description={t("widget.activityDesc")}
+      info={t("widget.activityInfo")}
+    >
       {activity.length === 0 && <p className="text-sm text-subtle">{t("widget.noActivity")}</p>}
       <ol className="relative space-y-5 border-l border-border pl-5">
         {activity.map((a) => (
@@ -322,19 +337,50 @@ export function ActivityWidget() {
   );
 }
 
-export function AudioPreviewWidget() {
+export function AudioPreviewWidget({ funnel = null }: { funnel?: string | null }) {
   const { t } = useI18n();
+  const { rows: calls, isLoading } = useRecentAnalyzedCalls(funnel, 5);
   return (
     <SectionCard
       title={t("widget.audioTitle")}
       description={t("widget.audioDesc")}
+      info={t("widget.audioInfo")}
       actions={
         <Link to="/audio-analytics" className="text-xs font-semibold text-primary hover:underline">
-          {t("widget.setUp")}
+          {calls.length === 0 ? t("widget.setUp") : t("widget.viewAll")}
         </Link>
       }
     >
-      <EmptyState title={t("widget.audioEmptyTitle")} body={t("widget.audioEmptyBody")} />
+      {!isLoading && calls.length === 0 ? (
+        <EmptyState title={t("widget.audioEmptyTitle")} body={t("widget.audioEmptyBody")} />
+      ) : (
+        <ul className="space-y-3">
+          {calls.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-start gap-3 rounded-xl px-2 py-2 transition-colors duration-150 hover:bg-accent"
+            >
+              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Mic className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{c.leadName}</p>
+                <p className="mt-0.5 truncate text-[11px] text-subtle">
+                  {c.nextStep || c.mood || t("widget.audioNoNote")} · {c.occurredAt}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <Pill tone={c.score >= 80 ? "success" : c.score >= 50 ? "warning" : "danger"}>
+                  {c.score}
+                </Pill>
+                {c.mood && (
+                  <p className="mt-1 text-[10px] font-semibold uppercase text-subtle">{c.mood}</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </SectionCard>
   );
 }
