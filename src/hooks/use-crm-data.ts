@@ -1875,7 +1875,7 @@ const EMPTY_DAILY_REPORT_STATS: DailyReportStats = {
 
 // A narrower match than SALES_STAGE_KEYWORDS -- "full payment" specifically
 // (won or fully-paid), not prepayment/half-payment stages too.
-const FULL_PAYMENT_STAGE_KEYWORDS = ["toliq", "won", "успешно", "rop closed"];
+export const FULL_PAYMENT_STAGE_KEYWORDS = ["toliq", "won", "успешно", "rop closed"];
 
 export function useDailyReportStats(
   range: { from: Date; to: Date } | null,
@@ -3887,7 +3887,7 @@ export function useFunnelNames() {
 //                 stage -- counts as a sale too when it shows up
 // Matched loosely (lowercased, apostrophes stripped) against any of these
 // as a substring, not an exact string.
-const SALES_STAGE_KEYWORDS = [
+export const SALES_STAGE_KEYWORDS = [
   "predoplata",
   "peredoplata",
   "yarim",
@@ -3897,7 +3897,7 @@ const SALES_STAGE_KEYWORDS = [
   "rop closed",
 ];
 
-function normalizeStageName(name: string): string {
+export function normalizeStageName(name: string): string {
   return name.toLowerCase().replace(/['’ʼ`]/g, "");
 }
 

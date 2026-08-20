@@ -119,7 +119,7 @@ function FilterTile({
             "flex min-w-[160px] items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
             open
               ? "border-primary ring-1 ring-primary/40"
-              : "border-border bg-card hover:bg-accent",
+              : "border-border bg-surface hover:bg-accent",
           )}
         >
           <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
