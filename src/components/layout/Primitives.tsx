@@ -164,6 +164,7 @@ export function StatCard({
 export function SectionCard({
   title,
   description,
+  info,
   actions,
   children,
   className,
@@ -171,6 +172,10 @@ export function SectionCard({
 }: {
   title?: ReactNode;
   description?: string;
+  // Same "!" hover explainer as StatCard's info prop, shown next to the
+  // section title — for sections whose purpose isn't obvious from the
+  // title alone.
+  info?: string;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -181,7 +186,12 @@ export function SectionCard({
       {(title || actions) && (
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div>
-            {title && <h2 className="font-bold text-foreground">{title}</h2>}
+            {title && (
+              <h2 className="flex items-center gap-1.5 font-bold text-foreground">
+                {title}
+                {info && <InfoTip text={info} />}
+              </h2>
+            )}
             {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
           </div>
           {actions}
