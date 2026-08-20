@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn, stageColorProps } from "@/lib/utils";
@@ -32,6 +33,9 @@ export const Route = createFileRoute("/crm/pipeline")({
     q?: string | undefined;
     min?: string | undefined;
     max?: string | undefined;
+    from?: string | undefined;
+    to?: string | undefined;
+    label?: string | undefined;
   } => ({
     funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
     owner: typeof search["owner"] === "string" ? search["owner"] : undefined,
@@ -40,6 +44,9 @@ export const Route = createFileRoute("/crm/pipeline")({
     q: typeof search["q"] === "string" ? search["q"] : undefined,
     min: typeof search["min"] === "string" ? search["min"] : undefined,
     max: typeof search["max"] === "string" ? search["max"] : undefined,
+    from: typeof search["from"] === "string" ? search["from"] : undefined,
+    to: typeof search["to"] === "string" ? search["to"] : undefined,
+    label: typeof search["label"] === "string" ? search["label"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -131,6 +138,36 @@ function PipelinePage() {
   const { data: profiles } = useProfilesRaw();
   const getAmoLink = useAmoCrmLink();
 
+  const dateFilter: DateFilterValue = useMemo(
+    () => ({
+      from: search.from ? new Date(search.from) : null,
+      to: search.to ? new Date(search.to) : null,
+      label: search.label ?? t("lb.presetAll"),
+    }),
+    [search.from, search.to, search.label, t],
+  );
+  function setDateFilter(v: DateFilterValue) {
+    void navigate({
+      to: "/crm/pipeline",
+      search: (prev) => ({
+        ...prev,
+        from: v.from ? v.from.toISOString() : undefined,
+        to: v.to ? v.to.toISOString() : undefined,
+        label: v.label || undefined,
+      }),
+      replace: true,
+    });
+  }
+  const dateScopedLeads = useMemo(() => {
+    if (!dateFilter.from && !dateFilter.to) return effectiveLeads;
+    return effectiveLeads.filter((l) => {
+      const created = new Date(l.createdAtIso).getTime();
+      if (dateFilter.from && created < dateFilter.from.getTime()) return false;
+      if (dateFilter.to && created > dateFilter.to.getTime()) return false;
+      return true;
+    });
+  }, [effectiveLeads, dateFilter]);
+
   // Filters live in the URL, not local state, so refresh/back-navigation
   // returns you to exactly the same filtered view instead of resetting it.
   const filters: LeadFilterState = useMemo(
@@ -148,18 +185,18 @@ function PipelinePage() {
     [funnelParam, search.owner, search.tags, search.stage, search.q, search.min, search.max],
   );
   const filteredLeads = useMemo(
-    () => filterLeads(effectiveLeads, { ...filters, funnel: null }),
-    [effectiveLeads, filters],
+    () => filterLeads(dateScopedLeads, { ...filters, funnel: null }),
+    [dateScopedLeads, filters],
   );
   const tagOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const l of effectiveLeads) for (const tag of l.tags) set.add(tag);
+    for (const l of dateScopedLeads) for (const tag of l.tags) set.add(tag);
     return Array.from(set).sort();
-  }, [effectiveLeads]);
+  }, [dateScopedLeads]);
   const ownerOptions = useMemo(() => {
-    const ownerIds = new Set(effectiveLeads.map((l) => l.ownerId).filter(Boolean));
+    const ownerIds = new Set(dateScopedLeads.map((l) => l.ownerId).filter(Boolean));
     return (profiles ?? []).filter((p) => ownerIds.has(p.id));
-  }, [effectiveLeads, profiles]);
+  }, [dateScopedLeads, profiles]);
   const visibleStages = useMemo(
     () => stages.filter((s) => (s.pipeline_name || "Direct Sales") === funnelParam),
     [stages, funnelParam],
@@ -202,7 +239,8 @@ function PipelinePage() {
           onChange={(next) => {
             void navigate({
               to: "/crm/pipeline",
-              search: {
+              search: (prev) => ({
+                ...prev,
                 funnel: next.funnel ?? undefined,
                 owner: next.ownerId ?? undefined,
                 stage: next.stageId ?? undefined,
@@ -210,7 +248,7 @@ function PipelinePage() {
                 q: next.search || undefined,
                 min: next.amount.min != null ? String(next.amount.min) : undefined,
                 max: next.amount.max != null ? String(next.amount.max) : undefined,
-              },
+              }),
               replace: true,
             });
           }}
@@ -219,6 +257,7 @@ function PipelinePage() {
           tags={tagOptions}
           stages={stages}
         />
+        {funnelParam && <DateRangeFilter value={dateFilter} onChange={setDateFilter} />}
         {funnelParam && <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />}
       </div>
 

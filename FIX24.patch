@@ -1,0 +1,171 @@
+diff --git a/src/components/dashboard/Charts.tsx b/src/components/dashboard/Charts.tsx
+index 341cf08..185360d 100644
+--- a/src/components/dashboard/Charts.tsx
++++ b/src/components/dashboard/Charts.tsx
+@@ -19,6 +19,7 @@ import { currency } from "@/lib/mock-data";
+ import { cn } from "@/lib/utils";
+ import {
+   useFunnelFlow,
++  useLostReasonsSummary,
+   usePipelineStageStats,
+   useRevenueSeries,
+   useSalesAnalyticsSummary,
+@@ -328,3 +329,62 @@ export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
+     </SectionCard>
+   );
+ }
++
++export function LostReasonsChart({ funnel }: { funnel: string | null }) {
++  const { t } = useI18n();
++  const reasons = useLostReasonsSummary(funnel);
++
++  if (reasons.length === 0) {
++    return (
++      <SectionCard title={t("dash.card.lostReasons")} description={t("dash.card.lostReasonsDesc")}>
++        <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
++      </SectionCard>
++    );
++  }
++
++  // A reason string can run long ("Mijoz narxdan voz kechdi" etc.) -- a
++  // horizontal layout keeps the full label readable instead of truncating
++  // or rotating it under a vertical bar.
++  const chartHeight = Math.max(180, reasons.length * 40);
++
++  return (
++    <SectionCard title={t("dash.card.lostReasons")} description={t("dash.card.lostReasonsDesc")}>
++      <div className="w-full" style={{ height: chartHeight }}>
++        <ResponsiveContainer width="100%" height="100%">
++          <BarChart
++            data={reasons}
++            layout="vertical"
++            margin={{ left: 8, right: 24, top: 8, bottom: 8 }}
++          >
++            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
++            <XAxis
++              type="number"
++              allowDecimals={false}
++              tickLine={false}
++              axisLine={false}
++              fontSize={12}
++              stroke="var(--color-subtle)"
++            />
++            <YAxis
++              type="category"
++              dataKey="reason"
++              width={160}
++              tickLine={false}
++              axisLine={false}
++              fontSize={12}
++              stroke="var(--color-subtle)"
++            />
++            <Tooltip cursor={{ fill: "var(--color-accent)" }} contentStyle={tooltipStyle} />
++            <Bar
++              dataKey="count"
++              fill="var(--color-destructive)"
++              radius={[0, 8, 8, 0]}
++              maxBarSize={22}
++              animationDuration={700}
++            />
++          </BarChart>
++        </ResponsiveContainer>
++      </div>
++    </SectionCard>
++  );
++}
+diff --git a/src/hooks/use-crm-data.ts b/src/hooks/use-crm-data.ts
+index 69cb37c..549d2fd 100644
+--- a/src/hooks/use-crm-data.ts
++++ b/src/hooks/use-crm-data.ts
+@@ -1741,6 +1741,33 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
+   }, [leads, stages, profiles, funnel]);
+ }
+ 
++export type LostReasonBucket = { reason: string; count: number };
++
++// AmoCRM's own "Причина отказа" (loss reason) catalog, synced onto
++// leads.loss_reason -- real data that until now was only surfaced deep
++// inside Lead Analytics' Yo'nalish tab, not on the Dashboard itself.
++export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[] {
++  const { data: leads } = useLeadsRaw();
++  const { data: stages } = usePipelineStagesRaw();
++
++  return useMemo(() => {
++    const stagesById = byId(stages);
++    const counts = new Map<string, number>();
++    for (const l of leads ?? []) {
++      const leadFunnel = l.funnel || "Direct Sales";
++      if (funnel && leadFunnel !== funnel) continue;
++      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
++      if (!stage?.is_lost) continue;
++      const reason = l.loss_reason?.trim() || "—";
++      counts.set(reason, (counts.get(reason) ?? 0) + 1);
++    }
++    return Array.from(counts.entries())
++      .map(([reason, count]): LostReasonBucket => ({ reason, count }))
++      .sort((a, b) => b.count - a.count)
++      .slice(0, 8);
++  }, [leads, stages, funnel]);
++}
++
+ // Both dashboard funnel widgets used to aggregate the deals table (which
+ // this AmoCRM-synced setup never actually populates -- real revenue lives
+ // on leads) and/or every pipeline_stages row across the whole org (~60
+diff --git a/src/lib/i18n.tsx b/src/lib/i18n.tsx
+index 529cfc7..bd6ad77 100644
+--- a/src/lib/i18n.tsx
++++ b/src/lib/i18n.tsx
+@@ -476,6 +476,8 @@ const en: Dict = {
+   "dash.card.monthlyTrendDesc": "Won-lead revenue by month, last 8 months",
+   "dash.card.revenueByOwner": "Revenue by rep",
+   "dash.card.revenueByOwnerDesc": "Won-lead revenue per owner, top 6",
++  "dash.card.lostReasons": "Lost reasons",
++  "dash.card.lostReasonsDesc": "Why lost-stage leads in this funnel didn't close",
+ 
+   "kpi.revenueToday": "Revenue today",
+   "kpi.revenueTodayHint": "won deals closed today",
+@@ -2209,6 +2211,8 @@ const ru: Dict = {
+   "dash.card.monthlyTrendDesc": "Выручка по выигранным лидам за последние 8 месяцев",
+   "dash.card.revenueByOwner": "Выручка по менеджерам",
+   "dash.card.revenueByOwnerDesc": "Выручка по выигранным лидам, топ-6 менеджеров",
++  "dash.card.lostReasons": "Причины отказа",
++  "dash.card.lostReasonsDesc": "Почему лиды этой воронки не закрылись",
+ 
+   "kpi.revenueToday": "Выручка сегодня",
+   "kpi.revenueTodayHint": "выигранных сделок сегодня",
+@@ -3946,6 +3950,8 @@ const uz: Dict = {
+   "dash.card.monthlyTrendDesc": "Yutilgan lidlar bo'yicha tushum, so'nggi 8 oy",
+   "dash.card.revenueByOwner": "Menejerlar bo'yicha tushum",
+   "dash.card.revenueByOwnerDesc": "Yutilgan lidlar bo'yicha tushum, TOP-6 menejer",
++  "dash.card.lostReasons": "Yo'qotish sabablari",
++  "dash.card.lostReasonsDesc": "Shu voronkadagi yo'qotilgan lidlar nima uchun yopilmagan",
+ 
+   "kpi.revenueToday": "Bugungi tushum",
+   "kpi.revenueTodayHint": "bugun yopilgan bitimlar",
+diff --git a/src/routes/dashboard.tsx b/src/routes/dashboard.tsx
+index 30ad3e4..61b1e84 100644
+--- a/src/routes/dashboard.tsx
++++ b/src/routes/dashboard.tsx
+@@ -55,6 +55,9 @@ const MonthlyRevenueTrendChart = lazy(() =>
+ const RevenueByOwnerChart = lazy(() =>
+   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueByOwnerChart })),
+ );
++const LostReasonsChart = lazy(() =>
++  import("@/components/dashboard/Charts").then((m) => ({ default: m.LostReasonsChart })),
++);
+ 
+ export const Route = createFileRoute("/dashboard")({
+   validateSearch: (
+@@ -469,6 +472,12 @@ function Dashboard() {
+         </Suspense>
+       </div>
+ 
++      <div className="mt-6">
++        <Suspense fallback={<ChartSkeleton />}>
++          <LostReasonsChart funnel={funnel} />
++        </Suspense>
++      </div>
++
+       <div className="mt-6 grid gap-6 xl:grid-cols-3">
+         <LeaderboardWidget />
+         <ImportantTasksWidget />

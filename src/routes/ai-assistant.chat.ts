@@ -169,6 +169,226 @@ async function loadDataSnapshot(
   return lines.join("\n");
 }
 
+/* ------------------------------------------------------------------ */
+/* Tool use -- the assistant used to be read-only advice. These let it   */
+/* actually act on the caller's behalf: look up a lead, leave a note,    */
+/* move a stage, or create a task for themselves. Every tool is scoped   */
+/* to the same ownerIds visibility the data snapshot above already      */
+/* uses, and task creation is always self-assigned (never lets the AI    */
+/* assign work to someone else -- that would need reconstructing the     */
+/* full manager/rep assignment RLS rule here, which isn't worth the risk */
+/* for a chat tool call).                                                */
+/* ------------------------------------------------------------------ */
+
+type ToolContext = { orgId: string; callerId: string; ownerIds: string[] | null };
+
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "search_leads",
+      description:
+        "Search the caller's visible leads by name or company name. Call this first to find a lead's id before using add_lead_note or update_lead_stage.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Part of the lead's name or company name" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_my_task",
+      description:
+        "Create a new task assigned to the current user (the person chatting). Use this when they ask you to remind them of something or create a task/to-do for themselves.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          due_date: { type: "string", description: "ISO date, e.g. 2026-08-25. Optional." },
+          lead_id: {
+            type: "string",
+            description: "Optional lead id (from search_leads) to attach this task to.",
+          },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_lead_note",
+      description:
+        "Add a note to a lead's activity timeline. Requires the lead's id -- call search_leads first if you don't already have it from this conversation.",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_id: { type: "string" },
+          note: { type: "string" },
+        },
+        required: ["lead_id", "note"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_lead_stage",
+      description:
+        "Move a lead to a different pipeline stage by name (the stage must belong to that lead's own funnel). Requires the lead's id -- call search_leads first if you don't already have it.",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_id: { type: "string" },
+          stage_name: { type: "string" },
+        },
+        required: ["lead_id", "stage_name"],
+      },
+    },
+  },
+] as const;
+
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<unknown> {
+  const inScope = (ownerId: string | null) =>
+    !ctx.ownerIds || (ownerId != null && ctx.ownerIds.includes(ownerId));
+
+  if (name === "search_leads") {
+    const query = String(args["query"] ?? "").trim();
+    if (!query) return { error: "query is required" };
+    const { data } = await supabaseAdmin
+      .from("leads")
+      .select("id, name, company_name, stage_id, owner_id, temperature")
+      .eq("organization_id", ctx.orgId)
+      .or(`name.ilike.%${query}%,company_name.ilike.%${query}%`)
+      .limit(20);
+    const rows = (data ?? []).filter((l) => inScope(l.owner_id)).slice(0, 5);
+    if (rows.length === 0) return { results: [] };
+    const stageIds = [...new Set(rows.map((r) => r.stage_id).filter(Boolean))] as string[];
+    const { data: stages } = stageIds.length
+      ? await supabaseAdmin.from("pipeline_stages").select("id, name").in("id", stageIds)
+      : { data: [] };
+    const stageById = new Map((stages ?? []).map((s) => [s.id, s.name]));
+    return {
+      results: rows.map((l) => ({
+        id: l.id,
+        name: l.name,
+        company: l.company_name,
+        stage: l.stage_id ? (stageById.get(l.stage_id) ?? null) : null,
+        temperature: l.temperature,
+      })),
+    };
+  }
+
+  if (name === "create_my_task") {
+    const title = String(args["title"] ?? "").trim();
+    if (!title) return { error: "title is required" };
+    const leadId = typeof args["lead_id"] === "string" ? args["lead_id"] : null;
+    if (leadId) {
+      const { data: lead } = await supabaseAdmin
+        .from("leads")
+        .select("id, owner_id, organization_id")
+        .eq("id", leadId)
+        .maybeSingle();
+      if (!lead || lead.organization_id !== ctx.orgId || !inScope(lead.owner_id)) {
+        return { error: "Unknown lead_id." };
+      }
+    }
+    const { data, error } = await supabaseAdmin
+      .from("tasks")
+      .insert({
+        organization_id: ctx.orgId,
+        title,
+        assignee_id: ctx.callerId,
+        created_by: ctx.callerId,
+        due_date: typeof args["due_date"] === "string" ? args["due_date"] : null,
+        lead_id: leadId,
+      })
+      .select("id")
+      .maybeSingle();
+    if (error) return { error: error.message };
+    return { created: true, task_id: data?.id };
+  }
+
+  if (name === "add_lead_note") {
+    const leadId = String(args["lead_id"] ?? "");
+    const note = String(args["note"] ?? "").trim();
+    if (!leadId || !note) return { error: "lead_id and note are required" };
+    const { data: lead } = await supabaseAdmin
+      .from("leads")
+      .select("id, owner_id, organization_id")
+      .eq("id", leadId)
+      .maybeSingle();
+    if (!lead || lead.organization_id !== ctx.orgId || !inScope(lead.owner_id)) {
+      return { error: "Unknown lead_id." };
+    }
+    const { error } = await supabaseAdmin.from("lead_activities").insert({
+      lead_id: leadId,
+      organization_id: ctx.orgId,
+      type: "note",
+      content: note,
+      created_by: ctx.callerId,
+    });
+    if (error) return { error: error.message };
+    return { added: true };
+  }
+
+  if (name === "update_lead_stage") {
+    const leadId = String(args["lead_id"] ?? "");
+    const stageName = String(args["stage_name"] ?? "").trim();
+    if (!leadId || !stageName) return { error: "lead_id and stage_name are required" };
+    const { data: lead } = await supabaseAdmin
+      .from("leads")
+      .select("id, owner_id, organization_id, stage_id")
+      .eq("id", leadId)
+      .maybeSingle();
+    if (!lead || lead.organization_id !== ctx.orgId || !inScope(lead.owner_id)) {
+      return { error: "Unknown lead_id." };
+    }
+    const { data: currentStage } = lead.stage_id
+      ? await supabaseAdmin
+          .from("pipeline_stages")
+          .select("pipeline_name")
+          .eq("id", lead.stage_id)
+          .maybeSingle()
+      : { data: null };
+    let stageQuery = supabaseAdmin
+      .from("pipeline_stages")
+      .select("id, name, pipeline_name")
+      .eq("organization_id", ctx.orgId)
+      .ilike("name", stageName);
+    if (currentStage?.pipeline_name) {
+      stageQuery = stageQuery.eq("pipeline_name", currentStage.pipeline_name);
+    }
+    const { data: targetStages } = await stageQuery.limit(1);
+    const target = targetStages?.[0];
+    if (!target) return { error: `No stage named "${stageName}" found in this lead's funnel.` };
+    const { error } = await supabaseAdmin
+      .from("leads")
+      .update({ stage_id: target.id })
+      .eq("id", leadId);
+    if (error) return { error: error.message };
+    return { moved: true, new_stage: target.name };
+  }
+
+  return { error: `Unknown tool: ${name}` };
+}
+
+type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
+type OpenAiMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+};
+
 export const Route = createFileRoute("/ai-assistant/chat")({
   server: {
     handlers: {
@@ -235,7 +455,8 @@ export const Route = createFileRoute("/ai-assistant/chat")({
         let systemPrompt =
           "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.\n\n" +
           "When the user asks where to find something or how to do something in the app, name the exact page and, when useful, give the numbered steps to get there — for example: '1. Open Sozlamalar (Settings) in the sidebar. 2. Click Biznes profili. 3. Fill in the form and press Saqlash.' Always include the page's path in parentheses so it's unambiguous, e.g. (/settings). Only reference pages from this list — never invent a path that isn't here:\n" +
-          NAV_GUIDE;
+          NAV_GUIDE +
+          "\n\nYou also have tools to actually act, not just describe: search_leads, create_my_task, add_lead_note, update_lead_stage. Use them whenever the user asks you to do something rather than just explain it (e.g. 'remind me to call Aziz tomorrow', 'add a note on the Akmal deal', 'move that lead to negotiation'). Never invent a lead_id — call search_leads first if you don't already have the right id from earlier in this conversation, and if multiple leads match, ask which one they mean instead of guessing. After a tool call succeeds, confirm plainly what you did.";
         if (profile) {
           const context = [
             profile.company_name && `Company: ${profile.company_name}`,
@@ -249,9 +470,10 @@ export const Route = createFileRoute("/ai-assistant/chat")({
           if (context) systemPrompt += `\n\nBusiness context:\n${context}`;
         }
 
+        let ownerIds: string[] | null = null;
         if (caller?.organization_id) {
           try {
-            const ownerIds = await visibleOwnerIds(caller.organization_id, userId, caller.role);
+            ownerIds = await visibleOwnerIds(caller.organization_id, userId, caller.role);
             const snapshot = await loadDataSnapshot(caller.organization_id, asOf, ownerIds);
             systemPrompt += `\n\n${snapshot}`;
           } catch {
@@ -259,26 +481,68 @@ export const Route = createFileRoute("/ai-assistant/chat")({
           }
         }
 
-        const res = await fetch("https://api.deepseek.com/chat/completions", {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            temperature: 0.4,
-            messages: [{ role: "system", content: systemPrompt }, ...messages],
-          }),
-        });
+        const convo: OpenAiMessage[] = [{ role: "system", content: systemPrompt }, ...messages];
+        let reply = "";
+        // Capped: one round to call tools, one to answer using their results is the
+        // common case, but a request can chain a couple of tools (search then act).
+        const MAX_TOOL_ROUNDS = 4;
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+          const res = await fetch("https://api.deepseek.com/chat/completions", {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "deepseek-chat",
+              temperature: 0.4,
+              messages: convo,
+              tools: TOOLS,
+              tool_choice: "auto",
+            }),
+          });
 
-        if (!res.ok) {
-          const text = await res.text();
-          return Response.json(
-            { error: `DeepSeek error (${res.status}): ${text}` },
-            { status: 502 },
-          );
+          if (!res.ok) {
+            const text = await res.text();
+            return Response.json(
+              { error: `DeepSeek error (${res.status}): ${text}` },
+              { status: 502 },
+            );
+          }
+
+          const json = (await res.json()) as { choices?: { message?: OpenAiMessage }[] };
+          const message = json.choices?.[0]?.message;
+          if (!message) break;
+
+          if (message.tool_calls?.length && caller?.organization_id) {
+            convo.push({
+              role: "assistant",
+              content: message.content ?? "",
+              tool_calls: message.tool_calls,
+            });
+            for (const call of message.tool_calls) {
+              let args: Record<string, unknown> = {};
+              try {
+                args = JSON.parse(call.function.arguments || "{}");
+              } catch {
+                // Malformed tool arguments -- executeTool's own field checks below
+                // will report the missing/invalid fields back to the model.
+              }
+              const result = await executeTool(call.function.name, args, {
+                orgId: caller.organization_id,
+                callerId: userId,
+                ownerIds,
+              });
+              convo.push({
+                role: "tool",
+                tool_call_id: call.id,
+                content: JSON.stringify(result),
+              });
+            }
+            continue;
+          }
+
+          reply = message.content ?? "";
+          break;
         }
 
-        const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-        const reply = json.choices?.[0]?.message?.content ?? "";
         return Response.json({ reply });
       },
     },

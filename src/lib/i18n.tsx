@@ -384,6 +384,9 @@ const en: Dict = {
   "common.none": "None",
   "common.exportCsv": "Export to Excel",
   "common.exportPdf": "Export to PDF",
+  "common.exportGoogleSheets": "Export to Google Sheets",
+  "common.exportGoogleSheetsHint":
+    "CSV downloaded and a blank Google Sheet opened in a new tab — in that tab: File → Import → Upload, then pick the downloaded file.",
 
   "login.title": "Sign in to SalesOS Elite",
   "login.subtitle": "The operating system that delivers steady results",
@@ -595,6 +598,12 @@ const en: Dict = {
   "settings.notifications.manage": "Manage",
   "settings.notifications.moreComingSoon":
     "More notification types (lead assigned, target reached) are coming soon.",
+  "settings.notifications.push": "Push notifications",
+  "settings.notifications.pushOnDesc":
+    "On for this device — you'll get real notifications even when the tab is closed.",
+  "settings.notifications.pushOffDesc":
+    "Turn on to get notifications on this device, even when the tab is closed.",
+  "settings.notifications.pushUnsupported": "This browser doesn't support push notifications.",
   "settings.notifications.saveFailed": "Could not save the setting.",
   "settings.personalizationDesc": "Tune language, currency and appearance to your taste.",
   "settings.nav.business": "Business profile",
@@ -1661,6 +1670,8 @@ const en: Dict = {
   "leads.scoreHint": "Score 80+",
   "leads.avgScore": "Average score",
   "leads.openValue": "Open pipeline value",
+  "leads.statsAllTimeHint":
+    "This card always shows the all-time total — only the list below is limited to the selected date range.",
   "leads.loading": "Loading leads…",
   "leads.stageFilter": "Stage: {stage}",
   "leads.clearFilter": "Clear filter",
@@ -2174,6 +2185,9 @@ const ru: Dict = {
   "common.none": "Нет",
   "common.exportCsv": "Скачать в Excel",
   "common.exportPdf": "Скачать в PDF",
+  "common.exportGoogleSheets": "Экспорт в Google Sheets",
+  "common.exportGoogleSheetsHint":
+    "CSV скачан, и в новой вкладке открыт пустой Google Sheets — там: Файл → Импорт → Загрузить, затем выберите скачанный файл.",
 
   "login.title": "Вход в SalesOS Elite",
   "login.subtitle": "Операционная система, обеспечивающая стабильный результат",
@@ -2371,6 +2385,12 @@ const ru: Dict = {
   "settings.notifications.manage": "Настроить",
   "settings.notifications.moreComingSoon":
     "Другие типы уведомлений (назначение лида, выполнение цели) появятся позже.",
+  "settings.notifications.push": "Push-уведомления",
+  "settings.notifications.pushOnDesc":
+    "Включено на этом устройстве — уведомления будут приходить, даже если вкладка закрыта.",
+  "settings.notifications.pushOffDesc":
+    "Включите, чтобы получать уведомления на этом устройстве, даже если вкладка закрыта.",
+  "settings.notifications.pushUnsupported": "Этот браузер не поддерживает push-уведомления.",
   "settings.notifications.saveFailed": "Не удалось сохранить настройку.",
   "settings.personalizationDesc": "Настройте язык, валюту и оформление под себя.",
   "settings.nav.business": "Бизнес-профиль",
@@ -3443,6 +3463,8 @@ const ru: Dict = {
   "leads.scoreHint": "Скор 80+",
   "leads.avgScore": "Средний скор",
   "leads.openValue": "Сумма открытых сделок",
+  "leads.statsAllTimeHint":
+    "Эта карточка всегда показывает общий итог за всё время — только список ниже ограничен выбранным периодом.",
   "leads.loading": "Загрузка лидов…",
   "leads.stageFilter": "Этап: {stage}",
   "leads.clearFilter": "Сбросить фильтр",
@@ -3962,6 +3984,9 @@ const uz: Dict = {
   "common.none": "Yo'q",
   "common.exportCsv": "Excelga yuklab olish",
   "common.exportPdf": "PDF sifatida yuklab olish",
+  "common.exportGoogleSheets": "Google Sheets'ga eksport",
+  "common.exportGoogleSheetsHint":
+    "CSV yuklab olindi va yangi vkladkada bo'sh Google Sheets ochildi — o'sha yerda: Fayl → Import → Yuklash, so'ng yuklab olingan faylni tanlang.",
 
   "login.title": "SalesOS Elite tizimiga kirish",
   "login.subtitle": "Barqaror natijani ta'minlovchi operatsion tizim",
@@ -4166,6 +4191,12 @@ const uz: Dict = {
   "settings.notifications.manage": "Boshqarish",
   "settings.notifications.moreComingSoon":
     "Boshqa bildirishnoma turlari (lid biriktirilishi, maqsad bajarilishi) tez orada qo'shiladi.",
+  "settings.notifications.push": "Push-bildirishnomalar",
+  "settings.notifications.pushOnDesc":
+    "Bu qurilmada yoqilgan — vkladka yopiq bo'lsa ham haqiqiy bildirishnoma keladi.",
+  "settings.notifications.pushOffDesc":
+    "Vkladka yopiq bo'lsa ham shu qurilmaga bildirishnoma kelishi uchun yoqing.",
+  "settings.notifications.pushUnsupported": "Bu brauzer push-bildirishnomalarni qo'llamaydi.",
   "settings.notifications.saveFailed": "Sozlamani saqlab bo'lmadi.",
   "settings.personalizationDesc": "Til, valyuta va ko'rinishni o'zingizga moslang.",
   "settings.nav.business": "Biznes profili",
@@ -5250,6 +5281,8 @@ const uz: Dict = {
   "leads.scoreHint": "Skor 80+",
   "leads.avgScore": "O‘rtacha skor",
   "leads.openValue": "Ochiq bitimlar summasi",
+  "leads.statsAllTimeHint":
+    "Bu karta doim butun davr bo‘yicha umumiy sonni ko‘rsatadi — faqat pastdagi ro‘yxat tanlangan sana oralig‘iga cheklangan.",
   "leads.loading": "Lidlar yuklanmoqda…",
   "leads.stageFilter": "Bosqich: {stage}",
   "leads.clearFilter": "Filtrni tozalash",

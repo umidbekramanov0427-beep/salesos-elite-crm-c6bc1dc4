@@ -12,6 +12,7 @@ import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Pri
 import { TagChip } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,9 @@ export const Route = createFileRoute("/funnels")({
     min?: string | undefined;
     max?: string | undefined;
     view?: "gallery" | "list" | undefined;
+    from?: string | undefined;
+    to?: string | undefined;
+    label?: string | undefined;
   } => ({
     funnel: typeof search["funnel"] === "string" ? search["funnel"] : undefined,
     owner: typeof search["owner"] === "string" ? search["owner"] : undefined,
@@ -49,6 +53,9 @@ export const Route = createFileRoute("/funnels")({
     min: typeof search["min"] === "string" ? search["min"] : undefined,
     max: typeof search["max"] === "string" ? search["max"] : undefined,
     view: search["view"] === "gallery" || search["view"] === "list" ? search["view"] : undefined,
+    from: typeof search["from"] === "string" ? search["from"] : undefined,
+    to: typeof search["to"] === "string" ? search["to"] : undefined,
+    label: typeof search["label"] === "string" ? search["label"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -448,6 +455,38 @@ function FunnelDetail({
   );
   const view: "gallery" | "list" = search.view === "list" ? "list" : "gallery";
 
+  const dateFilter: DateFilterValue = useMemo(
+    () => ({
+      from: search.from ? new Date(search.from) : null,
+      to: search.to ? new Date(search.to) : null,
+      label: search.label ?? t("lb.presetAll"),
+    }),
+    [search.from, search.to, search.label, t],
+  );
+  function setDateFilter(v: DateFilterValue) {
+    void navigate({
+      to: "/funnels",
+      search: (prev) => ({
+        ...prev,
+        from: v.from ? v.from.toISOString() : undefined,
+        to: v.to ? v.to.toISOString() : undefined,
+        label: v.label || undefined,
+      }),
+      replace: true,
+    });
+  }
+  // Everything below (stat cards, owner/tag cascade, gallery/list) derives
+  // from this date-scoped slice, not the raw `leads` prop directly.
+  const dateScopedLeads = useMemo(() => {
+    if (!dateFilter.from && !dateFilter.to) return leads;
+    return leads.filter((l) => {
+      const created = new Date(l.createdAtIso).getTime();
+      if (dateFilter.from && created < dateFilter.from.getTime()) return false;
+      if (dateFilter.to && created > dateFilter.to.getTime()) return false;
+      return true;
+    });
+  }, [leads, dateFilter]);
+
   const { data: profiles } = useProfilesRaw();
   const { data: stages } = usePipelineStagesRaw();
   const getAmoLink = useAmoCrmLink();
@@ -456,26 +495,31 @@ function FunnelDetail({
   // kerak -- butun akkaunt bo'yicha emas, aks holda boshqa voronkalarning
   // egalari/teglari ham ko'rinib, ishlatib bo'lmaydigan variantlar chiqadi.
   const funnelOwners = useMemo(() => {
-    const ownerIds = new Set(leads.map((l) => l.ownerId).filter(Boolean));
+    const ownerIds = new Set(dateScopedLeads.map((l) => l.ownerId).filter(Boolean));
     return (profiles ?? []).filter((p) => ownerIds.has(p.id));
-  }, [leads, profiles]);
+  }, [dateScopedLeads, profiles]);
   const funnelTags = useMemo(() => {
     const set = new Set<string>();
-    for (const l of leads) for (const tag of l.tags) set.add(tag);
+    for (const l of dateScopedLeads) for (const tag of l.tags) set.add(tag);
     return Array.from(set).sort();
-  }, [leads]);
+  }, [dateScopedLeads]);
 
-  const gallery = useMemo(() => filterLeads(leads, { ...filters, funnel: null }), [leads, filters]);
+  const gallery = useMemo(
+    () => filterLeads(dateScopedLeads, { ...filters, funnel: null }),
+    [dateScopedLeads, filters],
+  );
 
-  const wonCount = leads.filter((l) => l.stageIsWon).length;
-  const conversionRate = leads.length ? Math.round((wonCount / leads.length) * 1000) / 10 : 0;
+  const wonCount = dateScopedLeads.filter((l) => l.stageIsWon).length;
+  const conversionRate = dateScopedLeads.length
+    ? Math.round((wonCount / dateScopedLeads.length) * 1000) / 10
+    : 0;
 
   // This funnel's own analytics -- not the same generic 4 numbers every
   // funnel showed before, since a funnel's actual makeup (avg deal size,
   // how many leads are hot right now, which of its own stages is
   // busiest) varies a lot funnel to funnel and is what's actually
   // actionable when you've drilled into one specific pipeline.
-  const openLeads = leads.filter((l) => !l.stageIsWon && !l.stageIsLost);
+  const openLeads = dateScopedLeads.filter((l) => !l.stageIsWon && !l.stageIsLost);
   const avgDealSize = openLeads.length
     ? openLeads.reduce((s, l) => s + l.expectedRevenue, 0) / openLeads.length
     : 0;
@@ -501,7 +545,16 @@ function FunnelDetail({
         <ArrowLeft className="h-4 w-4" /> {t("funnels.backToFunnels")}
       </Link>
 
-      <PageHeader title={name} description={t("funnels.desc")} actions={asOfControl} />
+      <PageHeader
+        title={name}
+        description={t("funnels.desc")}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+            {asOfControl}
+          </div>
+        }
+      />
 
       <AsOfBanner value={asOfDate} />
 
@@ -514,7 +567,7 @@ function FunnelDetail({
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t("funnels.leadsInFunnel")}
-          value={String(leads.length)}
+          value={String(dateScopedLeads.length)}
           hint={t("funnels.allStages")}
           tone="mint"
         />

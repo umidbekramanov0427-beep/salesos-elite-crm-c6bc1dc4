@@ -523,6 +523,7 @@ export type CrmLeadView = {
   nextFollowUp: string;
   lastContact: string;
   created: string;
+  createdAtIso: string;
   updated: string;
   tags: string[];
   amocrmId: number | null;
@@ -577,6 +578,7 @@ function leadRowToView(
     nextFollowUp: formatFollowUp(l.next_follow_up),
     lastContact: timeAgo(l.last_contact_at),
     created: formatDate(l.created_at),
+    createdAtIso: l.created_at,
     updated: timeAgo(l.updated_at),
     tags: l.tags ?? [],
     amocrmId: l.amocrm_id,
@@ -684,6 +686,14 @@ export type LeadsListParams = {
   search?: string;
   stageId?: string | null;
   sortDesc?: boolean;
+  // ISO timestamps -- filters by created_at. Only applied to the page
+  // query itself; the stats aggregate (leads_list_stats) stays all-time
+  // since that RPC's definition doesn't live in this repo's migrations
+  // (delivered as raw SQL directly, same as entities_as_of) and adding a
+  // date param to it blind, without its real current source, risks
+  // silently breaking it.
+  from?: string | null;
+  to?: string | null;
 };
 
 type LeadsListStats = { total: number; hot: number; avgScore: number; revenue: number };
@@ -707,6 +717,8 @@ export function useLeadsListPage(params: LeadsListParams) {
       params.stageId ?? null,
       params.sortDesc ?? true,
       ownerScopeKey,
+      params.from ?? null,
+      params.to ?? null,
     ],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadRow[]> => {
@@ -715,6 +727,8 @@ export function useLeadsListPage(params: LeadsListParams) {
       if (params.stageId) q = q.eq("stage_id", params.stageId);
       if (search) q = q.or(`name.ilike.%${search}%,company_name.ilike.%${search}%`);
       if (visibleOwnerIds) q = q.in("owner_id", [...visibleOwnerIds]);
+      if (params.from) q = q.gte("created_at", params.from);
+      if (params.to) q = q.lte("created_at", params.to);
       q = q
         .order("score", { ascending: !(params.sortDesc ?? true) })
         .order("id", { ascending: true })
@@ -871,6 +885,7 @@ export function usePipelineBoardLeads(funnel: string | null) {
         nextFollowUp: formatFollowUp(l.next_follow_up),
         lastContact: timeAgo(l.last_contact_at),
         created: formatDate(l.created_at),
+        createdAtIso: l.created_at,
         updated: timeAgo(l.updated_at),
         tags: l.tags ?? [],
         amocrmId: l.amocrm_id,
@@ -1814,6 +1829,18 @@ export type DailyReportStats = {
   prevFullPaymentCount: number;
   fullPaymentDeltaPct: number | null;
   revenueTrend: { label: string; revenue: number }[];
+  operatorBreakdown: {
+    id: string;
+    name: string;
+    calls: number;
+    avgScore: number | null;
+    totalSeconds: number;
+  }[];
+  callFlowByDay: { label: string; connected: number; missed: number }[];
+  // Only computable when a single funnel is selected, same reasoning as
+  // biggestStageDrop -- stage names/positions aren't comparable across
+  // different AmoCRM pipelines.
+  stageBreakdown: { stage: string; count: number; pct: number }[];
 };
 
 const EMPTY_DAILY_REPORT_STATS: DailyReportStats = {
@@ -1841,6 +1868,9 @@ const EMPTY_DAILY_REPORT_STATS: DailyReportStats = {
   prevFullPaymentCount: 0,
   fullPaymentDeltaPct: null,
   revenueTrend: [],
+  operatorBreakdown: [],
+  callFlowByDay: [],
+  stageBreakdown: [],
 };
 
 // A narrower match than SALES_STAGE_KEYWORDS -- "full payment" specifically
@@ -1990,6 +2020,67 @@ export function useDailyReportStats(
       }
     }
 
+    const profilesById = byId(profiles);
+    type OperatorAgg = { calls: number; scoreSum: number; scoreCount: number; seconds: number };
+    const operatorAgg = new Map<string, OperatorAgg>();
+    for (const c of callsInRange) {
+      const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+      if (!lead?.owner_id) continue;
+      const cur = operatorAgg.get(lead.owner_id) ?? {
+        calls: 0,
+        scoreSum: 0,
+        scoreCount: 0,
+        seconds: 0,
+      };
+      cur.calls += 1;
+      cur.seconds += c.duration_seconds;
+      if (c.score != null) {
+        cur.scoreSum += c.score;
+        cur.scoreCount += 1;
+      }
+      operatorAgg.set(lead.owner_id, cur);
+    }
+    const operatorBreakdown = Array.from(operatorAgg.entries())
+      .map(([id, a]) => ({
+        id,
+        name: profileName(profilesById.get(id)),
+        calls: a.calls,
+        avgScore: a.scoreCount ? Math.round(a.scoreSum / a.scoreCount) : null,
+        totalSeconds: a.seconds,
+      }))
+      .sort((a, b) => b.calls - a.calls);
+
+    const callFlowByDay: DailyReportStats["callFlowByDay"] = [];
+    const connectedByDay = new Map<string, number>();
+    const missedByDay = new Map<string, number>();
+    for (const c of callsInRange) {
+      const dayKey = new Date(c.occurred_at).toDateString();
+      if (c.connected) connectedByDay.set(dayKey, (connectedByDay.get(dayKey) ?? 0) + 1);
+      else missedByDay.set(dayKey, (missedByDay.get(dayKey) ?? 0) + 1);
+    }
+    for (let d = new Date(range.from); d < range.to; d.setDate(d.getDate() + 1)) {
+      const dayKey = d.toDateString();
+      callFlowByDay.push({
+        label: `${d.getDate()}`,
+        connected: connectedByDay.get(dayKey) ?? 0,
+        missed: missedByDay.get(dayKey) ?? 0,
+      });
+    }
+
+    let stageBreakdown: DailyReportStats["stageBreakdown"] = [];
+    if (scope.funnel) {
+      const funnelStages = (stages ?? [])
+        .filter((s) => s.pipeline_name === scope.funnel)
+        .sort((a, b) => a.position - b.position);
+      const base = leadsInRange.length || 1;
+      stageBreakdown = funnelStages
+        .map((s) => {
+          const count = leadsInRange.filter((l) => l.stage_id === s.id).length;
+          return { stage: s.name, count, pct: Math.round((count / base) * 1000) / 10 };
+        })
+        .filter((s) => s.count > 0);
+    }
+
     return {
       totalCalls,
       connectedCalls,
@@ -2024,13 +2115,25 @@ export function useDailyReportStats(
       prevFullPaymentCount,
       fullPaymentDeltaPct:
         prevFullPaymentCount > 0
-          ? Math.round(
-              ((fullPaymentCount - prevFullPaymentCount) / prevFullPaymentCount) * 1000,
-            ) / 10
+          ? Math.round(((fullPaymentCount - prevFullPaymentCount) / prevFullPaymentCount) * 1000) /
+            10
           : null,
       revenueTrend,
+      operatorBreakdown,
+      callFlowByDay,
+      stageBreakdown,
     };
-  }, [leads, calls, stages, profiles, range, prevRange, scope.funnel, scope.teamId, scope.operatorId]);
+  }, [
+    leads,
+    calls,
+    stages,
+    profiles,
+    range,
+    prevRange,
+    scope.funnel,
+    scope.teamId,
+    scope.operatorId,
+  ]);
 }
 
 // Both dashboard funnel widgets used to aggregate the deals table (which
@@ -3011,6 +3114,30 @@ export async function notifyTaskAssigned(assigneeId: string, taskTitle: string):
     body: "Sizga yangi vazifa biriktirildi.",
     link: "/tasks",
   });
+
+  // The in-app bell above is done at this point (client insert, RLS-backed,
+  // same as always) -- this is purely the extra push send, which needs the
+  // VAPID private key and can only run server-side. Best-effort: if the
+  // assignee has no push subscription (or push isn't configured at all),
+  // the server route just reports 0 sent, nothing to handle here.
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    await fetch("/notifications/send-push", {
+      method: "POST",
+      headers: { "content-type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        assigneeId,
+        title: taskTitle,
+        body: "Sizga yangi vazifa biriktirildi.",
+        link: "/tasks",
+      }),
+    });
+  } catch {
+    // Push is a nice-to-have on top of the in-app bell -- never let a
+    // network hiccup here surface as a failure to the task-creation flow.
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -4007,6 +4134,28 @@ export function useLeadAnalyticsAction(
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsActionData;
+    },
+  });
+}
+
+// Manager dropdown on Lead Analytics needs to cascade with the funnel
+// filter too (not just the team/ROP filter it already had) -- this page
+// has no client-side lead list to derive that from (everything else on
+// it goes through SQL RPCs), so it's a small dedicated query instead.
+export function useManagerIdsInFunnel(funnel: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["manager_ids_in_funnel", user?.organizationId, funnel],
+    enabled: !!user?.organizationId && !!funnel,
+    queryFn: async (): Promise<Set<string>> => {
+      if (!funnel) return new Set();
+      const { data, error } = await supabase
+        .from("leads")
+        .select("owner_id")
+        .eq("funnel", funnel)
+        .not("owner_id", "is", null);
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.owner_id as string));
     },
   });
 }

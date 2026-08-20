@@ -5,6 +5,7 @@ import {
   ArrowUp,
   Award,
   Bell,
+  BellRing,
   Bot,
   Building2,
   Check,
@@ -38,6 +39,7 @@ import { useCurrency, CURRENCIES } from "@/lib/currency";
 import { useI18n, LANGS, LANG_LABELS } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
+import { usePushSubscription } from "@/hooks/use-push-notifications";
 import {
   useBusinessProfile,
   useCallCategories,
@@ -333,10 +335,20 @@ function NotificationsSection() {
   const { data: prefs } = useNotificationPreferences();
   const updatePrefs = useUpdateNotificationPreferences();
   const taskAssigned = prefs?.task_assigned ?? true;
+  const push = usePushSubscription();
 
   async function toggleTaskAssigned() {
     try {
       await updatePrefs.mutateAsync({ task_assigned: !taskAssigned });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("settings.notifications.saveFailed"));
+    }
+  }
+
+  async function togglePush() {
+    try {
+      if (push.status === "subscribed") await push.unsubscribe.mutateAsync();
+      else await push.subscribe.mutateAsync();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("settings.notifications.saveFailed"));
     }
@@ -405,7 +417,48 @@ function NotificationsSection() {
           </Link>
         </div>
 
-        <p className="text-xs text-subtle">{t("settings.notifications.moreComingSoon")}</p>
+        <div className="flex items-center justify-between gap-6 rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+              <BellRing className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">
+                {t("settings.notifications.push")}
+              </p>
+              <p className="text-xs text-subtle">
+                {push.status === "unsupported"
+                  ? t("settings.notifications.pushUnsupported")
+                  : push.status === "subscribed"
+                    ? t("settings.notifications.pushOnDesc")
+                    : t("settings.notifications.pushOffDesc")}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={push.status === "subscribed"}
+            disabled={
+              push.status === "unsupported" ||
+              push.status === "loading" ||
+              push.subscribe.isPending ||
+              push.unsubscribe.isPending
+            }
+            onClick={() => void togglePush()}
+            className={cn(
+              "relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors disabled:opacity-60",
+              push.status === "subscribed" ? "bg-primary" : "bg-muted",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute left-1 h-6 w-6 rounded-full bg-background shadow-soft transition-transform duration-200",
+                push.status === "subscribed" && "translate-x-6",
+              )}
+            />
+          </button>
+        </div>
       </div>
     </SectionCard>
   );

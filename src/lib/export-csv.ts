@@ -25,6 +25,17 @@ export function downloadCsv(filename: string, rows: Record<string, unknown>[]): 
   URL.revokeObjectURL(url);
 }
 
+// Real OAuth-based push into an existing Google Sheet would need a Google
+// Cloud project + client credentials from the account owner, which this
+// platform doesn't have on file -- so this is the no-setup path instead:
+// download the CSV (identical to the CSV export above) and open a blank
+// Google Sheet in a new tab, ready for the user to File -> Import it.
+export function exportToGoogleSheets(filename: string, rows: Record<string, unknown>[]): void {
+  if (rows.length === 0) return;
+  downloadCsv(filename, rows);
+  window.open("https://sheets.new", "_blank", "noopener,noreferrer");
+}
+
 function pdfCell(value: unknown): string {
   const s = value == null ? "" : String(value);
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

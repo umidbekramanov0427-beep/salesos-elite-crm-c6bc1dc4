@@ -27,6 +27,7 @@ import { useLeadsListPage, usePipelineStagesRaw } from "@/hooks/use-crm-data";
 import { NewLeadDialog } from "@/components/crm/quick-create";
 import { PermissionGate } from "@/components/PermissionGate";
 import { FilterSearchInput } from "@/components/filters/FilterSelect";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 
 export const Route = createFileRoute("/crm/leads/")({
   validateSearch: (
@@ -36,11 +37,17 @@ export const Route = createFileRoute("/crm/leads/")({
     q?: string | undefined;
     sort?: "asc" | undefined;
     page?: string | undefined;
+    from?: string | undefined;
+    to?: string | undefined;
+    label?: string | undefined;
   } => ({
     stage: typeof search["stage"] === "string" ? search["stage"] : undefined,
     q: typeof search["q"] === "string" ? search["q"] : undefined,
     sort: search["sort"] === "asc" ? "asc" : undefined,
     page: typeof search["page"] === "string" ? search["page"] : undefined,
+    from: typeof search["from"] === "string" ? search["from"] : undefined,
+    to: typeof search["to"] === "string" ? search["to"] : undefined,
+    label: typeof search["label"] === "string" ? search["label"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -103,6 +110,27 @@ function LeadsPage() {
     void navigate({ search: (prev) => ({ ...prev, sort: v ? undefined : "asc" }), replace: true });
   }
 
+  const dateFilter: DateFilterValue = useMemo(
+    () => ({
+      from: search.from ? new Date(search.from) : null,
+      to: search.to ? new Date(search.to) : null,
+      label: search.label ?? t("lb.presetAll"),
+    }),
+    [search.from, search.to, search.label, t],
+  );
+  function setDateFilter(v: DateFilterValue) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        from: v.from ? v.from.toISOString() : undefined,
+        to: v.to ? v.to.toISOString() : undefined,
+        label: v.label || undefined,
+        page: undefined,
+      }),
+      replace: true,
+    });
+  }
+
   // Debounce the search box so every keystroke doesn't fire a new server
   // query — 350ms of no typing before it actually searches.
   useEffect(() => {
@@ -124,7 +152,7 @@ function LeadsPage() {
       void navigate({ search: (prev) => ({ ...prev, page: undefined }), replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, stageFilter]);
+  }, [query, stageFilter, search.from, search.to]);
 
   // The URL's ?stage= param carries a stage *name* (for shareable links);
   // resolve it to the id the server-side filter needs. Stages is a small,
@@ -141,6 +169,8 @@ function LeadsPage() {
     search: query,
     stageId,
     sortDesc,
+    from: dateFilter.from ? dateFilter.from.toISOString() : null,
+    to: dateFilter.to ? dateFilter.to.toISOString() : null,
   });
 
   const totalPages = Math.max(1, Math.ceil(stats.total / PAGE_SIZE));
@@ -153,6 +183,7 @@ function LeadsPage() {
         description={t("leads.desc")}
         actions={
           <>
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
             <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:bg-accent">
               <Upload className="h-4 w-4" /> {t("leads.import")}
             </button>
@@ -189,14 +220,24 @@ function LeadsPage() {
           value={String(stats.total)}
           hint={t("leads.allFunnels")}
           tone="mint"
+          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
         />
         <StatCard
           label={t("leads.hotLeads")}
           value={String(stats.hot)}
           hint={t("leads.scoreHint")}
+          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
         />
-        <StatCard label={t("leads.avgScore")} value={String(stats.avgScore)} />
-        <StatCard label={t("leads.openValue")} value={format(stats.revenue)} />
+        <StatCard
+          label={t("leads.avgScore")}
+          value={String(stats.avgScore)}
+          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
+        />
+        <StatCard
+          label={t("leads.openValue")}
+          value={format(stats.revenue)}
+          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
+        />
       </div>
 
       {isLoading && (

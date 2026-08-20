@@ -50,6 +50,7 @@ import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
 import { Route as PlatformAddEmployeeRouteImport } from './routes/platform.add-employee'
@@ -286,6 +287,11 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
   path: '/errors/log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsSendPushRoute = NotificationsSendPushRouteImport.update({
+  id: '/notifications/send-push',
+  path: '/notifications/send-push',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlatformIndexRoute = PlatformIndexRouteImport.update({
   id: '/platform/',
   path: '/platform/',
@@ -468,6 +474,7 @@ export interface FileRoutesByFullPath {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
@@ -537,6 +544,7 @@ export interface FileRoutesByTo {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
@@ -607,6 +615,7 @@ export interface FileRoutesById {
   '/crm/pipeline': typeof CrmPipelineRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
@@ -678,6 +687,7 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/notifications/send-push'
     | '/platform/activity'
     | '/platform/add-employee'
     | '/platform/ai'
@@ -747,6 +757,7 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/notifications/send-push'
     | '/platform/activity'
     | '/platform/add-employee'
     | '/platform/ai'
@@ -816,6 +827,7 @@ export interface FileRouteTypes {
     | '/crm/pipeline'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/notifications/send-push'
     | '/platform/activity'
     | '/platform/add-employee'
     | '/platform/ai'
@@ -869,6 +881,7 @@ export interface RootRouteChildren {
   CrmDealsRoute: typeof CrmDealsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   ErrorsLogRoute: typeof ErrorsLogRoute
+  NotificationsSendPushRoute: typeof NotificationsSendPushRoute
   PlatformActivityRoute: typeof PlatformActivityRoute
   PlatformAddEmployeeRoute: typeof PlatformAddEmployeeRoute
   PlatformAiRoute: typeof PlatformAiRoute
@@ -1181,6 +1194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErrorsLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/send-push': {
+      id: '/notifications/send-push'
+      path: '/notifications/send-push'
+      fullPath: '/notifications/send-push'
+      preLoaderRoute: typeof NotificationsSendPushRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/platform/': {
       id: '/platform/'
       path: '/platform'
@@ -1484,6 +1504,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmDealsRoute: CrmDealsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   ErrorsLogRoute: ErrorsLogRoute,
+  NotificationsSendPushRoute: NotificationsSendPushRoute,
   PlatformActivityRoute: PlatformActivityRoute,
   PlatformAddEmployeeRoute: PlatformAddEmployeeRoute,
   PlatformAiRoute: PlatformAiRoute,

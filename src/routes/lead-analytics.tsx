@@ -31,6 +31,7 @@ import {
   useFunnelNames,
   useProfilesRaw,
   useLeadAnalyticsAction,
+  useManagerIdsInFunnel,
   useLeadAnalyticsQuality,
   useLeadAnalyticsCurrent,
   useLeadAnalyticsDirection,
@@ -1274,11 +1275,14 @@ function LeadAnalytics() {
     [profiles],
   );
 
+  const { data: managerIdsInFunnel } = useManagerIdsInFunnel(funnel || null);
+
   const managers = useMemo(() => {
-    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
-    if (!teamId) return all;
-    return all.filter((p) => p.id === teamId || p.manager_id === teamId);
-  }, [profiles, teamId]);
+    let all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (teamId) all = all.filter((p) => p.id === teamId || p.manager_id === teamId);
+    if (funnel && managerIdsInFunnel) all = all.filter((p) => managerIdsInFunnel.has(p.id));
+    return all;
+  }, [profiles, teamId, funnel, managerIdsInFunnel]);
 
   const selectedTeamName =
     rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams");
@@ -1384,10 +1388,21 @@ function LeadAnalytics() {
           <TileOption
             label={t("leadFilter.allFunnels")}
             active={!funnel}
-            onClick={() => setFunnel("")}
+            onClick={() => {
+              setFunnel("");
+              setManagerId("");
+            }}
           />
           {funnelNames.map((f) => (
-            <TileOption key={f} label={f} active={funnel === f} onClick={() => setFunnel(f)} />
+            <TileOption
+              key={f}
+              label={f}
+              active={funnel === f}
+              onClick={() => {
+                setFunnel(f);
+                setManagerId("");
+              }}
+            />
           ))}
         </FilterTile>
       </div>
