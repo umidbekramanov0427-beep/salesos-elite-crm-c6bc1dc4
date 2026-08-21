@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -213,6 +213,38 @@ function HistoryPanel({
   );
 }
 
+// The assistant is instructed to always include a lead's real /crm/leads/<id>
+// path verbatim when it mentions that lead (see ai-assistant.chat.ts's system
+// prompt) -- messages render as plain text otherwise, so without this those
+// paths would just sit there as unclickable text instead of taking the user
+// straight to the lead.
+const LEAD_PATH_RE = /\/crm\/leads\/([a-zA-Z0-9-]+)/g;
+
+function renderMessageContent(content: string, openLabel: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(LEAD_PATH_RE);
+  let key = 0;
+  while ((match = re.exec(content)) !== null) {
+    if (match.index > lastIndex) nodes.push(content.slice(lastIndex, match.index));
+    const leadId = match[1]!;
+    nodes.push(
+      <Link
+        key={`lead-link-${key++}`}
+        to="/crm/leads/$leadId"
+        params={{ leadId }}
+        className="font-semibold text-primary underline underline-offset-2 hover:opacity-80"
+      >
+        {openLabel}
+      </Link>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) nodes.push(content.slice(lastIndex));
+  return nodes;
+}
+
 function AiAssistantPage() {
   const { t } = useI18n();
   const chat = useAiAssistantChat();
@@ -347,7 +379,9 @@ function AiAssistantPage() {
                         : "bg-surface text-foreground",
                   )}
                 >
-                  {m.content}
+                  {m.role === "assistant"
+                    ? renderMessageContent(m.content, t("inbox.open"))
+                    : m.content}
                 </div>
               ))}
 
