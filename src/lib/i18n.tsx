@@ -1826,6 +1826,7 @@ const en: Dict = {
   "pipeline.pickFunnelDesc": "Pick a funnel to open its Kanban board.",
   "pipeline.loading": "Loading pipeline…",
   "pipeline.expected": "expected",
+  "pipeline.moveFailed": "Failed to move the deal. Please try again.",
   "pipeline.dropHint": "Drop a deal here",
 
   "tags.addTag": "Tag",
@@ -3703,6 +3704,7 @@ const ru: Dict = {
   "pipeline.pickFunnelDesc": "Выберите воронку, чтобы открыть её канбан-доску.",
   "pipeline.loading": "Загрузка пайплайна…",
   "pipeline.expected": "ожидается",
+  "pipeline.moveFailed": "Не удалось переместить сделку. Попробуйте снова.",
   "pipeline.dropHint": "Перетащите сделку сюда",
 
   "tags.addTag": "Тег",
@@ -5609,6 +5611,7 @@ const uz: Dict = {
   "pipeline.pickFunnelDesc": "Kanban doskasini ochish uchun voronkani tanlang.",
   "pipeline.loading": "Pipeline yuklanmoqda…",
   "pipeline.expected": "kutilmoqda",
+  "pipeline.moveFailed": "Bitimni ko'chirib bo'lmadi. Qaytadan urinib ko'ring.",
   "pipeline.dropHint": "Bitimni shu yerga tashlang",
 
   "tags.addTag": "Teg",

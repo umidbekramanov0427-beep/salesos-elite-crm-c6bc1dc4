@@ -186,8 +186,39 @@ export const useDeleteContact = contactsResource.useRemove;
 export const useLeadsRaw = (opts?: Parameters<typeof leadsResource.useList>[0]) =>
   leadsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
 export const useCreateLead = leadsResource.useCreate;
-export const useUpdateLead = leadsResource.useUpdate;
 export const useDeleteLead = leadsResource.useRemove;
+
+// Same update as leadsResource.useUpdate, but also invalidates
+// pipeline_board_leads -- the AmoCRM board and Voronkalar's funnel detail
+// view both read leads through that separate, funnel-scoped query (see
+// usePipelineBoardLeadsRaw) instead of the plain ["leads"] cache this
+// generic resource invalidates, so a drag-and-drop stage move or a tag
+// edit from either page never showed up there until a hard reload.
+export function useUpdateLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Database["public"]["Tables"]["leads"]["Update"];
+    }): Promise<LeadRow> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .update(patch)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+      void qc.invalidateQueries({ queryKey: ["pipeline_board_leads"] });
+    },
+  });
+}
 
 export const useDealsRaw = (opts?: Parameters<typeof dealsResource.useList>[0]) =>
   dealsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
@@ -842,6 +873,31 @@ export function usePipelineBoardLeads(funnel: string | null) {
       : leads;
   }, [board.data, visibleOwnerIds]);
 
+  // The board is already scoped to a single funnel (a bounded lead count),
+  // unlike useCrmLeads' org-wide fetch this hook otherwise mirrors -- cheap
+  // enough here to also resolve each lead's contact info, which used to be
+  // left blank, silently breaking the filter bar's "search by phone"
+  // promise on every page that reuses this hook's live-path leads
+  // (Voronkalar's funnel detail view included, not just the AmoCRM board).
+  const contactIds = useMemo(
+    () =>
+      Array.from(new Set(scopedLeads.map((l) => l.contact_id).filter((id): id is string => !!id))),
+    [scopedLeads],
+  );
+  const { data: contacts } = useQuery({
+    queryKey: ["pipeline_board_contacts", contactIds],
+    enabled: contactIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, phone, alt_phone, email, telegram, whatsapp")
+        .in("id", contactIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const contactsById = useMemo(() => byId(contacts ?? []), [contacts]);
+
   const rows = useMemo<CrmLeadView[]>(() => {
     const profilesById = byId(profiles ?? []);
     const stagesById = byId(stages ?? []);
@@ -850,6 +906,7 @@ export function usePipelineBoardLeads(funnel: string | null) {
       const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
       const manager = l.manager_id ? profilesById.get(l.manager_id) : undefined;
       const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+      const contact = l.contact_id ? contactsById.get(l.contact_id) : undefined;
       return {
         id: l.id,
         name: l.name,
@@ -857,11 +914,11 @@ export function usePipelineBoardLeads(funnel: string | null) {
         company: l.company_name,
         companyId: l.company_id ?? "",
         position: "",
-        phone: "",
-        altPhone: "",
-        email: "",
-        telegram: "",
-        whatsapp: "",
+        phone: contact?.phone ?? "",
+        altPhone: contact?.alt_phone ?? "",
+        email: contact?.email ?? "",
+        telegram: contact?.telegram ?? "",
+        whatsapp: contact?.whatsapp ?? "",
         source: l.source ?? "",
         campaign: l.campaign ?? "",
         utm: l.utm ?? "",
@@ -891,7 +948,7 @@ export function usePipelineBoardLeads(funnel: string | null) {
         amocrmId: l.amocrm_id,
       };
     });
-  }, [scopedLeads, profiles, stages]);
+  }, [scopedLeads, profiles, stages, contactsById]);
 
   return {
     rows,
@@ -4655,16 +4712,25 @@ export function useLeadAnalyticsQuality(
   funnel: string | null,
   manager: string | null,
   team: string | null,
+  since: Date | null,
 ) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_quality", user?.organizationId, funnel, manager, team],
+    queryKey: [
+      "lead_analytics_quality",
+      user?.organizationId,
+      funnel,
+      manager,
+      team,
+      since?.getTime(),
+    ],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsQualityData> => {
       const { data, error } = await supabase.rpc("lead_analytics_quality", {
         p_funnel: funnel,
         p_manager: manager,
         p_team: team,
+        p_since: since ? since.toISOString() : null,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsQualityData;
@@ -4702,16 +4768,25 @@ export function useLeadAnalyticsCurrent(
   funnel: string | null,
   manager: string | null,
   team: string | null,
+  since: Date | null,
 ) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_current", user?.organizationId, funnel, manager, team],
+    queryKey: [
+      "lead_analytics_current",
+      user?.organizationId,
+      funnel,
+      manager,
+      team,
+      since?.getTime(),
+    ],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsCurrentData> => {
       const { data, error } = await supabase.rpc("lead_analytics_current", {
         p_funnel: funnel,
         p_manager: manager,
         p_team: team,
+        p_since: since ? since.toISOString() : null,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsCurrentData;
@@ -4746,16 +4821,25 @@ export function useLeadAnalyticsDirection(
   funnel: string | null,
   manager: string | null,
   team: string | null,
+  since: Date | null,
 ) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead_analytics_direction", user?.organizationId, funnel, manager, team],
+    queryKey: [
+      "lead_analytics_direction",
+      user?.organizationId,
+      funnel,
+      manager,
+      team,
+      since?.getTime(),
+    ],
     enabled: !!user?.organizationId,
     queryFn: async (): Promise<LeadAnalyticsDirectionData> => {
       const { data, error } = await supabase.rpc("lead_analytics_direction", {
         p_funnel: funnel,
         p_manager: manager,
         p_team: team,
+        p_since: since ? since.toISOString() : null,
       });
       if (error) throw error;
       return data as unknown as LeadAnalyticsDirectionData;
