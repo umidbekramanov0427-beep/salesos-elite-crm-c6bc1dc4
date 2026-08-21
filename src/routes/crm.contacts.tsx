@@ -6,6 +6,7 @@ import { useContactsView } from "@/hooks/use-crm-data";
 import { NewContactDialog } from "@/components/crm/quick-create";
 import { useI18n } from "@/lib/i18n";
 import { FilterSearchInput } from "@/components/filters/FilterSelect";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 
 export const Route = createFileRoute("/crm/contacts")({
   head: () => ({
@@ -31,15 +32,23 @@ export const Route = createFileRoute("/crm/contacts")({
 function ContactsPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
   const { rows: contacts, isLoading } = useContactsView();
 
   const rows = useMemo(() => {
     const q = query.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        !q || [c.name, c.position, c.company, c.email].some((v) => v.toLowerCase().includes(q)),
-    );
-  }, [contacts, query]);
+    return contacts.filter((c) => {
+      if (q && ![c.name, c.position, c.company, c.email].some((v) => v.toLowerCase().includes(q)))
+        return false;
+      if (dateFilter.from && new Date(c.createdAtRaw) < dateFilter.from) return false;
+      if (dateFilter.to && new Date(c.createdAtRaw) > dateFilter.to) return false;
+      return true;
+    });
+  }, [contacts, query, dateFilter]);
 
   const companiesCount = new Set(contacts.map((c) => c.companyId).filter(Boolean)).size;
 
@@ -50,6 +59,7 @@ function ContactsPage() {
         description={t("contacts.desc")}
         actions={
           <>
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
             <ExportButton
               filename="contacts"
               rows={rows.map((c) => ({

@@ -13,6 +13,7 @@ import { useCompaniesView } from "@/hooks/use-crm-data";
 import { NewCompanyDialog } from "@/components/crm/quick-create";
 import { useI18n } from "@/lib/i18n";
 import { FilterSearchInput } from "@/components/filters/FilterSelect";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 
 export const Route = createFileRoute("/crm/companies")({
   head: () => ({
@@ -38,14 +39,23 @@ export const Route = createFileRoute("/crm/companies")({
 function CompaniesPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
   const { rows: companies, isLoading } = useCompaniesView();
 
   const rows = useMemo(() => {
     const q = query.toLowerCase();
-    return companies.filter(
-      (c) => !q || [c.name, c.industry, c.city, c.owner].some((v) => v.toLowerCase().includes(q)),
-    );
-  }, [companies, query]);
+    return companies.filter((c) => {
+      if (q && ![c.name, c.industry, c.city, c.owner].some((v) => v.toLowerCase().includes(q)))
+        return false;
+      if (dateFilter.from && new Date(c.createdAtRaw) < dateFilter.from) return false;
+      if (dateFilter.to && new Date(c.createdAtRaw) > dateFilter.to) return false;
+      return true;
+    });
+  }, [companies, query, dateFilter]);
 
   const enterpriseCount = companies.filter((c) => c.revenue >= 50_000_000).length;
   const openValue = companies.reduce((s, c) => s + c.openValue, 0);
@@ -60,6 +70,7 @@ function CompaniesPage() {
         description={t("companies.desc")}
         actions={
           <>
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
             <ExportButton
               filename="companies"
               rows={rows.map((c) => ({

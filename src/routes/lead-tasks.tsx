@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { useCrmLeads, useTasksView } from "@/hooks/use-crm-data";
 import { useI18n } from "@/lib/i18n";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 
 export const Route = createFileRoute("/lead-tasks")({
   head: () => ({
@@ -25,26 +26,48 @@ function LeadTasks() {
   const { t } = useI18n();
   const { rows: leads, isLoading: leadsLoading } = useCrmLeads();
   const { rows: tasks, isLoading: tasksLoading } = useTasksView();
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
+
+  // Tasks with no due date are always kept -- a date filter is meant to
+  // scope "what's due when", not to hide undated items entirely.
+  const scopedTasks = useMemo(() => {
+    if (!dateFilter.from && !dateFilter.to) return tasks;
+    return tasks.filter((t) => {
+      if (!t.dueRaw) return true;
+      const due = new Date(t.dueRaw);
+      if (dateFilter.from && due < dateFilter.from) return false;
+      if (dateFilter.to && due > dateFilter.to) return false;
+      return true;
+    });
+  }, [tasks, dateFilter]);
 
   const leadsWithTasks = useMemo(() => {
-    const leadIds = new Set(tasks.filter((t) => t.leadId).map((t) => t.leadId));
+    const leadIds = new Set(scopedTasks.filter((t) => t.leadId).map((t) => t.leadId));
     return leads.filter((l) => leadIds.has(l.id)).slice(0, 6);
-  }, [leads, tasks]);
+  }, [leads, scopedTasks]);
 
   const upcoming = useMemo(
     () =>
-      tasks
+      scopedTasks
         .filter((t) => t.leadId && t.dueRaw)
         .sort((a, b) => new Date(a.dueRaw!).getTime() - new Date(b.dueRaw!).getTime())
         .slice(0, 8),
-    [tasks],
+    [scopedTasks],
   );
 
   const isLoading = leadsLoading || tasksLoading;
 
   return (
     <>
-      <PageHeader title={t("leadTasks.title")} description={t("leadTasks.desc")} />
+      <PageHeader
+        title={t("leadTasks.title")}
+        description={t("leadTasks.desc")}
+        actions={<DateRangeFilter value={dateFilter} onChange={setDateFilter} />}
+      />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -60,7 +83,7 @@ function LeadTasks() {
             </SectionCard>
           )}
           {leadsWithTasks.map((l) => {
-            const leadTasks = tasks.filter((t) => t.leadId === l.id);
+            const leadTasks = scopedTasks.filter((t) => t.leadId === l.id);
             return (
               <SectionCard
                 key={l.id}
