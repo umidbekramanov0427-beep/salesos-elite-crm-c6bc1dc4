@@ -404,6 +404,7 @@ function Leaderboard() {
 
   const managerStats = useManagerFunnelStats(funnel, {
     overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
+    refetchInterval: asOfDate ? false : live ? LIVE_REFRESH_MS : false,
   });
   const [trendRange, setTrendRange] = useState<DateFilterValue>({
     from: null,
@@ -443,19 +444,26 @@ function Leaderboard() {
   // instead of a narrower, WON-only slice of them.
   const enrichedRows = useMemo(
     () =>
-      rows.map((row) => {
-        const stats = managerStats.get(row.id);
-        const totalLeads = stats?.totalLeads ?? row.totalLeads;
-        const wonLeads = stats?.salesCount ?? row.wonLeads;
-        const revenue = stats?.salesRevenue ?? row.revenue;
-        return {
-          ...row,
-          totalLeads,
-          wonLeads,
-          revenue,
-          conversion: totalLeads ? (wonLeads / totalLeads) * 100 : 0,
-        };
-      }),
+      rows
+        .map((row) => {
+          const stats = managerStats.get(row.id);
+          const totalLeads = stats?.totalLeads ?? row.totalLeads;
+          const wonLeads = stats?.salesCount ?? row.wonLeads;
+          const revenue = stats?.salesRevenue ?? row.revenue;
+          return {
+            ...row,
+            totalLeads,
+            wonLeads,
+            revenue,
+            conversion: totalLeads ? (wonLeads / totalLeads) * 100 : 0,
+          };
+        })
+        // `rows` arrives pre-sorted by its own (narrower, WON-only) revenue
+        // field, but the revenue substituted above can reorder the true
+        // ranking -- re-sort by what's actually displayed so "#1" always is
+        // the highest number on screen, not just the highest by the RPC's
+        // original figure.
+        .sort((a, b) => b.revenue - a.revenue),
     [rows, managerStats],
   );
   const top3 = enrichedRows.slice(0, 3);
@@ -552,7 +560,7 @@ function Leaderboard() {
             </button>
             <ExportButton
               filename="leaderboard"
-              rows={rows.map((r, i) => ({
+              rows={enrichedRows.map((r, i) => ({
                 Rank: i + 1,
                 Manager: r.name,
                 TotalLeads: r.totalLeads,
@@ -703,44 +711,34 @@ function Leaderboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map((r, i) => {
-                  const stats = managerStats.get(r.id) ?? {
-                    totalLeads: r.totalLeads,
-                    salesCount: 0,
-                    salesRevenue: 0,
-                  };
-                  const conversion = stats.totalLeads
-                    ? (stats.salesCount / stats.totalLeads) * 100
-                    : 0;
-                  return (
-                    <tr key={r.id}>
-                      <td className="py-3.5 pr-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-7 shrink-0 text-right text-sm font-bold text-amber-500">
-                            #{i + 1}
-                          </span>
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
-                            {r.initials}
-                          </span>
-                          <span className="truncate font-bold text-foreground">{r.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-center tabular-nums">{stats.totalLeads}</td>
-                      <td className="px-4 py-3.5 text-center tabular-nums">{stats.salesCount}</td>
-                      <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-foreground">
-                        {format(stats.salesRevenue)}
-                      </td>
-                      <td className="px-4 py-3.5 text-center tabular-nums">{pct(conversion)}</td>
-                      <td className="px-4 py-3.5 text-center tabular-nums text-primary">
-                        {pct(r.kpiPercent)}
-                      </td>
-                      <td className="py-3.5 pl-4 text-right tabular-nums font-medium text-success">
-                        {format(stats.salesRevenue * 0.05)}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {rows.length === 0 && !isLoading && (
+                {enrichedRows.map((r, i) => (
+                  <tr key={r.id}>
+                    <td className="py-3.5 pr-4">
+                      <div className="flex items-center gap-3">
+                        <span className="w-7 shrink-0 text-right text-sm font-bold text-amber-500">
+                          #{i + 1}
+                        </span>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint text-[11px] font-bold text-mint-foreground">
+                          {r.initials}
+                        </span>
+                        <span className="truncate font-bold text-foreground">{r.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center tabular-nums">{r.totalLeads}</td>
+                    <td className="px-4 py-3.5 text-center tabular-nums">{r.wonLeads}</td>
+                    <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-foreground">
+                      {format(r.revenue)}
+                    </td>
+                    <td className="px-4 py-3.5 text-center tabular-nums">{pct(r.conversion)}</td>
+                    <td className="px-4 py-3.5 text-center tabular-nums text-primary">
+                      {pct(r.kpiPercent)}
+                    </td>
+                    <td className="py-3.5 pl-4 text-right tabular-nums font-medium text-success">
+                      {format(r.revenue * 0.05)}
+                    </td>
+                  </tr>
+                ))}
+                {enrichedRows.length === 0 && !isLoading && (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-sm text-subtle">
                       {t("lb.noManagers")}
