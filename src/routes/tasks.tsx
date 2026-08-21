@@ -15,6 +15,7 @@ import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import {
   useAsOfSnapshot,
   useCreateTaskComment,
+  usePermission,
   useProfilesRaw,
   useTaskComments,
   useTasksView,
@@ -378,6 +379,7 @@ function Tasks() {
   );
   const isLoading = tasksLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const updateTask = useUpdateTask();
+  const canCreateTasks = usePermission("Create tasks");
   // useTasksView() already scopes rows to what this role may see (self for
   // sotuv_menejeri, own team for rop, everyone for super_admin).
   const tasks = allTasks;
@@ -447,7 +449,7 @@ function Tasks() {
               </button>
             </div>
             <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
-            {!asOfDate && (
+            {!asOfDate && canCreateTasks && (
               <NewTaskDialog
                 trigger={
                   <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90">

@@ -9,6 +9,7 @@ import {
   notifyTaskAssigned,
   useCompaniesRaw,
   useLeadsRaw,
+  usePermission,
   usePipelineStagesRaw,
   useProfilesRaw,
 } from "@/hooks/use-crm-data";
@@ -391,13 +392,18 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: profiles } = useProfilesRaw();
+  const canAssignTasks = usePermission("Assign tasks");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setBusy(true);
     try {
-      const finalAssigneeId = assigneeId || user?.id || null;
+      // Without "Assign tasks", every task this dialog creates goes to the
+      // creator themself, regardless of what's in local state -- the
+      // assignee picker below is hidden in that case, but this is the real
+      // enforcement point, not just a UI nicety.
+      const finalAssigneeId = canAssignTasks ? assigneeId || user?.id || null : (user?.id ?? null);
       const { error } = await supabase.from("tasks").insert({
         title: title.trim(),
         assignee_id: finalAssigneeId,
@@ -439,18 +445,24 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t("qc.assignee")}</Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("qc.me")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(profiles ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.full_name || p.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {canAssignTasks ? (
+                <Select value={assigneeId} onValueChange={setAssigneeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("qc.me")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(profiles ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.full_name || p.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-9 items-center rounded-lg border border-border bg-muted px-3 text-sm text-muted-foreground">
+                  {t("qc.me")}
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>{t("qc.priority")}</Label>
