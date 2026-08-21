@@ -1007,17 +1007,38 @@ function UploadCallDialog({
   );
 }
 
+// Audio tahlil's calls query is now bounded server-side by this range (see
+// useAmoCrmCallsSince) instead of always fetching the org's entire call
+// history -- default to the last 30 days, matching the DateRangeFilter's
+// own "month" preset, so the common case never pays for years of synced
+// transcripts/analysis just to show recent activity. Widening the filter
+// (including to "All Time") re-fetches with the wider range.
+function defaultAudioDateFilter(label: string): DateFilterValue {
+  const to = new Date();
+  to.setHours(23, 59, 59, 999);
+  const from = new Date();
+  from.setDate(from.getDate() - 29);
+  from.setHours(0, 0, 0, 0);
+  return { from, to, label };
+}
+
 function AudioAnalytics() {
   const { t, lang } = useI18n();
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
   const asOfSnapshot = useAsOfSnapshot<AmoCrmCallRow>("amocrm_calls", asOfDate);
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>(() =>
+    defaultAudioDateFilter(t("lb.presetMonth")),
+  );
   const {
     recent,
     totals,
     perRep,
     recoverable,
     isLoading: viewLoading,
-  } = useAudioAnalyticsView(asOfDate ? (asOfSnapshot.data ?? []) : undefined);
+  } = useAudioAnalyticsView(
+    { from: dateFilter.from, to: dateFilter.to },
+    asOfDate ? (asOfSnapshot.data ?? []) : undefined,
+  );
   const isLoading = viewLoading || (asOfDate ? asOfSnapshot.isLoading : false);
   const getAmoLink = useAmoCrmLink();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -1031,11 +1052,6 @@ function AudioAnalytics() {
   const [moodFilter, setMoodFilter] = useState("");
   const [scoreRange, setScoreRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
   const [durationRange, setDurationRange] = useState<AmountRangeValue>(EMPTY_AMOUNT_RANGE);
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
-    from: null,
-    to: null,
-    label: t("lb.presetAll"),
-  });
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const [sortKey, setSortKey] = useState<SortKey>("date");

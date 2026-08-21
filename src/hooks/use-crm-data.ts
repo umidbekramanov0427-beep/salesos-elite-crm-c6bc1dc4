@@ -292,6 +292,56 @@ export const useCreateCallLog = callLogsResource.useCreate;
 export const useAmoCrmCallsRaw = (opts?: Parameters<typeof amocrmCallsResource.useList>[0]) =>
   amocrmCallsResource.useList({ orderBy: "occurred_at", ascending: false, ...opts });
 
+// Audio tahlil defaults to a bounded recent window (see audio-analytics.tsx)
+// instead of unconditionally fetching this org's entire call history --
+// amocrm_calls rows carry a transcript plus a full AI analysis JSON blob
+// per call, so on an org with a long AmoCRM history every page open paid
+// to download years of that. Widening the page's date filter re-runs this
+// with a wider (or, for "All Time", unbounded) range instead of just
+// re-filtering an already-fetched full table client-side.
+export function useAmoCrmCallsSince(
+  range: { from: Date | null; to: Date | null } | null,
+  opts?: { enabled?: boolean },
+) {
+  const fromISO = range?.from ? range.from.toISOString() : null;
+  const toISO = range?.to ? range.to.toISOString() : null;
+  return useQuery({
+    queryKey: ["amocrm_calls_since", fromISO, toISO],
+    enabled: opts?.enabled ?? true,
+    queryFn: async (): Promise<AmoCrmCallRow[]> => {
+      const fetchPage = async (from: number): Promise<AmoCrmCallRow[]> => {
+        let query = supabase.from("amocrm_calls").select("*");
+        if (fromISO) query = query.gte("occurred_at", fromISO);
+        if (toISO) query = query.lte("occurred_at", toISO);
+        query = query
+          .order("occurred_at", { ascending: false })
+          .order("id" as never, { ascending: true })
+          .range(from, from + RESOURCE_PAGE_SIZE - 1);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data ?? []) as unknown as AmoCrmCallRow[];
+      };
+
+      const all: AmoCrmCallRow[] = [];
+      let from = 0;
+      let done = false;
+      while (!done) {
+        const starts = Array.from(
+          { length: LIST_PAGE_CONCURRENCY },
+          (_, i) => from + i * RESOURCE_PAGE_SIZE,
+        );
+        const pages = await Promise.all(starts.map(fetchPage));
+        for (const page of pages) {
+          all.push(...page);
+          if (page.length < RESOURCE_PAGE_SIZE) done = true;
+        }
+        from += LIST_PAGE_CONCURRENCY * RESOURCE_PAGE_SIZE;
+      }
+      return all;
+    },
+  });
+}
+
 export type SettingListType =
   | "categories"
   | "sales_stages"
@@ -1287,9 +1337,14 @@ type AudioLeadLite = {
   amocrmId: number | null;
 };
 
-export function useAudioAnalyticsView(overrideCalls?: AmoCrmCallRow[]) {
+export function useAudioAnalyticsView(
+  range: { from: Date | null; to: Date | null } | null,
+  overrideCalls?: AmoCrmCallRow[],
+) {
   const { user } = useAuth();
-  const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsRaw();
+  const { data: liveCalls, isLoading: callsLoading } = useAmoCrmCallsSince(range, {
+    enabled: !overrideCalls,
+  });
   // Only the handful of display fields below (name/company/owner/funnel/
   // stage/tags) are needed here — useCrmLeads() used to pull this via
   // useCrmBase, which also fetched every company and contact in the org
