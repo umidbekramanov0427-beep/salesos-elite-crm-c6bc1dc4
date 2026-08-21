@@ -201,6 +201,25 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_funnel_stats",
+      description:
+        "Get real lead counts, stage breakdown and conversion rate for one funnel (or every funnel if funnel_name is omitted). Always call this instead of guessing or telling the user to go look at the Funnels page themselves -- you have this data directly.",
+      parameters: {
+        type: "object",
+        properties: {
+          funnel_name: {
+            type: "string",
+            description:
+              'Exact or partial funnel name, e.g. "Super rus tili 19.0". Omit to get every funnel.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "create_my_task",
       description:
         "Create a new task assigned to the current user (the person chatting). Use this when they ask you to remind them of something or create a task/to-do for themselves.",
@@ -283,8 +302,90 @@ async function executeTool(
         company: l.company_name,
         stage: l.stage_id ? (stageById.get(l.stage_id) ?? null) : null,
         temperature: l.temperature,
+        // The app's own in-page path for this lead -- include it verbatim
+        // (e.g. "/crm/leads/<id>") whenever you mention this lead in your
+        // reply so the chat UI can turn it into a clickable link.
+        path: `/crm/leads/${l.id}`,
       })),
     };
+  }
+
+  if (name === "get_funnel_stats") {
+    const wanted = typeof args["funnel_name"] === "string" ? args["funnel_name"].trim() : "";
+
+    const { data: leadRows } = await supabaseAdmin
+      .from("leads")
+      .select("funnel, stage_id, owner_id, expected_revenue")
+      .eq("organization_id", ctx.orgId);
+    const { data: stages } = await supabaseAdmin
+      .from("pipeline_stages")
+      .select("id, name")
+      .eq("organization_id", ctx.orgId);
+    const stageNameById = new Map((stages ?? []).map((s) => [s.id, s.name]));
+
+    const scoped = (leadRows ?? []).filter((l) => inScope(l.owner_id));
+    const funnelOf = (f: string | null) => f || "Direct Sales";
+    // Mirrors normalizeStageName()/SALES_STAGE_KEYWORDS in
+    // src/hooks/use-crm-data.ts exactly -- this is the same "reached a
+    // late/sales-track stage" definition the Funnels page itself uses for
+    // its conversion %, duplicated here (same convention as every other
+    // copy of this list in the codebase) so the assistant's number never
+    // disagrees with what the user sees on that page.
+    const salesKeywords = [
+      "predoplata",
+      "peredoplata",
+      "yarim",
+      "toliq",
+      "won",
+      "успешно",
+      "rop closed",
+    ];
+    const isSalesStage = (stageName: string) => {
+      const norm = stageName.toLowerCase().replace(/['’ʼ`]/g, "");
+      return salesKeywords.some((kw) => norm.includes(kw));
+    };
+
+    const byFunnel = new Map<
+      string,
+      { total: number; lateFunnel: number; revenue: number; stageCounts: Map<string, number> }
+    >();
+    for (const l of scoped) {
+      const fn = funnelOf(l.funnel);
+      if (!byFunnel.has(fn)) {
+        byFunnel.set(fn, { total: 0, lateFunnel: 0, revenue: 0, stageCounts: new Map() });
+      }
+      const bucket = byFunnel.get(fn)!;
+      bucket.total += 1;
+      bucket.revenue += l.expected_revenue ?? 0;
+      const stageName = l.stage_id ? (stageNameById.get(l.stage_id) ?? "No stage") : "No stage";
+      bucket.stageCounts.set(stageName, (bucket.stageCounts.get(stageName) ?? 0) + 1);
+      if (isSalesStage(stageName)) bucket.lateFunnel += 1;
+    }
+
+    const summarize = (fn: string) => {
+      const b = byFunnel.get(fn);
+      if (!b) return null;
+      return {
+        funnel: fn,
+        total_leads: b.total,
+        conversion_pct: b.total ? Math.round((b.lateFunnel / b.total) * 1000) / 10 : 0,
+        total_expected_revenue: b.revenue,
+        by_stage: Object.fromEntries(b.stageCounts),
+      };
+    };
+
+    if (!wanted) {
+      return { funnels: [...byFunnel.keys()].map(summarize) };
+    }
+    const match = [...byFunnel.keys()].find((fn) =>
+      fn.toLowerCase().includes(wanted.toLowerCase()),
+    );
+    if (!match) {
+      return {
+        error: `No funnel matching "${wanted}". Known funnels: ${[...byFunnel.keys()].join(", ") || "none"}`,
+      };
+    }
+    return summarize(match);
   }
 
   if (name === "create_my_task") {
@@ -487,9 +588,10 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 
         let systemPrompt =
           introPrompt +
-          "\n\nWhen the user asks where to find something or how to do something in the app, name the exact page and, when useful, give the numbered steps to get there — for example: '1. Open Sozlamalar (Settings) in the sidebar. 2. Click Biznes profili. 3. Fill in the form and press Saqlash.' Always include the page's path in parentheses so it's unambiguous, e.g. (/settings). Only reference pages from this list — never invent a path that isn't here:\n" +
+          "\n\nWhen the user asks HOW to do something or WHERE a feature lives in the app (a navigation question), name the exact page and, when useful, give the numbered steps to get there — for example: '1. Open Sozlamalar (Settings) in the sidebar. 2. Click Biznes profili. 3. Fill in the form and press Saqlash.' Always include the page's path in parentheses so it's unambiguous, e.g. (/settings). Only reference pages from this list — never invent a path that isn't here:\n" +
           NAV_GUIDE +
-          "\n\nYou also have tools to actually act, not just describe: search_leads, create_my_task, add_lead_note, update_lead_stage. Use them whenever the user asks you to do something rather than just explain it (e.g. 'remind me to call Aziz tomorrow', 'add a note on the Akmal deal', 'move that lead to negotiation'). Never invent a lead_id — call search_leads first if you don't already have the right id from earlier in this conversation, and if multiple leads match, ask which one they mean instead of guessing. After a tool call succeeds, confirm plainly what you did.";
+          "\n\nBut when the user asks WHAT a number, rate, or fact actually IS (e.g. a funnel's conversion rate, who a lead's owner is, how many leads are in some stage), you must answer with the real value itself, using your tools -- never reply with only navigation instructions ('go check the Funnels page') when a tool can get you the actual answer. That is a wrong answer, not a helpful one.\n\n" +
+          "You also have tools to actually look things up and act, not just describe: search_leads, get_funnel_stats, create_my_task, add_lead_note, update_lead_stage. Use search_leads or get_funnel_stats whenever the answer depends on real data you don't already have in this conversation. Use create_my_task/add_lead_note/update_lead_stage whenever the user asks you to do something rather than just explain it (e.g. 'remind me to call Aziz tomorrow', 'add a note on the Akmal deal', 'move that lead to negotiation'). Never invent a lead_id — call search_leads first if you don't already have the right id from earlier in this conversation, and if multiple leads match, ask which one they mean instead of guessing. Whenever you mention a specific lead, include the exact `path` search_leads gave you for it verbatim in your reply (e.g. /crm/leads/3fa2...) so the chat can turn it into a clickable link -- never paraphrase or shorten that path. After a tool call succeeds, confirm plainly what you did.";
         if (profile) {
           const context = [
             profile.company_name && `Company: ${profile.company_name}`,

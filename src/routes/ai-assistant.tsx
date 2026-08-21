@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -28,7 +28,6 @@ import {
   useSaveAiMessage,
   type AiChatConversationRow,
 } from "@/hooks/use-crm-data";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/PermissionGate";
 
@@ -213,6 +212,38 @@ function HistoryPanel({
   );
 }
 
+// The assistant is instructed to always include a lead's real /crm/leads/<id>
+// path verbatim when it mentions that lead (see ai-assistant.chat.ts's system
+// prompt) -- messages render as plain text otherwise, so without this those
+// paths would just sit there as unclickable text instead of taking the user
+// straight to the lead.
+const LEAD_PATH_RE = /\/crm\/leads\/([a-zA-Z0-9-]+)/g;
+
+function renderMessageContent(content: string, openLabel: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(LEAD_PATH_RE);
+  let key = 0;
+  while ((match = re.exec(content)) !== null) {
+    if (match.index > lastIndex) nodes.push(content.slice(lastIndex, match.index));
+    const leadId = match[1]!;
+    nodes.push(
+      <Link
+        key={`lead-link-${key++}`}
+        to="/crm/leads/$leadId"
+        params={{ leadId }}
+        className="font-semibold text-primary underline underline-offset-2 hover:opacity-80"
+      >
+        {openLabel}
+      </Link>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) nodes.push(content.slice(lastIndex));
+  return nodes;
+}
+
 function AiAssistantPage() {
   const { t } = useI18n();
   const chat = useAiAssistantChat();
@@ -224,8 +255,7 @@ function AiAssistantPage() {
   const conversationMessages = useAiConversationMessages(activeConversationId);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Loads a past conversation's messages into the chat view once they arrive
   // -- the query key includes activeConversationId, so this only ever fires
@@ -268,7 +298,7 @@ function AiAssistantPage() {
       }
       await saveMessage.mutateAsync({ conversationId, role: "user", content: trimmed });
 
-      const reply = await chat.mutateAsync({ messages: next, asOf: asOfDate });
+      const reply = await chat.mutateAsync({ messages: next });
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       await saveMessage.mutateAsync({ conversationId, role: "assistant", content: reply });
     } catch (err) {
@@ -299,22 +329,18 @@ function AiAssistantPage() {
         title={t("nav.aiAssistant")}
         description={t("ai.liveStatus")}
         actions={
-          <div className="flex items-center gap-2">
-            <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
-            {!historyOpen && (
-              <button
-                type="button"
-                onClick={() => setHistoryOpen(true)}
-                aria-label={t("ai.toggleHistory")}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent"
-              >
-                <PanelRightOpen className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          !historyOpen && (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              aria-label={t("ai.toggleHistory")}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent"
+            >
+              <PanelRightOpen className="h-4 w-4" />
+            </button>
+          )
         }
       />
-      <AsOfBanner value={asOfDate} />
 
       <section className="surface-card flex h-[75vh] overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
@@ -347,7 +373,9 @@ function AiAssistantPage() {
                         : "bg-surface text-foreground",
                   )}
                 >
-                  {m.content}
+                  {m.role === "assistant"
+                    ? renderMessageContent(m.content, t("inbox.open"))
+                    : m.content}
                 </div>
               ))}
 
