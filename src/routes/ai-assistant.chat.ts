@@ -544,10 +544,26 @@ export const Route = createFileRoute("/ai-assistant/chat")({
           }
 
           const json = (await res.json()) as {
-            candidates?: { content?: { parts?: GeminiPart[] } }[];
+            candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
+            promptFeedback?: { blockReason?: string };
           };
           const parts = json.candidates?.[0]?.content?.parts ?? [];
-          if (parts.length === 0) break;
+          if (parts.length === 0) {
+            // Gemini can return HTTP 200 with no usable content -- a
+            // blocked prompt/response (safety filters) or a finish reason
+            // other than a normal stop. Surfacing this as an error instead
+            // of silently returning `{ reply: "" }` matters: the client
+            // only shows an error banner when the request itself fails, so
+            // a 200 with an empty reply used to render as a blank,
+            // invisible assistant message with no indication anything went
+            // wrong.
+            const reason =
+              json.promptFeedback?.blockReason ?? json.candidates?.[0]?.finishReason ?? "unknown";
+            return Response.json(
+              { error: `AI yordamchi javob bera olmadi (sabab: ${reason}). Qayta urinib ko'ring.` },
+              { status: 502 },
+            );
+          }
 
           const functionCalls = parts.filter(
             (p): p is { functionCall: { name: string; args?: Record<string, unknown> } } =>
@@ -586,6 +602,16 @@ export const Route = createFileRoute("/ai-assistant/chat")({
             .map((p) => p.text)
             .join("");
           break;
+        }
+
+        // The loop can also exhaust MAX_TOOL_ROUNDS while still chaining
+        // tool calls, without ever reaching a final text reply -- same
+        // silent-blank-message risk as the empty-parts case above.
+        if (!reply.trim()) {
+          return Response.json(
+            { error: "AI yordamchi javob bera olmadi. Qayta urinib ko'ring." },
+            { status: 502 },
+          );
         }
 
         return Response.json({ reply });
