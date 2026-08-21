@@ -22,7 +22,7 @@ import { LogoLoader } from "@/components/LogoLoader";
 // indicator instead of taking over the whole viewport.
 export function PageLoader() {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center">
+    <div className="flex h-full min-h-[60vh] items-center justify-center">
       <LogoLoader className="h-16 w-16" />
     </div>
   );
