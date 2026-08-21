@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -7,7 +7,11 @@ import {
   Lightbulb,
   Loader2,
   MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
   Phone,
+  Plus,
+  Search,
   Send,
   Sparkles,
   TrendingDown,
@@ -16,7 +20,14 @@ import {
 import { PageHeader } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { useAiAssistantChat } from "@/hooks/use-crm-data";
+import {
+  useAiAssistantChat,
+  useAiConversationMessages,
+  useAiConversations,
+  useCreateAiConversation,
+  useSaveAiMessage,
+  type AiChatConversationRow,
+} from "@/hooks/use-crm-data";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -99,12 +110,136 @@ function EmptyState({ children }: { children: ReactNode }) {
   );
 }
 
+function dateLabel(iso: string, lang: string, t: (k: string) => string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  if (sameDay(d, now)) return t("lb.presetToday");
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (sameDay(d, yesterday)) return t("lb.presetYesterday");
+  return d.toLocaleDateString(lang, { day: "numeric", month: "short" });
+}
+
+function HistoryPanel({
+  conversations,
+  activeId,
+  onSelect,
+  onNew,
+  onClose,
+}: {
+  conversations: AiChatConversationRow[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onClose: () => void;
+}) {
+  const { t, lang } = useI18n();
+  const [search, setSearch] = useState("");
+
+  const filtered = search.trim()
+    ? conversations.filter((c) => c.title.toLowerCase().includes(search.trim().toLowerCase()))
+    : conversations;
+
+  return (
+    <aside className="flex w-full max-w-[300px] shrink-0 flex-col border-l border-border bg-card">
+      <div className="flex items-center justify-between gap-2 border-b border-border p-4">
+        <div>
+          <h3 className="text-sm font-bold text-foreground">{t("ai.history")}</h3>
+          <p className="text-xs text-subtle">
+            {t("ai.historyCount", { count: conversations.length })}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onNew}
+            className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <Plus className="h-3.5 w-3.5" /> {t("ai.newChat")}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("ai.closeHistory")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent"
+          >
+            <PanelRightClose className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="border-b border-border p-3">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+          <Search className="h-3.5 w-3.5 shrink-0 text-subtle" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("ai.searchConversations")}
+            className="w-full bg-transparent text-sm outline-none placeholder:text-subtle"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-1 overflow-y-auto p-2">
+        {filtered.length === 0 && (
+          <p className="px-3 py-6 text-center text-xs text-subtle">
+            {search.trim() ? t("ai.noSearchResults") : t("ai.noConversations")}
+          </p>
+        )}
+        {filtered.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onSelect(c.id)}
+            className={cn(
+              "flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+              c.id === activeId
+                ? "bg-primary/10 font-semibold text-primary"
+                : "text-foreground hover:bg-accent",
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-subtle" />
+              <span className="truncate">{c.title}</span>
+            </span>
+            <span className="shrink-0 text-[11px] text-subtle">
+              {dateLabel(c.updated_at, lang, t)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
 function AiAssistantPage() {
   const { t } = useI18n();
   const chat = useAiAssistantChat();
+  const { data: conversations = [] } = useAiConversations();
+  const createConversation = useCreateAiConversation();
+  const saveMessage = useSaveAiMessage();
+
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const conversationMessages = useAiConversationMessages(activeConversationId);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [asOfDate, setAsOfDate] = useState<Date | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(true);
+
+  // Loads a past conversation's messages into the chat view once they arrive
+  // -- the query key includes activeConversationId, so this only ever fires
+  // for the conversation currently selected, never a stale one.
+  useEffect(() => {
+    if (activeConversationId && conversationMessages.data) {
+      setMessages(
+        conversationMessages.data.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+      );
+    }
+  }, [activeConversationId, conversationMessages.data]);
 
   const prompts = [
     t("ai.prompt1"),
@@ -123,9 +258,19 @@ function AiAssistantPage() {
     const next = [...messages, { role: "user" as const, content: trimmed }];
     setMessages(next);
     setInput("");
+
     try {
+      let conversationId = activeConversationId;
+      if (!conversationId) {
+        const conv = await createConversation.mutateAsync(trimmed);
+        conversationId = conv.id;
+        setActiveConversationId(conversationId);
+      }
+      await saveMessage.mutateAsync({ conversationId, role: "user", content: trimmed });
+
       const reply = await chat.mutateAsync({ messages: next, asOf: asOfDate });
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      await saveMessage.mutateAsync({ conversationId, role: "assistant", content: reply });
     } catch (err) {
       setMessages((m) => [
         ...m,
@@ -143,76 +288,107 @@ function AiAssistantPage() {
     void send(input);
   }
 
+  function onNewChat() {
+    setActiveConversationId(null);
+    setMessages([]);
+  }
+
   return (
     <>
       <PageHeader
         title={t("nav.aiAssistant")}
-        description={t("ai.subtitle")}
-        actions={<AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />}
+        description={t("ai.liveStatus")}
+        actions={
+          <div className="flex items-center gap-2">
+            <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
+            {!historyOpen && (
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                aria-label={t("ai.toggleHistory")}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent"
+              >
+                <PanelRightOpen className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        }
       />
       <AsOfBanner value={asOfDate} />
 
-      <section className="surface-card flex h-[75vh] flex-col overflow-hidden">
-        {messages.length === 0 ? (
-          <EmptyState>
-            {prompts.map((p, i) => {
-              const style = PROMPT_STYLE[i % PROMPT_STYLE.length]!;
-              return (
-                <SuggestionCard
-                  key={p}
-                  icon={style.icon}
-                  tone={style.tone}
-                  label={p}
-                  onClick={() => void send(p)}
-                />
-              );
-            })}
-          </EmptyState>
-        ) : (
-          <div className="flex-1 space-y-4 overflow-y-auto p-6">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px]",
-                  m.role === "user"
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : m.error
-                      ? "border border-destructive/30 bg-destructive/10 text-destructive"
-                      : "bg-surface text-foreground",
-                )}
+      <section className="surface-card flex h-[75vh] overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {messages.length === 0 ? (
+            <EmptyState>
+              {prompts.map((p, i) => {
+                const style = PROMPT_STYLE[i % PROMPT_STYLE.length]!;
+                return (
+                  <SuggestionCard
+                    key={p}
+                    icon={style.icon}
+                    tone={style.tone}
+                    label={p}
+                    onClick={() => void send(p)}
+                  />
+                );
+              })}
+            </EmptyState>
+          ) : (
+            <div className="flex-1 space-y-4 overflow-y-auto p-6">
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px]",
+                    m.role === "user"
+                      ? "ml-auto bg-primary text-primary-foreground"
+                      : m.error
+                        ? "border border-destructive/30 bg-destructive/10 text-destructive"
+                        : "bg-surface text-foreground",
+                  )}
+                >
+                  {m.content}
+                </div>
+              ))}
+
+              {chat.isPending && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="border-t border-border p-5">
+            <form onSubmit={onSubmit} className="flex items-center gap-3">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={t("ai.placeholder")}
+                className="h-14 flex-1 rounded-full border border-border bg-surface px-6 text-base outline-none transition-colors focus:border-primary/50"
+              />
+              <button
+                type="submit"
+                disabled={chat.isPending || !input.trim()}
+                aria-label={t("ai.send")}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
               >
-                {m.content}
-              </div>
-            ))}
-
-            {chat.isPending && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
-              </div>
-            )}
+                <Send className="h-5 w-5" />
+              </button>
+            </form>
+            <p className="mt-2.5 text-center text-[11px] text-subtle">{t("ai.disclaimer")}</p>
           </div>
-        )}
-
-        <div className="border-t border-border p-5">
-          <form onSubmit={onSubmit} className="flex items-center gap-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t("ai.placeholder")}
-              className="h-14 flex-1 rounded-full border border-border bg-surface px-6 text-base outline-none transition-colors focus:border-primary/50"
-            />
-            <button
-              type="submit"
-              disabled={chat.isPending || !input.trim()}
-              aria-label={t("ai.send")}
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              <Send className="h-5 w-5" />
-            </button>
-          </form>
-          <p className="mt-2.5 text-center text-[11px] text-subtle">{t("ai.disclaimer")}</p>
         </div>
+
+        {historyOpen && (
+          <HistoryPanel
+            conversations={conversations}
+            activeId={activeConversationId}
+            onSelect={setActiveConversationId}
+            onNew={onNewChat}
+            onClose={() => setHistoryOpen(false)}
+          />
+        )}
       </section>
     </>
   );

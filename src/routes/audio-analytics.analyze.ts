@@ -10,9 +10,8 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Whisper does the ear (audio -> text); DeepSeek does the reading (text ->
-// structured scoring) — matching the provider the rest of the platform's AI
-// features (ai-assistant.chat.ts) already use.
+// Whisper does the ear (audio -> text); Gemini does the reading (text ->
+// structured scoring) -- same provider ai-assistant.chat.ts now uses too.
 async function transcribeAudio(recordingUrl: string): Promise<string> {
   const apiKey = requireEnv("OPENAI_API_KEY");
 

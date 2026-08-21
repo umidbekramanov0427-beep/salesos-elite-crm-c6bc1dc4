@@ -381,13 +381,16 @@ async function executeTool(
   return { error: `Unknown tool: ${name}` };
 }
 
-type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
-type OpenAiMessage = {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
-};
+// Gemini's function-calling shape, not OpenAI's -- matches the provider
+// audio-analytics.analyze.ts already uses successfully (GEMINI_API_KEY).
+// This used to call DeepSeek directly; that account ran out of balance
+// (every request failing with a 402) and was never actually switched over
+// when the rest of the platform's AI features moved to Gemini.
+type GeminiPart =
+  | { text: string }
+  | { functionCall: { name: string; args?: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+type GeminiContent = { role: "user" | "model" | "function"; parts: GeminiPart[] };
 
 export const Route = createFileRoute("/ai-assistant/chat")({
   server: {
@@ -408,10 +411,10 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 
         let apiKey: string;
         try {
-          apiKey = requireEnv("DEEPSEEK_API_KEY");
+          apiKey = requireEnv("GEMINI_API_KEY");
         } catch (err) {
           return Response.json(
-            { error: err instanceof Error ? err.message : "Missing DEEPSEEK_API_KEY" },
+            { error: err instanceof Error ? err.message : "Missing GEMINI_API_KEY" },
             { status: 500 },
           );
         }
@@ -429,6 +432,25 @@ export const Route = createFileRoute("/ai-assistant/chat")({
               .eq("organization_id", caller.organization_id)
               .maybeSingle()
           : { data: null };
+
+        // Admin > AI agentlar > "Chat" toggle/prompt used to be stored but never
+        // actually read here -- turning it off or customizing it in the admin UI
+        // had zero effect on this endpoint (only the "Call" agent was wired, in
+        // audio-analytics.analyze.ts). Wired the same way now.
+        const { data: chatAgent } = caller?.organization_id
+          ? await supabaseAdmin
+              .from("ai_agents")
+              .select("system_prompt, active")
+              .eq("organization_id", caller.organization_id)
+              .eq("kind", "chat")
+              .maybeSingle()
+          : { data: null };
+        if (chatAgent && chatAgent.active === false) {
+          return Response.json(
+            { error: "AI yordamchi admin tomonidan o'chirilgan. Admin panelidan yoqing." },
+            { status: 400 },
+          );
+        }
 
         const NAV_GUIDE = `- / — Leaderboard: live revenue ranking, KPI and bonus per rep
 - /dashboard — Dashboard: today's/monthly revenue, pipeline value, recent activity
@@ -452,9 +474,17 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 - /admin — Admin Panel (super_admin only): employee/role management, org structure, auto-responders, AI agents, error logs
 - /platform — Platform (platform_owner only): manage every company on the platform`;
 
+        // The admin-configured prompt (if any) sets the assistant's persona/tone
+        // as an intro layer; the navigation guide and tool-use rules below always
+        // apply underneath it, since removing them would break the assistant's
+        // ability to point users at real pages or actually act on their behalf.
+        const introPrompt =
+          chatAgent?.system_prompt?.trim() ||
+          "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.";
+
         let systemPrompt =
-          "You are the AI assistant built into SalesOS Elite, a CRM for sales teams. Be concise and practical. Reply in the same language the user writes in.\n\n" +
-          "When the user asks where to find something or how to do something in the app, name the exact page and, when useful, give the numbered steps to get there — for example: '1. Open Sozlamalar (Settings) in the sidebar. 2. Click Biznes profili. 3. Fill in the form and press Saqlash.' Always include the page's path in parentheses so it's unambiguous, e.g. (/settings). Only reference pages from this list — never invent a path that isn't here:\n" +
+          introPrompt +
+          "\n\nWhen the user asks where to find something or how to do something in the app, name the exact page and, when useful, give the numbered steps to get there — for example: '1. Open Sozlamalar (Settings) in the sidebar. 2. Click Biznes profili. 3. Fill in the form and press Saqlash.' Always include the page's path in parentheses so it's unambiguous, e.g. (/settings). Only reference pages from this list — never invent a path that isn't here:\n" +
           NAV_GUIDE +
           "\n\nYou also have tools to actually act, not just describe: search_leads, create_my_task, add_lead_note, update_lead_stage. Use them whenever the user asks you to do something rather than just explain it (e.g. 'remind me to call Aziz tomorrow', 'add a note on the Akmal deal', 'move that lead to negotiation'). Never invent a lead_id — call search_leads first if you don't already have the right id from earlier in this conversation, and if multiple leads match, ask which one they mean instead of guessing. After a tool call succeeds, confirm plainly what you did.";
         if (profile) {
@@ -481,65 +511,80 @@ export const Route = createFileRoute("/ai-assistant/chat")({
           }
         }
 
-        const convo: OpenAiMessage[] = [{ role: "system", content: systemPrompt }, ...messages];
+        const contents: GeminiContent[] = messages.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        }));
+        const functionDeclarations = TOOLS.map((t) => t.function);
         let reply = "";
         // Capped: one round to call tools, one to answer using their results is the
         // common case, but a request can chain a couple of tools (search then act).
         const MAX_TOOL_ROUNDS = 4;
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-          const res = await fetch("https://api.deepseek.com/chat/completions", {
-            method: "POST",
-            headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-              model: "deepseek-chat",
-              temperature: 0.4,
-              messages: convo,
-              tools: TOOLS,
-              tool_choice: "auto",
-            }),
-          });
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents,
+                tools: [{ functionDeclarations }],
+                generationConfig: { temperature: 0.4 },
+              }),
+            },
+          );
 
           if (!res.ok) {
             const text = await res.text();
             return Response.json(
-              { error: `DeepSeek error (${res.status}): ${text}` },
+              { error: `Gemini error (${res.status}): ${text}` },
               { status: 502 },
             );
           }
 
-          const json = (await res.json()) as { choices?: { message?: OpenAiMessage }[] };
-          const message = json.choices?.[0]?.message;
-          if (!message) break;
+          const json = (await res.json()) as {
+            candidates?: { content?: { parts?: GeminiPart[] } }[];
+          };
+          const parts = json.candidates?.[0]?.content?.parts ?? [];
+          if (parts.length === 0) break;
 
-          if (message.tool_calls?.length && caller?.organization_id) {
-            convo.push({
-              role: "assistant",
-              content: message.content ?? "",
-              tool_calls: message.tool_calls,
-            });
-            for (const call of message.tool_calls) {
-              let args: Record<string, unknown> = {};
-              try {
-                args = JSON.parse(call.function.arguments || "{}");
-              } catch {
-                // Malformed tool arguments -- executeTool's own field checks below
-                // will report the missing/invalid fields back to the model.
-              }
-              const result = await executeTool(call.function.name, args, {
-                orgId: caller.organization_id,
-                callerId: userId,
-                ownerIds,
-              });
-              convo.push({
-                role: "tool",
-                tool_call_id: call.id,
-                content: JSON.stringify(result),
+          const functionCalls = parts.filter(
+            (p): p is { functionCall: { name: string; args?: Record<string, unknown> } } =>
+              "functionCall" in p,
+          );
+
+          if (functionCalls.length > 0 && caller?.organization_id) {
+            contents.push({ role: "model", parts });
+            const responseParts: GeminiPart[] = [];
+            for (const call of functionCalls) {
+              const result = await executeTool(
+                call.functionCall.name,
+                call.functionCall.args ?? {},
+                {
+                  orgId: caller.organization_id,
+                  callerId: userId,
+                  ownerIds,
+                },
+              );
+              responseParts.push({
+                functionResponse: {
+                  name: call.functionCall.name,
+                  response:
+                    result && typeof result === "object"
+                      ? (result as Record<string, unknown>)
+                      : { result },
+                },
               });
             }
+            contents.push({ role: "function", parts: responseParts });
             continue;
           }
 
-          reply = message.content ?? "";
+          reply = parts
+            .filter((p): p is { text: string } => "text" in p)
+            .map((p) => p.text)
+            .join("");
           break;
         }
 
