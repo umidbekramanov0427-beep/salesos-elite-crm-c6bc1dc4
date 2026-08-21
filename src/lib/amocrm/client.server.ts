@@ -743,12 +743,28 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
     // contacts/companies, upsert, then let it be garbage collected before
     // fetching the next page — peak memory stays bounded to a single page
     // no matter how many leads the account has.
+    // Every earlier version of this loop walked the *entire* account on
+    // every single sync, forever. That's fine once, but for an account with
+    // several thousand leads it means dozens of AmoCRM pages (each with its
+    // own follow-up contacts/companies calls) — comfortably long enough to
+    // blow past both pg_net's cron timeout and the hosting platform's own
+    // request-time limit, so the scheduled 5-minute sync never actually
+    // finished (confirmed via net._http_response: every cron-triggered call
+    // timed out, last_synced_at never advanced). After the first full sync,
+    // only ask AmoCRM for leads updated since the last successful sync, with
+    // a 10-minute overlap so a slightly-late or skipped run can't drop a
+    // lead that changed in the gap.
+    const SYNC_OVERLAP_SECONDS = 600;
+    const sinceFilter = conn.last_synced_at
+      ? `&filter[updated_at][from]=${Math.floor(new Date(conn.last_synced_at).getTime() / 1000) - SYNC_OVERLAP_SECONDS}`
+      : "";
+
     let totalSynced = 0;
     let page = 1;
     for (;;) {
       const pageData = (await amoFetch(
         conn,
-        `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies`,
+        `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies${sinceFilter}`,
       )) as { _embedded?: { leads?: AmoLead[] } } | null;
       const pageLeads = dedupeByKey(pageData?._embedded?.leads ?? [], (l) => String(l.id));
       if (pageLeads.length === 0) break;
