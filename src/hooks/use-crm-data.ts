@@ -4773,9 +4773,17 @@ export type ManagerFunnelStats = { totalLeads: number; salesCount: number; sales
 
 export function useManagerFunnelStats(
   funnel?: string | null,
-  opts?: { overrideLeads?: LeadRow[] | undefined },
+  opts?: {
+    overrideLeads?: LeadRow[] | undefined;
+    refetchInterval?: number | false;
+  },
 ): Map<string, ManagerFunnelStats> {
-  const { data: liveLeads } = useLeadsRaw();
+  // Without this, the Reyting page's "Jonli" (live) poll only refetched
+  // leaderboard_stats (used purely to pick the initial sort order) while the
+  // revenue numbers actually shown here -- sourced from this hook's own
+  // useLeadsRaw() -- sat on whatever staleTime last left them, never
+  // visibly updating despite the live badge.
+  const { data: liveLeads } = useLeadsRaw({ refetchInterval: opts?.refetchInterval ?? false });
   const { data: stages } = usePipelineStagesRaw();
   const leads = opts?.overrideLeads ?? liveLeads;
   return useMemo(() => {
