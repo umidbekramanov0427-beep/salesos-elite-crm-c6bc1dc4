@@ -1,0 +1,14 @@
+-- AmoCRM sync started failing with "canceling statement due to statement
+-- timeout" on the pipeline_stages upsert -- a Postgres-level SQL statement
+-- timeout, distinct from (and hit well before) the pg_net HTTP timeout
+-- already raised in 20260821120000_amocrm_sync_cron_timeout_fix.sql. The
+-- sync runs as service_role (via supabaseAdmin), and Supabase's default
+-- statement_timeout for that role is short enough that a chunked upsert
+-- over an org with many AmoCRM pipelines/statuses (or any other
+-- legitimately larger admin-side batch write) can still exceed it even
+-- after chunking. This is a background/cron-driven role, not an
+-- interactive user request, so a longer ceiling here is safe -- still
+-- comfortably under the 4-minute pg_net timeout, so a genuinely stuck
+-- statement fails fast with a clear cause instead of the whole HTTP call
+-- silently timing out with no diagnostic.
+alter role service_role set statement_timeout = '120s';

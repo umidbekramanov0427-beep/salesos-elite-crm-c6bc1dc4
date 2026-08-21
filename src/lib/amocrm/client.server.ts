@@ -538,8 +538,11 @@ async function syncPipelineStages(
   // of pipelines (each with its own audit-trail write) pushed a single
   // statement past the database's statement_timeout, failing the sync
   // before it ever got to a single lead. Chunk it the same way every other
-  // bulk write in this file already is.
-  const STAGE_UPSERT_CHUNK = 200;
+  // bulk write in this file already is. Even a 200-row chunk still hit the
+  // same statement_timeout on an account with hundreds of stages (see
+  // 20260822000000_service_role_statement_timeout.sql for the real fix --
+  // this smaller chunk is just a second, cheap layer of defense).
+  const STAGE_UPSERT_CHUNK = 100;
   const dedupedRows = dedupeByKey(rows, (r) => `${r.amocrm_pipeline_id}:${r.amocrm_status_id}`);
   const stageByStatusId = new Map<string, string>();
   for (let i = 0; i < dedupedRows.length; i += STAGE_UPSERT_CHUNK) {
