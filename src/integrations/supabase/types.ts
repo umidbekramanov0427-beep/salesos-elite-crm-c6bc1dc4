@@ -1936,6 +1936,7 @@ export type Database = {
           total: number;
           value: number;
           won: number;
+          late_funnel: number;
           hot: number;
           warm: number;
           cold: number;

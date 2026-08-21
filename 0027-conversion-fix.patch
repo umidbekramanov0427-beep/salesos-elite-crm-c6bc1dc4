@@ -1,0 +1,151 @@
+diff --git a/src/hooks/use-crm-data.ts b/src/hooks/use-crm-data.ts
+index 257752c..b223c8a 100644
+--- a/src/hooks/use-crm-data.ts
++++ b/src/hooks/use-crm-data.ts
+@@ -973,6 +973,12 @@ export type FunnelStat = {
+   hot: number;
+   warm: number;
+   cold: number;
++  // "Conversion" here matches the same late-funnel definition the funnel
++  // detail view uses (leads that reached a sales/late-funnel stage, not
++  // just the strictly-won ones) -- see funnels.tsx's lateFunnelConversionRate
++  // and SALES_STAGE_KEYWORDS below. The list cards and the detail view used
++  // to disagree (cards showed won/total, detail showed late-funnel/total)
++  // under the same "konversiya" label, which read as a bug.
+   conversion: number;
+ };
+ 
+@@ -995,16 +1001,16 @@ export function useFunnelListStats(enabled = true) {
+         .filter((r) => !enabledFunnels || enabledFunnels.has(r.funnel))
+         .map((r): FunnelStat => {
+           const count = Number(r.total);
+-          const won = Number(r.won);
++          const lateFunnel = Number(r.late_funnel);
+           return {
+             name: r.funnel,
+             count,
+             value: Number(r.value),
+-            won,
++            won: Number(r.won),
+             hot: Number(r.hot),
+             warm: Number(r.warm),
+             cold: Number(r.cold),
+-            conversion: count ? Math.round((won / count) * 1000) / 10 : 0,
++            conversion: count ? Math.round((lateFunnel / count) * 1000) / 10 : 0,
+           };
+         })
+         .sort((a, b) => b.count - a.count),
+diff --git a/src/integrations/supabase/types.ts b/src/integrations/supabase/types.ts
+index e07a76c..b290e80 100644
+--- a/src/integrations/supabase/types.ts
++++ b/src/integrations/supabase/types.ts
+@@ -1936,6 +1936,7 @@ export type Database = {
+           total: number;
+           value: number;
+           won: number;
++          late_funnel: number;
+           hot: number;
+           warm: number;
+           cold: number;
+diff --git a/src/routes/funnels.tsx b/src/routes/funnels.tsx
+index c66a74d..2d5380a 100644
+--- a/src/routes/funnels.tsx
++++ b/src/routes/funnels.tsx
+@@ -109,6 +109,13 @@ function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
+   return Array.from(map.entries())
+     .map(([name, items]): FunnelStat => {
+       const won = items.filter((l) => l.stageIsWon).length;
++      // Matches the detail view's lateFunnelConversionRate exactly (same
++      // keyword/normalization) -- the list cards used to show a different
++      // definition (won/total) under the same "konversiya" label than the
++      // detail view (late-funnel/total), which read as inconsistent data.
++      const lateFunnel = items.filter((l) =>
++        SALES_STAGE_KEYWORDS.some((kw) => normalizeStageName(l.stage).includes(kw)),
++      ).length;
+       return {
+         name,
+         count: items.length,
+@@ -120,7 +127,7 @@ function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
+         hot: items.filter((l) => l.temperature === "Hot" || l.temperature === "VeryHot").length,
+         warm: items.filter((l) => l.temperature === "Warm").length,
+         cold: items.filter((l) => l.temperature === "Cold").length,
+-        conversion: items.length ? Math.round((won / items.length) * 1000) / 10 : 0,
++        conversion: items.length ? Math.round((lateFunnel / items.length) * 1000) / 10 : 0,
+       };
+     })
+     .sort((a, b) => b.count - a.count);
+diff --git a/supabase/migrations/20260821180000_funnel_list_stats_late_funnel_conversion.sql b/supabase/migrations/20260821180000_funnel_list_stats_late_funnel_conversion.sql
+new file mode 100644
+index 0000000..6eaa956
+--- /dev/null
++++ b/supabase/migrations/20260821180000_funnel_list_stats_late_funnel_conversion.sql
+@@ -0,0 +1,69 @@
++-- The Voronkalar list cards showed a "conversion" computed as won/total (a
++-- lifetime win-rate across every lead ever attributed to the funnel), while
++-- the exact same word "konversiya" inside a funnel's detail view means
++-- something else entirely: "late funnel conversion" -- what fraction of the
++-- funnel's current leads have reached a late-stage/sales position
++-- (prepayment/half-payment/full-payment/won), regardless of whether they've
++-- actually closed. Two different numbers under the same label read as a
++-- bug. Per instruction, the list cards now show the SAME late-funnel
++-- conversion the detail view already computes -- same keyword list
++-- (SALES_STAGE_KEYWORDS in use-crm-data.ts) and the same apostrophe-
++-- stripping normalization (normalizeStageName), mirrored here in SQL since
++-- this aggregate can't reuse client-side JS. Adds one column
++-- (late_funnel); everything else in this function is untouched.
++-- Adding a column changes the return type, which CREATE OR REPLACE FUNCTION
++-- cannot do for an existing function -- must drop first.
++DROP FUNCTION IF EXISTS public.funnel_list_stats();
++CREATE OR REPLACE FUNCTION public.funnel_list_stats()
++ RETURNS TABLE(funnel text, total bigint, value numeric, won bigint, late_funnel bigint, hot bigint, warm bigint, cold bigint)
++ LANGUAGE sql
++ STABLE
++ SET search_path TO 'public'
++AS $function$
++  with scope as (
++    select case
++      when public.current_user_role() in ('super_admin', 'platform_owner') then null::uuid[]
++      when public.current_user_role() = 'rop' then (
++        select array_agg(id) from public.profiles
++        where id = auth.uid() or manager_id = auth.uid()
++      )
++      else array[auth.uid()]
++    end as owner_ids
++  ),
++  conn as (
++    select enabled_pipeline_ids
++    from public.amocrm_connection
++    where organization_id = public.current_user_org_id()
++  ),
++  pipeline_map as (
++    select distinct on (pipeline_name) pipeline_name, amocrm_pipeline_id
++    from public.pipeline_stages
++    where pipeline_name is not null and amocrm_pipeline_id is not null
++    order by pipeline_name, amocrm_pipeline_id
++  )
++  select
++    coalesce(nullif(l.funnel, ''), 'Direct Sales') as funnel,
++    count(*) as total,
++    coalesce(sum(l.expected_revenue), 0) as value,
++    count(*) filter (where ps.is_won) as won,
++    count(*) filter (
++      where regexp_replace(lower(ps.name), '[''’ʼ`]', '', 'g')
++        ~ '(predoplata|peredoplata|yarim|toliq|won|успешно|rop closed)'
++    ) as late_funnel,
++    count(*) filter (where l.temperature in ('Hot', 'VeryHot')) as hot,
++    count(*) filter (where l.temperature = 'Warm') as warm,
++    count(*) filter (where l.temperature = 'Cold') as cold
++  from public.leads l
++  cross join scope
++  left join conn on true
++  left join pipeline_map pm on pm.pipeline_name = l.funnel
++  left join public.pipeline_stages ps on ps.id = l.stage_id
++  where l.organization_id = public.current_user_org_id()
++    and (scope.owner_ids is null or l.owner_id = any(scope.owner_ids))
++    and (
++      conn.enabled_pipeline_ids is null
++      or pm.amocrm_pipeline_id is null
++      or pm.amocrm_pipeline_id = any(conn.enabled_pipeline_ids)
++    )
++  group by 1;
++$function$

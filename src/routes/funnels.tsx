@@ -109,6 +109,13 @@ function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
   return Array.from(map.entries())
     .map(([name, items]): FunnelStat => {
       const won = items.filter((l) => l.stageIsWon).length;
+      // Matches the detail view's lateFunnelConversionRate exactly (same
+      // keyword/normalization) -- the list cards used to show a different
+      // definition (won/total) under the same "konversiya" label than the
+      // detail view (late-funnel/total), which read as inconsistent data.
+      const lateFunnel = items.filter((l) =>
+        SALES_STAGE_KEYWORDS.some((kw) => normalizeStageName(l.stage).includes(kw)),
+      ).length;
       return {
         name,
         count: items.length,
@@ -120,7 +127,7 @@ function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
         hot: items.filter((l) => l.temperature === "Hot" || l.temperature === "VeryHot").length,
         warm: items.filter((l) => l.temperature === "Warm").length,
         cold: items.filter((l) => l.temperature === "Cold").length,
-        conversion: items.length ? Math.round((won / items.length) * 1000) / 10 : 0,
+        conversion: items.length ? Math.round((lateFunnel / items.length) * 1000) / 10 : 0,
       };
     })
     .sort((a, b) => b.count - a.count);
