@@ -973,6 +973,12 @@ export type FunnelStat = {
   hot: number;
   warm: number;
   cold: number;
+  // "Conversion" here matches the same late-funnel definition the funnel
+  // detail view uses (leads that reached a sales/late-funnel stage, not
+  // just the strictly-won ones) -- see funnels.tsx's lateFunnelConversionRate
+  // and SALES_STAGE_KEYWORDS below. The list cards and the detail view used
+  // to disagree (cards showed won/total, detail showed late-funnel/total)
+  // under the same "konversiya" label, which read as a bug.
   conversion: number;
 };
 
@@ -995,16 +1001,16 @@ export function useFunnelListStats(enabled = true) {
         .filter((r) => !enabledFunnels || enabledFunnels.has(r.funnel))
         .map((r): FunnelStat => {
           const count = Number(r.total);
-          const won = Number(r.won);
+          const lateFunnel = Number(r.late_funnel);
           return {
             name: r.funnel,
             count,
             value: Number(r.value),
-            won,
+            won: Number(r.won),
             hot: Number(r.hot),
             warm: Number(r.warm),
             cold: Number(r.cold),
-            conversion: count ? Math.round((won / count) * 1000) / 10 : 0,
+            conversion: count ? Math.round((lateFunnel / count) * 1000) / 10 : 0,
           };
         })
         .sort((a, b) => b.count - a.count),
