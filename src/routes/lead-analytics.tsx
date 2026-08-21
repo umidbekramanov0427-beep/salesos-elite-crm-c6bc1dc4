@@ -45,6 +45,7 @@ import {
   type LeadAnalyticsLostReasonRow,
   type LeadAnalyticsChurnRow,
 } from "@/hooks/use-crm-data";
+import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -524,17 +525,20 @@ function QualityTab({
   funnel,
   managerId,
   teamId,
+  since,
   t,
 }: {
   funnel: string;
   managerId: string;
   teamId: string;
+  since: Date | null;
   t: (k: string, vars?: Record<string, string | number>) => string;
 }) {
   const { data, isLoading } = useLeadAnalyticsQuality(
     funnel || null,
     managerId || null,
     teamId || null,
+    since,
   );
   return (
     <>
@@ -718,17 +722,20 @@ function CurrentTab({
   funnel,
   managerId,
   teamId,
+  since,
   t,
 }: {
   funnel: string;
   managerId: string;
   teamId: string;
+  since: Date | null;
   t: (k: string, vars?: Record<string, string | number>) => string;
 }) {
   const { data, isLoading } = useLeadAnalyticsCurrent(
     funnel || null,
     managerId || null,
     teamId || null,
+    since,
   );
   return (
     <>
@@ -981,22 +988,26 @@ function DirectionTab({
   funnel,
   managerId,
   teamId,
+  since,
   t,
 }: {
   funnel: string;
   managerId: string;
   teamId: string;
+  since: Date | null;
   t: (k: string, vars?: Record<string, string | number>) => string;
 }) {
   const { data, isLoading } = useLeadAnalyticsDirection(
     funnel || null,
     managerId || null,
     teamId || null,
+    since,
   );
   const { data: currentData, isLoading: currentLoading } = useLeadAnalyticsCurrent(
     funnel || null,
     managerId || null,
     teamId || null,
+    since,
   );
   return (
     <>
@@ -1182,6 +1193,7 @@ function MonthStrip({
 function LeadAnalytics() {
   const { t } = useI18n();
   const { format } = useCurrency();
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("action");
   const [period, setPeriod] = useState<Period>("monthly");
   const now = useMemo(() => new Date(), []);
@@ -1204,23 +1216,34 @@ function LeadAnalytics() {
     teamId || null,
   );
 
-  const rops = useMemo(
-    () =>
-      (profiles ?? [])
-        .filter((p) => p.role === "rop")
-        .slice()
-        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
-    [profiles],
-  );
+  // The RPCs enforce real scoping (super_admin/platform_owner see everyone,
+  // rop sees themself + direct reports, everyone else sees only themself),
+  // so picking a team/operator outside that scope would just come back
+  // empty. Mirror the same scope here to keep the dropdowns from offering
+  // choices the backend will refuse.
+  const isUnrestricted = user?.role === "super_admin" || user?.role === "platform_owner";
+  const isRop = user?.role === "rop";
+
+  const rops = useMemo(() => {
+    const list = (profiles ?? []).filter((p) => p.role === "rop");
+    const scoped = isUnrestricted ? list : list.filter((p) => p.id === user?.id);
+    return scoped.slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [profiles, isUnrestricted, user?.id]);
 
   const { data: managerIdsInFunnel } = useManagerIdsInFunnel(funnel || null);
 
   const managers = useMemo(() => {
-    let all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    let all = (profiles ?? []).slice();
+    if (!isUnrestricted) {
+      all = isRop
+        ? all.filter((p) => p.id === user?.id || p.manager_id === user?.id)
+        : all.filter((p) => p.id === user?.id);
+    }
+    all = all.sort((a, b) => a.full_name.localeCompare(b.full_name));
     if (teamId) all = all.filter((p) => p.id === teamId || p.manager_id === teamId);
     if (funnel && managerIdsInFunnel) all = all.filter((p) => managerIdsInFunnel.has(p.id));
     return all;
-  }, [profiles, teamId, funnel, managerIdsInFunnel]);
+  }, [profiles, teamId, funnel, managerIdsInFunnel, isUnrestricted, isRop, user?.id]);
 
   const selectedTeamName =
     rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams");
@@ -1391,11 +1414,11 @@ function LeadAnalytics() {
       {tab === "action" ? (
         <ActionTab data={data} isLoading={isLoading} format={format} t={t} />
       ) : tab === "quality" ? (
-        <QualityTab funnel={funnel} managerId={managerId} teamId={teamId} t={t} />
+        <QualityTab funnel={funnel} managerId={managerId} teamId={teamId} since={since} t={t} />
       ) : tab === "current" ? (
-        <CurrentTab funnel={funnel} managerId={managerId} teamId={teamId} t={t} />
+        <CurrentTab funnel={funnel} managerId={managerId} teamId={teamId} since={since} t={t} />
       ) : (
-        <DirectionTab funnel={funnel} managerId={managerId} teamId={teamId} t={t} />
+        <DirectionTab funnel={funnel} managerId={managerId} teamId={teamId} since={since} t={t} />
       )}
     </>
   );

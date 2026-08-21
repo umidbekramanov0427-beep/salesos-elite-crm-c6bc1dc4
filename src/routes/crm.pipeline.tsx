@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ExternalLink, GripVertical, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
@@ -14,6 +15,7 @@ import {
   useAsOfSnapshot,
   useCrmLeads,
   useEnabledFunnelNames,
+  usePermission,
   usePipelineBoardLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
@@ -137,6 +139,8 @@ function PipelinePage() {
   const updateLead = useUpdateLead();
   const { data: profiles } = useProfilesRaw();
   const getAmoLink = useAmoCrmLink();
+  const canMoveDeals = usePermission("Move deals");
+  const canViewRevenue = usePermission("View revenue");
 
   const dateFilter: DateFilterValue = useMemo(
     () => ({
@@ -213,18 +217,28 @@ function PipelinePage() {
     setBoard(next);
   }, [visibleStages, filteredLeads]);
 
-  const move = (stageId: string) => {
-    if (!dragged || asOfDate) return;
+  async function move(stageId: string) {
+    if (!dragged || asOfDate || !canMoveDeals) return;
+    const leadId = dragged;
+    const previousBoard = board;
     setBoard((b) => {
       const next: Record<string, string[]> = {};
-      for (const k of Object.keys(b)) next[k] = (b[k] ?? []).filter((id) => id !== dragged);
-      next[stageId] = [dragged, ...(next[stageId] ?? [])];
+      for (const k of Object.keys(b)) next[k] = (b[k] ?? []).filter((id) => id !== leadId);
+      next[stageId] = [leadId, ...(next[stageId] ?? [])];
       return next;
     });
-    updateLead.mutate({ id: dragged, patch: { stage_id: stageId } });
     setDragged(null);
     setOver(null);
-  };
+    try {
+      await updateLead.mutateAsync({ id: leadId, patch: { stage_id: stageId } });
+    } catch (err) {
+      // Optimistic move failed server-side (RLS denial, network blip) --
+      // used to just silently leave the card parked in the new column
+      // forever with no error and no way to tell the move never persisted.
+      setBoard(previousBoard);
+      toast.error(err instanceof Error ? err.message : t("pipeline.moveFailed"));
+    }
+  }
 
   return (
     <>
@@ -294,7 +308,7 @@ function PipelinePage() {
                     setOver(s.id);
                   }}
                   onDragLeave={() => setOver((o) => (o === s.id ? null : o))}
-                  onDrop={() => move(s.id)}
+                  onDrop={() => void move(s.id)}
                   className={cn(
                     "flex w-[300px] shrink-0 flex-col rounded-2xl border p-3 shadow-soft transition-colors",
                     over === s.id
@@ -318,9 +332,11 @@ function PipelinePage() {
                       {s.probability}%
                     </span>
                   </header>
-                  <p className="px-2 py-2 text-xs font-medium text-subtle">
-                    {format(value)} {t("pipeline.expected")}
-                  </p>
+                  {canViewRevenue && (
+                    <p className="px-2 py-2 text-xs font-medium text-subtle">
+                      {format(value)} {t("pipeline.expected")}
+                    </p>
+                  )}
 
                   <div className="space-y-2.5">
                     {items.map((l) => {
@@ -328,7 +344,7 @@ function PipelinePage() {
                       return (
                         <article
                           key={l.id}
-                          draggable={!asOfDate}
+                          draggable={!asOfDate && canMoveDeals}
                           onDragStart={() => setDragged(l.id)}
                           className={cn(
                             "group relative rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card",
@@ -374,11 +390,13 @@ function PipelinePage() {
                             <TagEditor leadId={l.id} tags={l.tags} />
                           </div>
 
-                          <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
-                            <span className="text-sm font-semibold text-foreground">
-                              {format(l.expectedRevenue)}
-                            </span>
-                          </div>
+                          {canViewRevenue && (
+                            <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+                              <span className="text-sm font-semibold text-foreground">
+                                {format(l.expectedRevenue)}
+                              </span>
+                            </div>
+                          )}
                         </article>
                       );
                     })}
