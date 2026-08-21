@@ -11,6 +11,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { LogoLoader } from "@/components/LogoLoader";
+
+// The same centered brand-mark loader AuthGate shows on initial app load
+// (see __root.tsx), reused for a page's own "nothing to show yet" state --
+// a full-width row was previously used instead (a small spinner + "Loading…"
+// text), which reads as the page being stuck rather than working. Only for
+// the moment a page has genuinely nothing rendered yet; a page that already
+// has content and is just refreshing a section keeps its own small inline
+// indicator instead of taking over the whole viewport.
+export function PageLoader() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <LogoLoader className="h-16 w-16" />
+    </div>
+  );
+}
 
 // A small "!" badge that explains what a card/metric/column means on hover
 // or focus -- for the label itself, not the whole surrounding card (unlike
