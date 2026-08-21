@@ -43,11 +43,22 @@ function OrgNode({
   childrenMap,
   allProfiles,
   depth,
+  ancestorIds,
 }: {
   profile: ProfileRow;
   childrenMap: Map<string, ProfileRow[]>;
   allProfiles: ProfileRow[];
   depth: number;
+  // Chain of ids from the root down to (and including) this node. The
+  // manager-picker dropdown already refuses to let an admin create a new
+  // cycle (see `blocked` below via descendantIds), but that only guards
+  // future edits -- it did nothing about a cycle already sitting in the
+  // data (bad import, a manual DB edit, a since-fixed bug). Rendering such
+  // a cycle recursed forever and blew the call stack, which is exactly
+  // what showed up as a blank white screen. Any child already in this
+  // node's own ancestor chain is a cycle -- render it as a flagged leaf
+  // instead of recursing into it again.
+  ancestorIds: Set<string>;
 }) {
   const { t } = useI18n();
   const updateProfile = useUpdateProfile();
@@ -90,15 +101,26 @@ function OrgNode({
       </div>
       {kids.length > 0 && (
         <div className="ml-5 mt-2 space-y-2 border-l border-border pl-5">
-          {kids.map((k) => (
-            <OrgNode
-              key={k.id}
-              profile={k}
-              childrenMap={childrenMap}
-              allProfiles={allProfiles}
-              depth={depth + 1}
-            />
-          ))}
+          {kids.map((k) =>
+            ancestorIds.has(k.id) ? (
+              <div
+                key={k.id}
+                className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs font-medium text-destructive"
+              >
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                {t("admin.org.cycleWarning", { name: name(k) })}
+              </div>
+            ) : (
+              <OrgNode
+                key={k.id}
+                profile={k}
+                childrenMap={childrenMap}
+                allProfiles={allProfiles}
+                depth={depth + 1}
+                ancestorIds={new Set(ancestorIds).add(k.id)}
+              />
+            ),
+          )}
         </div>
       )}
     </div>
@@ -162,6 +184,7 @@ function OrgStructurePage() {
                 childrenMap={childrenMap}
                 allProfiles={rows}
                 depth={0}
+                ancestorIds={new Set([r.id])}
               />
             ))}
           </div>
