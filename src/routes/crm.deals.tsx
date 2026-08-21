@@ -13,6 +13,7 @@ import { useDealsView } from "@/hooks/use-crm-data";
 import { NewDealDialog } from "@/components/crm/quick-create";
 import { useI18n } from "@/lib/i18n";
 import { FilterSearchInput } from "@/components/filters/FilterSelect";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 
 export const Route = createFileRoute("/crm/deals")({
   head: () => ({
@@ -35,14 +36,27 @@ export const Route = createFileRoute("/crm/deals")({
 function DealsPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
   const { rows: deals, isLoading } = useDealsView();
 
   const rows = useMemo(() => {
     const q = query.toLowerCase();
-    return deals.filter(
-      (d) => !q || [d.name, d.company, d.owner, d.stage].some((v) => v.toLowerCase().includes(q)),
-    );
-  }, [deals, query]);
+    return deals.filter((d) => {
+      if (q && ![d.name, d.company, d.owner, d.stage].some((v) => v.toLowerCase().includes(q)))
+        return false;
+      // Filter by close date when the deal has one, falling back to when it
+      // was created -- otherwise a deal with no forecasted close date would
+      // just vanish the moment any date range is picked.
+      const cmpDate = new Date(d.closeDateRaw ?? d.createdAtRaw);
+      if (dateFilter.from && cmpDate < dateFilter.from) return false;
+      if (dateFilter.to && cmpDate > dateFilter.to) return false;
+      return true;
+    });
+  }, [deals, query, dateFilter]);
 
   const openDeals = deals.filter((d) => d.status === "open");
   const totalValue = deals.reduce((s, d) => s + d.value, 0);
@@ -56,6 +70,7 @@ function DealsPage() {
         description={t("deals.desc")}
         actions={
           <>
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
             <ExportButton
               filename="deals"
               rows={rows.map((d) => ({

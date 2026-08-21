@@ -1607,6 +1607,7 @@ export type CompanyView = {
   contacts: number;
   deals: number;
   openValue: number;
+  createdAtRaw: string;
 };
 
 export function useCompaniesView() {
@@ -1634,6 +1635,7 @@ export function useCompaniesView() {
         contacts: contactCount,
         deals: companyDeals.length,
         openValue,
+        createdAtRaw: c.created_at,
       };
     });
   }, [base.companies, base.contacts, base.deals, base.profiles]);
@@ -1659,6 +1661,7 @@ export type ContactView = {
   birthday: string;
   deals: number;
   tasks: number;
+  createdAtRaw: string;
 };
 
 export function useContactsView() {
@@ -1684,6 +1687,7 @@ export function useContactsView() {
         birthday: ct.birthday ? formatDate(ct.birthday) : "—",
         deals: dealsCount,
         tasks: leadIds.size,
+        createdAtRaw: ct.created_at,
       };
     });
   }, [base.contacts, base.companies, base.deals, base.leads]);
@@ -1713,6 +1717,8 @@ export type DealView = {
   products: number;
   discount: number;
   tax: number;
+  closeDateRaw: string | null;
+  createdAtRaw: string;
 };
 
 export function useDealsView() {
@@ -1744,6 +1750,8 @@ export function useDealsView() {
         products: d.products_count,
         discount: Number(d.discount),
         tax: Number(d.tax),
+        closeDateRaw: d.close_date,
+        createdAtRaw: d.created_at,
       };
     });
   }, [base.deals, base.companies, base.profiles, base.stages]);
