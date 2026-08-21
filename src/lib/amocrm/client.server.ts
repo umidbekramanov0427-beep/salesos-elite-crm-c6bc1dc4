@@ -1004,13 +1004,23 @@ const TASKS_MAX_PAGES = 20; // ~5k open tasks at limit=250
 
 /**
  * Counts this org's open (incomplete) AmoCRM tasks into "due later today"
- * vs. "already overdue", optionally scoped to a single funnel by cross-
- * referencing each task's lead against the local leads table (AmoCRM tasks
- * carry no pipeline/funnel of their own -- only an entity_id/entity_type).
+ * vs. "already overdue", optionally scoped to a single funnel and/or a set
+ * of owners by cross-referencing each task's lead against the local leads
+ * table (AmoCRM tasks carry no pipeline/owner of their own -- only an
+ * entity_id/entity_type -- so there's no responsible_user_id to filter by
+ * directly; every AmoCRM task lives on a lead, and every lead already has
+ * our own owner_id, so joining through that is simpler than mapping to
+ * AmoCRM's own numeric user ids).
+ *
+ * ownerIds: null/undefined = unrestricted (super_admin/platform_owner);
+ * an array restricts to just those owners' leads' tasks -- this used to be
+ * missing entirely, so every role saw the whole org's due/overdue counts
+ * on the Funnels "Vazifalar" card regardless of who they actually were.
  */
 export async function fetchOpenTaskStats(
   organizationId: string,
   funnel?: string | null,
+  ownerIds?: string[] | null,
 ): Promise<AmoTaskStats> {
   const conn0 = await getConnection(organizationId);
   if (!conn0) return { dueToday: 0, overdue: 0 };
@@ -1024,12 +1034,14 @@ export async function fetchOpenTaskStats(
   );
 
   let relevant = tasks;
-  if (funnel) {
-    const { data: leadRows, error } = await supabaseAdmin
+  if (funnel || ownerIds) {
+    let query = supabaseAdmin
       .from("leads")
       .select("amocrm_id")
-      .eq("organization_id", organizationId)
-      .eq("funnel", funnel);
+      .eq("organization_id", organizationId);
+    if (funnel) query = query.eq("funnel", funnel);
+    if (ownerIds) query = query.in("owner_id", ownerIds);
+    const { data: leadRows, error } = await query;
     if (error) throw error;
     const allowedAmoIds = new Set(
       (leadRows ?? []).map((l) => l.amocrm_id).filter((id): id is number => id != null),
