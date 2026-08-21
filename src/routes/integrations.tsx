@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   useAmoConnectionStatus,
   useIntegrationSetting,
+  usePermission,
   usePipelineStagesRaw,
   useTriggerAmoCrmSync,
 } from "@/hooks/use-crm-data";
@@ -405,6 +406,7 @@ function AmoCrmCard() {
 
 function IntegrationsPage() {
   const { t } = useI18n();
+  const canManageIntegrations = usePermission("Manage integrations");
   const [installed, setInstalled] = useState<Installed[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [open, setOpen] = useState(false);
@@ -469,14 +471,16 @@ function IntegrationsPage() {
         title={t("int.title")}
         description={t("int.description")}
         actions={
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <Plus className="h-4 w-4" />
-            {t("int.add")}
-          </button>
+          canManageIntegrations && (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              {t("int.add")}
+            </button>
+          )
         }
       />
 
@@ -527,28 +531,30 @@ function IntegrationsPage() {
                     {item.lastSync ? new Date(item.lastSync).toLocaleString() : t("int.never")}
                   </p>
 
-                  <div className="mt-auto flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggle(item.id)}
-                      className={cn(
-                        "flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
-                        item.active
-                          ? "border border-border bg-surface text-muted-foreground hover:bg-accent"
-                          : "bg-primary text-primary-foreground hover:opacity-90",
-                      )}
-                    >
-                      {item.active ? t("common.disconnect") : t("common.connect")}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t("int.remove")}
-                      onClick={() => remove(item.id)}
-                      className="rounded-xl border border-border p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {canManageIntegrations && (
+                    <div className="mt-auto flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggle(item.id)}
+                        className={cn(
+                          "flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
+                          item.active
+                            ? "border border-border bg-surface text-muted-foreground hover:bg-accent"
+                            : "bg-primary text-primary-foreground hover:opacity-90",
+                        )}
+                      >
+                        {item.active ? t("common.disconnect") : t("common.connect")}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t("int.remove")}
+                        onClick={() => remove(item.id)}
+                        className="rounded-xl border border-border p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}

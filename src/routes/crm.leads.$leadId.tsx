@@ -29,6 +29,7 @@ import {
   useCreateTask,
   useLeadById,
   useLeadActivities,
+  usePermission,
   useProfilesRaw,
   useTasksView,
 } from "@/hooks/use-crm-data";
@@ -217,6 +218,7 @@ function LeadWorkspace() {
   const createActivity = useCreateLeadActivity();
   const createTask = useCreateTask();
   const { rows: allTasks } = useTasksView();
+  const canCreateTasks = usePermission("Create tasks");
 
   const chat = useAiAssistantChat();
   const amoCrmLinkFor = useAmoCrmLink();
@@ -476,21 +478,23 @@ function LeadWorkspace() {
 
           {tab === "Tasks" && (
             <SectionCard title={t("lead.tasks.title")} description={t("lead.tasks.desc")}>
-              <div className="mb-4 flex items-center gap-2">
-                <input
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder={t("lead.tasks.placeholder")}
-                  className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
-                />
-                <button
-                  onClick={addTask}
-                  disabled={createTask.isPending || !taskTitle.trim()}
-                  className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                >
-                  {t("common.add")}
-                </button>
-              </div>
+              {canCreateTasks && (
+                <div className="mb-4 flex items-center gap-2">
+                  <input
+                    value={taskTitle}
+                    onChange={(e) => setTaskTitle(e.target.value)}
+                    placeholder={t("lead.tasks.placeholder")}
+                    className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
+                  />
+                  <button
+                    onClick={addTask}
+                    disabled={createTask.isPending || !taskTitle.trim()}
+                    className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                  >
+                    {t("common.add")}
+                  </button>
+                </div>
+              )}
               {leadTasks.length === 0 && (
                 <p className="text-sm text-subtle">{t("lead.tasks.empty")}</p>
               )}

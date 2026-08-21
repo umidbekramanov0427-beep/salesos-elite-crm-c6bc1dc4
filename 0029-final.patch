@@ -1,0 +1,254 @@
+diff --git a/src/components/crm/quick-create.tsx b/src/components/crm/quick-create.tsx
+index 5805a89..1fc3390 100644
+--- a/src/components/crm/quick-create.tsx
++++ b/src/components/crm/quick-create.tsx
+@@ -9,6 +9,7 @@ import {
+   notifyTaskAssigned,
+   useCompaniesRaw,
+   useLeadsRaw,
++  usePermission,
+   usePipelineStagesRaw,
+   useProfilesRaw,
+ } from "@/hooks/use-crm-data";
+@@ -391,13 +392,18 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
+   const { user } = useAuth();
+   const qc = useQueryClient();
+   const { data: profiles } = useProfilesRaw();
++  const canAssignTasks = usePermission("Assign tasks");
+ 
+   async function onSubmit(e: FormEvent) {
+     e.preventDefault();
+     if (!title.trim()) return;
+     setBusy(true);
+     try {
+-      const finalAssigneeId = assigneeId || user?.id || null;
++      // Without "Assign tasks", every task this dialog creates goes to the
++      // creator themself, regardless of what's in local state -- the
++      // assignee picker below is hidden in that case, but this is the real
++      // enforcement point, not just a UI nicety.
++      const finalAssigneeId = canAssignTasks ? assigneeId || user?.id || null : (user?.id ?? null);
+       const { error } = await supabase.from("tasks").insert({
+         title: title.trim(),
+         assignee_id: finalAssigneeId,
+@@ -439,18 +445,24 @@ export function NewTaskDialog({ trigger }: { trigger: ReactNode }) {
+           <div className="grid grid-cols-2 gap-3">
+             <div className="space-y-1.5">
+               <Label>{t("qc.assignee")}</Label>
+-              <Select value={assigneeId} onValueChange={setAssigneeId}>
+-                <SelectTrigger>
+-                  <SelectValue placeholder={t("qc.me")} />
+-                </SelectTrigger>
+-                <SelectContent>
+-                  {(profiles ?? []).map((p) => (
+-                    <SelectItem key={p.id} value={p.id}>
+-                      {p.full_name || p.email}
+-                    </SelectItem>
+-                  ))}
+-                </SelectContent>
+-              </Select>
++              {canAssignTasks ? (
++                <Select value={assigneeId} onValueChange={setAssigneeId}>
++                  <SelectTrigger>
++                    <SelectValue placeholder={t("qc.me")} />
++                  </SelectTrigger>
++                  <SelectContent>
++                    {(profiles ?? []).map((p) => (
++                      <SelectItem key={p.id} value={p.id}>
++                        {p.full_name || p.email}
++                      </SelectItem>
++                    ))}
++                  </SelectContent>
++                </Select>
++              ) : (
++                <div className="flex h-9 items-center rounded-lg border border-border bg-muted px-3 text-sm text-muted-foreground">
++                  {t("qc.me")}
++                </div>
++              )}
+             </div>
+             <div className="space-y-1.5">
+               <Label>{t("qc.priority")}</Label>
+diff --git a/src/routes/crm.leads.$leadId.tsx b/src/routes/crm.leads.$leadId.tsx
+index a049cef..95aaef0 100644
+--- a/src/routes/crm.leads.$leadId.tsx
++++ b/src/routes/crm.leads.$leadId.tsx
+@@ -29,6 +29,7 @@ import {
+   useCreateTask,
+   useLeadById,
+   useLeadActivities,
++  usePermission,
+   useProfilesRaw,
+   useTasksView,
+@@ -217,6 +218,7 @@ function LeadWorkspace() {
+   const createActivity = useCreateLeadActivity();
+   const createTask = useCreateTask();
+   const { rows: allTasks } = useTasksView();
++  const canCreateTasks = usePermission("Create tasks");
+ 
+   const chat = useAiAssistantChat();
+   const amoCrmLinkFor = useAmoCrmLink();
+@@ -476,21 +478,23 @@ function LeadWorkspace() {
+ 
+           {tab === "Tasks" && (
+             <SectionCard title={t("lead.tasks.title")} description={t("lead.tasks.desc")}>
+-              <div className="mb-4 flex items-center gap-2">
+-                <input
+-                  value={taskTitle}
+-                  onChange={(e) => setTaskTitle(e.target.value)}
+-                  placeholder={t("lead.tasks.placeholder")}
+-                  className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
+-                />
+-                <button
+-                  onClick={addTask}
+-                  disabled={createTask.isPending || !taskTitle.trim()}
+-                  className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+-                >
+-                  {t("common.add")}
+-                </button>
+-              </div>
++              {canCreateTasks && (
++                <div className="mb-4 flex items-center gap-2">
++                  <input
++                    value={taskTitle}
++                    onChange={(e) => setTaskTitle(e.target.value)}
++                    placeholder={t("lead.tasks.placeholder")}
++                    className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-subtle focus:border-primary/40"
++                  />
++                  <button
++                    onClick={addTask}
++                    disabled={createTask.isPending || !taskTitle.trim()}
++                    className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
++                  >
++                    {t("common.add")}
++                  </button>
++                </div>
++              )}
+               {leadTasks.length === 0 && (
+                 <p className="text-sm text-subtle">{t("lead.tasks.empty")}</p>
+               )}
+diff --git a/src/routes/integrations.tsx b/src/routes/integrations.tsx
+index 946a4f3..92755ac 100644
+--- a/src/routes/integrations.tsx
++++ b/src/routes/integrations.tsx
+@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
+ import {
+   useAmoConnectionStatus,
+   useIntegrationSetting,
++  usePermission,
+   usePipelineStagesRaw,
+   useTriggerAmoCrmSync,
+ } from "@/hooks/use-crm-data";
+@@ -405,6 +406,7 @@ function AmoCrmCard() {
+ 
+ function IntegrationsPage() {
+   const { t } = useI18n();
++  const canManageIntegrations = usePermission("Manage integrations");
+   const [installed, setInstalled] = useState<Installed[]>([]);
+   const [hydrated, setHydrated] = useState(false);
+   const [open, setOpen] = useState(false);
+@@ -469,14 +471,16 @@ function IntegrationsPage() {
+         title={t("int.title")}
+         description={t("int.description")}
+         actions={
+-          <button
+-            type="button"
+-            onClick={() => setOpen(true)}
+-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+-          >
+-            <Plus className="h-4 w-4" />
+-            {t("int.add")}
+-          </button>
++          canManageIntegrations && (
++            <button
++              type="button"
++              onClick={() => setOpen(true)}
++              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
++            >
++              <Plus className="h-4 w-4" />
++              {t("int.add")}
++            </button>
++          )
+         }
+       />
+ 
+@@ -527,28 +531,30 @@ function IntegrationsPage() {
+                     {item.lastSync ? new Date(item.lastSync).toLocaleString() : t("int.never")}
+                   </p>
+ 
+-                  <div className="mt-auto flex items-center gap-2">
+-                    <button
+-                      type="button"
+-                      onClick={() => toggle(item.id)}
+-                      className={cn(
+-                        "flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
+-                        item.active
+-                          ? "border border-border bg-surface text-muted-foreground hover:bg-accent"
+-                          : "bg-primary text-primary-foreground hover:opacity-90",
+-                      )}
+-                    >
+-                      {item.active ? t("common.disconnect") : t("common.connect")}
+-                    </button>
+-                    <button
+-                      type="button"
+-                      aria-label={t("int.remove")}
+-                      onClick={() => remove(item.id)}
+-                      className="rounded-xl border border-border p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+-                    >
+-                      <Trash2 className="h-4 w-4" />
+-                    </button>
+-                  </div>
++                  {canManageIntegrations && (
++                    <div className="mt-auto flex items-center gap-2">
++                      <button
++                        type="button"
++                        onClick={() => toggle(item.id)}
++                        className={cn(
++                          "flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
++                          item.active
++                            ? "border border-border bg-surface text-muted-foreground hover:bg-accent"
++                            : "bg-primary text-primary-foreground hover:opacity-90",
++                        )}
++                      >
++                        {item.active ? t("common.disconnect") : t("common.connect")}
++                      </button>
++                      <button
++                        type="button"
++                        aria-label={t("int.remove")}
++                        onClick={() => remove(item.id)}
++                        className="rounded-xl border border-border p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
++                      >
++                        <Trash2 className="h-4 w-4" />
++                      </button>
++                    </div>
++                  )}
+                 </li>
+               );
+             })}
+diff --git a/src/routes/tasks.tsx b/src/routes/tasks.tsx
+index 71af07e..468d80f 100644
+--- a/src/routes/tasks.tsx
++++ b/src/routes/tasks.tsx
+@@ -15,6 +15,7 @@ import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+ import {
+   useAsOfSnapshot,
+   useCreateTaskComment,
++  usePermission,
+   useProfilesRaw,
+   useTaskComments,
+   useTasksView,
+@@ -378,6 +379,7 @@ function Tasks() {
+   );
+   const isLoading = tasksLoading || (asOfDate ? asOfSnapshot.isLoading : false);
+   const updateTask = useUpdateTask();
++  const canCreateTasks = usePermission("Create tasks");
+   // useTasksView() already scopes rows to what this role may see (self for
+   // sotuv_menejeri, own team for rop, everyone for super_admin).
+   const tasks = allTasks;
+@@ -447,7 +449,7 @@ function Tasks() {
+               </button>
+             </div>
+             <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
+-            {!asOfDate && (
++            {!asOfDate && canCreateTasks && (
+               <NewTaskDialog
+                 trigger={
+                   <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90">
