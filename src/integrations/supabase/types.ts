@@ -52,6 +52,70 @@ export type Database = {
           },
         ];
       };
+      ai_chat_conversations: {
+        Row: {
+          created_at: string;
+          id: string;
+          profile_id: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          profile_id: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          profile_id?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_conversations_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ai_chat_messages: {
+        Row: {
+          content: string;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          role: string;
+        };
+        Insert: {
+          content: string;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          role: string;
+        };
+        Update: {
+          content?: string;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          role?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "ai_chat_conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       amocrm_calls: {
         Row: {
           ai_summary: string | null;

@@ -3317,6 +3317,98 @@ export function useAiAssistantChat() {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* AI Assistant chat history -- conversations used to live only in the  */
+/* browser tab's React state (gone on refresh), so there was no "Tarix" */
+/* (history) to show, search, or resume. Persisted the same way the     */
+/* rest of the app's owner-scoped tables work.                          */
+/* ------------------------------------------------------------------ */
+
+export type AiChatConversationRow = Database["public"]["Tables"]["ai_chat_conversations"]["Row"];
+export type AiChatMessageRow = Database["public"]["Tables"]["ai_chat_messages"]["Row"];
+
+export function useAiConversations() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["ai_chat_conversations", user?.id],
+    enabled: !!user?.id,
+    queryFn: async (): Promise<AiChatConversationRow[]> => {
+      const { data, error } = await supabase
+        .from("ai_chat_conversations")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useAiConversationMessages(conversationId: string | null) {
+  return useQuery({
+    queryKey: ["ai_chat_messages", conversationId],
+    enabled: !!conversationId,
+    queryFn: async (): Promise<AiChatMessageRow[]> => {
+      const { data, error } = await supabase
+        .from("ai_chat_messages")
+        .select("*")
+        .eq("conversation_id", conversationId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateAiConversation() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (title: string): Promise<AiChatConversationRow> => {
+      if (!user?.id) throw new Error("Not signed in.");
+      const { data, error } = await supabase
+        .from("ai_chat_conversations")
+        .insert({ profile_id: user.id, title: title.slice(0, 80) || "New chat" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["ai_chat_conversations"] });
+    },
+  });
+}
+
+export function useSaveAiMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      conversationId: string;
+      role: "user" | "assistant";
+      content: string;
+    }) => {
+      const { error: insertError } = await supabase.from("ai_chat_messages").insert({
+        conversation_id: input.conversationId,
+        role: input.role,
+        content: input.content,
+      });
+      if (insertError) throw insertError;
+      // Bumps updated_at so this conversation sorts back to the top of the
+      // history panel the moment it gets a new message.
+      const { error: touchError } = await supabase
+        .from("ai_chat_conversations")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", input.conversationId);
+      if (touchError) throw touchError;
+    },
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ["ai_chat_conversations"] });
+      void qc.invalidateQueries({ queryKey: ["ai_chat_messages", vars.conversationId] });
+    },
+  });
+}
+
 export function useAnalyzeCall() {
   const qc = useQueryClient();
   return useMutation({
