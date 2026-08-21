@@ -13,7 +13,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
-import { SectionCard, Pill } from "@/components/layout/Primitives";
+import { SectionCard, Pill, PageLoader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import { currency } from "@/lib/mock-data";
 import { cn, timeAgo } from "@/lib/utils";
@@ -268,11 +268,7 @@ function LeadWorkspace() {
   const [taskTitle, setTaskTitle] = useState("");
 
   if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> {t("lead.loading")}
-      </div>
-    );
+    return <PageLoader />;
   }
   if (!lead) return <LeadNotFound />;
 

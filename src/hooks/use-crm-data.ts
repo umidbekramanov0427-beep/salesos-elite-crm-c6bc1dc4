@@ -1766,6 +1766,7 @@ export type NotificationView = {
   body: string;
   unread: boolean;
   meta: string;
+  link: string | null;
 };
 
 export function useNotificationsView() {
@@ -1779,6 +1780,7 @@ export function useNotificationsView() {
         body: n.body ?? "",
         unread: !n.read,
         meta: timeAgo(n.created_at),
+        link: n.link,
       })),
     [q.data],
   );

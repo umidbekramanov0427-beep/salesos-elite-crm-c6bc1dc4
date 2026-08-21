@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
@@ -28,6 +28,12 @@ function InboxPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const { rows: notifications, isLoading } = useNotificationsView();
   const markRead = useMarkNotificationRead();
+  const navigate = useNavigate();
+
+  function open(n: (typeof notifications)[number]) {
+    if (n.unread) markRead.mutate(n.id);
+    if (n.link) void navigate({ to: n.link });
+  }
 
   const rows = useMemo(
     () => (filter === "Unread" ? notifications.filter((n) => n.unread) : notifications),
@@ -74,10 +80,11 @@ function InboxPage() {
           {rows.map((n) => (
             <li
               key={n.id}
-              onClick={() => n.unread && markRead.mutate(n.id)}
+              onClick={() => open(n)}
               className={cn(
                 "flex items-start gap-4 px-6 py-5 transition-colors hover:bg-surface",
-                n.unread && "cursor-pointer bg-mint/40",
+                (n.unread || n.link) && "cursor-pointer",
+                n.unread && "bg-mint/40",
               )}
             >
               <span
@@ -91,6 +98,11 @@ function InboxPage() {
                 {n.body && <p className="mt-1 text-xs text-muted-foreground">{n.body}</p>}
                 <p className="mt-1 text-xs text-subtle">{n.meta}</p>
               </div>
+              {n.link && (
+                <span className="shrink-0 text-xs font-semibold text-primary">
+                  {t("inbox.open")}
+                </span>
+              )}
               <Pill tone={n.type === "Overdue" ? "danger" : n.type === "AI" ? "info" : "neutral"}>
                 {n.type}
               </Pill>

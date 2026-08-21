@@ -705,6 +705,97 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
 
 export type SyncResult = { synced: number; callsSynced?: number; error?: string };
 
+/* ------------------------------------------------------------------ */
+/* Sync-driven notifications -- surfaces AmoCRM changes (stage moves,   */
+/* new leads, reassignments, new calls) in the in-app bell instead of   */
+/* the sync being silently invisible between the "Oxirgi sinxronlash"   */
+/* timestamp and whatever the user notices changed on a page reload.    */
+/* Visibility mirrors every other role-scoped view in the app: the      */
+/* lead's own owner, that owner's rop (manager_id), and every           */
+/* super_admin/platform_owner in the org all get a row -- resolved once */
+/* per sync call so a page of 250 leads doesn't re-query profiles per   */
+/* lead.                                                                */
+/* ------------------------------------------------------------------ */
+
+type NotificationRecipients = {
+  superAdminIds: string[];
+  managerIdByProfileId: Map<string, string | null>;
+  nameByProfileId: Map<string, string>;
+};
+
+async function loadNotificationRecipients(organizationId: string): Promise<NotificationRecipients> {
+  const { data: profiles } = await supabaseAdmin
+    .from("profiles")
+    .select("id, role, manager_id, full_name")
+    .eq("organization_id", organizationId);
+  const superAdminIds: string[] = [];
+  const managerIdByProfileId = new Map<string, string | null>();
+  const nameByProfileId = new Map<string, string>();
+  for (const p of profiles ?? []) {
+    if (p.role === "super_admin" || p.role === "platform_owner") superAdminIds.push(p.id);
+    managerIdByProfileId.set(p.id, p.manager_id ?? null);
+    nameByProfileId.set(p.id, p.full_name);
+  }
+  return { superAdminIds, managerIdByProfileId, nameByProfileId };
+}
+
+function recipientsForOwner(recipients: NotificationRecipients, ownerId: string | null): string[] {
+  const set = new Set<string>(recipients.superAdminIds);
+  if (ownerId) {
+    set.add(ownerId);
+    const managerId = recipients.managerIdByProfileId.get(ownerId);
+    if (managerId) set.add(managerId);
+  }
+  return Array.from(set);
+}
+
+type NotificationDraft = {
+  ownerId: string | null;
+  type: string;
+  title: string;
+  body: string;
+  link: string;
+};
+
+// Best-effort by design: a bug here should never take down the actual lead
+// sync that already succeeded above it. Failures are swallowed by the
+// caller, same posture as the calls-sync warning a few lines up.
+async function insertAmoNotifications(
+  organizationId: string,
+  recipients: NotificationRecipients,
+  drafts: NotificationDraft[],
+): Promise<void> {
+  if (drafts.length === 0) return;
+  const rows = drafts.flatMap((d) =>
+    recipientsForOwner(recipients, d.ownerId).map((userId) => ({
+      organization_id: organizationId,
+      user_id: userId,
+      type: d.type,
+      title: d.title,
+      body: d.body,
+      link: d.link,
+    })),
+  );
+  const NOTIF_CHUNK = 200;
+  for (let i = 0; i < rows.length; i += NOTIF_CHUNK) {
+    const chunk = rows.slice(i, i + NOTIF_CHUNK);
+    const { error } = await supabaseAdmin.from("notifications").insert(chunk);
+    if (error) throw new Error(`[notifications ${i}-${i + chunk.length}] ${describeError(error)}`);
+  }
+}
+
+type StageMeta = { name: string; isWon: boolean; isLost: boolean };
+
+async function loadStageMeta(organizationId: string): Promise<Map<string, StageMeta>> {
+  const { data } = await supabaseAdmin
+    .from("pipeline_stages")
+    .select("id, name, is_won, is_lost")
+    .eq("organization_id", organizationId);
+  return new Map(
+    (data ?? []).map((s) => [s.id, { name: s.name, isWon: s.is_won, isLost: s.is_lost }]),
+  );
+}
+
 /** Pulls every lead from AmoCRM and upserts it into public.leads, keyed by (organization_id, amocrm_id). */
 export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResult> {
   const conn0 = await getConnection(organizationId);
@@ -721,6 +812,8 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       ownerByAmoUserId,
       fallbackStageId,
       lossReasonById,
+      notifRecipients,
+      stageMetaById,
     ] = await Promise.all([
       syncPipelineStages(organizationId, conn).catch((e) => {
         throw new Error(`[pipeline stages] ${describeError(e)}`);
@@ -730,6 +823,8 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
         throw new Error(`[default stage] ${describeError(e)}`);
       }),
       fetchLossReasons(conn).catch(() => new Map<number, string>()),
+      loadNotificationRecipients(organizationId),
+      loadStageMeta(organizationId),
     ]);
 
     // Leads used to be fetched into one array for the whole account (up to
@@ -877,21 +972,98 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           tags: amoTagNames(l),
         };
       });
+      const dedupedLeadRows = dedupeByKey(rows, (r) => String(r.amocrm_id));
+
+      // Snapshot each of this page's leads as they stood *before* this
+      // upsert, so a stage/owner change can be detected by diffing against
+      // it below -- the upsert itself only ever returns the *new* row, an
+      // unconditional overwrite gives no signal about what actually moved.
+      const { data: existingLeadRows } = await supabaseAdmin
+        .from("leads")
+        .select("id, amocrm_id, stage_id, owner_id")
+        .eq("organization_id", organizationId)
+        .in(
+          "amocrm_id",
+          dedupedLeadRows.map((r) => r.amocrm_id),
+        );
+      const existingByAmoId = new Map((existingLeadRows ?? []).map((r) => [r.amocrm_id, r]));
+
+      const notifDrafts: NotificationDraft[] = [];
+      for (const r of dedupedLeadRows) {
+        const existing = existingByAmoId.get(r.amocrm_id);
+        if (!existing) continue; // new leads are notified after the upsert below, once their id exists
+        if (existing.stage_id !== r.stage_id) {
+          const oldStage = existing.stage_id ? stageMetaById.get(existing.stage_id) : undefined;
+          const newStage = r.stage_id ? stageMetaById.get(r.stage_id) : undefined;
+          notifDrafts.push({
+            ownerId: r.owner_id,
+            type: newStage?.isWon ? "LeadWon" : newStage?.isLost ? "LeadLost" : "LeadStage",
+            title: newStage?.isWon
+              ? "Lid yutildi"
+              : newStage?.isLost
+                ? "Lid yo'qotildi"
+                : "Lid bosqichi o'zgartirildi",
+            body: `${r.name} · ${oldStage?.name ?? "?"} → ${newStage?.name ?? "?"}`,
+            link: `/crm/leads/${existing.id}`,
+          });
+        }
+        if (existing.owner_id !== r.owner_id) {
+          const oldOwnerName = existing.owner_id
+            ? (notifRecipients.nameByProfileId.get(existing.owner_id) ?? "—")
+            : "—";
+          const newOwnerName = r.owner_id
+            ? (notifRecipients.nameByProfileId.get(r.owner_id) ?? "—")
+            : "—";
+          notifDrafts.push({
+            ownerId: r.owner_id,
+            type: "LeadOwner",
+            title: "Lid boshqa menejerga o'tkazildi",
+            body: `${r.name} · ${oldOwnerName} → ${newOwnerName}`,
+            link: `/crm/leads/${existing.id}`,
+          });
+        }
+      }
+
       // Each AmoCRM page already caps at 250 leads, but that turned out to
       // be close enough to the same per-statement audit-trail overhead that
       // forced pipeline_stages down to 200-row chunks (see above) that a
       // single heavy account can still time out here. Chunk it the same way
       // rather than wait for a second report of the same failure mode.
       const LEADS_UPSERT_CHUNK = 100;
-      const dedupedLeadRows = dedupeByKey(rows, (r) => String(r.amocrm_id));
+      const upsertedIdByAmoId = new Map<number, string>();
       for (let i = 0; i < dedupedLeadRows.length; i += LEADS_UPSERT_CHUNK) {
         const chunk = dedupedLeadRows.slice(i, i + LEADS_UPSERT_CHUNK);
         if (chunk.length === 0) continue;
-        const { error } = await supabaseAdmin
+        const { data: upserted, error } = await supabaseAdmin
           .from("leads")
-          .upsert(chunk, { onConflict: "organization_id,amocrm_id" });
+          .upsert(chunk, { onConflict: "organization_id,amocrm_id" })
+          .select("id, amocrm_id");
         if (error)
           throw new Error(`[page ${page} leads ${i}-${i + chunk.length}] ${describeError(error)}`);
+        for (const row of upserted ?? []) {
+          if (row.amocrm_id != null) upsertedIdByAmoId.set(row.amocrm_id, row.id);
+        }
+      }
+
+      for (const r of dedupedLeadRows) {
+        if (existingByAmoId.has(r.amocrm_id)) continue;
+        const id = upsertedIdByAmoId.get(r.amocrm_id);
+        if (!id) continue;
+        notifDrafts.push({
+          ownerId: r.owner_id,
+          type: "LeadNew",
+          title: "Yangi lid qo'shildi",
+          body: r.company_name ? `${r.name} · ${r.company_name}` : r.name,
+          link: `/crm/leads/${id}`,
+        });
+      }
+
+      try {
+        await insertAmoNotifications(organizationId, notifRecipients, notifDrafts);
+      } catch {
+        // Best-effort -- see insertAmoNotifications' comment. The lead sync
+        // above already succeeded and must not be reported as failed over
+        // a notifications-only problem.
       }
 
       totalSynced += syncableLeads.length;
@@ -910,7 +1082,7 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
     // marking the overall sync (leads) as failed.
     let callsSyncWarning: string | null = null;
     try {
-      callsSynced = await syncCallsFromAmo(conn);
+      callsSynced = await syncCallsFromAmo(conn, notifRecipients);
     } catch (err) {
       callsSyncWarning = `Calls: ${describeError(err)}`;
     }
@@ -943,25 +1115,28 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
 }
 
 /** Pulls call-type notes from AmoCRM and upserts them into public.amocrm_calls. Returns count synced. */
-async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
+async function syncCallsFromAmo(
+  conn: AmoConnection,
+  notifRecipients: NotificationRecipients,
+): Promise<number> {
   const notes = await fetchCallNotes(conn);
   if (notes.length === 0) return 0;
 
   const amoLeadIds = Array.from(new Set(notes.map((n) => n.entity_id)));
   const { data: leadRows, error: leadsError } = await supabaseAdmin
     .from("leads")
-    .select("id, amocrm_id")
+    .select("id, amocrm_id, name, owner_id")
     .eq("organization_id", conn.organization_id)
     .in("amocrm_id", amoLeadIds);
   if (leadsError) throw leadsError;
-  const leadIdByAmoId = new Map((leadRows ?? []).map((l) => [l.amocrm_id, l.id]));
+  const leadByAmoId = new Map((leadRows ?? []).map((l) => [l.amocrm_id, l]));
 
   const rows = notes.map((n) => {
     const duration = n.params?.duration ?? 0;
     return {
       organization_id: conn.organization_id,
       amocrm_note_id: n.id,
-      lead_id: leadIdByAmoId.get(n.entity_id) ?? null,
+      lead_id: leadByAmoId.get(n.entity_id)?.id ?? null,
       direction: n.note_type === "call_in" ? "in" : "out",
       phone: n.params?.phone ?? null,
       duration_seconds: duration,
@@ -970,13 +1145,28 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
       occurred_at: new Date(n.created_at * 1000).toISOString(),
     };
   });
+  const dedupedCallRows = dedupeByKey(rows, (r) => String(r.amocrm_note_id));
+
+  // Notes re-sync on every run (the last CALL_NOTES_LOOKBACK_DAYS window,
+  // upserted idempotently) -- diff against what already existed before this
+  // upsert so a re-synced call from yesterday doesn't fire a fresh
+  // notification every 5 minutes.
+  const { data: existingCallRows } = await supabaseAdmin
+    .from("amocrm_calls")
+    .select("amocrm_note_id")
+    .eq("organization_id", conn.organization_id)
+    .in(
+      "amocrm_note_id",
+      dedupedCallRows.map((r) => r.amocrm_note_id),
+    );
+  const existingNoteIds = new Set((existingCallRows ?? []).map((r) => r.amocrm_note_id));
+  const newCallRows = dedupedCallRows.filter((r) => !existingNoteIds.has(r.amocrm_note_id));
 
   // Unlike the leads loop, this was still one upsert for the whole (capped
   // but still up to ~5k-row) batch -- the same shape of statement that
   // forced pipeline_stages and the leads loop down to chunked upserts.
   // Chunk it too instead of waiting for this to be the next timeout report.
   const CALLS_UPSERT_CHUNK = 200;
-  const dedupedCallRows = dedupeByKey(rows, (r) => String(r.amocrm_note_id));
   for (let i = 0; i < dedupedCallRows.length; i += CALLS_UPSERT_CHUNK) {
     const chunk = dedupedCallRows.slice(i, i + CALLS_UPSERT_CHUNK);
     const { error } = await supabaseAdmin
@@ -984,6 +1174,26 @@ async function syncCallsFromAmo(conn: AmoConnection): Promise<number> {
       .upsert(chunk, { onConflict: "organization_id,amocrm_note_id" });
     if (error) throw new Error(`[calls ${i}-${i + chunk.length}] ${describeError(error)}`);
   }
+
+  try {
+    const leadById = new Map(Array.from(leadByAmoId.values()).map((l) => [l.id, l]));
+    const notifDrafts: NotificationDraft[] = newCallRows
+      .filter((r) => r.lead_id)
+      .map((r) => {
+        const lead = leadById.get(r.lead_id!);
+        return {
+          ownerId: lead?.owner_id ?? null,
+          type: "Call",
+          title: "Yangi qo'ng'iroq yozuvi",
+          body: `${lead?.name ?? "—"} · ${r.direction === "in" ? "Kiruvchi" : "Chiquvchi"} qo'ng'iroq${r.connected ? ` (${r.duration_seconds}s)` : " (javobsiz)"}`,
+          link: `/crm/leads/${r.lead_id}`,
+        };
+      });
+    await insertAmoNotifications(conn.organization_id, notifRecipients, notifDrafts);
+  } catch {
+    // Best-effort -- see insertAmoNotifications' comment.
+  }
+
   return rows.length;
 }
 

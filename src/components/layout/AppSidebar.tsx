@@ -80,10 +80,16 @@ function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
 
 function NotificationBell() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { rows: notifications } = useNotificationsView();
   const markRead = useMarkNotificationRead();
   const unreadCount = notifications.filter((n) => n.unread).length;
   const recent = notifications.slice(0, 6);
+
+  function open(n: (typeof notifications)[number]) {
+    if (n.unread) markRead.mutate(n.id);
+    if (n.link) void navigate({ to: n.link });
+  }
 
   return (
     <Popover>
@@ -111,7 +117,7 @@ function NotificationBell() {
               <button
                 key={n.id}
                 type="button"
-                onClick={() => n.unread && markRead.mutate(n.id)}
+                onClick={() => open(n)}
                 className={cn(
                   "block w-full rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-accent",
                   n.unread && "bg-destructive/5",
@@ -128,7 +134,14 @@ function NotificationBell() {
                     {n.body}
                   </span>
                 )}
-                <span className="mt-0.5 block text-[11px] text-subtle">{n.meta}</span>
+                <span className="mt-0.5 flex items-center justify-between">
+                  <span className="text-[11px] text-subtle">{n.meta}</span>
+                  {n.link && (
+                    <span className="text-[11px] font-semibold text-primary">
+                      {t("inbox.open")}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
           </div>

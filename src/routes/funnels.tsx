@@ -8,7 +8,13 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
+import {
+  PageHeader,
+  SectionCard,
+  StatCard,
+  Pill,
+  PageLoader,
+} from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
 import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
@@ -147,11 +153,7 @@ function Funnels() {
       : listStats.isLoading;
 
   if (isLoading && funnels.length === 0 && !funnelParam) {
-    return (
-      <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   const asOfControl = <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />;
