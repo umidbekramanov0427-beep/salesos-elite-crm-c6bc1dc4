@@ -390,7 +390,10 @@ type GeminiPart =
   | { text: string }
   | { functionCall: { name: string; args?: Record<string, unknown> } }
   | { functionResponse: { name: string; response: Record<string, unknown> } };
-type GeminiContent = { role: "user" | "model" | "function"; parts: GeminiPart[] };
+// Gemini rejects a "function" role outright ("Role 'function' is not
+// supported") -- a functionResponse part is sent back as a "user" turn,
+// same as any other content the caller supplies.
+type GeminiContent = { role: "user" | "model"; parts: GeminiPart[] };
 
 export const Route = createFileRoute("/ai-assistant/chat")({
   server: {
@@ -593,7 +596,7 @@ export const Route = createFileRoute("/ai-assistant/chat")({
                 },
               });
             }
-            contents.push({ role: "function", parts: responseParts });
+            contents.push({ role: "user", parts: responseParts });
             continue;
           }
 
