@@ -108,7 +108,10 @@ function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
         count: items.length,
         value: items.reduce((sum, l) => sum + l.expectedRevenue, 0),
         won,
-        hot: items.filter((l) => l.temperature === "Hot").length,
+        // "VeryHot" leads used to fall through every bucket -- counted in
+        // `count` but invisible on the HeatBar (0% width, no color) -- same
+        // hot/warm/cold split lead_analytics_action already uses server-side.
+        hot: items.filter((l) => l.temperature === "Hot" || l.temperature === "VeryHot").length,
         warm: items.filter((l) => l.temperature === "Warm").length,
         cold: items.filter((l) => l.temperature === "Cold").length,
         conversion: items.length ? Math.round((won / items.length) * 1000) / 10 : 0,
@@ -519,11 +522,17 @@ function FunnelDetail({
   // SALES_STAGE_KEYWORDS/FULL_PAYMENT_STAGE_KEYWORDS matching already used
   // for the daily report's sales-stage detection, reused here for
   // consistency instead of a second ad-hoc keyword list.
+  //
+  // Built from `gallery` (the fully filtered set: date + owner/stage/tag/
+  // search/amount), not just `dateScopedLeads` -- these 8 cards used to
+  // ignore every filter except the date range, so picking an owner/tag/
+  // amount in the filter bar shrank the lead list below without changing a
+  // single number above it.
   const stageMeta = useMemo(() => {
     let lateFunnelCount = 0;
     let lateFunnelRevenue = 0;
     let fullPaymentCount = 0;
-    for (const l of dateScopedLeads) {
+    for (const l of gallery) {
       const stageName = normalizeStageName(l.stage);
       const isSalesStage = SALES_STAGE_KEYWORDS.some((kw) => stageName.includes(kw));
       const isFullPayment = FULL_PAYMENT_STAGE_KEYWORDS.some((kw) => stageName.includes(kw));
@@ -534,12 +543,12 @@ function FunnelDetail({
       if (isFullPayment) fullPaymentCount += 1;
     }
     return { lateFunnelCount, lateFunnelRevenue, fullPaymentCount };
-  }, [dateScopedLeads]);
+  }, [gallery]);
 
-  const lateFunnelConversionRate = dateScopedLeads.length
-    ? Math.round((stageMeta.lateFunnelCount / dateScopedLeads.length) * 1000) / 10
+  const lateFunnelConversionRate = gallery.length
+    ? Math.round((stageMeta.lateFunnelCount / gallery.length) * 1000) / 10
     : 0;
-  const lostCount = dateScopedLeads.filter((l) => l.stageIsLost).length;
+  const lostCount = gallery.filter((l) => l.stageIsLost).length;
   const avgLateFunnelDeal = stageMeta.lateFunnelCount
     ? stageMeta.lateFunnelRevenue / stageMeta.lateFunnelCount
     : 0;
@@ -587,7 +596,7 @@ function FunnelDetail({
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t("funnels.leadsInFunnel")}
-          value={String(dateScopedLeads.length)}
+          value={String(gallery.length)}
           hint={t("funnels.allStages")}
           tone="mint"
         />
