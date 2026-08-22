@@ -301,10 +301,29 @@ async function fetchAllPaged<T>(
   let done = false;
   while (!done) {
     const pages = Array.from({ length: PAGE_FETCH_CONCURRENCY }, (_, i) => page + i);
+    // Promise.all rejects the instant any ONE page's amoFetch throws (after
+    // its own retries are exhausted), which used to discard every page
+    // already accumulated in `all` across every earlier batch too -- one
+    // permanently bad/oversized page anywhere in the sweep meant this
+    // returned nothing at all for that run. In practice this is exactly
+    // why the calls list stayed frozen on very old data for a long time:
+    // a single page failing (e.g. the truncated-JSON case) nuked the whole
+    // notes fetch, every 5 minutes, indefinitely. A failed page after
+    // retries is now just skipped -- it doesn't mean "no more pages" (only
+    // a genuinely empty page does), so pagination keeps going past it
+    // instead of stopping early or losing everything already fetched.
     const results = await Promise.all(
-      pages.map((p) => amoFetch(conn, pathForPage(p)).then(extractItems)),
+      pages.map((p) =>
+        amoFetch(conn, pathForPage(p))
+          .then(extractItems)
+          .catch((err) => {
+            console.error(`[amoCRM] giving up on page ${p} of ${pathForPage(p)}:`, err);
+            return null;
+          }),
+      ),
     );
     for (const items of results) {
+      if (items === null) continue;
       all.push(...items);
       if (items.length === 0) done = true;
     }
