@@ -222,6 +222,8 @@ export type Database = {
           organization_id: string;
           refresh_token: string;
           subdomain: string;
+          sync_in_progress: boolean;
+          sync_started_at: string | null;
           token_expires_at: string;
         };
         Insert: {
@@ -236,6 +238,8 @@ export type Database = {
           organization_id: string;
           refresh_token: string;
           subdomain: string;
+          sync_in_progress?: boolean;
+          sync_started_at?: string | null;
           token_expires_at: string;
         };
         Update: {
@@ -250,6 +254,8 @@ export type Database = {
           organization_id?: string;
           refresh_token?: string;
           subdomain?: string;
+          sync_in_progress?: boolean;
+          sync_started_at?: string | null;
           token_expires_at?: string;
         };
         Relationships: [

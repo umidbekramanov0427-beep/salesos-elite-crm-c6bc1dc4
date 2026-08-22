@@ -18,6 +18,8 @@ type AmoConnection = {
   // set once an admin picks a subset on the AmoCRM import-settings page.
   enabled_pipeline_ids: number[] | null;
   enabled_user_ids: number[] | null;
+  sync_in_progress: boolean;
+  sync_started_at: string | null;
 };
 
 function requireEnv(name: string): string {
@@ -757,7 +759,15 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
   return Array.from(new Map(notes.map((n) => [n.id, n])).values());
 }
 
-export type SyncResult = { synced: number; callsSynced?: number; error?: string };
+export type SyncResult = {
+  synced: number;
+  callsSynced?: number;
+  error?: string;
+  // A previous sync for this org was still running (or crashed without
+  // clearing its lock, within the staleness window) -- this run did
+  // nothing rather than run concurrently with it. Not an error.
+  skipped?: boolean;
+};
 
 /* ------------------------------------------------------------------ */
 /* Sync-driven notifications -- surfaces AmoCRM changes (stage moves,   */
@@ -850,11 +860,39 @@ async function loadStageMeta(organizationId: string): Promise<Map<string, StageM
   );
 }
 
+// How long a sync is allowed to hold the lock before a later run is allowed
+// to treat it as abandoned (a crashed/killed worker never clears the flag
+// otherwise, which would permanently wedge every future sync for that org).
+// Generous relative to how long one full sync realistically takes with the
+// page-streaming approach below.
+const SYNC_LOCK_STALE_MS = 10 * 60 * 1000;
+
 /** Pulls every lead from AmoCRM and upserts it into public.leads, keyed by (organization_id, amocrm_id). */
 export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResult> {
   const conn0 = await getConnection(organizationId);
   if (!conn0) throw new Error("AmoCRM is not connected yet.");
+
+  // The 5-minute cron (see amocrm-auto-sync-5min) has no built-in overlap
+  // protection: if one run takes longer than 5 minutes (large call-note
+  // backlog, AmoCRM rate-limiting), the next tick starts a second full sync
+  // for the same org on top of the still-running one. These stack --
+  // concurrent syncs compete for the same Postgres connections and lock
+  // rows other pages (Reyting, Dashboard, Funnels...) are trying to read at
+  // the same time, which is the most likely explanation for "everything on
+  // the platform is slow" reports. Skip instead of piling on.
+  if (
+    conn0.sync_in_progress &&
+    conn0.sync_started_at &&
+    Date.now() - new Date(conn0.sync_started_at).getTime() < SYNC_LOCK_STALE_MS
+  ) {
+    return { synced: 0, skipped: true };
+  }
+
   const conn = await ensureValidToken(conn0);
+  await supabaseAdmin
+    .from("amocrm_connection")
+    .update({ sync_in_progress: true, sync_started_at: new Date().toISOString() })
+    .eq("organization_id", organizationId);
 
   try {
     // Each phase is labeled on failure -- a bare "canceling statement due to
@@ -1165,6 +1203,11 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       .update({ last_sync_error: message })
       .eq("organization_id", organizationId);
     return { synced: 0, error: message };
+  } finally {
+    await supabaseAdmin
+      .from("amocrm_connection")
+      .update({ sync_in_progress: false })
+      .eq("organization_id", organizationId);
   }
 }
 
