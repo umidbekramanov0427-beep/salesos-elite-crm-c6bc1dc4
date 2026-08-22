@@ -164,6 +164,36 @@ const RATE_LIMIT_MAX_RETRIES = 6;
 // "back off, you're going too fast" signals — just try again shortly.
 const SERVER_ERROR_MAX_RETRIES = 3;
 
+// AmoCRM occasionally serializes a note's text (call transcripts, comments
+// typed with a literal Enter key) with a raw, unescaped control character
+// sitting inside a JSON string instead of the required \n/\r/\t escape --
+// invalid per the JSON spec, so the platform's native JSON.parse (what
+// res.json() uses internally) rejects the whole response with "Unterminated
+// string in JSON at position N" and the entire sync aborts over one bad
+// note. Stripping stray control characters out of the raw text before
+// parsing is a no-op for well-formed responses and recovers from this
+// specific upstream quirk; a small amount of note-text formatting is an
+// acceptable loss compared to the whole sync failing.
+async function parseAmoResponse(res: Response, path: string): Promise<unknown> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    try {
+      let cleaned = "";
+      for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        cleaned += code <= 31 ? " " : text[i];
+      }
+      return JSON.parse(cleaned);
+    } catch {
+      throw new Error(
+        `AmoCRM returned invalid JSON on ${path}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+}
+
 async function amoFetch(
   conn: AmoConnection,
   path: string,
@@ -214,7 +244,7 @@ async function amoFetch(
     const text = await res.text();
     throw new Error(`AmoCRM API error (${res.status}) on ${path}: ${text}`);
   }
-  return await res.json();
+  return await parseAmoResponse(res, path);
 }
 
 // AmoCRM's list endpoints don't return a total count, so pagination has to
@@ -271,7 +301,7 @@ async function amoWriteFetch(
     const text = await res.text();
     throw new Error(`AmoCRM API error (${res.status}) on ${path}: ${text}`);
   }
-  return await res.json();
+  return await parseAmoResponse(res, path);
 }
 
 /**
