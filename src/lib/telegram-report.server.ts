@@ -11,11 +11,24 @@ function requireBotToken(): string {
 
 export async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
   const token = requireBotToken();
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
-  });
+  // No default timeout on fetch() -- a stalled connection to Telegram used
+  // to hang this call indefinitely, which is worse than it looks here since
+  // this runs in a loop over every recipient in the scheduled daily-report
+  // job (see sendDailyReportToLinkedManagers below): one stuck request could
+  // stall the report for every remaining org/recipient behind it.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error(`Telegram sendMessage failed (${res.status}): ${await res.text()}`);
 }
 

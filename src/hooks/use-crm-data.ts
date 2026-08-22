@@ -3016,7 +3016,10 @@ export function useAmoConnectionStatus() {
     queryKey: ["amocrm_connection_status", user?.organizationId],
     enabled:
       !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
-    refetchInterval: 3000,
+    // Was 3s -- a continuous query every 3 seconds for as long as this page
+    // stays open is unnecessarily aggressive for a status field that only
+    // changes once every few minutes (a sync run, a connect/disconnect).
+    refetchInterval: 15_000,
     queryFn: async (): Promise<AmoConnectionStatus | null> => {
       const { data, error } = await supabase
         .from("amocrm_connection")

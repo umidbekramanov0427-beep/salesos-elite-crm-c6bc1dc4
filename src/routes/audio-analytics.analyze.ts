@@ -10,12 +10,31 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// None of this route's three outbound calls (recording download, Whisper,
+// Gemini) had a timeout -- a stalled connection to any of them left the
+// "Tahlil qilish" button spinning forever with no error, the same failure
+// mode found and fixed for AmoCRM. Audio transcription genuinely needs more
+// headroom than a typical API call, hence the longer default here.
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Whisper does the ear (audio -> text); Gemini does the reading (text ->
 // structured scoring) -- same provider ai-assistant.chat.ts now uses too.
 async function transcribeAudio(recordingUrl: string): Promise<string> {
   const apiKey = requireEnv("OPENAI_API_KEY");
 
-  const audioRes = await fetch(recordingUrl);
+  const audioRes = await fetchWithTimeout(recordingUrl, {}, 30_000);
   if (!audioRes.ok) throw new Error("Ovoz yozuvini yuklab bo'lmadi (recording_url ishlamayapti).");
   const audioBlob = await audioRes.blob();
 
@@ -27,11 +46,15 @@ async function transcribeAudio(recordingUrl: string): Promise<string> {
   // accuracy for lower-resource languages like Uzbek.
   form.append("language", "uz");
 
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
+  const res = await fetchWithTimeout(
+    "https://api.openai.com/v1/audio/transcriptions",
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}` },
+      body: form,
+    },
+    60_000,
+  );
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Whisper transcription error (${res.status}): ${text}`);
@@ -163,7 +186,7 @@ async function analyzeTranscript(
 }> {
   const apiKey = requireEnv("GEMINI_API_KEY");
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
     {
       method: "POST",
@@ -174,6 +197,7 @@ async function analyzeTranscript(
         generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
       }),
     },
+    30_000,
   );
   if (!res.ok) {
     const text = await res.text();
