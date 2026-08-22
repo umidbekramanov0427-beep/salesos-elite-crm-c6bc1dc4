@@ -4,6 +4,25 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+// Neither Node's nor Gemini's fetch has a default timeout -- if Gemini's
+// endpoint stalls (slow model, network stall, dropped connection), this
+// await just hangs forever with no error, which the client can't tell apart
+// from "still legitimately working": the spinner spins indefinitely. Same
+// reasoning as the client-side timeout in useAiAssistantChat.
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value)
@@ -652,19 +671,28 @@ export const Route = createFileRoute("/ai-assistant/chat")({
         // common case, but a request can chain a couple of tools (search then act).
         const MAX_TOOL_ROUNDS = 4;
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-            {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                contents,
-                tools: [{ functionDeclarations }],
-                generationConfig: { temperature: 0.4 },
-              }),
-            },
-          );
+          let res: Response;
+          try {
+            res = await fetchWithTimeout(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+              {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  systemInstruction: { parts: [{ text: systemPrompt }] },
+                  contents,
+                  tools: [{ functionDeclarations }],
+                  generationConfig: { temperature: 0.4 },
+                }),
+              },
+              25_000,
+            );
+          } catch {
+            return Response.json(
+              { error: "AI yordamchi javob bermadi (timeout). Qayta urinib ko'ring." },
+              { status: 504 },
+            );
+          }
 
           if (!res.ok) {
             const text = await res.text();

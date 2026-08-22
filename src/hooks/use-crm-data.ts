@@ -3427,17 +3427,35 @@ export function useAiAssistantChat() {
     }): Promise<string> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      const res = await fetch("/ai-assistant/chat", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          messages: input.messages,
-          asOf: input.asOf ? input.asOf.toISOString() : null,
-        }),
-      });
+      // fetch() has no default timeout -- if the server hangs (or the
+      // connection stalls) this call would otherwise wait forever with no
+      // error, leaving the chat's "thinking" state on screen indefinitely.
+      // The server budgets ~25s per Gemini round x up to 4 rounds; 115s
+      // gives that room plus DB/tool-call time before this gives up.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 115_000);
+      let res: Response;
+      try {
+        res = await fetch("/ai-assistant/chat", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            messages: input.messages,
+            asOf: input.asOf ? input.asOf.toISOString() : null,
+          }),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          throw new Error("TIMEOUT");
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "AI assistant failed");
       return json.reply as string;
