@@ -1269,6 +1269,12 @@ async function syncCallsFromAmo(
       organization_id: conn.organization_id,
       amocrm_note_id: n.id,
       lead_id: leadByAmoId.get(n.entity_id)?.id ?? null,
+      // Kept even when lead_id resolves to null (the lead wasn't synced
+      // yet -- excluded pipeline, or hasn't landed this run) so a later
+      // sync can go back and fix this row once the lead does exist,
+      // instead of leaving it permanently unlinked. See
+      // backfillOrphanedCallLeads below.
+      amocrm_lead_entity_id: n.entity_id,
       direction: n.note_type === "call_in" ? "in" : "out",
       phone: n.params?.phone ?? null,
       duration_seconds: duration,
@@ -1326,7 +1332,55 @@ async function syncCallsFromAmo(
     // Best-effort -- see insertAmoNotifications' comment.
   }
 
+  await backfillOrphanedCallLeads(conn.organization_id);
+
   return rows.length;
+}
+
+// Repairs calls that were inserted with lead_id null because their AmoCRM
+// lead hadn't been synced yet at the time (excluded pipeline, or simply not
+// reached yet) -- runs on every sync, so as soon as the lead in question
+// does show up in public.leads (e.g. an admin enables its pipeline in
+// "Import qilinadigan voronkalar"), the call gets linked to it retroactively
+// instead of staying orphaned forever. Cheap when there's nothing to fix
+// (the common case): one indexed lookup, no-op if it comes back empty.
+async function backfillOrphanedCallLeads(organizationId: string): Promise<void> {
+  const { data: orphaned } = await supabaseAdmin
+    .from("amocrm_calls")
+    .select("id, amocrm_lead_entity_id")
+    .eq("organization_id", organizationId)
+    .is("lead_id", null)
+    .not("amocrm_lead_entity_id", "is", null)
+    .limit(2000);
+  if (!orphaned || orphaned.length === 0) return;
+
+  const entityIds = Array.from(
+    new Set(orphaned.map((r) => r.amocrm_lead_entity_id).filter((id): id is number => id != null)),
+  );
+  const { data: leadRows } = await supabaseAdmin
+    .from("leads")
+    .select("id, amocrm_id")
+    .eq("organization_id", organizationId)
+    .in("amocrm_id", entityIds);
+  const leadIdByAmoId = new Map((leadRows ?? []).map((l) => [l.amocrm_id, l.id]));
+  if (leadIdByAmoId.size === 0) return;
+
+  // Grouped by the lead each batch resolves to, so this is one UPDATE per
+  // distinct lead instead of one per call row -- there can be thousands of
+  // orphaned rows the first time this runs against an account whose
+  // pipeline scope just got widened.
+  const idsByLeadId = new Map<string, string[]>();
+  for (const r of orphaned) {
+    if (r.amocrm_lead_entity_id == null) continue;
+    const leadId = leadIdByAmoId.get(r.amocrm_lead_entity_id);
+    if (!leadId) continue;
+    const ids = idsByLeadId.get(leadId) ?? [];
+    ids.push(r.id);
+    idsByLeadId.set(leadId, ids);
+  }
+  for (const [leadId, ids] of idsByLeadId) {
+    await supabaseAdmin.from("amocrm_calls").update({ lead_id: leadId }).in("id", ids);
+  }
 }
 
 type AmoTask = {

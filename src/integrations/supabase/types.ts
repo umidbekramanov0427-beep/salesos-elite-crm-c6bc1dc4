@@ -119,6 +119,7 @@ export type Database = {
       amocrm_calls: {
         Row: {
           ai_summary: string | null;
+          amocrm_lead_entity_id: number | null;
           amocrm_note_id: number | null;
           amocrm_task_id: number | null;
           analysis: Json | null;
@@ -144,6 +145,7 @@ export type Database = {
         };
         Insert: {
           ai_summary?: string | null;
+          amocrm_lead_entity_id?: number | null;
           amocrm_note_id?: number | null;
           amocrm_task_id?: number | null;
           analysis?: Json | null;
@@ -169,6 +171,7 @@ export type Database = {
         };
         Update: {
           ai_summary?: string | null;
+          amocrm_lead_entity_id?: number | null;
           amocrm_note_id?: number | null;
           amocrm_task_id?: number | null;
           analysis?: Json | null;
