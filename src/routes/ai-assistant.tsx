@@ -265,11 +265,23 @@ function AiAssistantPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Covers the whole send() flow (create conversation -> save user message ->
+  // ask the AI -> save its reply), not just the AI call itself -- with only
+  // chat.isPending gating the spinner, a slow/hung createConversation or
+  // saveMessage call left the screen showing nothing at all: the user's own
+  // bubble sitting there with no spinner, no reply, no error, indistinguishable
+  // from the app being broken.
+  const [sending, setSending] = useState(false);
 
   // Loads a past conversation's messages into the chat view once they arrive
   // -- the query key includes activeConversationId, so this only ever fires
-  // for the conversation currently selected, never a stale one.
+  // for the conversation currently selected, never a stale one. Skipped
+  // while a send is in flight: send() just switched activeConversationId to
+  // a brand-new conversation, and this query can resolve with an empty (or
+  // user-message-only) row set before the in-flight saves land, which would
+  // otherwise clobber the optimistic messages already on screen.
   useEffect(() => {
+    if (sending) return;
     if (activeConversationId && conversationMessages.data) {
       setMessages(
         conversationMessages.data.map((m) => ({
@@ -278,7 +290,7 @@ function AiAssistantPage() {
         })),
       );
     }
-  }, [activeConversationId, conversationMessages.data]);
+  }, [activeConversationId, conversationMessages.data, sending]);
 
   const prompts = [
     t("ai.prompt1"),
@@ -293,10 +305,11 @@ function AiAssistantPage() {
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || chat.isPending) return;
+    if (!trimmed || sending) return;
     const next = [...messages, { role: "user" as const, content: trimmed }];
     setMessages(next);
     setInput("");
+    setSending(true);
 
     try {
       let conversationId = activeConversationId;
@@ -319,6 +332,8 @@ function AiAssistantPage() {
           error: true,
         },
       ]);
+    } finally {
+      setSending(false);
     }
   }
 
@@ -389,7 +404,7 @@ function AiAssistantPage() {
                 </div>
               ))}
 
-              {chat.isPending && (
+              {sending && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
                 </div>
@@ -407,7 +422,7 @@ function AiAssistantPage() {
               />
               <button
                 type="submit"
-                disabled={chat.isPending || !input.trim()}
+                disabled={sending || !input.trim()}
                 aria-label={t("ai.send")}
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
               >
