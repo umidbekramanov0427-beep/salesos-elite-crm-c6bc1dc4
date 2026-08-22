@@ -34,8 +34,30 @@ async function fetchWithTimeout(
 async function transcribeAudio(recordingUrl: string): Promise<string> {
   const apiKey = requireEnv("OPENAI_API_KEY");
 
-  const audioRes = await fetchWithTimeout(recordingUrl, {}, 30_000);
-  if (!audioRes.ok) throw new Error("Ovoz yozuvini yuklab bo'lmadi (recording_url ishlamayapti).");
+  let audioRes: Response;
+  try {
+    audioRes = await fetchWithTimeout(recordingUrl, {}, 30_000);
+  } catch (err) {
+    // fetch() itself throwing (DNS failure, TLS error, connection refused,
+    // our own 30s timeout aborting) never reaches the status-code check
+    // below -- surface which of those it actually was instead of falling
+    // through to the generic "ishlamayapti" message every single time,
+    // which is exactly what every prior report of this error looked like
+    // (same text, no way to tell timeout from 403 from a dead host).
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(`Ovoz yozuvini yuklab bo'lmadi -- ulanish xatosi: ${reason}`);
+  }
+  if (!audioRes.ok) {
+    let bodySnippet = "";
+    try {
+      bodySnippet = (await audioRes.text()).slice(0, 300);
+    } catch {
+      // best-effort -- the status code alone is still useful without this
+    }
+    throw new Error(
+      `Ovoz yozuvini yuklab bo'lmadi (HTTP ${audioRes.status}${audioRes.statusText ? " " + audioRes.statusText : ""})${bodySnippet ? `: ${bodySnippet}` : ""}`,
+    );
+  }
   const audioBlob = await audioRes.blob();
 
   // recording_url is captured once, at sync time, and never refreshed --
