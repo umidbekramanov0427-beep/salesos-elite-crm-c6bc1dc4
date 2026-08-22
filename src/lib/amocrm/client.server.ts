@@ -202,16 +202,29 @@ async function amoFetch(
 ): Promise<unknown> {
   let res: Response;
   try {
-    res = await fetch(`https://${conn.subdomain}${path}`, {
-      headers: { authorization: `Bearer ${conn.access_token}` },
-    });
+    // fetch() has no default timeout -- a stalled connection to AmoCRM
+    // (seen in practice: a page like the import-settings catalog just sits
+    // on its loading spinner forever, no error, nothing to retry) used to
+    // hang this request indefinitely. 20s is generous for any single
+    // AmoCRM endpoint; a genuine stall now surfaces as a real, retryable
+    // error instead of an invisible hang.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      res = await fetch(`https://${conn.subdomain}${path}`, {
+        headers: { authorization: `Bearer ${conn.access_token}` },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (err) {
     // fetch() itself throwing (not just returning a bad status) means the
     // connection to AmoCRM failed at the network level — DNS, TLS, refused,
-    // etc. Neither the 429 nor the 5xx handling below ever runs in that
-    // case since there's no Response to inspect, so this needs its own
-    // retry or a single network blip fails the entire sync outright with
-    // an opaque "fetch failed" and no chance to recover.
+    // timed out, etc. Neither the 429 nor the 5xx handling below ever runs
+    // in that case since there's no Response to inspect, so this needs its
+    // own retry or a single network blip fails the entire sync outright
+    // with an opaque "fetch failed" and no chance to recover.
     if (attempt <= SERVER_ERROR_MAX_RETRIES) {
       await sleep(attempt * 1000);
       return amoFetch(conn, path, attempt + 1, triedRefresh);
@@ -289,14 +302,22 @@ async function amoWriteFetch(
   method: "POST" | "PATCH",
   body: unknown,
 ) {
-  const res = await fetch(`https://${conn.subdomain}${path}`, {
-    method,
-    headers: {
-      authorization: `Bearer ${conn.access_token}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  let res: Response;
+  try {
+    res = await fetch(`https://${conn.subdomain}${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${conn.access_token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`AmoCRM API error (${res.status}) on ${path}: ${text}`);
