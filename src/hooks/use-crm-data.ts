@@ -3016,7 +3016,10 @@ export function useAmoConnectionStatus() {
     queryKey: ["amocrm_connection_status", user?.organizationId],
     enabled:
       !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
-    refetchInterval: 3000,
+    // Was 3s -- a continuous query every 3 seconds for as long as this page
+    // stays open is unnecessarily aggressive for a status field that only
+    // changes once every few minutes (a sync run, a connect/disconnect).
+    refetchInterval: 15_000,
     queryFn: async (): Promise<AmoConnectionStatus | null> => {
       const { data, error } = await supabase
         .from("amocrm_connection")
@@ -3938,9 +3941,27 @@ export function useAmoCatalog() {
     queryFn: async (): Promise<AmoCatalog> => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/amocrm-catalog", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      // The server side of this call makes several live AmoCRM API
+      // requests with their own retry/backoff -- bound the whole round
+      // trip here too, so a genuinely stuck AmoCRM connection surfaces as
+      // a real error on this page instead of leaving it on "Yuklanmoqda…"
+      // forever with no way to tell a hang apart from "still working."
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 90_000);
+      let res: Response;
+      try {
+        res = await fetch("/admin/amocrm-catalog", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          throw new Error("AmoCRM javob bermadi (timeout). Qayta urinib ko'ring.");
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
       const json = (await res.json()) as AmoCatalog & { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Could not load AmoCRM catalog.");
       return json;
