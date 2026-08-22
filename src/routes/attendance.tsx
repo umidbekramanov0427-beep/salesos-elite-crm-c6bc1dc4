@@ -258,11 +258,21 @@ function AttendanceSection() {
       </div>
 
       <div className="mt-6 grid gap-6 sm:grid-cols-3">
-        <StatCard label={t("attendance.colCalls")} value={String(totalCalls)} tone="mint" />
-        <StatCard label={t("attendance.colConnected")} value={String(totalConnected)} />
+        <StatCard
+          label={t("attendance.colCalls")}
+          value={String(totalCalls)}
+          info={t("attendance.colCallsInfo")}
+          tone="mint"
+        />
+        <StatCard
+          label={t("attendance.colConnected")}
+          value={String(totalConnected)}
+          info={t("attendance.colConnectedInfo")}
+        />
         <StatCard
           label={t("attendance.colCallTime")}
           value={`${totalCallMinutes} ${t("attendance.minutesShort")}`}
+          info={t("attendance.colCallTimeInfo")}
         />
       </div>
 
@@ -472,9 +482,22 @@ function NormativesSection() {
       )}
 
       <div className="grid gap-6 sm:grid-cols-3">
-        <StatCard label={t("normatives.onTrack")} value={String(onTrack)} tone="mint" />
-        <StatCard label={t("normatives.atRisk")} value={String(atRisk)} />
-        <StatCard label={t("normatives.behind")} value={String(behind)} />
+        <StatCard
+          label={t("normatives.onTrack")}
+          value={String(onTrack)}
+          info={t("normatives.onTrackInfo")}
+          tone="mint"
+        />
+        <StatCard
+          label={t("normatives.atRisk")}
+          value={String(atRisk)}
+          info={t("normatives.atRiskInfo")}
+        />
+        <StatCard
+          label={t("normatives.behind")}
+          value={String(behind)}
+          info={t("normatives.behindInfo")}
+        />
       </div>
 
       <div className="mt-6">

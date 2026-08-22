@@ -1330,13 +1330,27 @@ function AudioAnalytics() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t("audio.callsToday")} value={String(totals.callsToday)} tone="mint" />
-        <StatCard label={t("audio.connectionRate")} value={`${totals.connectionRate}%`} />
+        <StatCard
+          label={t("audio.callsToday")}
+          value={String(totals.callsToday)}
+          info={t("audio.callsTodayInfo")}
+          tone="mint"
+        />
+        <StatCard
+          label={t("audio.connectionRate")}
+          value={`${totals.connectionRate}%`}
+          info={t("audio.connectionRateInfo")}
+        />
         <StatCard
           label={t("audio.avgDuration")}
           value={formatDuration(totals.avgDuration, t("audio.min"))}
+          info={t("audio.avgDurationInfo")}
         />
-        <StatCard label={t("audio.totalCalls")} value={String(totals.total)} />
+        <StatCard
+          label={t("audio.totalCalls")}
+          value={String(totals.total)}
+          info={t("audio.totalCallsInfo")}
+        />
       </div>
 
       <div className="mt-8">

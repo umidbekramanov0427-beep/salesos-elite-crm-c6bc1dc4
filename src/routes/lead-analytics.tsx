@@ -1391,23 +1391,27 @@ function LeadAnalytics() {
           label={t("leadAnalytics.kpiTotalLeads")}
           value={String(data?.totalLeads ?? 0)}
           hint={t("leadAnalytics.kpiTotalLeadsHint")}
+          info={t("leadAnalytics.kpiTotalLeadsInfo")}
         />
         <StatCard
           label={t("leadAnalytics.kpiAvgConversion")}
           value={`${data?.avgConversion ?? 0}%`}
           hint={t("leadAnalytics.kpiAvgConversionHint")}
+          info={t("leadAnalytics.kpiAvgConversionInfo")}
         />
         <StatCard
           label={t("leadAnalytics.kpiHotLeads")}
           value={String(data?.hotLeads ?? 0)}
           tone="mint"
           hint={t("leadAnalytics.kpiHotLeadsHint")}
+          info={t("leadAnalytics.kpiHotLeadsInfo")}
         />
         <StatCard
           label={t("leadAnalytics.kpiChurnRisk")}
           value={String(data?.churnRisk ?? 0)}
           tone="danger-soft"
           hint={t("leadAnalytics.kpiChurnRiskHint")}
+          info={t("leadAnalytics.kpiChurnRiskInfo")}
         />
       </div>
 

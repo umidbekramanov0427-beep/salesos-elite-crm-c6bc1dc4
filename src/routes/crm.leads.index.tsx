@@ -110,6 +110,14 @@ function LeadsPage() {
     void navigate({ search: (prev) => ({ ...prev, sort: v ? undefined : "asc" }), replace: true });
   }
 
+  // These 4 header cards always reflect the all-time total regardless of
+  // the date filter below (only the list itself is date-limited) -- append
+  // that caveat to each card's tooltip whenever a filter is actually set,
+  // so the number doesn't look like a bug when it doesn't move.
+  function withAllTimeCaveat(info: string): string {
+    return dateFilter.from || dateFilter.to ? `${info} ${t("leads.statsAllTimeHint")}` : info;
+  }
+
   const dateFilter: DateFilterValue = useMemo(
     () => ({
       from: search.from ? new Date(search.from) : null,
@@ -220,23 +228,23 @@ function LeadsPage() {
           value={String(stats.total)}
           hint={t("leads.allFunnels")}
           tone="mint"
-          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
+          info={withAllTimeCaveat(t("leads.activeLeadsInfo"))}
         />
         <StatCard
           label={t("leads.hotLeads")}
           value={String(stats.hot)}
           hint={t("leads.scoreHint")}
-          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
+          info={withAllTimeCaveat(t("leads.hotLeadsInfo"))}
         />
         <StatCard
           label={t("leads.avgScore")}
           value={String(stats.avgScore)}
-          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
+          info={withAllTimeCaveat(t("leads.avgScoreInfo"))}
         />
         <StatCard
           label={t("leads.openValue")}
           value={format(stats.revenue)}
-          {...(dateFilter.from || dateFilter.to ? { info: t("leads.statsAllTimeHint") } : {})}
+          info={withAllTimeCaveat(t("leads.openValueInfo"))}
         />
       </div>
 

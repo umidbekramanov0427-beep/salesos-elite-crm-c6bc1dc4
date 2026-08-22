@@ -235,32 +235,36 @@ function ManagerCard({ row, place }: { row: LeaderboardManagerRow; place: number
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-surface p-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-subtle">
             {t("lb.colRevenue")}
+            <InfoTip text={t("lb.info.colRevenue")} />
           </p>
           <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
             {format(row.revenue)}
           </p>
         </div>
         <div className="rounded-lg bg-surface p-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-subtle">
             {t("lb.colSales")}
+            <InfoTip text={t("lb.info.colSales")} />
           </p>
           <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
             {row.wonLeads}
           </p>
         </div>
         <div className="rounded-lg bg-surface p-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-subtle">
             {t("lb.colConversion")}
+            <InfoTip text={t("lb.info.colConversion")} />
           </p>
           <p className="mt-1 text-base font-extrabold tabular-nums text-success">
             {pct(row.conversion)}
           </p>
         </div>
         <div className="rounded-lg bg-surface p-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-subtle">
             {t("lb.colTotalLeads")}
+            <InfoTip text={t("lb.info.colTotalLeads")} />
           </p>
           <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">
             {row.totalLeads}

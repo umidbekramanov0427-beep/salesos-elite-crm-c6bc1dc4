@@ -2,10 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
+  Brain,
   Clock,
   Flame,
   Lightbulb,
-  Loader2,
   MessageSquare,
   PanelRightClose,
   PanelRightOpen,
@@ -18,6 +18,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/Primitives";
+import { LogoLoader } from "@/components/LogoLoader";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import {
@@ -261,6 +262,7 @@ function AiAssistantPage() {
   const saveMessage = useSaveAiMessage();
 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
   const conversationMessages = useAiConversationMessages(activeConversationId);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -324,11 +326,16 @@ function AiAssistantPage() {
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       await saveMessage.mutateAsync({ conversationId, role: "assistant", content: reply });
     } catch (err) {
+      const isTimeout = err instanceof Error && err.message === "TIMEOUT";
       setMessages((m) => [
         ...m,
         {
           role: "assistant",
-          content: err instanceof Error ? err.message : t("ai.genericError"),
+          content: isTimeout
+            ? t("ai.timeoutError")
+            : err instanceof Error
+              ? err.message
+              : t("ai.genericError"),
           error: true,
         },
       ]);
@@ -350,7 +357,7 @@ function AiAssistantPage() {
   return (
     <>
       <PageHeader
-        title={t("nav.aiAssistant")}
+        title={activeConversation?.title || t("nav.aiAssistant")}
         description={t("ai.liveStatus")}
         actions={
           !historyOpen && (
@@ -366,7 +373,7 @@ function AiAssistantPage() {
         }
       />
 
-      <section className="surface-card flex h-[75vh] overflow-hidden">
+      <section className="surface-card flex h-[calc(100vh-200px)] min-h-[560px] overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
           {messages.length === 0 ? (
             <EmptyState>
@@ -405,8 +412,17 @@ function AiAssistantPage() {
               ))}
 
               {sending && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+                <div className="flex max-w-[85%] items-center gap-3 rounded-xl border border-l-[3px] border-border border-l-primary bg-card px-4 py-3">
+                  <LogoLoader className="h-8 w-8 shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-semibold text-foreground">
+                      {t("nav.aiAssistant")}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-primary">
+                      <Brain className="h-3.5 w-3.5" />
+                      {t("ai.thinking")}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

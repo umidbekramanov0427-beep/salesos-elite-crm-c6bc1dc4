@@ -101,11 +101,24 @@ function DealsPage() {
           label={t("deals.openDeals")}
           value={String(openDeals.length)}
           hint={t("deals.thisQuarter")}
+          info={t("deals.openDealsInfo")}
           tone="mint"
         />
-        <StatCard label={t("deals.totalValue")} value={currency(totalValue)} />
-        <StatCard label={t("deals.weightedForecast")} value={currency(Math.round(weighted))} />
-        <StatCard label={t("deals.avgSize")} value={currency(avgSize)} />
+        <StatCard
+          label={t("deals.totalValue")}
+          value={currency(totalValue)}
+          info={t("deals.totalValueInfo")}
+        />
+        <StatCard
+          label={t("deals.weightedForecast")}
+          value={currency(Math.round(weighted))}
+          info={t("deals.weightedForecastInfo")}
+        />
+        <StatCard
+          label={t("deals.avgSize")}
+          value={currency(avgSize)}
+          info={t("deals.avgSizeInfo")}
+        />
       </div>
 
       <div className="mt-8">

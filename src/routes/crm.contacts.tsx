@@ -89,19 +89,23 @@ function ContactsPage() {
           label={t("contacts.totalContacts")}
           value={String(contacts.length)}
           hint={t("contacts.acrossCompanies", { count: companiesCount })}
+          info={t("contacts.totalContactsInfo")}
           tone="mint"
         />
         <StatCard
           label={t("contacts.withDeals")}
           value={String(contacts.filter((c) => c.deals > 0).length)}
+          info={t("contacts.withDealsInfo")}
         />
         <StatCard
           label={t("contacts.withEmail")}
           value={String(contacts.filter((c) => c.email).length)}
+          info={t("contacts.withEmailInfo")}
         />
         <StatCard
           label={t("contacts.withPhone")}
           value={String(contacts.filter((c) => c.phone).length)}
+          info={t("contacts.withPhoneInfo")}
         />
       </div>
 

@@ -497,19 +497,23 @@ function AdminPanelContent() {
           label={t("admin.employees")}
           value={String(employees.length)}
           hint={`${adminCount} ${t("admin.admins")}`}
+          info={t("admin.employeesInfo")}
           tone="mint"
         />
         <StatCard
           label={t("admin.activeRoles")}
           value={String(new Set(employees.map((p) => p.role)).size)}
+          info={t("admin.activeRolesInfo")}
         />
         <StatCard
           label={t("admin.departments")}
           value={String(new Set(employees.map((p) => p.department)).size)}
+          info={t("admin.departmentsInfo")}
         />
         <StatCard
           label={t("admin.managers")}
           value={String(employees.filter((p) => p.role === "rop").length)}
+          info={t("admin.managersInfo")}
         />
       </div>
 
