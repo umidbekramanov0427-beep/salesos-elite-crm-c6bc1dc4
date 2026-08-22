@@ -55,24 +55,30 @@ function AiAssistantPageGated() {
 type Msg = { role: "user" | "assistant"; content: string; error?: boolean };
 
 const PROMPT_STYLE = [
-  { icon: TrendingUp, tone: "bg-primary/10 text-primary" },
-  { icon: AlertTriangle, tone: "bg-destructive/10 text-destructive" },
-  { icon: Phone, tone: "bg-success/10 text-success" },
-  { icon: TrendingDown, tone: "bg-warning/15 text-warning-foreground" },
-  { icon: Flame, tone: "bg-orange-500/10 text-orange-500" },
-  { icon: Lightbulb, tone: "bg-violet-500/10 text-violet-500" },
-  { icon: Clock, tone: "bg-cyan-500/10 text-cyan-600" },
-  { icon: MessageSquare, tone: "bg-teal-500/10 text-teal-600" },
+  { icon: TrendingUp, tone: "bg-primary/10 text-primary", rail: "border-l-primary" },
+  { icon: AlertTriangle, tone: "bg-destructive/10 text-destructive", rail: "border-l-destructive" },
+  { icon: Phone, tone: "bg-success/10 text-success", rail: "border-l-success" },
+  {
+    icon: TrendingDown,
+    tone: "bg-warning/15 text-warning-foreground",
+    rail: "border-l-warning",
+  },
+  { icon: Flame, tone: "bg-orange-500/10 text-orange-500", rail: "border-l-orange-500" },
+  { icon: Lightbulb, tone: "bg-violet-500/10 text-violet-500", rail: "border-l-violet-500" },
+  { icon: Clock, tone: "bg-cyan-500/10 text-cyan-600", rail: "border-l-cyan-500" },
+  { icon: MessageSquare, tone: "bg-teal-500/10 text-teal-600", rail: "border-l-teal-500" },
 ] as const;
 
 function SuggestionCard({
   icon: Icon,
   tone,
+  rail,
   label,
   onClick,
 }: {
   icon: typeof TrendingUp;
   tone: string;
+  rail: string;
   label: string;
   onClick: () => void;
 }) {
@@ -80,12 +86,15 @@ function SuggestionCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card"
+      className={cn(
+        "flex items-center gap-3 rounded-xl border border-l-[3px] border-border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-card",
+        rail,
+      )}
     >
-      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", tone)}>
-        <Icon className="h-[18px] w-[18px]" />
+      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", tone)}>
+        <Icon className="h-4 w-4" />
       </span>
-      <span className="text-[15px] font-semibold text-foreground">{label}</span>
+      <span className="text-[14px] font-semibold text-foreground">{label}</span>
     </button>
   );
 }
@@ -353,6 +362,7 @@ function AiAssistantPage() {
                     key={p}
                     icon={style.icon}
                     tone={style.tone}
+                    rail={style.rail}
                     label={p}
                     onClick={() => void send(p)}
                   />
@@ -365,12 +375,12 @@ function AiAssistantPage() {
                 <div
                   key={i}
                   className={cn(
-                    "max-w-[70%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px]",
+                    "whitespace-pre-wrap text-[15px]",
                     m.role === "user"
-                      ? "ml-auto bg-primary text-primary-foreground"
+                      ? "ml-auto max-w-[70%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground"
                       : m.error
-                        ? "border border-destructive/30 bg-destructive/10 text-destructive"
-                        : "bg-surface text-foreground",
+                        ? "max-w-[85%] rounded-xl border border-l-[3px] border-destructive/30 border-l-destructive bg-destructive/10 px-4 py-3 text-destructive"
+                        : "max-w-[85%] rounded-xl border border-l-[3px] border-border border-l-primary bg-card px-4 py-3 text-foreground",
                   )}
                 >
                   {m.role === "assistant"
