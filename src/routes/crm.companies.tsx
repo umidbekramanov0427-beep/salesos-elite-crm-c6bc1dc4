@@ -101,11 +101,24 @@ function CompaniesPage() {
           label={t("companies.count")}
           value={String(companies.length)}
           hint={t("companies.activeAccounts")}
+          info={t("companies.countInfo")}
           tone="mint"
         />
-        <StatCard label={t("companies.enterpriseAccounts")} value={String(enterpriseCount)} />
-        <StatCard label={t("companies.openValue")} value={currency(openValue)} />
-        <StatCard label={t("companies.avgContacts")} value={avgContacts} />
+        <StatCard
+          label={t("companies.enterpriseAccounts")}
+          value={String(enterpriseCount)}
+          info={t("companies.enterpriseAccountsInfo")}
+        />
+        <StatCard
+          label={t("companies.openValue")}
+          value={currency(openValue)}
+          info={t("companies.openValueInfo")}
+        />
+        <StatCard
+          label={t("companies.avgContacts")}
+          value={avgContacts}
+          info={t("companies.avgContactsInfo")}
+        />
       </div>
 
       <div className="mt-8">

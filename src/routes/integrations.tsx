@@ -389,11 +389,20 @@ function AmoCrmCard() {
 
           {connected && (
             <div className="grid gap-4 sm:grid-cols-3">
-              <StatCard label={t("amocrm.statPipelines")} value={String(pipelineCount)} />
-              <StatCard label={t("amocrm.statStages")} value={String(amoStages.length)} />
+              <StatCard
+                label={t("amocrm.statPipelines")}
+                value={String(pipelineCount)}
+                info={t("amocrm.statPipelinesInfo")}
+              />
+              <StatCard
+                label={t("amocrm.statStages")}
+                value={String(amoStages.length)}
+                info={t("amocrm.statStagesInfo")}
+              />
               <StatCard
                 label={t("amocrm.statLeads")}
                 value={String(config.lead_count ?? 0)}
+                info={t("amocrm.statLeadsInfo")}
                 tone="mint"
               />
             </div>

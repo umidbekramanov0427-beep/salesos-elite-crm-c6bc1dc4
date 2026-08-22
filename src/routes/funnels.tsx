@@ -607,39 +607,46 @@ function FunnelDetail({
           label={t("funnels.leadsInFunnel")}
           value={String(gallery.length)}
           hint={t("funnels.allStages")}
+          info={t("funnels.leadsInFunnelInfo")}
           tone="mint"
         />
         <StatCard
           label={t("funnels.lateFunnelConversion")}
           value={`${lateFunnelConversionRate}%`}
           hint={t("funnels.lateFunnelConversionHint")}
+          info={t("funnels.lateFunnelConversionInfo")}
         />
         <StatCard
           label={t("funnels.lateFunnelRevenue")}
           value={format(stageMeta.lateFunnelRevenue)}
           hint={t("funnels.lateFunnelRevenueHint")}
+          info={t("funnels.lateFunnelRevenueInfo")}
         />
         <StatCard
           label={t("funnels.lostLeadsCount")}
           value={String(lostCount)}
           hint={t("funnels.lostLeadsHint")}
+          info={t("funnels.lostLeadsCountInfo")}
           tone="danger-soft"
         />
         <StatCard
           label={t("funnels.fullPaymentCount")}
           value={String(stageMeta.fullPaymentCount)}
           hint={t("funnels.fullPaymentCountHint")}
+          info={t("funnels.fullPaymentCountInfo")}
           tone="mint"
         />
         <StatCard
           label={t("funnels.avgLateFunnelDeal")}
           value={format(avgLateFunnelDeal)}
           hint={t("funnels.avgLateFunnelDealHint")}
+          info={t("funnels.avgLateFunnelDealInfo")}
         />
         <StatCard
           label={t("funnels.fullPaymentConversionRate")}
           value={`${fullPaymentConversionRate}%`}
           hint={t("funnels.fullPaymentConversionRateHint")}
+          info={t("funnels.fullPaymentConversionRateInfo")}
         />
         <StatCard
           label={t("funnels.tasksCard")}
@@ -648,6 +655,7 @@ function FunnelDetail({
             dueToday: String(dueToday),
             overdue: String(overdue),
           })}
+          info={t("funnels.tasksCardInfo")}
           {...(overdue > 0 ? { tone: "danger-soft" as const } : {})}
         />
       </div>

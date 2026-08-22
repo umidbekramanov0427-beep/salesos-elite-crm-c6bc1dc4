@@ -25,7 +25,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { SectionCard, StatCard } from "@/components/layout/Primitives";
+import { SectionCard, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -253,14 +253,16 @@ function RatioDonut({
   title,
   centerPct,
   slices,
+  info,
 }: {
   title: string;
   centerPct: number;
   slices: { name: string; value: number; pct: number; color: string }[];
+  info: string;
 }) {
   const data = slices.map((s) => ({ name: s.name, value: Math.max(s.value, 0.0001) }));
   return (
-    <SectionCard title={title}>
+    <SectionCard title={title} info={info}>
       <div className="relative h-[150px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -533,6 +535,7 @@ export function DashboardDailyReport({
             <p className="flex items-center gap-2 text-sm font-bold text-foreground">
               <AlertTriangle className="h-4 w-4 text-destructive" />{" "}
               {t("dash.report.needsAttention")}
+              <InfoTip text={t("dash.report.needsAttentionInfo")} />
             </p>
             <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">
               {stats.biggestStageDrop ? 1 : 0}
@@ -542,8 +545,9 @@ export function DashboardDailyReport({
           {stats.biggestStageDrop ? (
             <div className="mt-3 rounded-xl bg-background/60 p-3">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-destructive">
+                <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-destructive">
                   {t("dash.report.biggestStageDrop")}
+                  <InfoTip text={t("dash.report.biggestStageDropInfo")} />
                 </p>
                 <span className="text-lg font-extrabold text-destructive">
                   -{stats.biggestStageDrop.dropPct}%
@@ -564,11 +568,13 @@ export function DashboardDailyReport({
           title={t("dash.report.overallConversion")}
           centerPct={stats.wonLeadsCreatedPct}
           slices={overallDonut}
+          info={t("dash.report.overallConversionInfo")}
         />
         <RatioDonut
           title={t("dash.report.fromConnected")}
           centerPct={stats.wonFromConnectedPct}
           slices={connectedDonut}
+          info={t("dash.report.fromConnectedInfo")}
         />
       </div>
 
@@ -641,6 +647,7 @@ export function DashboardDailyReport({
         <div className="rounded-2xl border border-border bg-card p-5">
           <p className="flex items-center gap-2 text-sm font-bold text-foreground">
             <ListChecks className="h-4 w-4 text-primary" /> {t("dash.report.amoTasks")}
+            <InfoTip text={t("dash.report.amoTasksInfo")} />
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-success/10 p-3">
@@ -679,15 +686,18 @@ export function DashboardDailyReport({
         <StatCard
           label={t("dash.report.avgCallScore")}
           value={stats.avgCallScore != null ? `${stats.avgCallScore}/100` : "—"}
+          info={t("dash.report.avgCallScoreInfo")}
         />
         <StatCard
           label={t("dash.report.newLeadsPeriod")}
           value={String(stats.newLeads)}
+          info={t("dash.report.newLeadsPeriodInfo")}
           tone="mint"
         />
         <StatCard
           label={t("dash.report.openLeadsPeriod")}
           value={String(stats.openLeads)}
+          info={t("dash.report.openLeadsPeriodInfo")}
           tone="danger-soft"
         />
       </div>
@@ -758,7 +768,10 @@ export function DashboardDailyReport({
         </SectionCard>
 
         <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-sm font-bold text-foreground">{t("dash.report.contactRate")}</p>
+          <p className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+            {t("dash.report.contactRate")}
+            <InfoTip text={t("dash.report.contactRateInfo")} />
+          </p>
           <p className="mt-1 text-xs text-subtle">{t("dash.report.contactRateDesc")}</p>
           <p className="mt-4 text-4xl font-extrabold text-primary">{stats.contactRatePct}%</p>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
