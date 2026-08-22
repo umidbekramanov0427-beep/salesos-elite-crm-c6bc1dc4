@@ -38,6 +38,28 @@ async function transcribeAudio(recordingUrl: string): Promise<string> {
   if (!audioRes.ok) throw new Error("Ovoz yozuvini yuklab bo'lmadi (recording_url ishlamayapti).");
   const audioBlob = await audioRes.blob();
 
+  // recording_url is captured once, at sync time, and never refreshed --
+  // many telephony providers behind AmoCRM issue signed links that expire
+  // after some retention window. An expired link commonly still answers
+  // with HTTP 200 (so the !audioRes.ok check above doesn't catch it), just
+  // with an HTML "link expired"/placeholder page or an empty body instead
+  // of actual audio. Whisper then "transcribes" that garbage instead of
+  // failing outright, which is indistinguishable from a real transcription
+  // gone wrong -- exactly the kind of silent inaccuracy reported on old
+  // (2024-2025) recordings specifically, since recent ones are still fresh.
+  // Catch it here with a clear, honest error instead of letting it through.
+  const contentType = audioRes.headers.get("content-type") ?? "";
+  if (contentType.includes("text/html") || contentType.includes("application/json")) {
+    throw new Error(
+      "Bu qo'ng'iroq yozuvi havolasi endi ishlamaydi (eskirgan/muddati o'tgan bo'lishi mumkin).",
+    );
+  }
+  if (audioBlob.size < 2000) {
+    throw new Error(
+      "Ovoz yozuvi juda kichik yoki bo'sh -- havola eskirgan yoki yozuv saqlanmagan bo'lishi mumkin.",
+    );
+  }
+
   const form = new FormData();
   form.append("file", audioBlob, "call.mp3");
   form.append("model", "whisper-1");

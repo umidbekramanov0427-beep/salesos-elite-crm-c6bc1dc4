@@ -259,7 +259,23 @@ async function amoFetch(
     const text = await res.text();
     throw new Error(`AmoCRM API error (${res.status}) on ${path}: ${text}`);
   }
-  return await parseAmoResponse(res, path);
+  try {
+    return await parseAmoResponse(res, path);
+  } catch (err) {
+    // A 200 response whose body is truncated mid-stream (a dropped
+    // connection, a proxy cutting off a large page of notes) parses as
+    // invalid JSON even after parseAmoResponse's control-character cleanup
+    // -- that's a genuinely incomplete body, not a bad character, and no
+    // amount of re-parsing the same text fixes it. Retry the request itself
+    // like the network-error/5xx paths above; a fresh response is very
+    // likely to come back complete. Safe to retry here (unlike
+    // amoWriteFetch) since this is always a read.
+    if (attempt <= SERVER_ERROR_MAX_RETRIES) {
+      await sleep(attempt * 1000);
+      return amoFetch(conn, path, attempt + 1, triedRefresh);
+    }
+    throw err;
+  }
 }
 
 // AmoCRM's list endpoints don't return a total count, so pagination has to
