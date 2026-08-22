@@ -4508,11 +4508,15 @@ export function useFunnelStats(
   const useOverride = !!opts?.overrideLeads;
   const { data: liveLeads, isLoading: liveLeadsLoading } = useLeadsRaw();
   const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
   const leads = useOverride ? opts?.overrideLeads : liveLeads;
   const leadsLoading = useOverride ? false : liveLeadsLoading;
 
   return useMemo(() => {
     const stagesById = byId(stages);
+    const scoped = visibleOwnerIds
+      ? (leads ?? []).filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : (leads ?? []);
     let totalLeads = 0;
     let totalRevenue = 0;
     let wonCount = 0;
@@ -4521,7 +4525,7 @@ export function useFunnelStats(
     let salesStageCount = 0;
     let salesStageRevenue = 0;
 
-    for (const l of leads ?? []) {
+    for (const l of scoped) {
       const leadFunnel = l.funnel || "Direct Sales";
       if (funnel && leadFunnel !== funnel) continue;
       totalLeads += 1;
@@ -4554,7 +4558,7 @@ export function useFunnelStats(
       conversion: totalLeads ? (salesStageCount / totalLeads) * 100 : 0,
       isLoading: leadsLoading || stagesLoading,
     };
-  }, [leads, stages, funnel, leadsLoading, stagesLoading]);
+  }, [leads, stages, funnel, leadsLoading, stagesLoading, visibleOwnerIds]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -4575,6 +4579,7 @@ export type FunnelCallStats = {
 export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
   const { data: calls, isLoading: callsLoading } = useAmoCrmCallsRaw();
   const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
 
   return useMemo(() => {
     const leadsById = byId(leads);
@@ -4586,7 +4591,10 @@ export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
     // owner_id) -- a call shouldn't vanish from "today's activity" just
     // because its lead's AmoCRM responsible user didn't map to a SalesOS
     // profile. managerCount/per-manager averages still need a real owner_id
-    // to attribute to someone, so those are tracked separately.
+    // to attribute to someone, so those are tracked separately. That only
+    // holds for an unrestricted view though -- a rop/sotuv_menejeri's "my
+    // team's activity today" card must never count a call it can't confirm
+    // belongs to someone visible to them, unattributed or not.
     const byManager = new Map<string, { seconds: number; leadIds: Set<string> }>();
     let totalSeconds = 0;
     const allContacts = new Set<string>();
@@ -4594,6 +4602,7 @@ export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
       if (new Date(c.occurred_at) < startOfToday) continue;
       if (!c.lead_id) continue;
       const lead = leadsById.get(c.lead_id);
+      if (visibleOwnerIds && (!lead?.owner_id || !visibleOwnerIds.has(lead.owner_id))) continue;
       const leadFunnel = lead?.funnel || "Direct Sales";
       if (funnel && leadFunnel !== funnel) continue;
 
@@ -4618,7 +4627,7 @@ export function useFunnelCallStats(funnel?: string | null): FunnelCallStats {
         : 0,
       isLoading: callsLoading || leadsLoading,
     };
-  }, [calls, leads, funnel, callsLoading, leadsLoading]);
+  }, [calls, leads, funnel, callsLoading, leadsLoading, visibleOwnerIds]);
 }
 
 /* ------------------------------------------------------------------ */

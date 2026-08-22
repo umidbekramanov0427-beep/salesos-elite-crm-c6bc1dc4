@@ -313,17 +313,43 @@ async function executeTool(
   if (name === "get_funnel_stats") {
     const wanted = typeof args["funnel_name"] === "string" ? args["funnel_name"].trim() : "";
 
-    const { data: leadRows } = await supabaseAdmin
-      .from("leads")
-      .select("funnel, stage_id, owner_id, expected_revenue")
-      .eq("organization_id", ctx.orgId);
-    const { data: stages } = await supabaseAdmin
-      .from("pipeline_stages")
-      .select("id, name")
-      .eq("organization_id", ctx.orgId);
-    const stageNameById = new Map((stages ?? []).map((s) => [s.id, s.name]));
+    // Supabase/PostgREST caps a single select() response at 1000 rows --
+    // without paging through, any org with more than 1000 leads (common:
+    // this tool exists precisely for orgs with large, multi-funnel AmoCRM
+    // accounts) silently got only a fraction of one funnel's true leads,
+    // making the assistant's own numbers wildly wrong (reported: it said
+    // 14 leads for a funnel that actually has 3491). Same fix as every
+    // other bulk fetch in this codebase.
+    type LeadStatsRow = {
+      funnel: string | null;
+      stage_id: string | null;
+      owner_id: string | null;
+      expected_revenue: number | null;
+    };
+    const LEAD_PAGE_SIZE = 1000;
+    const leadRows: LeadStatsRow[] = [];
+    for (let from = 0; ; from += LEAD_PAGE_SIZE) {
+      const { data: page } = await supabaseAdmin
+        .from("leads")
+        .select("funnel, stage_id, owner_id, expected_revenue")
+        .eq("organization_id", ctx.orgId)
+        .range(from, from + LEAD_PAGE_SIZE - 1);
+      leadRows.push(...(page ?? []));
+      if (!page || page.length < LEAD_PAGE_SIZE) break;
+    }
+    const stageRows: { id: string; name: string }[] = [];
+    for (let from = 0; ; from += LEAD_PAGE_SIZE) {
+      const { data: page } = await supabaseAdmin
+        .from("pipeline_stages")
+        .select("id, name")
+        .eq("organization_id", ctx.orgId)
+        .range(from, from + LEAD_PAGE_SIZE - 1);
+      stageRows.push(...(page ?? []));
+      if (!page || page.length < LEAD_PAGE_SIZE) break;
+    }
+    const stageNameById = new Map(stageRows.map((s) => [s.id, s.name]));
 
-    const scoped = (leadRows ?? []).filter((l) => inScope(l.owner_id));
+    const scoped = leadRows.filter((l) => inScope(l.owner_id));
     const funnelOf = (f: string | null) => f || "Direct Sales";
     // Mirrors normalizeStageName()/SALES_STAGE_KEYWORDS in
     // src/hooks/use-crm-data.ts exactly -- this is the same "reached a
