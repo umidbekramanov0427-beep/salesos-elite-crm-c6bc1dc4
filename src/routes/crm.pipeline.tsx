@@ -5,22 +5,18 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/Primitives";
 import { TagEditor } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn, stageColorProps } from "@/lib/utils";
 import {
   useAmoCrmLink,
-  useAsOfSnapshot,
-  useCrmLeads,
   useEnabledFunnelNames,
   usePermission,
   usePipelineBoardLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
   useUpdateLead,
-  type LeadRow,
 } from "@/hooks/use-crm-data";
 import { PermissionGate } from "@/components/PermissionGate";
 
@@ -105,8 +101,6 @@ function PipelinePage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const funnelParam = search.funnel;
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
   const { data: allStages } = usePipelineStagesRaw();
   const enabledFunnels = useEnabledFunnelNames();
   const funnelNames = useMemo(() => {
@@ -119,23 +113,10 @@ function PipelinePage() {
     return Array.from(set).sort();
   }, [allStages, enabledFunnels]);
 
-  // "As of date" reconstructs the whole org's leads from the audit trail
-  // (see useAsOfSnapshot) -- there's no way to scope that to one funnel
-  // server-side, so it only pays that org-wide cost when a user opts into
-  // it, falling back to useCrmLeads' full join. The default, common path
-  // (no as-of date) stays on usePipelineBoardLeads, which only fetches
-  // this one funnel's leads.
-  const boardResult = usePipelineBoardLeads(asOfDate ? null : (funnelParam ?? null));
-  const asOfResult = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined, {
-    enabled: !!asOfDate,
-  });
+  const boardResult = usePipelineBoardLeads(funnelParam ?? null);
   const stages = boardResult.stages;
-  const effectiveLeads = asOfDate
-    ? asOfResult.rows.filter((l) => l.funnel === funnelParam)
-    : boardResult.rows;
-  const isLoading = asOfDate
-    ? asOfResult.isLoading || asOfSnapshot.isLoading
-    : boardResult.isLoading;
+  const effectiveLeads = boardResult.rows;
+  const isLoading = boardResult.isLoading;
   const updateLead = useUpdateLead();
   const { data: profiles } = useProfilesRaw();
   const getAmoLink = useAmoCrmLink();
@@ -218,7 +199,7 @@ function PipelinePage() {
   }, [visibleStages, filteredLeads]);
 
   async function move(stageId: string) {
-    if (!dragged || asOfDate || !canMoveDeals) return;
+    if (!dragged || !canMoveDeals) return;
     const leadId = dragged;
     const previousBoard = board;
     setBoard((b) => {
@@ -272,10 +253,7 @@ function PipelinePage() {
           stages={stages}
         />
         {funnelParam && <DateRangeFilter value={dateFilter} onChange={setDateFilter} />}
-        {funnelParam && <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />}
       </div>
-
-      {funnelParam && <AsOfBanner value={asOfDate} />}
 
       {!funnelParam && (
         <p className="py-10 text-center text-sm text-muted-foreground">
@@ -344,11 +322,10 @@ function PipelinePage() {
                       return (
                         <article
                           key={l.id}
-                          draggable={!asOfDate && canMoveDeals}
+                          draggable={canMoveDeals}
                           onDragStart={() => setDragged(l.id)}
                           className={cn(
-                            "group relative rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card",
-                            asOfDate ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+                            "group relative cursor-grab rounded-xl border border-border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:cursor-grabbing",
                             dragged === l.id && "opacity-50",
                           )}
                         >

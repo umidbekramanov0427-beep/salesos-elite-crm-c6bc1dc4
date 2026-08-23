@@ -53,7 +53,6 @@ import {
   amountInRange,
   type AmountRangeValue,
 } from "@/components/filters/AmountRangeFilter";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { FilterSelect, FilterSearchInput } from "@/components/filters/FilterSelect";
 import { PermissionGate } from "@/components/PermissionGate";
 
@@ -342,8 +341,6 @@ function Leaderboard() {
   }
 
   const [live, setLive] = useState(true);
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
 
   const { names: funnelNames } = useFunnelNames();
   const { tags: tagSummary } = useTagsSummary(funnel);
@@ -365,10 +362,9 @@ function Leaderboard() {
     isFetching,
     refetch,
   } = useLeaderboardView(filters, {
-    refetchInterval: asOfDate ? false : live ? LIVE_REFRESH_MS : false,
-    overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
+    refetchInterval: live ? LIVE_REFRESH_MS : false,
   });
-  const isLoading = rowsLoading || (asOfDate ? asOfSnapshot.isLoading : false);
+  const isLoading = rowsLoading;
   const rows = useMemo(
     () => allRows.filter((r) => amountInRange(r.revenue, revenueRange)),
     [allRows, revenueRange],
@@ -384,9 +380,7 @@ function Leaderboard() {
   // (or an unmatched) owner still counted toward the funnel's real totals,
   // but never showed up in any manager's row, so summing `rows` silently
   // undercounted both totalLeads and revenue whenever that happened.
-  const funnelStats = useFunnelStats(funnel, {
-    overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
-  });
+  const funnelStats = useFunnelStats(funnel);
 
   // "Bugungi tushum" (today's revenue) — the funnel's total revenue right
   // now minus a time-travel snapshot of the same funnel as it stood at the
@@ -407,8 +401,7 @@ function Leaderboard() {
   }, [todayStartSnapshot.data, funnel, funnelStats.totalRevenue]);
 
   const managerStats = useManagerFunnelStats(funnel, {
-    overrideLeads: asOfDate ? (asOfSnapshot.data ?? []) : undefined,
-    refetchInterval: asOfDate ? false : live ? LIVE_REFRESH_MS : false,
+    refetchInterval: live ? LIVE_REFRESH_MS : false,
   });
   const [trendRange, setTrendRange] = useState<DateFilterValue>({
     from: null,
@@ -535,7 +528,6 @@ function Leaderboard() {
             <button
               type="button"
               onClick={() => setLive((v) => !v)}
-              disabled={!!asOfDate}
               className={cn(
                 "inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                 live
@@ -602,7 +594,6 @@ function Leaderboard() {
             onChange={setSelectedTags}
           />
           <AmountRangeFilter value={revenueRange} onChange={setRevenueRange} />
-          <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
           <FilterSearchInput
             icon={Search}
             label={t("leadFilter.searchLabel")}
@@ -612,10 +603,6 @@ function Leaderboard() {
           />
         </div>
       </SectionCard>
-
-      <div className="mt-4">
-        <AsOfBanner value={asOfDate} />
-      </div>
 
       {isLoading && (
         <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">

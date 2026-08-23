@@ -18,12 +18,10 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import {
   useAmoCrmTaskStats,
-  useAsOfSnapshot,
   useFunnelCallStats,
   useFunnelNames,
   useFunnelStats,
   useProfilesRaw,
-  type LeadRow,
 } from "@/hooks/use-crm-data";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
@@ -98,9 +96,9 @@ function Dashboard() {
   // Funnel lives in the URL (not local state) so refreshing the page or
   // navigating back keeps whatever was picked instead of resetting to
   // "nothing selected" -- same pattern used across Funnels/AmoCRM/Reyting.
-  // Team/operator/date/amount/as-of are page-session-only, matching how the
-  // rest of the platform's filters behave. All six live here (not inside
-  // DashboardDailyReport) because funnel and as-of also drive the 8 KPI
+  // Team/operator/date/amount are page-session-only, matching how the
+  // rest of the platform's filters behave. All five live here (not inside
+  // DashboardDailyReport) because funnel also drives the 8 KPI
   // cards and charts below, not just the daily-report section -- but the
   // filter tiles themselves render inside DashboardDailyReport, so there's
   // exactly one filter row for the whole page instead of it being split.
@@ -113,7 +111,6 @@ function Dashboard() {
     label: t("lb.presetAll"),
   });
   const [amountRange, setAmountRange] = useState<AmountRangeValue>({ min: null, max: null });
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
 
   function setFunnel(v: string | null) {
     void navigate({ search: (prev) => ({ ...prev, funnel: v ?? undefined }), replace: true });
@@ -135,14 +132,10 @@ function Dashboard() {
     return all.filter((p) => p.id === teamId || p.manager_id === teamId);
   }, [profiles, teamId]);
 
-  const asOfLeads = useAsOfSnapshot<LeadRow>("leads", asOfDate);
-
   // Same per-funnel computation Reyting uses (raw leads + pipeline_stages,
   // not the dashboard_kpis RPC) -- these 8 cards are all about one funnel's
   // real pipeline shape, which that RPC was never built to answer.
-  const funnelStats = useFunnelStats(funnel, {
-    overrideLeads: asOfDate ? (asOfLeads.data ?? []) : undefined,
-  });
+  const funnelStats = useFunnelStats(funnel);
   const callStats = useFunnelCallStats(funnel);
   const taskStats = useAmoCrmTaskStats(funnel);
 
@@ -283,8 +276,6 @@ function Dashboard() {
         onDateFilterChange={setDateFilter}
         amountRange={amountRange}
         onAmountRangeChange={setAmountRange}
-        asOfDate={asOfDate}
-        onAsOfDateChange={setAsOfDate}
         funnelNames={funnelNames}
         rops={rops}
         operators={operators}
