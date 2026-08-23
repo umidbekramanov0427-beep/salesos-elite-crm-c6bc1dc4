@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -17,7 +17,6 @@ import {
 } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -25,8 +24,6 @@ import { cn } from "@/lib/utils";
 import {
   useAmoCrmLink,
   useAmoCrmTaskStats,
-  useAsOfSnapshot,
-  useCrmLeads,
   useFunnelListStats,
   usePipelineBoardLeads,
   usePipelineStagesRaw,
@@ -36,7 +33,6 @@ import {
   FULL_PAYMENT_STAGE_KEYWORDS,
   type CrmLeadView,
   type FunnelStat,
-  type LeadRow,
 } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/funnels")({
@@ -84,8 +80,6 @@ export const Route = createFileRoute("/funnels")({
   component: Funnels,
 });
 
-const funnelOf = (l: CrmLeadView) => l.funnel || "Direct Sales";
-
 const CARD_ACCENTS = [
   "before:bg-indigo-500",
   "before:bg-emerald-500",
@@ -95,75 +89,22 @@ const CARD_ACCENTS = [
   "before:bg-violet-500",
 ];
 
-// Reduces a small in-memory leads array (the as-of-date snapshot) into the
-// same FunnelStat[] shape the live path gets from funnel_list_stats -- used
-// only when time-travelling, since that data doesn't exist in a live table
-// to run the RPC against.
-function funnelStatsFromLeads(leads: CrmLeadView[]): FunnelStat[] {
-  const map = new Map<string, CrmLeadView[]>();
-  for (const l of leads) {
-    const key = funnelOf(l);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(l);
-  }
-  return Array.from(map.entries())
-    .map(([name, items]): FunnelStat => {
-      const won = items.filter((l) => l.stageIsWon).length;
-      // Matches the detail view's lateFunnelConversionRate exactly (same
-      // keyword/normalization) -- the list cards used to show a different
-      // definition (won/total) under the same "konversiya" label than the
-      // detail view (late-funnel/total), which read as inconsistent data.
-      const lateFunnel = items.filter((l) =>
-        SALES_STAGE_KEYWORDS.some((kw) => normalizeStageName(l.stage).includes(kw)),
-      ).length;
-      return {
-        name,
-        count: items.length,
-        value: items.reduce((sum, l) => sum + l.expectedRevenue, 0),
-        won,
-        // "VeryHot" leads used to fall through every bucket -- counted in
-        // `count` but invisible on the HeatBar (0% width, no color) -- same
-        // hot/warm/cold split lead_analytics_action already uses server-side.
-        hot: items.filter((l) => l.temperature === "Hot" || l.temperature === "VeryHot").length,
-        warm: items.filter((l) => l.temperature === "Warm").length,
-        cold: items.filter((l) => l.temperature === "Cold").length,
-        conversion: items.length ? Math.round((lateFunnel / items.length) * 1000) / 10 : 0,
-      };
-    })
-    .sort((a, b) => b.count - a.count);
-}
-
 function Funnels() {
   const { funnel: funnelParam } = Route.useSearch();
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfSnapshot = useAsOfSnapshot<LeadRow>("leads", asOfDate);
 
-  // Live path: the list gets its per-funnel numbers from a single small SQL
-  // aggregate instead of the whole org's leads; the detail view fetches
-  // only that one funnel's leads (same hook the AmoCRM board uses).
-  const listStats = useFunnelListStats(!asOfDate);
-  const board = usePipelineBoardLeads(!asOfDate && funnelParam ? funnelParam : null);
+  // The list gets its per-funnel numbers from a single small SQL aggregate
+  // instead of the whole org's leads; the detail view fetches only that
+  // one funnel's leads (same hook the AmoCRM board uses).
+  const listStats = useFunnelListStats(true);
+  const board = usePipelineBoardLeads(funnelParam ? funnelParam : null);
 
-  // As-of-date path: unchanged -- reduces the small in-memory snapshot.
-  const override = useCrmLeads(asOfDate ? (asOfSnapshot.data ?? []) : undefined, {
-    enabled: !!asOfDate,
-  });
-
-  const funnels = asOfDate ? funnelStatsFromLeads(override.rows) : listStats.funnels;
-  const detailLeads = asOfDate
-    ? override.rows.filter((l) => funnelOf(l) === funnelParam)
-    : board.rows;
-  const isLoading = asOfDate
-    ? override.isLoading || asOfSnapshot.isLoading
-    : funnelParam
-      ? board.isLoading
-      : listStats.isLoading;
+  const funnels = listStats.funnels;
+  const detailLeads = board.rows;
+  const isLoading = funnelParam ? board.isLoading : listStats.isLoading;
 
   if (isLoading && funnels.length === 0 && !funnelParam) {
     return <PageLoader />;
   }
-
-  const asOfControl = <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />;
 
   return funnelParam ? (
     <FunnelDetail
@@ -171,16 +112,9 @@ function Funnels() {
       leads={detailLeads}
       funnelNames={funnels.map((f) => f.name)}
       isLoading={isLoading}
-      asOfDate={asOfDate}
-      asOfControl={asOfControl}
     />
   ) : (
-    <FunnelList
-      funnels={funnels}
-      isLoading={isLoading}
-      asOfDate={asOfDate}
-      asOfControl={asOfControl}
-    />
+    <FunnelList funnels={funnels} isLoading={isLoading} />
   );
 }
 
@@ -208,29 +142,13 @@ function HeatBar({ hot, warm, cold }: { hot: number; warm: number; cold: number 
   );
 }
 
-function FunnelList({
-  funnels,
-  isLoading,
-  asOfDate,
-  asOfControl,
-}: {
-  funnels: FunnelStat[];
-  isLoading: boolean;
-  asOfDate: Date | null;
-  asOfControl: ReactNode;
-}) {
+function FunnelList({ funnels, isLoading }: { funnels: FunnelStat[]; isLoading: boolean }) {
   const { t } = useI18n();
   const { format } = useCurrency();
 
   return (
     <>
-      <PageHeader
-        title={t("funnels.title")}
-        description={t("funnels.navigatorDesc")}
-        actions={asOfControl}
-      />
-
-      <AsOfBanner value={asOfDate} />
+      <PageHeader title={t("funnels.title")} description={t("funnels.navigatorDesc")} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -437,15 +355,11 @@ function FunnelDetail({
   leads,
   funnelNames,
   isLoading,
-  asOfDate,
-  asOfControl,
 }: {
   name: string;
   leads: CrmLeadView[];
   funnelNames: string[];
   isLoading: boolean;
-  asOfDate: Date | null;
-  asOfControl: ReactNode;
 }) {
   const { t } = useI18n();
   const { format } = useCurrency();
@@ -586,15 +500,8 @@ function FunnelDetail({
       <PageHeader
         title={name}
         description={t("funnels.desc")}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
-            {asOfControl}
-          </div>
-        }
+        actions={<DateRangeFilter value={dateFilter} onChange={setDateFilter} />}
       />
-
-      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">

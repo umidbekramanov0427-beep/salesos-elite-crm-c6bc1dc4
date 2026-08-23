@@ -39,7 +39,6 @@ import {
 import { FilterTile, TileOption } from "@/components/filters/FilterTile";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { AmountRangeFilter, type AmountRangeValue } from "@/components/filters/AmountRangeFilter";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -303,8 +302,8 @@ function RatioDonut({
 /* AI-only daily report card.                                          */
 /* ------------------------------------------------------------------ */
 
-// The whole page's filter state (funnel/team/operator/date/amount/as-of)
-// lives one level up in dashboard.tsx, since funnel and as-of also drive
+// The whole page's filter state (funnel/team/operator/date/amount)
+// lives one level up in dashboard.tsx, since funnel also drives
 // the 8 KPI cards and charts elsewhere on the page — but the filter *tiles*
 // themselves render here, inside this one card at the top of the page, so
 // there's exactly one filter row instead of it being split across two
@@ -320,8 +319,6 @@ export function DashboardDailyReport({
   onDateFilterChange,
   amountRange,
   onAmountRangeChange,
-  asOfDate,
-  onAsOfDateChange,
   funnelNames,
   rops,
   operators,
@@ -337,8 +334,6 @@ export function DashboardDailyReport({
   onDateFilterChange: (v: DateFilterValue) => void;
   amountRange: AmountRangeValue;
   onAmountRangeChange: (v: AmountRangeValue) => void;
-  asOfDate: Date | null;
-  onAsOfDateChange: (v: Date | null) => void;
   funnelNames: string[];
   rops: ProfileRow[];
   operators: ProfileRow[];
@@ -511,10 +506,7 @@ export function DashboardDailyReport({
           </FilterTile>
           <DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
           <AmountRangeFilter value={amountRange} onChange={onAmountRangeChange} />
-          <AsOfDatePicker value={asOfDate} onChange={onAsOfDateChange} />
         </div>
-
-        <AsOfBanner value={asOfDate} />
 
         <PeriodStrip period={period} selected={selected} onSelect={setSelected} t={t} />
       </SectionCard>

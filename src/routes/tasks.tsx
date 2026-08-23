@@ -13,7 +13,6 @@ import {
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import {
-  useAsOfSnapshot,
   useCreateTaskComment,
   usePermission,
   useProfilesRaw,
@@ -28,7 +27,6 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, timeAgo } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { PermissionGate } from "@/components/PermissionGate";
 
 export const Route = createFileRoute("/tasks")({
@@ -372,12 +370,7 @@ function TaskDetailDialog({ task, onClose }: { task: TaskView; onClose: () => vo
 
 function Tasks() {
   const { t } = useI18n();
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfSnapshot = useAsOfSnapshot<TaskRow>("tasks", asOfDate);
-  const { rows: allTasks, isLoading: tasksLoading } = useTasksView(
-    asOfDate ? (asOfSnapshot.data ?? []) : undefined,
-  );
-  const isLoading = tasksLoading || (asOfDate ? asOfSnapshot.isLoading : false);
+  const { rows: allTasks, isLoading } = useTasksView();
   const updateTask = useUpdateTask();
   const canCreateTasks = usePermission("Create tasks");
   // useTasksView() already scopes rows to what this role may see (self for
@@ -410,7 +403,6 @@ function Tasks() {
   function onDrop(e: DragEvent, col: TaskRow["status"]) {
     e.preventDefault();
     setDragOverCol(null);
-    if (asOfDate) return;
     const id = e.dataTransfer.getData("text/plain");
     if (id) void moveTask(id, col);
   }
@@ -448,8 +440,7 @@ function Tasks() {
                 <CalendarIcon className="h-4 w-4" /> {t("tasks.viewCalendar")}
               </button>
             </div>
-            <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
-            {!asOfDate && canCreateTasks && (
+            {canCreateTasks && (
               <NewTaskDialog
                 trigger={
                   <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90">
@@ -461,8 +452,6 @@ function Tasks() {
           </>
         }
       />
-
-      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -504,20 +493,16 @@ function Tasks() {
                       return (
                         <article
                           key={task.id}
-                          draggable={!asOfDate}
+                          draggable
                           onDragStart={(e) => onDragStart(e, task.id)}
                           onClick={() => setSelected(task)}
-                          className={cn(
-                            "rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-card",
-                            asOfDate ? "cursor-default" : "cursor-grab active:cursor-grabbing",
-                          )}
+                          className="cursor-grab rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-card active:cursor-grabbing"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <button
                               type="button"
                               aria-label={t("tasks.markDoneAria")}
                               title={t("tasks.markDone")}
-                              disabled={!!asOfDate}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 void moveTask(task.id, isDone ? "Todo" : "Done");
@@ -556,7 +541,7 @@ function Tasks() {
                             <span>
                               {task.assignee.split(" ")[0]} · {task.due}
                             </span>
-                            {next && !asOfDate && (
+                            {next && (
                               <button
                                 type="button"
                                 onClick={(e) => {

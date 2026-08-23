@@ -53,17 +53,14 @@ import {
   useAiAssistantChat,
   useAmoCrmLink,
   useAnalyzeCall,
-  useAsOfSnapshot,
   useAudioAnalyticsView,
   useCrmLeads,
   useFunnelNames,
   useUploadManualCall,
-  type AmoCrmCallRow,
   type AudioCallView,
   type CallChecklistItem,
   type RecoverableLeadView,
 } from "@/hooks/use-crm-data";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import {
@@ -1024,8 +1021,6 @@ function defaultAudioDateFilter(label: string): DateFilterValue {
 
 function AudioAnalytics() {
   const { t, lang } = useI18n();
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfSnapshot = useAsOfSnapshot<AmoCrmCallRow>("amocrm_calls", asOfDate);
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(() =>
     defaultAudioDateFilter(t("lb.presetMonth")),
   );
@@ -1034,12 +1029,8 @@ function AudioAnalytics() {
     totals,
     perRep,
     recoverable,
-    isLoading: viewLoading,
-  } = useAudioAnalyticsView(
-    { from: dateFilter.from, to: dateFilter.to },
-    asOfDate ? (asOfSnapshot.data ?? []) : undefined,
-  );
-  const isLoading = viewLoading || (asOfDate ? asOfSnapshot.isLoading : false);
+    isLoading,
+  } = useAudioAnalyticsView({ from: dateFilter.from, to: dateFilter.to });
   const getAmoLink = useAmoCrmLink();
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -1167,8 +1158,6 @@ function AudioAnalytics() {
   return (
     <>
       <PageHeader title={t("audio.title")} description={t("audio.desc")} />
-
-      <AsOfBanner value={asOfDate} />
 
       {isLoading && (
         <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -1314,8 +1303,6 @@ function AudioAnalytics() {
             </div>
           </PopoverContent>
         </Popover>
-
-        <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
 
         {hasActiveFilters && (
           <button

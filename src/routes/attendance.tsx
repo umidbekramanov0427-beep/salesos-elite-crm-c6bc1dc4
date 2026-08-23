@@ -21,7 +21,6 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   useAiAssistantChat,
-  useAsOfSnapshot,
   useAttendanceView,
   useClockIn,
   useClockOut,
@@ -30,11 +29,8 @@ import {
   useLogCall,
   useMyOpenSession,
   useNormativesView,
-  type CallLogRow,
   type NormativeRow,
-  type WorkSessionRow,
 } from "@/hooks/use-crm-data";
-import { AsOfDatePicker, AsOfBanner } from "@/components/filters/AsOfDatePicker";
 
 export const Route = createFileRoute("/attendance")({
   head: () => ({
@@ -216,15 +212,7 @@ function AttendanceSection() {
   const { user } = useAuth();
   const canManage =
     user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
-  const [asOfDate, setAsOfDate] = useState<Date | null>(null);
-  const asOfSessions = useAsOfSnapshot<WorkSessionRow>("work_sessions", asOfDate);
-  const asOfCalls = useAsOfSnapshot<CallLogRow>("call_logs", asOfDate);
-  const { rows, isLoading: rowsLoading } = useAttendanceView(
-    asOfDate,
-    asOfDate ? { sessions: asOfSessions.data ?? [], calls: asOfCalls.data ?? [] } : undefined,
-  );
-  const isLoading =
-    rowsLoading || (asOfDate ? asOfSessions.isLoading || asOfCalls.isLoading : false);
+  const { rows, isLoading } = useAttendanceView();
 
   const visible =
     user?.role === "super_admin" || user?.role === "platform_owner"
@@ -247,10 +235,7 @@ function AttendanceSection() {
             <h2 className="text-lg font-bold text-foreground">{t("nav./attendance")}</h2>
           </div>
         </div>
-        <AsOfDatePicker value={asOfDate} onChange={setAsOfDate} />
       </div>
-
-      <AsOfBanner value={asOfDate} />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <MyStatusCard />
