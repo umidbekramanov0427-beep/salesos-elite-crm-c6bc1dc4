@@ -1582,11 +1582,22 @@ export async function saveAmoImportSettings(
   enabledPipelineIds: number[],
   enabledUserIds: number[],
 ): Promise<void> {
+  // syncLeadsFromAmo only ever asks AmoCRM for leads *updated* since
+  // last_synced_at (a full historical pull only happens once, the very
+  // first time a connection ever syncs) -- so widening the pipeline/user
+  // scope here used to do nothing for any lead in the newly-enabled scope
+  // that hadn't been touched recently: it would never be fetched at all,
+  // since the "since" filter excludes it at the AmoCRM API call itself,
+  // before the pipeline filter even runs. Only a lead someone happened to
+  // edit today would show up. Resetting last_synced_at to null makes the
+  // next sync a full pull again, covering the scope that just changed
+  // instead of silently missing everything in it except brand-new activity.
   const { error } = await supabaseAdmin
     .from("amocrm_connection")
     .update({
       enabled_pipeline_ids: enabledPipelineIds,
       enabled_user_ids: enabledUserIds,
+      last_synced_at: null,
     })
     .eq("organization_id", organizationId);
   if (error) throw error;
