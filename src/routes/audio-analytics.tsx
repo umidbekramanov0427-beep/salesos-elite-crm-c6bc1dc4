@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   useAiAssistantChat,
@@ -1021,16 +1022,19 @@ function defaultAudioDateFilter(label: string): DateFilterValue {
 
 function AudioAnalytics() {
   const { t, lang } = useI18n();
+  const { user } = useAuth();
+  // A sotuv_menejeri's calls are already scoped to their own leads (see
+  // useAudioAnalyticsView), so this "per manager" breakdown would only ever
+  // show their own single row -- a teammate comparison list makes sense for
+  // rop/super_admin, not for a rep looking at their own numbers.
+  const showPerRep = user?.role !== "sotuv_menejeri";
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(() =>
     defaultAudioDateFilter(t("lb.presetMonth")),
   );
-  const {
-    recent,
-    totals,
-    perRep,
-    recoverable,
-    isLoading,
-  } = useAudioAnalyticsView({ from: dateFilter.from, to: dateFilter.to });
+  const { recent, totals, perRep, recoverable, isLoading } = useAudioAnalyticsView({
+    from: dateFilter.from,
+    to: dateFilter.to,
+  });
   const getAmoLink = useAmoCrmLink();
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -1452,24 +1456,26 @@ function AudioAnalytics() {
         </SectionCard>
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-2">
-        <SectionCard title={t("audio.perRep")} description={t("audio.perRepDesc")}>
-          {perRep.length === 0 ? (
-            <p className="text-sm text-subtle">{t("audio.noCalls")}</p>
-          ) : (
-            <ul className="space-y-3">
-              {perRep.map((r) => (
-                <li key={r.name} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="min-w-0 truncate font-medium text-foreground">{r.name}</span>
-                  <span className="shrink-0 text-xs text-subtle">
-                    {r.calls} {t("audio.colCalls").toLowerCase()} ·{" "}
-                    {r.calls ? Math.round((r.connected / r.calls) * 100) : 0}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
+      <div className={cn("mt-8 grid gap-6", showPerRep && "xl:grid-cols-2")}>
+        {showPerRep && (
+          <SectionCard title={t("audio.perRep")} description={t("audio.perRepDesc")}>
+            {perRep.length === 0 ? (
+              <p className="text-sm text-subtle">{t("audio.noCalls")}</p>
+            ) : (
+              <ul className="space-y-3">
+                {perRep.map((r) => (
+                  <li key={r.name} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium text-foreground">{r.name}</span>
+                    <span className="shrink-0 text-xs text-subtle">
+                      {r.calls} {t("audio.colCalls").toLowerCase()} ·{" "}
+                      {r.calls ? Math.round((r.connected / r.calls) * 100) : 0}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        )}
 
         <SectionCard title={t("audio.recoverable")} description={t("audio.recoverableDesc")}>
           {recoverable.length === 0 ? (

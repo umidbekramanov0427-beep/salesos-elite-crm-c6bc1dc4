@@ -73,6 +73,17 @@ export const Route = createFileRoute("/admin")({
 const ROLES: ProfileRow["role"][] = ["sotuv_menejeri", "rop", "super_admin"];
 const NO_MANAGER = "__none__";
 
+function roleLabels(t: ReturnType<typeof useI18n>["t"]): Record<ProfileRow["role"], string> {
+  return {
+    rep: t("admin.roleRep"),
+    manager: t("admin.roleManager"),
+    sotuv_menejeri: t("admin.roleRep"),
+    rop: t("admin.roleRop"),
+    super_admin: t("admin.roleAdmin"),
+    platform_owner: t("admin.rolePlatformOwner"),
+  };
+}
+
 function CreateEmployeeDialog({ ropOptions }: { ropOptions: ProfileRow[] }) {
   const { t } = useI18n();
   const createEmployee = useCreateEmployee();
@@ -87,14 +98,7 @@ function CreateEmployeeDialog({ ropOptions }: { ropOptions: ProfileRow[] }) {
   const [managerId, setManagerId] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const roleLabel: Record<ProfileRow["role"], string> = {
-    rep: t("admin.roleRep"),
-    manager: t("admin.roleManager"),
-    sotuv_menejeri: t("admin.roleRep"),
-    rop: t("admin.roleRop"),
-    super_admin: t("admin.roleAdmin"),
-    platform_owner: t("admin.rolePlatformOwner"),
-  };
+  const roleLabel = roleLabels(t);
 
   function reset() {
     setFullName("");
@@ -405,14 +409,7 @@ function AdminPanelContent() {
   const [passwordTarget, setPasswordTarget] = useState<ProfileRow | null>(null);
   const [passwordValue, setPasswordValue] = useState("");
 
-  const roleLabel: Record<ProfileRow["role"], string> = {
-    rep: t("admin.roleRep"),
-    manager: t("admin.roleManager"),
-    sotuv_menejeri: t("admin.roleRep"),
-    rop: t("admin.roleRop"),
-    super_admin: t("admin.roleAdmin"),
-    platform_owner: t("admin.rolePlatformOwner"),
-  };
+  const roleLabel = roleLabels(t);
 
   const employees = profiles ?? [];
   const ropOptions = employees.filter((p) => p.role === "rop");
