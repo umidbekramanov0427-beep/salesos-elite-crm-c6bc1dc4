@@ -99,7 +99,7 @@ export async function buildDailyReportText(organizationId: string): Promise<stri
       topName = p.full_name || p.email;
     }
     const monthlyTarget = p.monthly_target;
-    if (monthlyTarget > 0) {
+    if (monthlyTarget && monthlyTarget > 0) {
       const dayOfMonth = new Date().getDate();
       const daysInMonth = new Date(
         startOfToday.getFullYear(),

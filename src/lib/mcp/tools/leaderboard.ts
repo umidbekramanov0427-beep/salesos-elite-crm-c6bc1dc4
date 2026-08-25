@@ -56,7 +56,8 @@ export default defineTool({
         const lost = mine.filter((l) => (l.stage_id ? stagesById.get(l.stage_id)?.is_lost : false));
         const revenue = won.reduce((s, l) => s + l.expected_revenue, 0);
         const conversion = mine.length ? (won.length / mine.length) * 100 : 0;
-        const targetCompletion = p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
+        const targetCompletion =
+          p.monthly_target && p.monthly_target > 0 ? (revenue / p.monthly_target) * 100 : 0;
         return {
           name: p.full_name || p.email,
           totalLeads: mine.length,

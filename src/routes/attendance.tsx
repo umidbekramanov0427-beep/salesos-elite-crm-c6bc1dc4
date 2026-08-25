@@ -339,7 +339,7 @@ function CoachButton({ row }: { row: NormativeRow }) {
         messages: [
           {
             role: "user",
-            content: `Employee ${row.name} (${row.department}) is at ${row.monthlyPct}% of their monthly sales target (${format(row.revenueMonth)} of ${format(row.monthlyTarget)}), pacing at ${row.pacePct}% of where they should be by today. Give one short, specific, actionable coaching tip (2-3 sentences) to help them hit target this month.`,
+            content: `Employee ${row.name} (${row.department}) is at ${row.monthlyPct}% of their monthly sales target (${format(row.revenueMonth)} of ${row.monthlyTarget != null ? format(row.monthlyTarget) : "no target set"}), pacing at ${row.pacePct}% of where they should be by today. Give one short, specific, actionable coaching tip (2-3 sentences) to help them hit target this month.`,
           },
         ],
       });
@@ -526,10 +526,12 @@ function NormativesSection() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {format(r.revenueToday)} / {format(r.dailyTarget)}
+                      {format(r.revenueToday)} /{" "}
+                      {r.dailyTarget != null ? format(r.dailyTarget) : t("widget.noTarget")}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {format(r.revenueMonth)} / {format(r.monthlyTarget)}
+                      {format(r.revenueMonth)} /{" "}
+                      {r.monthlyTarget != null ? format(r.monthlyTarget) : t("widget.noTarget")}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">

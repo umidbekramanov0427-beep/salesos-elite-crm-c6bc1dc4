@@ -299,13 +299,19 @@ function Dashboard() {
           <MonthlyRevenueTrendChart funnel={funnel} />
         </Suspense>
         <Suspense fallback={<ChartSkeleton />}>
-          <RevenueByOwnerChart funnel={funnel} />
+          <RevenueByOwnerChart
+            funnel={funnel}
+            dateRange={{ from: dateFilter.from, to: dateFilter.to }}
+          />
         </Suspense>
       </div>
 
       <div className="mt-6">
         <Suspense fallback={<ChartSkeleton />}>
-          <LostReasonsChart funnel={funnel} />
+          <LostReasonsChart
+            funnel={funnel}
+            dateRange={{ from: dateFilter.from, to: dateFilter.to }}
+          />
         </Suspense>
       </div>
 
@@ -319,7 +325,10 @@ function Dashboard() {
       </div>
 
       <div className="mt-6 space-y-6">
-        <LeaderboardWidget />
+        <LeaderboardWidget
+          funnel={funnel}
+          dateRange={{ from: dateFilter.from, to: dateFilter.to }}
+        />
         <ImportantTasksWidget />
         <LeadTasksWidget funnel={funnel} />
       </div>
@@ -331,7 +340,10 @@ function Dashboard() {
       </div>
 
       <div className="mt-6">
-        <AiInsightsWidget />
+        <AiInsightsWidget
+          funnel={funnel}
+          dateRange={{ from: dateFilter.from, to: dateFilter.to }}
+        />
       </div>
 
       <QuickActions />

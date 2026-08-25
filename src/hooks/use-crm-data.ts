@@ -1094,7 +1094,7 @@ export type LeaderboardManagerRow = {
   revenue: number;
   conversion: number;
   kpiPercent: number;
-  monthlyTarget: number;
+  monthlyTarget: number | null;
   targetCompletion: number;
 };
 
@@ -1225,7 +1225,8 @@ export function useLeaderboardView(
       .map((p): LeaderboardManagerRow => {
         const s = statsByOwner.get(p.id) ?? { total: 0, won: 0, lost: 0, revenue: 0 };
         const conversion = s.total ? (s.won / s.total) * 100 : 0;
-        const targetCompletion = p.monthly_target > 0 ? (s.revenue / p.monthly_target) * 100 : 0;
+        const targetCompletion =
+          p.monthly_target && p.monthly_target > 0 ? (s.revenue / p.monthly_target) * 100 : 0;
         return {
           id: p.id,
           name: profileName(p),
@@ -1881,29 +1882,37 @@ const MONTH_LABELS = [
   "Dec",
 ];
 
+// Used to read `deals`, which this AmoCRM-synced setup never populates
+// (leads carry the real revenue) -- so this chart permanently showed a flat
+// $0 line for every AmoCRM org. Rebuilt on leads + pipeline_stages, same
+// source and "won"/"lost"/"open" resolution as useSalesAnalyticsSummary.
 export function useRevenueSeries() {
-  const { data: deals } = useDealsRaw();
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
 
   return useMemo(() => {
+    const stagesById = byId(stages);
     const rows = visibleOwnerIds
-      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
-      : (deals ?? []);
+      ? (leads ?? []).filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : (leads ?? []);
     const now = new Date();
     const months: { label: string; revenue: number; pipeline: number }[] = [];
     for (let i = 7; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const revenue = rows
-        .filter((r) => r.status === "won" && r.close_date && monthKey(r.close_date) === key)
-        .reduce((s, r) => s + Number(r.value), 0);
-      const pipeline = rows
-        .filter((r) => r.status === "open" && monthKey(r.created_at) === key)
-        .reduce((s, r) => s + Number(r.value), 0);
+      let revenue = 0;
+      let pipeline = 0;
+      for (const l of rows) {
+        if (monthKey(l.created_at) !== key) continue;
+        const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+        if (stage?.is_won) revenue += l.expected_revenue;
+        else if (!stage?.is_lost) pipeline += l.expected_revenue;
+      }
       months.push({ label: MONTH_LABELS[d.getMonth()]!, revenue, pipeline });
     }
     return months;
-  }, [deals, visibleOwnerIds]);
+  }, [leads, stages, visibleOwnerIds]);
 }
 
 export type SalesAnalyticsSummary = {
@@ -1921,7 +1930,14 @@ export type SalesAnalyticsSummary = {
 // same four headline numbers and two charts, computed straight from leads
 // + pipeline_stages (this AmoCRM-synced setup never populates the deals
 // table, so useRevenueSeries above would just read zeros here).
-export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalyticsSummary {
+export function useSalesAnalyticsSummary(
+  funnel?: string | null,
+  // Only bounds perOwner (RevenueByOwnerChart) -- the other figures here
+  // (YTD, 90d avg deal size, loss-rate delta, the 8-month trend) are each
+  // already their own fixed window by definition, so an externally picked
+  // range has no sound meaning for them.
+  dateRange?: { from: Date | null; to: Date | null },
+): SalesAnalyticsSummary {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
   const { data: profiles } = useProfilesRaw();
@@ -1964,9 +1980,14 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
         else if (createdAt >= lastYearStart && createdAt < yearStart) lastYearRevenue += revenue;
         if (createdAt >= ninetyDaysAgo) dealSizes90d.push(revenue);
 
-        const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
-        const ownerName = profileName(owner);
-        revenueByOwner.set(ownerName, (revenueByOwner.get(ownerName) ?? 0) + revenue);
+        const inRange =
+          (!dateRange?.from || createdAt >= dateRange.from) &&
+          (!dateRange?.to || createdAt <= dateRange.to);
+        if (inRange) {
+          const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
+          const ownerName = profileName(owner);
+          revenueByOwner.set(ownerName, (revenueByOwner.get(ownerName) ?? 0) + revenue);
+        }
 
         const key = monthKey(l.created_at);
         monthlyRevenue.set(key, (monthlyRevenue.get(key) ?? 0) + revenue);
@@ -2022,7 +2043,8 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
       monthlyTrend,
       perOwner,
     };
-  }, [leads, stages, profiles, funnel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dateRange's getTime() values are the stable key
+  }, [leads, stages, profiles, funnel, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 }
 
 export type LostReasonBucket = { reason: string; count: number };
@@ -2030,7 +2052,10 @@ export type LostReasonBucket = { reason: string; count: number };
 // AmoCRM's own "Причина отказа" (loss reason) catalog, synced onto
 // leads.loss_reason -- real data that until now was only surfaced deep
 // inside Lead Analytics' Yo'nalish tab, not on the Dashboard itself.
-export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[] {
+export function useLostReasonsSummary(
+  funnel?: string | null,
+  dateRange?: { from: Date | null; to: Date | null },
+): LostReasonBucket[] {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
 
@@ -2042,6 +2067,9 @@ export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[
       if (funnel && leadFunnel !== funnel) continue;
       const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
       if (!stage?.is_lost) continue;
+      const createdAt = new Date(l.created_at);
+      if (dateRange?.from && createdAt < dateRange.from) continue;
+      if (dateRange?.to && createdAt > dateRange.to) continue;
       const reason = l.loss_reason?.trim() || "—";
       counts.set(reason, (counts.get(reason) ?? 0) + 1);
     }
@@ -2049,7 +2077,8 @@ export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[
       .map(([reason, count]): LostReasonBucket => ({ reason, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  }, [leads, stages, funnel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dateRange's getTime() values are the stable key
+  }, [leads, stages, funnel, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 }
 
 // ISO 8601 week number (Monday-start, week 1 = the week containing the
@@ -2925,17 +2954,23 @@ export function useRecentActivity(limit = 6, funnel?: string | null) {
 // setup where real revenue lives on leads) deals table -- always 0. Reuses
 // the same leaderboard_stats RPC the Reyting page itself uses, so this
 // widget's numbers actually match the full leaderboard.
-export function useTopPerformers(limit = 5) {
+export function useTopPerformers(
+  limit = 5,
+  funnel: string | null = null,
+  dateRange?: { from: Date | null; to: Date | null },
+) {
   const { user } = useAuth();
   const { data: profiles } = useProfilesRaw();
+  const from = dateRange?.from ? dateRange.from.toISOString() : null;
+  const to = dateRange?.to ? dateRange.to.toISOString() : null;
   const statsQuery = useQuery({
-    queryKey: ["leaderboard_stats", null, null, null, null, ""],
+    queryKey: ["leaderboard_stats", from, to, funnel, null, ""],
     enabled: !!user?.organizationId,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("leaderboard_stats", {
-        p_from: null,
-        p_to: null,
-        p_funnel: null,
+        p_from: from,
+        p_to: to,
+        p_funnel: funnel,
         p_stage_id: null,
         p_tags: null,
       });
@@ -4204,8 +4239,8 @@ export type NormativeRow = {
   name: string;
   initials: string;
   department: string;
-  dailyTarget: number;
-  monthlyTarget: number;
+  dailyTarget: number | null;
+  monthlyTarget: number | null;
   revenueToday: number;
   revenueMonth: number;
   monthlyPct: number;
@@ -4261,8 +4296,10 @@ export function useNormativesView() {
         .reduce((s, l) => s + Number(l.expected_revenue), 0);
       const monthlyTarget = p.monthly_target;
       const monthlyPct =
-        monthlyTarget > 0 ? Math.round((revenueMonth / monthlyTarget) * 1000) / 10 : 0;
-      const expectedByNow = monthlyTarget * expectedPaceFraction;
+        monthlyTarget && monthlyTarget > 0
+          ? Math.round((revenueMonth / monthlyTarget) * 1000) / 10
+          : 0;
+      const expectedByNow = monthlyTarget ? monthlyTarget * expectedPaceFraction : 0;
       const pacePct =
         expectedByNow > 0 ? Math.round((revenueMonth / expectedByNow) * 1000) / 10 : 0;
       const status: NormativeStatus =

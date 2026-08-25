@@ -25,8 +25,8 @@ export type SessionUser = {
   position: string;
   phone: string | null;
   avatarUrl: string | null;
-  dailyTarget: number;
-  monthlyTarget: number;
+  dailyTarget: number | null;
+  monthlyTarget: number | null;
   telegramLinked: boolean;
 };
 
