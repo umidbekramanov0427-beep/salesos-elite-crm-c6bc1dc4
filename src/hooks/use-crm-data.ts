@@ -1930,7 +1930,14 @@ export type SalesAnalyticsSummary = {
 // same four headline numbers and two charts, computed straight from leads
 // + pipeline_stages (this AmoCRM-synced setup never populates the deals
 // table, so useRevenueSeries above would just read zeros here).
-export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalyticsSummary {
+export function useSalesAnalyticsSummary(
+  funnel?: string | null,
+  // Only bounds perOwner (RevenueByOwnerChart) -- the other figures here
+  // (YTD, 90d avg deal size, loss-rate delta, the 8-month trend) are each
+  // already their own fixed window by definition, so an externally picked
+  // range has no sound meaning for them.
+  dateRange?: { from: Date | null; to: Date | null },
+): SalesAnalyticsSummary {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
   const { data: profiles } = useProfilesRaw();
@@ -1973,9 +1980,14 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
         else if (createdAt >= lastYearStart && createdAt < yearStart) lastYearRevenue += revenue;
         if (createdAt >= ninetyDaysAgo) dealSizes90d.push(revenue);
 
-        const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
-        const ownerName = profileName(owner);
-        revenueByOwner.set(ownerName, (revenueByOwner.get(ownerName) ?? 0) + revenue);
+        const inRange =
+          (!dateRange?.from || createdAt >= dateRange.from) &&
+          (!dateRange?.to || createdAt <= dateRange.to);
+        if (inRange) {
+          const owner = l.owner_id ? profilesById.get(l.owner_id) : undefined;
+          const ownerName = profileName(owner);
+          revenueByOwner.set(ownerName, (revenueByOwner.get(ownerName) ?? 0) + revenue);
+        }
 
         const key = monthKey(l.created_at);
         monthlyRevenue.set(key, (monthlyRevenue.get(key) ?? 0) + revenue);
@@ -2031,7 +2043,8 @@ export function useSalesAnalyticsSummary(funnel?: string | null): SalesAnalytics
       monthlyTrend,
       perOwner,
     };
-  }, [leads, stages, profiles, funnel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dateRange's getTime() values are the stable key
+  }, [leads, stages, profiles, funnel, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 }
 
 export type LostReasonBucket = { reason: string; count: number };
@@ -2039,7 +2052,10 @@ export type LostReasonBucket = { reason: string; count: number };
 // AmoCRM's own "Причина отказа" (loss reason) catalog, synced onto
 // leads.loss_reason -- real data that until now was only surfaced deep
 // inside Lead Analytics' Yo'nalish tab, not on the Dashboard itself.
-export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[] {
+export function useLostReasonsSummary(
+  funnel?: string | null,
+  dateRange?: { from: Date | null; to: Date | null },
+): LostReasonBucket[] {
   const { data: leads } = useLeadsRaw();
   const { data: stages } = usePipelineStagesRaw();
 
@@ -2051,6 +2067,9 @@ export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[
       if (funnel && leadFunnel !== funnel) continue;
       const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
       if (!stage?.is_lost) continue;
+      const createdAt = new Date(l.created_at);
+      if (dateRange?.from && createdAt < dateRange.from) continue;
+      if (dateRange?.to && createdAt > dateRange.to) continue;
       const reason = l.loss_reason?.trim() || "—";
       counts.set(reason, (counts.get(reason) ?? 0) + 1);
     }
@@ -2058,7 +2077,8 @@ export function useLostReasonsSummary(funnel?: string | null): LostReasonBucket[
       .map(([reason, count]): LostReasonBucket => ({ reason, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  }, [leads, stages, funnel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dateRange's getTime() values are the stable key
+  }, [leads, stages, funnel, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 }
 
 // ISO 8601 week number (Monday-start, week 1 = the week containing the
@@ -2934,16 +2954,22 @@ export function useRecentActivity(limit = 6, funnel?: string | null) {
 // setup where real revenue lives on leads) deals table -- always 0. Reuses
 // the same leaderboard_stats RPC the Reyting page itself uses, so this
 // widget's numbers actually match the full leaderboard.
-export function useTopPerformers(limit = 5, funnel: string | null = null) {
+export function useTopPerformers(
+  limit = 5,
+  funnel: string | null = null,
+  dateRange?: { from: Date | null; to: Date | null },
+) {
   const { user } = useAuth();
   const { data: profiles } = useProfilesRaw();
+  const from = dateRange?.from ? dateRange.from.toISOString() : null;
+  const to = dateRange?.to ? dateRange.to.toISOString() : null;
   const statsQuery = useQuery({
-    queryKey: ["leaderboard_stats", null, null, funnel, null, ""],
+    queryKey: ["leaderboard_stats", from, to, funnel, null, ""],
     enabled: !!user?.organizationId,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("leaderboard_stats", {
-        p_from: null,
-        p_to: null,
+        p_from: from,
+        p_to: to,
         p_funnel: funnel,
         p_stage_id: null,
         p_tags: null,

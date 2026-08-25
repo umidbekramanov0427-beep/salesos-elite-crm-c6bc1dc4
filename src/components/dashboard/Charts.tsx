@@ -315,9 +315,15 @@ export function MonthlyRevenueTrendChart({ funnel }: { funnel: string | null }) 
   );
 }
 
-export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
+export function RevenueByOwnerChart({
+  funnel,
+  dateRange,
+}: {
+  funnel: string | null;
+  dateRange?: { from: Date | null; to: Date | null };
+}) {
   const { t } = useI18n();
-  const { perOwner } = useSalesAnalyticsSummary(funnel);
+  const { perOwner } = useSalesAnalyticsSummary(funnel, dateRange);
 
   if (perOwner.length === 0) {
     return (
@@ -379,9 +385,15 @@ export function RevenueByOwnerChart({ funnel }: { funnel: string | null }) {
   );
 }
 
-export function LostReasonsChart({ funnel }: { funnel: string | null }) {
+export function LostReasonsChart({
+  funnel,
+  dateRange,
+}: {
+  funnel: string | null;
+  dateRange?: { from: Date | null; to: Date | null };
+}) {
   const { t } = useI18n();
-  const reasons = useLostReasonsSummary(funnel);
+  const reasons = useLostReasonsSummary(funnel, dateRange);
 
   if (reasons.length === 0) {
     return (
