@@ -319,7 +319,7 @@ function Dashboard() {
       </div>
 
       <div className="mt-6 space-y-6">
-        <LeaderboardWidget />
+        <LeaderboardWidget funnel={funnel} />
         <ImportantTasksWidget />
         <LeadTasksWidget funnel={funnel} />
       </div>
@@ -331,7 +331,7 @@ function Dashboard() {
       </div>
 
       <div className="mt-6">
-        <AiInsightsWidget />
+        <AiInsightsWidget funnel={funnel} />
       </div>
 
       <QuickActions />

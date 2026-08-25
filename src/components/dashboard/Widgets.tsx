@@ -31,10 +31,10 @@ function EmptyState({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function LeaderboardWidget() {
+export function LeaderboardWidget({ funnel = null }: { funnel?: string | null }) {
   const { t } = useI18n();
   const { format } = useCurrency();
-  const ranked = useTopPerformers(10);
+  const ranked = useTopPerformers(10, funnel);
 
   return (
     <SectionCard
@@ -389,12 +389,16 @@ export function AudioPreviewWidget({ funnel = null }: { funnel?: string | null }
   );
 }
 
-export function AiInsightsWidget() {
+export function AiInsightsWidget({ funnel = null }: { funnel?: string | null }) {
   const { t } = useI18n();
   const { format } = useCurrency();
-  const { rows: leads } = useCrmLeads();
+  const { rows: allLeads } = useCrmLeads();
   const { rows: deals } = useDealsView();
-  const top = useTopPerformers(1)[0];
+  const top = useTopPerformers(1, funnel)[0];
+  const leads = useMemo(
+    () => (funnel ? allLeads.filter((l) => l.funnel === funnel) : allLeads),
+    [allLeads, funnel],
+  );
 
   const insights = useMemo(() => {
     const out: {

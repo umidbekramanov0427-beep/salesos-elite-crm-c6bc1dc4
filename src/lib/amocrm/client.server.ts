@@ -956,7 +956,14 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       defaultStageId(organizationId).catch((e) => {
         throw new Error(`[default stage] ${describeError(e)}`);
       }),
-      fetchLossReasons(conn).catch(() => new Map<number, string>()),
+      // Best-effort: a lead's own loss_reason_id is still written even when
+      // this fails, just unresolved to a name until a later sync succeeds
+      // -- but silently swallowing it with no trace made every lost lead's
+      // reason look permanently unresolved with no way to tell why.
+      fetchLossReasons(conn).catch((e) => {
+        console.error(`[amoCRM] [loss reasons] ${describeError(e)}`);
+        return new Map<number, string>();
+      }),
       loadNotificationRecipients(organizationId).catch((e) => {
         throw new Error(`[notification recipients] ${describeError(e)}`);
       }),

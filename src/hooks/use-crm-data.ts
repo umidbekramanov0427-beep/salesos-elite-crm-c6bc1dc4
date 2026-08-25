@@ -1094,7 +1094,7 @@ export type LeaderboardManagerRow = {
   revenue: number;
   conversion: number;
   kpiPercent: number;
-  monthlyTarget: number;
+  monthlyTarget: number | null;
   targetCompletion: number;
 };
 
@@ -1225,7 +1225,8 @@ export function useLeaderboardView(
       .map((p): LeaderboardManagerRow => {
         const s = statsByOwner.get(p.id) ?? { total: 0, won: 0, lost: 0, revenue: 0 };
         const conversion = s.total ? (s.won / s.total) * 100 : 0;
-        const targetCompletion = p.monthly_target > 0 ? (s.revenue / p.monthly_target) * 100 : 0;
+        const targetCompletion =
+          p.monthly_target && p.monthly_target > 0 ? (s.revenue / p.monthly_target) * 100 : 0;
         return {
           id: p.id,
           name: profileName(p),
@@ -1881,29 +1882,37 @@ const MONTH_LABELS = [
   "Dec",
 ];
 
+// Used to read `deals`, which this AmoCRM-synced setup never populates
+// (leads carry the real revenue) -- so this chart permanently showed a flat
+// $0 line for every AmoCRM org. Rebuilt on leads + pipeline_stages, same
+// source and "won"/"lost"/"open" resolution as useSalesAnalyticsSummary.
 export function useRevenueSeries() {
-  const { data: deals } = useDealsRaw();
+  const { data: leads } = useLeadsRaw();
+  const { data: stages } = usePipelineStagesRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
 
   return useMemo(() => {
+    const stagesById = byId(stages);
     const rows = visibleOwnerIds
-      ? (deals ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
-      : (deals ?? []);
+      ? (leads ?? []).filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : (leads ?? []);
     const now = new Date();
     const months: { label: string; revenue: number; pipeline: number }[] = [];
     for (let i = 7; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const revenue = rows
-        .filter((r) => r.status === "won" && r.close_date && monthKey(r.close_date) === key)
-        .reduce((s, r) => s + Number(r.value), 0);
-      const pipeline = rows
-        .filter((r) => r.status === "open" && monthKey(r.created_at) === key)
-        .reduce((s, r) => s + Number(r.value), 0);
+      let revenue = 0;
+      let pipeline = 0;
+      for (const l of rows) {
+        if (monthKey(l.created_at) !== key) continue;
+        const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+        if (stage?.is_won) revenue += l.expected_revenue;
+        else if (!stage?.is_lost) pipeline += l.expected_revenue;
+      }
       months.push({ label: MONTH_LABELS[d.getMonth()]!, revenue, pipeline });
     }
     return months;
-  }, [deals, visibleOwnerIds]);
+  }, [leads, stages, visibleOwnerIds]);
 }
 
 export type SalesAnalyticsSummary = {
@@ -2925,17 +2934,17 @@ export function useRecentActivity(limit = 6, funnel?: string | null) {
 // setup where real revenue lives on leads) deals table -- always 0. Reuses
 // the same leaderboard_stats RPC the Reyting page itself uses, so this
 // widget's numbers actually match the full leaderboard.
-export function useTopPerformers(limit = 5) {
+export function useTopPerformers(limit = 5, funnel: string | null = null) {
   const { user } = useAuth();
   const { data: profiles } = useProfilesRaw();
   const statsQuery = useQuery({
-    queryKey: ["leaderboard_stats", null, null, null, null, ""],
+    queryKey: ["leaderboard_stats", null, null, funnel, null, ""],
     enabled: !!user?.organizationId,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("leaderboard_stats", {
         p_from: null,
         p_to: null,
-        p_funnel: null,
+        p_funnel: funnel,
         p_stage_id: null,
         p_tags: null,
       });
@@ -4204,8 +4213,8 @@ export type NormativeRow = {
   name: string;
   initials: string;
   department: string;
-  dailyTarget: number;
-  monthlyTarget: number;
+  dailyTarget: number | null;
+  monthlyTarget: number | null;
   revenueToday: number;
   revenueMonth: number;
   monthlyPct: number;
@@ -4261,8 +4270,10 @@ export function useNormativesView() {
         .reduce((s, l) => s + Number(l.expected_revenue), 0);
       const monthlyTarget = p.monthly_target;
       const monthlyPct =
-        monthlyTarget > 0 ? Math.round((revenueMonth / monthlyTarget) * 1000) / 10 : 0;
-      const expectedByNow = monthlyTarget * expectedPaceFraction;
+        monthlyTarget && monthlyTarget > 0
+          ? Math.round((revenueMonth / monthlyTarget) * 1000) / 10
+          : 0;
+      const expectedByNow = monthlyTarget ? monthlyTarget * expectedPaceFraction : 0;
       const pacePct =
         expectedByNow > 0 ? Math.round((revenueMonth / expectedByNow) * 1000) / 10 : 0;
       const status: NormativeStatus =
