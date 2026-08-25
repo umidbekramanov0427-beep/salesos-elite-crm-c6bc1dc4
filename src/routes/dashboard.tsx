@@ -5,7 +5,6 @@ import { PageHeader, StatCard, InfoTip } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { DashboardDailyReport } from "@/components/dashboard/DailyReport";
 import {
-  LeaderboardWidget,
   ImportantTasksWidget,
   LeadTasksWidget,
   InboxWidget,
@@ -325,10 +324,6 @@ function Dashboard() {
       </div>
 
       <div className="mt-6 space-y-6">
-        <LeaderboardWidget
-          funnel={funnel}
-          dateRange={{ from: dateFilter.from, to: dateFilter.to }}
-        />
         <ImportantTasksWidget />
         <LeadTasksWidget funnel={funnel} />
       </div>
