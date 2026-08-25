@@ -950,13 +950,19 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       syncPipelineStages(organizationId, conn).catch((e) => {
         throw new Error(`[pipeline stages] ${describeError(e)}`);
       }),
-      syncUserMapping(organizationId, conn),
+      syncUserMapping(organizationId, conn).catch((e) => {
+        throw new Error(`[user mapping] ${describeError(e)}`);
+      }),
       defaultStageId(organizationId).catch((e) => {
         throw new Error(`[default stage] ${describeError(e)}`);
       }),
       fetchLossReasons(conn).catch(() => new Map<number, string>()),
-      loadNotificationRecipients(organizationId),
-      loadStageMeta(organizationId),
+      loadNotificationRecipients(organizationId).catch((e) => {
+        throw new Error(`[notification recipients] ${describeError(e)}`);
+      }),
+      loadStageMeta(organizationId).catch((e) => {
+        throw new Error(`[stage meta] ${describeError(e)}`);
+      }),
     ]);
 
     // Leads used to be fetched into one array for the whole account (up to
@@ -1008,7 +1014,9 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       const pageData = (await amoFetch(
         conn,
         `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies${sinceFilter}`,
-      )) as { _embedded?: { leads?: AmoLead[] } } | null;
+      ).catch((e) => {
+        throw new Error(`[page ${page} leads-fetch] ${describeError(e)}`);
+      })) as { _embedded?: { leads?: AmoLead[] } } | null;
       const pageLeads = dedupeByKey(pageData?._embedded?.leads ?? [], (l) => String(l.id));
       if (pageLeads.length === 0) break;
 
