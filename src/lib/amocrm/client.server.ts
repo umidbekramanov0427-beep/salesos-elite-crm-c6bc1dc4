@@ -20,6 +20,11 @@ type AmoConnection = {
   enabled_user_ids: number[] | null;
   sync_in_progress: boolean;
   sync_started_at: string | null;
+  // How many pages of the *initial* full historical leads backfill (i.e.
+  // while last_synced_at is still null) have been completed so far. Set
+  // when a run exhausts its time budget mid-backfill; cleared once the
+  // backfill actually reaches the end of the account's leads.
+  initial_sync_page: number | null;
 };
 
 function requireEnv(name: string): string {
@@ -981,9 +986,25 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       ? `&filter[updated_at][from]=${Math.floor(new Date(conn.last_synced_at).getTime() / 1000) - SYNC_OVERLAP_SECONDS}`
       : "";
 
+    // The initial backfill (last_synced_at still null) has no since-filter,
+    // so for an account with thousands of leads this loop alone can run
+    // long enough to hit the hosting platform's own request time limit --
+    // which kills the in-flight fetch and reports as a bare "the operation
+    // was aborted", with last_synced_at never getting set so every retry
+    // restarts from page 1 and hits the same wall forever. Cap how long
+    // this loop runs per invocation and pick back up from where it left off
+    // (via initial_sync_page) on the next 5-minute cron tick instead.
+    const LEADS_LOOP_TIME_BUDGET_MS = 15_000;
+    const leadsLoopStartedAt = Date.now();
+    let backfillPaused = false;
+
     let totalSynced = 0;
-    let page = 1;
+    let page = conn.last_synced_at ? 1 : (conn.initial_sync_page ?? 0) + 1;
     for (;;) {
+      if (!conn.last_synced_at && Date.now() - leadsLoopStartedAt > LEADS_LOOP_TIME_BUDGET_MS) {
+        backfillPaused = true;
+        break;
+      }
       const pageData = (await amoFetch(
         conn,
         `/api/v4/leads?limit=250&page=${page}&with=tags,contacts,companies${sinceFilter}`,
@@ -1198,6 +1219,20 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       page += 1;
     }
 
+    if (backfillPaused) {
+      // Out of time budget mid-backfill, not a failure -- persist the
+      // resume page and stop here for this invocation. last_synced_at
+      // must NOT be set yet (that would make the next run use the
+      // since-filtered incremental path and permanently skip every lead
+      // this run never reached), and calls sync is skipped this round to
+      // leave the next tick's whole time budget for finishing the backfill.
+      await supabaseAdmin
+        .from("amocrm_connection")
+        .update({ initial_sync_page: page - 1, last_sync_error: null })
+        .eq("organization_id", organizationId);
+      return { synced: totalSynced };
+    }
+
     let callsSynced = 0;
     // Call sync is best-effort -- a failure here shouldn't fail the whole
     // sync, since leads/contacts/companies are the primary purpose and just
@@ -1216,7 +1251,11 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
 
     await supabaseAdmin
       .from("amocrm_connection")
-      .update({ last_synced_at: new Date().toISOString(), last_sync_error: callsSyncWarning })
+      .update({
+        last_synced_at: new Date().toISOString(),
+        last_sync_error: callsSyncWarning,
+        initial_sync_page: null,
+      })
       .eq("organization_id", organizationId);
     await supabaseAdmin
       .from("integration_settings")
