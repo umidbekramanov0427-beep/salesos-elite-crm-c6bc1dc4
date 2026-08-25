@@ -1426,6 +1426,8 @@ const en: Dict = {
   "amocrm.lastSync": "Last sync",
   "amocrm.never": "Never",
   "amocrm.autoSyncActive": "Auto-sync active — every 5 min",
+  "amocrm.initialSyncInProgress":
+    "Importing your lead history — this can take a few sync cycles for large accounts.",
   "amocrm.leadsCount": "{count} leads",
   "amocrm.adminOnly": "Only admins can connect or sync AmoCRM.",
   "amocrm.syncNow": "Sync now",
@@ -3373,6 +3375,8 @@ const ru: Dict = {
   "amocrm.lastSync": "Последняя синхронизация",
   "amocrm.never": "Никогда",
   "amocrm.autoSyncActive": "Автосинхронизация активна — каждые 5 мин",
+  "amocrm.initialSyncInProgress":
+    "Идёт импорт истории лидов — для больших аккаунтов это может занять несколько циклов синхронизации.",
   "amocrm.leadsCount": "лидов: {count}",
   "amocrm.adminOnly": "Только администраторы могут подключать или синхронизировать AmoCRM.",
   "amocrm.syncNow": "Синхронизировать",
@@ -5349,6 +5353,8 @@ const uz: Dict = {
   "amocrm.lastSync": "Oxirgi sinxronizatsiya",
   "amocrm.never": "Hech qachon",
   "amocrm.autoSyncActive": "Avtomatik sinxronlash faol — har 5 daqiqada",
+  "amocrm.initialSyncInProgress":
+    "Lidlar tarixi import qilinmoqda — katta hajmdagi akkauntlar uchun bu bir necha sinxronlash sikli davom etishi mumkin.",
   "amocrm.leadsCount": "{count} ta lid",
   "amocrm.adminOnly": "Faqat adminlar AmoCRM'ni ulashi yoki sinxronlashi mumkin.",
   "amocrm.syncNow": "Sinxronlash",

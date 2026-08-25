@@ -220,6 +220,7 @@ export type Database = {
           enabled_pipeline_ids: number[] | null;
           enabled_user_ids: number[] | null;
           id: boolean;
+          initial_sync_page: number | null;
           last_sync_error: string | null;
           last_synced_at: string | null;
           organization_id: string;
@@ -236,6 +237,7 @@ export type Database = {
           enabled_pipeline_ids?: number[] | null;
           enabled_user_ids?: number[] | null;
           id?: boolean;
+          initial_sync_page?: number | null;
           last_sync_error?: string | null;
           last_synced_at?: string | null;
           organization_id: string;
@@ -252,6 +254,7 @@ export type Database = {
           enabled_pipeline_ids?: number[] | null;
           enabled_user_ids?: number[] | null;
           id?: boolean;
+          initial_sync_page?: number | null;
           last_sync_error?: string | null;
           last_synced_at?: string | null;
           organization_id?: string;

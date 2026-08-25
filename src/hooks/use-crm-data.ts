@@ -3007,6 +3007,10 @@ export type AmoConnectionStatus = {
   connected_at: string;
   last_synced_at: string | null;
   last_sync_error: string | null;
+  // Set while the initial full historical backfill is still in progress
+  // (paused by its per-run time budget, resuming on the next 5-minute
+  // cron tick) -- null once that backfill has fully completed.
+  initial_sync_page: number | null;
 };
 
 /** The connected org's own AmoCRM sync status/error — super_admin only (RLS). Polls every 3s so the Integrations page reflects a sync as it happens, without a manual refresh. */
@@ -3023,7 +3027,7 @@ export function useAmoConnectionStatus() {
     queryFn: async (): Promise<AmoConnectionStatus | null> => {
       const { data, error } = await supabase
         .from("amocrm_connection")
-        .select("subdomain, connected_at, last_synced_at, last_sync_error")
+        .select("subdomain, connected_at, last_synced_at, last_sync_error, initial_sync_page")
         .maybeSingle();
       if (error) throw error;
       return data;
