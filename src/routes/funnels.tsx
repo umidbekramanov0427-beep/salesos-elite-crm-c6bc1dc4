@@ -511,6 +511,44 @@ function FunnelDetail({
         actions={<DateRangeFilter value={dateFilter} onChange={setDateFilter} />}
       />
 
+      <div className="mb-6">
+        <SectionCard title={t("lb.filters")}>
+          <LeadFilterBar
+            value={filters}
+            onChange={(next) => {
+              void navigate({
+                to: "/funnels",
+                search: {
+                  funnel: next.funnel ?? undefined,
+                  owner: next.ownerId ?? undefined,
+                  stage: next.stageId ?? undefined,
+                  tags: next.tags.length ? next.tags.join(",") : undefined,
+                  q: next.search || undefined,
+                  min: next.amount.min != null ? String(next.amount.min) : undefined,
+                  max: next.amount.max != null ? String(next.amount.max) : undefined,
+                  view,
+                },
+                replace: true,
+              });
+            }}
+            funnels={[]}
+            showFunnelFilter={false}
+            owners={funnelOwners}
+            tags={funnelTags}
+            stages={stages ?? []}
+            view={view}
+            canKanban={canViewPipeline}
+            onViewChange={(v) =>
+              void navigate({
+                to: "/funnels",
+                search: (prev) => ({ ...prev, view: v }),
+                replace: true,
+              })
+            }
+          />
+        </SectionCard>
+      </div>
+
       {isLoading && (
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
@@ -577,41 +615,6 @@ function FunnelDetail({
 
       <div className="mt-8">
         <SectionCard title={t("funnels.gallery")} description={t("funnels.galleryDesc")}>
-          <div className="mb-5">
-            <LeadFilterBar
-              value={filters}
-              onChange={(next) => {
-                void navigate({
-                  to: "/funnels",
-                  search: {
-                    funnel: next.funnel ?? undefined,
-                    owner: next.ownerId ?? undefined,
-                    stage: next.stageId ?? undefined,
-                    tags: next.tags.length ? next.tags.join(",") : undefined,
-                    q: next.search || undefined,
-                    min: next.amount.min != null ? String(next.amount.min) : undefined,
-                    max: next.amount.max != null ? String(next.amount.max) : undefined,
-                    view,
-                  },
-                  replace: true,
-                });
-              }}
-              funnels={[]}
-              showFunnelFilter={false}
-              owners={funnelOwners}
-              tags={funnelTags}
-              stages={stages ?? []}
-              view={view}
-              canKanban={canViewPipeline}
-              onViewChange={(v) =>
-                void navigate({
-                  to: "/funnels",
-                  search: (prev) => ({ ...prev, view: v }),
-                  replace: true,
-                })
-              }
-            />
-          </div>
           {view === "kanban" ? (
             <PipelineBoard funnel={name} leads={gallery} stages={stages ?? []} />
           ) : gallery.length === 0 ? (
