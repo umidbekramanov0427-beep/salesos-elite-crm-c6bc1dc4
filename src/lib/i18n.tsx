@@ -409,6 +409,8 @@ const en: Dict = {
 
   "login.title": "Sign in to SalesOS Elite",
   "login.subtitle": "The operating system that delivers steady results",
+  "login.welcomeBack": "Welcome back",
+  "login.welcomeBackDesc": "Sign in to your account and pick up right where you left off.",
   "login.tagline": "Deep analytics • Precise steps • Steady results",
   "login.email": "Email",
   "login.password": "Password",
@@ -2368,6 +2370,8 @@ const ru: Dict = {
 
   "login.title": "Вход в SalesOS Elite",
   "login.subtitle": "Операционная система, обеспечивающая стабильный результат",
+  "login.welcomeBack": "С возвращением",
+  "login.welcomeBackDesc": "Войдите в свой аккаунт и продолжите с того места, где остановились.",
   "login.tagline": "Глубокая аналитика • Точные шаги • Стабильный результат",
   "login.email": "Эл. почта",
   "login.password": "Пароль",
@@ -4329,6 +4333,8 @@ const uz: Dict = {
 
   "login.title": "SalesOS Elite tizimiga kirish",
   "login.subtitle": "Barqaror natijani ta'minlovchi operatsion tizim",
+  "login.welcomeBack": "Xush kelibsiz",
+  "login.welcomeBackDesc": "Hisobingizga kiring va ishni qolgan joyidan davom ettiring.",
   "login.tagline": "Chuqur analitika • Aniq qadamlar • Barqaror natija",
   "login.email": "Email",
   "login.password": "Parol",
