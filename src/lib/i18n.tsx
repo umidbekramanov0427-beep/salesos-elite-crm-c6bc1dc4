@@ -23,6 +23,7 @@ const en: Dict = {
 
   "nav./": "Leaderboard",
   "nav./dashboard": "Dashboard",
+  "nav./daily-report": "Daily Report",
   "nav./funnels": "Funnels",
   "nav./analytics": "Sales Analytics",
   "nav./lead-analytics": "Lead Analytics",
@@ -446,6 +447,8 @@ const en: Dict = {
 
   "dash.title": "Dashboard",
   "dash.desc": "The operating center of your revenue team.",
+  "dailyReport.title": "Daily Report",
+  "dailyReport.desc": "Every manager's real numbers: revenue, conversion, KPI and plan.",
   "dash.greetingMorning": "Good morning",
   "dash.greetingAfternoon": "Good afternoon",
   "dash.greetingEvening": "Good evening",
@@ -1985,6 +1988,7 @@ const ru: Dict = {
 
   "nav./": "Лидерборд",
   "nav./dashboard": "Дашборд",
+  "nav./daily-report": "Дневной отчёт",
   "nav./funnels": "Воронки",
   "nav./analytics": "Аналитика продаж",
   "nav./lead-analytics": "Аналитика лидов",
@@ -2407,6 +2411,8 @@ const ru: Dict = {
 
   "dash.title": "Дашборд",
   "dash.desc": "Операционный центр вашей команды продаж.",
+  "dailyReport.title": "Дневной отчёт",
+  "dailyReport.desc": "Реальные показатели каждого менеджера: доход, конверсия, KPI и план.",
   "dash.greetingMorning": "Доброе утро",
   "dash.greetingAfternoon": "Добрый день",
   "dash.greetingEvening": "Добрый вечер",
@@ -3943,6 +3949,7 @@ const uz: Dict = {
 
   "nav./": "Reyting",
   "nav./dashboard": "Boshqaruv paneli",
+  "nav./daily-report": "Kunlik hisobot",
   "nav./funnels": "Voronkalar",
   "nav./analytics": "Sotuv tahlili",
   "nav./lead-analytics": "Lid tahlili",
@@ -4372,6 +4379,9 @@ const uz: Dict = {
 
   "dash.title": "Boshqaruv paneli",
   "dash.desc": "Sotuv jamoangizning boshqaruv markazi.",
+  "dailyReport.title": "Kunlik hisobot",
+  "dailyReport.desc":
+    "Har bir menejerning haqiqiy ko'rsatkichlari: tushum, konversiya, KPI va reja.",
   "dash.greetingMorning": "Xayrli tong",
   "dash.greetingAfternoon": "Xayrli kun",
   "dash.greetingEvening": "Xayrli kech",

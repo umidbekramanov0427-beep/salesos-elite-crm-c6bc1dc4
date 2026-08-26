@@ -1,6 +1,7 @@
 import {
   Trophy,
   LayoutDashboard,
+  FileBarChart,
   Workflow,
   ClipboardList,
   AudioLines,
@@ -48,6 +49,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     group: "general",
     iconColor: "text-blue-500",
+  },
+  {
+    label: "Daily Report",
+    to: "/daily-report",
+    icon: FileBarChart,
+    group: "general",
+    iconColor: "text-lime-500",
   },
   {
     label: "Funnels",
