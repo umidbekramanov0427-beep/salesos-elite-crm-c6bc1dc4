@@ -15,6 +15,7 @@ import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
+import { Route as DailyReportRouteImport } from './routes/daily-report'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FunnelsRouteImport } from './routes/funnels'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -106,6 +107,11 @@ const AudioAnalyticsRoute = AudioAnalyticsRouteImport.update({
 const CrmStagesRoute = CrmStagesRouteImport.update({
   id: '/crm-stages',
   path: '/crm-stages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DailyReportRoute = DailyReportRouteImport.update({
+  id: '/daily-report',
+  path: '/daily-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -439,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
+  '/daily-report': typeof DailyReportRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -509,6 +516,7 @@ export interface FileRoutesByTo {
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
+  '/daily-report': typeof DailyReportRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -580,6 +588,7 @@ export interface FileRoutesById {
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
+  '/daily-report': typeof DailyReportRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -652,6 +661,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
+    | '/daily-report'
     | '/dashboard'
     | '/funnels'
     | '/inbox'
@@ -722,6 +732,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
+    | '/daily-report'
     | '/dashboard'
     | '/funnels'
     | '/inbox'
@@ -792,6 +803,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/audio-analytics'
     | '/crm-stages'
+    | '/daily-report'
     | '/dashboard'
     | '/funnels'
     | '/inbox'
@@ -863,6 +875,7 @@ export interface RootRouteChildren {
   AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   CrmStagesRoute: typeof CrmStagesRoute
+  DailyReportRoute: typeof DailyReportRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
@@ -947,6 +960,13 @@ declare module '@tanstack/react-router' {
       path: '/crm-stages'
       fullPath: '/crm-stages'
       preLoaderRoute: typeof CrmStagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/daily-report': {
+      id: '/daily-report'
+      path: '/daily-report'
+      fullPath: '/daily-report'
+      preLoaderRoute: typeof DailyReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1485,6 +1505,7 @@ const rootRouteChildren: RootRouteChildren = {
   AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   CrmStagesRoute: CrmStagesRoute,
+  DailyReportRoute: DailyReportRoute,
   DashboardRoute: DashboardRouteWithChildren,
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,

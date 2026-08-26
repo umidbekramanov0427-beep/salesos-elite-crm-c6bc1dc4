@@ -15,12 +15,14 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlarmClockOff,
   AlertTriangle,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
   GitBranch,
   ListChecks,
+  PhoneCall,
   PhoneMissed,
   User,
   Users,
@@ -32,6 +34,8 @@ import { cn } from "@/lib/utils";
 import {
   useAmoCrmTaskStats,
   useDailyReportStats,
+  useFunnelCallStats,
+  useFunnelStats,
   type DailyReportScope,
   type DailyReportStats,
   type ProfileRow,
@@ -298,8 +302,145 @@ function RatioDonut({
 }
 
 /* ------------------------------------------------------------------ */
-/* Main export -- wired into dashboard.tsx in place of the old FIX23   */
-/* AI-only daily report card.                                          */
+/* The 8 headline KPI cards, self-contained (runs its own funnel/call/  */
+/* task stats hooks) so both dashboard.tsx and daily-report.tsx can     */
+/* render the same block from just a `funnel` value, without either     */
+/* page having to compute or pass down the underlying stats itself.     */
+/* ------------------------------------------------------------------ */
+
+export function DashboardKpiCards({ funnel }: { funnel: string | null }) {
+  const { t } = useI18n();
+  const { format } = useCurrency();
+
+  // Same per-funnel computation Reyting uses (raw leads + pipeline_stages,
+  // not the dashboard_kpis RPC) -- these 8 cards are all about one funnel's
+  // real pipeline shape, which that RPC was never built to answer.
+  const funnelStats = useFunnelStats(funnel);
+  const callStats = useFunnelCallStats(funnel);
+  const taskStats = useAmoCrmTaskStats(funnel);
+
+  // "Kutilayotgan konversiya" -- the org's fixed expected conversion rate,
+  // used only to project potential/lost revenue below (not a real measured
+  // number, so it isn't sourced from any hook).
+  const EXPECTED_CONVERSION = 0.15;
+  const potentialSalesCount = Math.round(funnelStats.totalLeads * EXPECTED_CONVERSION);
+  const potentialRevenue = potentialSalesCount * funnelStats.avgCheck;
+  const lostRevenue = funnelStats.lostCount * EXPECTED_CONVERSION * funnelStats.avgCheck;
+
+  function formatCallDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard
+        label={t("dash.card.totalLeads")}
+        value={String(funnelStats.totalLeads)}
+        info={t("dash.card.totalLeadsInfo")}
+      />
+      <StatCard
+        label={t("dash.card.totalRevenue")}
+        value={format(funnelStats.totalRevenue)}
+        tone="mint"
+        info={t("dash.card.totalRevenueInfo")}
+      />
+      <StatCard
+        label={t("dash.card.conversion")}
+        value={`${funnelStats.conversion.toFixed(1)}%`}
+        hint={t("dash.card.expectedConversion")}
+        info={t("dash.card.conversionInfo")}
+      />
+      <StatCard
+        label={t("dash.card.potentialSales")}
+        value={String(potentialSalesCount)}
+        hint={format(potentialRevenue)}
+        tone="mint"
+        info={t("dash.card.potentialSalesInfo")}
+      />
+      <StatCard
+        label={t("dash.card.lostLeads")}
+        value={String(funnelStats.lostCount)}
+        info={t("dash.card.lostLeadsInfo")}
+      />
+      <StatCard
+        label={t("dash.card.lostRevenue")}
+        value={format(lostRevenue)}
+        tone="danger-soft"
+        info={t("dash.card.lostRevenueInfo")}
+      />
+
+      <div className="surface-card relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-violet-500">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+          {t("dash.card.tasks")}
+          <InfoTip text={t("dash.card.tasksInfo")} />
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-success/10 p-3">
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-success">
+              <CalendarClock className="h-3 w-3" />
+              {t("dash.card.tasksDueToday")}
+            </p>
+            <p className="mt-2 text-[26px] font-bold leading-none tabular-nums text-success">
+              {taskStats.data?.dueToday ?? 0}
+            </p>
+          </div>
+          <div className="rounded-xl bg-destructive/10 p-3">
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
+              <AlarmClockOff className="h-3 w-3" />
+              {t("dash.card.tasksOverdue")}
+            </p>
+            <p className="mt-2 text-[26px] font-bold leading-none tabular-nums text-destructive">
+              {taskStats.data?.overdue ?? 0}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="surface-card relative overflow-hidden p-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-blue-500">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+          <PhoneCall className="h-3.5 w-3.5" />
+          {t("dash.card.callTime")}
+          <InfoTip text={t("dash.card.callTimeInfo")} />
+        </p>
+        <p className="mt-1 text-xs font-medium text-subtle">
+          {t("dash.card.callTimeManagers", { count: callStats.managerCount })}
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div>
+            <p className="text-lg font-bold leading-none tabular-nums text-foreground">
+              {formatCallDuration(callStats.totalSeconds)}
+            </p>
+            <p className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-subtle">
+              {t("dash.card.callTimeTotal")}
+            </p>
+          </div>
+          <div>
+            <p className="text-lg font-bold leading-none tabular-nums text-foreground">
+              {formatCallDuration(callStats.avgSecondsPerManager)}
+            </p>
+            <p className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-subtle">
+              {t("dash.card.callTimeAvg")}
+            </p>
+          </div>
+          <div>
+            <p className="text-lg font-bold leading-none tabular-nums text-foreground">
+              {callStats.avgContactsPerManager}
+            </p>
+            <p className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-subtle">
+              {t("dash.card.callTimeContacts")}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main export -- wired into daily-report.tsx (moved out of            */
+/* dashboard.tsx so it's its own sidebar page).                        */
 /* ------------------------------------------------------------------ */
 
 // The whole page's filter state (funnel/team/operator/date/amount)
@@ -337,10 +478,10 @@ export function DashboardDailyReport({
   funnelNames: string[];
   rops: ProfileRow[];
   operators: ProfileRow[];
-  // The page's 8 headline KPI cards -- computed in dashboard.tsx (they need
-  // funnelStats/callStats/taskStats from that scope) but rendered here, right
-  // below the day-strip, so they visually sit inside this card instead of
-  // appearing far down the page after the whole report body.
+  // The page's 8 headline KPI cards -- callers pass <DashboardKpiCards
+  // funnel={funnel} /> (declared above), rendered here right below the
+  // day-strip so they visually sit inside this card instead of appearing
+  // far down the page after the whole report body.
   kpiCards: ReactNode;
 }) {
   const { t } = useI18n();
