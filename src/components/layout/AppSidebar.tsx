@@ -239,12 +239,18 @@ function FunnelsNavGroup({
         )}
       >
         <item.icon
+          strokeWidth={active ? 2.5 : 2}
           className={cn(
             "h-6 w-6 shrink-0",
             active ? "text-sidebar-active-foreground" : "text-sidebar-muted",
           )}
         />
-        <span className="w-full whitespace-normal break-words text-[11px] font-semibold leading-tight">
+        <span
+          className={cn(
+            "w-full whitespace-normal break-words text-[11px] leading-tight",
+            active ? "font-bold" : "font-semibold",
+          )}
+        >
           {t(`nav.${item.to}`)}
         </span>
       </Link>
@@ -367,7 +373,10 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
           !active && isActivityLog && "hover:bg-destructive/15 hover:text-destructive",
           !active && !isSettings && !isActivityLog && "hover:bg-accent",
           collapsed
-            ? "w-full flex-col justify-center gap-1 rounded-lg px-1.5 py-2.5 text-center text-[11px] font-semibold leading-tight"
+            ? cn(
+                "w-full flex-col justify-center gap-1 rounded-lg px-1.5 py-2.5 text-center text-[11px] leading-tight",
+                active ? "font-bold" : "font-semibold",
+              )
             : cn(
                 "w-full gap-3 rounded-lg border-l-2 py-2 pl-[10px] pr-3 text-base font-bold",
                 active ? "border-mint" : "border-transparent",
@@ -375,6 +384,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         )}
       >
         <item.icon
+          strokeWidth={active ? 2.5 : 2}
           className={cn(
             collapsed ? "h-6 w-6" : "h-[18px] w-[18px]",
             "shrink-0 transition-colors",
