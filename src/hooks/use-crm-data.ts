@@ -1008,6 +1008,30 @@ export function usePipelineBoardLeads(funnel: string | null) {
   };
 }
 
+// Several Dashboard hooks (funnel KPI cards, Sotuv tahlili, Yo'qotish
+// sabablari, Sotuv dinamikasi, Konversiya sifati) used to call useLeadsRaw()
+// unconditionally and filter by funnel client-side -- the exact full-org
+// fetch the comment above usePipelineBoardLeadsRaw already identified as
+// the cause of the Pipeline board never finishing on a large AmoCRM account.
+// Once a funnel is picked, these showed 0 (the fetch was still resolving)
+// even though the same funnel's leads were already visible instantly on
+// Voronkalar, which reads via that funnel-scoped server query. Reuse it
+// here too: fetch only this funnel's leads server-side when one is
+// selected, and only fall back to the full org-wide fetch when none is.
+function useFunnelScopedLeads(
+  funnel: string | null,
+  enabled = true,
+): {
+  data: LeadRow[] | undefined;
+  isLoading: boolean;
+} {
+  const scoped = usePipelineBoardLeadsRaw(enabled ? funnel : null);
+  const all = useLeadsRaw({ enabled: enabled && !funnel });
+  return funnel
+    ? { data: scoped.data, isLoading: scoped.isLoading }
+    : { data: all.data, isLoading: all.isLoading };
+}
+
 /* ------------------------------------------------------------------ */
 /* View: Funnels list -- one row per funnel, aggregated server-side.   */
 /* The /funnels page (no funnel selected) used to pull the whole org's */
@@ -1938,7 +1962,7 @@ export function useSalesAnalyticsSummary(
   // range has no sound meaning for them.
   dateRange?: { from: Date | null; to: Date | null },
 ): SalesAnalyticsSummary {
-  const { data: leads } = useLeadsRaw();
+  const { data: leads } = useFunnelScopedLeads(funnel ?? null);
   const { data: stages } = usePipelineStagesRaw();
   const { data: profiles } = useProfilesRaw();
 
@@ -2056,7 +2080,7 @@ export function useLostReasonsSummary(
   funnel?: string | null,
   dateRange?: { from: Date | null; to: Date | null },
 ): LostReasonBucket[] {
-  const { data: leads } = useLeadsRaw();
+  const { data: leads } = useFunnelScopedLeads(funnel ?? null);
   const { data: stages } = usePipelineStagesRaw();
 
   return useMemo(() => {
@@ -2110,7 +2134,7 @@ export type DealFlowWeek = {
 /* -- a cohort-outcome view, not a true week-by-week transition ledger.  */
 /* ------------------------------------------------------------------ */
 export function useDealFlowWeekly(funnel: string | null, weeks = 8): DealFlowWeek[] {
-  const { data: leads } = useLeadsRaw();
+  const { data: leads } = useFunnelScopedLeads(funnel);
   const { data: stages } = usePipelineStagesRaw();
 
   return useMemo(() => {
@@ -2178,7 +2202,7 @@ export function useConversionQualityWeekly(
   scoreMax: number,
   weeks = 12,
 ): { rows: ConversionQualityWeek[]; correlation: number | null } {
-  const { data: leads } = useLeadsRaw();
+  const { data: leads } = useFunnelScopedLeads(funnel);
   const { data: stages } = usePipelineStagesRaw();
   const { data: calls } = useAmoCrmCallsRaw();
 
@@ -4586,7 +4610,10 @@ export function useFunnelStats(
   opts?: { overrideLeads?: LeadRow[] | undefined },
 ): FunnelStats {
   const useOverride = !!opts?.overrideLeads;
-  const { data: liveLeads, isLoading: liveLeadsLoading } = useLeadsRaw();
+  const { data: liveLeads, isLoading: liveLeadsLoading } = useFunnelScopedLeads(
+    funnel ?? null,
+    !useOverride,
+  );
   const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
   const visibleOwnerIds = useVisibleOwnerIds();
   const leads = useOverride ? opts?.overrideLeads : liveLeads;
