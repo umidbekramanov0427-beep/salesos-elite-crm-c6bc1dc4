@@ -48,7 +48,6 @@ import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analyt
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
-import { Route as CrmPipelineRouteImport } from './routes/crm.pipeline'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
@@ -278,11 +277,6 @@ const CrmDealsRoute = CrmDealsRouteImport.update({
   path: '/crm/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CrmPipelineRoute = CrmPipelineRouteImport.update({
-  id: '/crm/pipeline',
-  path: '/crm/pipeline',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardAmocrmTasksRoute = DashboardAmocrmTasksRouteImport.update({
   id: '/amocrm-tasks',
   path: '/amocrm-tasks',
@@ -478,7 +472,6 @@ export interface FileRoutesByFullPath {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
-  '/crm/pipeline': typeof CrmPipelineRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -549,7 +542,6 @@ export interface FileRoutesByTo {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
-  '/crm/pipeline': typeof CrmPipelineRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -621,7 +613,6 @@ export interface FileRoutesById {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
-  '/crm/pipeline': typeof CrmPipelineRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -694,7 +685,6 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
-    | '/crm/pipeline'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -765,7 +755,6 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
-    | '/crm/pipeline'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -836,7 +825,6 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
-    | '/crm/pipeline'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -892,7 +880,6 @@ export interface RootRouteChildren {
   CrmCompaniesRoute: typeof CrmCompaniesRoute
   CrmContactsRoute: typeof CrmContactsRoute
   CrmDealsRoute: typeof CrmDealsRoute
-  CrmPipelineRoute: typeof CrmPipelineRoute
   ErrorsLogRoute: typeof ErrorsLogRoute
   NotificationsSendPushRoute: typeof NotificationsSendPushRoute
   PlatformActivityRoute: typeof PlatformActivityRoute
@@ -1191,13 +1178,6 @@ declare module '@tanstack/react-router' {
       path: '/crm/deals'
       fullPath: '/crm/deals'
       preLoaderRoute: typeof CrmDealsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm/pipeline': {
-      id: '/crm/pipeline'
-      path: '/crm/pipeline'
-      fullPath: '/crm/pipeline'
-      preLoaderRoute: typeof CrmPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/amocrm-tasks': {
@@ -1523,7 +1503,6 @@ const rootRouteChildren: RootRouteChildren = {
   CrmCompaniesRoute: CrmCompaniesRoute,
   CrmContactsRoute: CrmContactsRoute,
   CrmDealsRoute: CrmDealsRoute,
-  CrmPipelineRoute: CrmPipelineRoute,
   ErrorsLogRoute: ErrorsLogRoute,
   NotificationsSendPushRoute: NotificationsSendPushRoute,
   PlatformActivityRoute: PlatformActivityRoute,

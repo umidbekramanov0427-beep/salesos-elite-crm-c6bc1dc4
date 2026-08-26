@@ -41,12 +41,9 @@ const LANG_NAME: Record<Lang, string> = { uz: "o'zbek", ru: "русский", en
 export const Route = createFileRoute("/crm/leads/$leadId")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { from?: "pipeline" | "funnels" | "audio" | "leadTasks" | undefined } => ({
+  ): { from?: "funnels" | "audio" | "leadTasks" | undefined } => ({
     from:
-      search["from"] === "pipeline" ||
-      search["from"] === "funnels" ||
-      search["from"] === "audio" ||
-      search["from"] === "leadTasks"
+      search["from"] === "funnels" || search["from"] === "audio" || search["from"] === "leadTasks"
         ? search["from"]
         : undefined,
   }),
@@ -197,7 +194,6 @@ function LeadHistorySection({ leadId }: { leadId: string }) {
 }
 
 const BACK_LABEL_KEY: Record<string, string> = {
-  pipeline: "lead.backFromPipeline",
   funnels: "funnels.backToFunnels",
   audio: "lead.backFromAudio",
   leadTasks: "lead.backFromLeadTasks",
