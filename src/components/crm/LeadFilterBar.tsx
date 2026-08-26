@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   ChevronDown,
   GitBranch,
+  KanbanSquare,
   LayoutGrid,
   List,
   ListFilter,
@@ -122,38 +123,50 @@ export function LeadFilterBar({
   value,
   onChange,
   funnels,
+  showFunnelFilter = true,
   owners,
   tags,
   stages,
   view,
   onViewChange,
+  canKanban = true,
 }: {
   value: LeadFilterState;
   onChange: (v: LeadFilterState) => void;
   funnels: string[];
+  // Hidden inside a single funnel's own detail view (Funnels), where a
+  // funnel picker would be redundant -- still shown on pages that list
+  // leads across every funnel at once.
+  showFunnelFilter?: boolean;
   owners: ProfileRow[];
   tags: string[];
   stages: StageRow[];
-  view?: "gallery" | "list";
-  onViewChange?: (v: "gallery" | "list") => void;
+  view?: "kanban" | "gallery" | "list";
+  onViewChange?: (v: "kanban" | "gallery" | "list") => void;
+  // The AmoCRM board used to be its own permission-gated page ("View
+  // pipeline"); folded in as a view mode here, that gate now just hides
+  // this one option instead of the whole funnel.
+  canKanban?: boolean;
 }) {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <FilterSelect
-        icon={GitBranch}
-        label={t("leadFilter.funnelLabel")}
-        value={value.funnel ?? ""}
-        onChange={(v) => onChange({ ...value, funnel: v || null })}
-      >
-        <option value="">{t("leadFilter.allFunnels")}</option>
-        {funnels.map((f) => (
-          <option key={f} value={f}>
-            {f}
-          </option>
-        ))}
-      </FilterSelect>
+      {showFunnelFilter && (
+        <FilterSelect
+          icon={GitBranch}
+          label={t("leadFilter.funnelLabel")}
+          value={value.funnel ?? ""}
+          onChange={(v) => onChange({ ...value, funnel: v || null })}
+        >
+          <option value="">{t("leadFilter.allFunnels")}</option>
+          {funnels.map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+        </FilterSelect>
+      )}
 
       <FilterSelect
         icon={User}
@@ -206,18 +219,20 @@ export function LeadFilterBar({
 
       {view && onViewChange && (
         <div className="ml-auto inline-flex h-10 items-center gap-1 rounded-full border border-border p-1">
-          <button
-            type="button"
-            onClick={() => onViewChange("gallery")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
-              view === "gallery"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent",
-            )}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" /> {t("leadFilter.gallery")}
-          </button>
+          {canKanban && (
+            <button
+              type="button"
+              onClick={() => onViewChange("kanban")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                view === "kanban"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              <KanbanSquare className="h-3.5 w-3.5" /> {t("leadFilter.kanban")}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onViewChange("list")}
@@ -229,6 +244,18 @@ export function LeadFilterBar({
             )}
           >
             <List className="h-3.5 w-3.5" /> {t("leadFilter.list")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange("gallery")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+              view === "gallery"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent",
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" /> {t("leadFilter.gallery")}
           </button>
         </div>
       )}

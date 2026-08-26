@@ -7,7 +7,6 @@ import {
   AudioLines,
   Settings,
   ShieldCheck,
-  KanbanSquare,
   Sparkles,
   Clock,
   Building2,
@@ -63,13 +62,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Workflow,
     group: "general",
     iconColor: "text-indigo-500",
-  },
-  {
-    label: "AmoCRM",
-    to: "/crm/pipeline",
-    icon: KanbanSquare,
-    group: "general",
-    iconColor: "text-cyan-500",
   },
   {
     label: "Audio Analytics",

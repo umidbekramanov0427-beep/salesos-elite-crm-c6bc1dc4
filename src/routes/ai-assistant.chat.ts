@@ -609,8 +609,7 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 - /crm/companies — Companies
 - /crm/deals — Deals
 - /crm-stages — Permissions matrix: which roles can do what
-- /funnels — Funnels: pipeline visualization and stage conversion
-- /crm/pipeline — AmoCRM: drag-and-drop pipeline board synced from AmoCRM
+- /funnels — Funnels: stage conversion analysis per funnel, plus (inside a funnel) a Kanban/list/gallery lead board synced from AmoCRM
 - /tasks — Important Tasks: company-wide task board
 - /lead-tasks — Lead Tasks: every open task grouped by its lead
 - /audio-analytics — Audio Analytics: call volume, connection rate, AI call summaries

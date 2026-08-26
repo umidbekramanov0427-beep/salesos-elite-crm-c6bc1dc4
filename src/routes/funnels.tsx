@@ -17,6 +17,7 @@ import {
 } from "@/components/layout/Primitives";
 import { TagChip } from "@/components/crm/tag-editor";
 import { LeadFilterBar, filterLeads, type LeadFilterState } from "@/components/crm/LeadFilterBar";
+import { PipelineBoard } from "@/components/crm/PipelineBoard";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -25,6 +26,7 @@ import {
   useAmoCrmLink,
   useAmoCrmTaskStats,
   useFunnelListStats,
+  usePermission,
   usePipelineBoardLeads,
   usePipelineStagesRaw,
   useProfilesRaw,
@@ -46,7 +48,7 @@ export const Route = createFileRoute("/funnels")({
     q?: string | undefined;
     min?: string | undefined;
     max?: string | undefined;
-    view?: "gallery" | "list" | undefined;
+    view?: "kanban" | "gallery" | "list" | undefined;
     from?: string | undefined;
     to?: string | undefined;
     label?: string | undefined;
@@ -58,7 +60,10 @@ export const Route = createFileRoute("/funnels")({
     q: typeof search["q"] === "string" ? search["q"] : undefined,
     min: typeof search["min"] === "string" ? search["min"] : undefined,
     max: typeof search["max"] === "string" ? search["max"] : undefined,
-    view: search["view"] === "gallery" || search["view"] === "list" ? search["view"] : undefined,
+    view:
+      search["view"] === "kanban" || search["view"] === "gallery" || search["view"] === "list"
+        ? search["view"]
+        : undefined,
     from: typeof search["from"] === "string" ? search["from"] : undefined,
     to: typeof search["to"] === "string" ? search["to"] : undefined,
     label: typeof search["label"] === "string" ? search["label"] : undefined,
@@ -107,12 +112,7 @@ function Funnels() {
   }
 
   return funnelParam ? (
-    <FunnelDetail
-      name={funnelParam}
-      leads={detailLeads}
-      funnelNames={funnels.map((f) => f.name)}
-      isLoading={isLoading}
-    />
+    <FunnelDetail name={funnelParam} leads={detailLeads} isLoading={isLoading} />
   ) : (
     <FunnelList funnels={funnels} isLoading={isLoading} />
   );
@@ -353,18 +353,20 @@ function LeadListRow({
 function FunnelDetail({
   name,
   leads,
-  funnelNames,
   isLoading,
 }: {
   name: string;
   leads: CrmLeadView[];
-  funnelNames: string[];
   isLoading: boolean;
 }) {
   const { t } = useI18n();
   const { format } = useCurrency();
   const navigate = useNavigate();
   const search = Route.useSearch();
+  // The AmoCRM board used to be its own permission-gated page ("View
+  // pipeline") -- folded in here as a view mode, someone without that
+  // permission just doesn't get the option and stays on list/gallery.
+  const canViewPipeline = usePermission("View pipeline");
 
   // Filters (and the gallery/list toggle) live in the URL, not local state,
   // so refresh/back-navigation returns you to exactly the same filtered
@@ -383,7 +385,13 @@ function FunnelDetail({
     }),
     [name, search.owner, search.tags, search.stage, search.q, search.min, search.max],
   );
-  const view: "gallery" | "list" = search.view === "list" ? "list" : "gallery";
+  // Defaults to the AmoCRM board (the primary way to work a funnel day to
+  // day) unless the role can't see it, in which case gallery is the fallback
+  // -- same as if they'd never had the "AmoCRM" option to pick in the first
+  // place.
+  const requestedView: "kanban" | "gallery" | "list" =
+    search.view === "list" ? "list" : search.view === "gallery" ? "gallery" : "kanban";
+  const view = requestedView === "kanban" && !canViewPipeline ? "gallery" : requestedView;
 
   const dateFilter: DateFilterValue = useMemo(
     () => ({
@@ -588,11 +596,13 @@ function FunnelDetail({
                   replace: true,
                 });
               }}
-              funnels={funnelNames}
+              funnels={[]}
+              showFunnelFilter={false}
               owners={funnelOwners}
               tags={funnelTags}
               stages={stages ?? []}
               view={view}
+              canKanban={canViewPipeline}
               onViewChange={(v) =>
                 void navigate({
                   to: "/funnels",
@@ -602,7 +612,9 @@ function FunnelDetail({
               }
             />
           </div>
-          {gallery.length === 0 ? (
+          {view === "kanban" ? (
+            <PipelineBoard funnel={name} leads={gallery} stages={stages ?? []} />
+          ) : gallery.length === 0 ? (
             <p className="py-10 text-center text-sm text-subtle">{t("funnels.noLeads")}</p>
           ) : view === "gallery" ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
