@@ -2,13 +2,12 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 // Full splash lockup for decorative/marketing placements (the login
-// screen's branding panel): the same flowing-wave mark as Logo.tsx —
-// one bright wave with two fainter trailing ripples behind it, ending
-// in a leading dot — plus the "SalesOS Elite CRM" wordmark on one line
-// beneath it. The wave echoes the login screen's own animated wave
-// graphic. The small in-app icon used everywhere else (sidebar, compact
-// headers) stays Logo.tsx — this version is only meant for a larger,
-// decorative size.
+// screen's branding panel): the same crossing-wave mark as Logo.tsx —
+// a bright emerald/teal "hero" wave with a soft glow, crossing two
+// fainter muted waves behind it — plus the "SalesOS Elite CRM"
+// wordmark on one line beneath it. The small in-app icon used
+// everywhere else (sidebar, compact headers) stays Logo.tsx — this
+// version is only meant for a larger, decorative size.
 export function BrandMark({
   className,
   iconClassName,
@@ -18,7 +17,8 @@ export function BrandMark({
   iconClassName?: string;
   wordmarkClassName?: string;
 }) {
-  const waveGrad = useId();
+  const heroGrad = useId();
+  const glowId = useId();
 
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
@@ -30,39 +30,45 @@ export function BrandMark({
       >
         <defs>
           <linearGradient
-            id={waveGrad}
-            x1="8"
+            id={heroGrad}
+            x1="4"
             y1="60"
-            x2="90"
-            y2="36"
+            x2="96"
+            y2="35"
             gradientUnits="userSpaceOnUse"
           >
-            <stop offset="0" stopColor="#14532D" />
-            <stop offset="0.55" stopColor="#16A34A" />
-            <stop offset="1" stopColor="#4ADE80" />
+            <stop offset="0" stopColor="#10B981" />
+            <stop offset="1" stopColor="#5EEAD4" />
           </linearGradient>
+          <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
         <path
-          d="M4 50 C16 22 32 22 42 44 C52 66 68 66 80 36"
-          stroke="#16A34A"
-          strokeOpacity="0.18"
-          strokeWidth="5"
+          d="M6 68 C24 45 40 80 55 60 C70 40 84 72 94 50"
+          stroke="#64748B"
+          strokeOpacity="0.28"
+          strokeWidth="2.5"
           strokeLinecap="round"
         />
         <path
-          d="M8 54 C20 26 36 26 46 48 C56 70 72 70 84 40"
-          stroke="#16A34A"
-          strokeOpacity="0.35"
-          strokeWidth="6"
+          d="M6 40 C22 65 38 20 52 50 C68 75 82 30 94 55"
+          stroke="#94A3B8"
+          strokeOpacity="0.4"
+          strokeWidth="3"
           strokeLinecap="round"
         />
         <path
-          d="M12 58 C24 30 40 30 50 52 C60 74 76 74 88 44"
-          stroke={`url(#${waveGrad})`}
-          strokeWidth="9"
+          d="M6 55 C20 25 35 70 50 45 C65 20 80 60 94 35"
+          stroke={`url(#${heroGrad})`}
+          strokeWidth="5.5"
           strokeLinecap="round"
+          filter={`url(#${glowId})`}
         />
-        <circle cx="88" cy="44" r="4.5" fill="#86EFAC" />
       </svg>
 
       <p
