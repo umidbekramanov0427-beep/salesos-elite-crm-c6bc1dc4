@@ -313,7 +313,7 @@ function FunnelsNavGroup({
         to={item.to}
         title={t(`nav.${item.to}`)}
         className={cn(
-          "group flex w-full flex-col items-center justify-center gap-1 rounded-lg px-1 py-2.5 text-center transition-colors duration-150",
+          "group flex w-full flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3.5 text-center transition-colors duration-150",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
             : "text-sidebar-foreground hover:bg-accent",
@@ -321,11 +321,11 @@ function FunnelsNavGroup({
       >
         <item.icon
           className={cn(
-            "h-5 w-5 shrink-0",
+            "h-8 w-8 shrink-0",
             active ? "text-sidebar-active-foreground" : "text-sidebar-muted",
           )}
         />
-        <span className="w-full truncate text-[10px] font-semibold leading-tight">
+        <span className="w-full whitespace-normal break-words text-[13px] font-semibold leading-tight">
           {t(`nav.${item.to}`)}
         </span>
       </Link>
@@ -449,7 +449,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
           !active && isActivityLog && "hover:bg-destructive/15 hover:text-destructive",
           !active && !isSettings && !isActivityLog && "hover:bg-accent",
           collapsed
-            ? "w-full flex-col justify-center gap-1 rounded-lg px-1 py-2.5 text-center text-[10px] font-semibold leading-tight"
+            ? "w-full flex-col justify-center gap-1.5 rounded-xl px-2 py-3.5 text-center text-[13px] font-semibold leading-tight"
             : cn(
                 "w-full gap-3 rounded-lg border-l-2 py-2 pl-[10px] pr-3 text-base font-bold",
                 active ? "border-mint" : "border-transparent",
@@ -458,13 +458,13 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       >
         <item.icon
           className={cn(
-            collapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+            collapsed ? "h-8 w-8" : "h-[18px] w-[18px]",
             "shrink-0 transition-colors",
             active ? "text-sidebar-active-foreground" : "text-sidebar-muted",
           )}
         />
         {collapsed ? (
-          <span className="w-full truncate">{t(`nav.${item.to}`)}</span>
+          <span className="w-full whitespace-normal break-words">{t(`nav.${item.to}`)}</span>
         ) : (
           <>
             <span className="truncate">{t(`nav.${item.to}`)}</span>
@@ -525,7 +525,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       <aside
         className={cn(
           "sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",
-          collapsed ? "w-[92px]" : "w-[264px]",
+          collapsed ? "w-[176px]" : "w-[264px]",
         )}
       >
         <div className="flex h-16 items-center gap-2.5 px-4">
@@ -550,7 +550,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
     <aside
       className={cn(
         "sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",
-        collapsed ? "w-[76px]" : "w-[264px]",
+        collapsed ? "w-[176px]" : "w-[264px]",
       )}
     >
       <div className="flex h-16 items-center gap-2.5 px-4">
