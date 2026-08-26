@@ -302,6 +302,112 @@ function RatioDonut({
 }
 
 /* ------------------------------------------------------------------ */
+/* The Team/Operator/Funnel/Date/Amount filter tiles, shared between    */
+/* DashboardDailyReport (below) and dashboard.tsx's own filter card --  */
+/* both pages need the same row, just wired to their own separate       */
+/* filter state.                                                        */
+/* ------------------------------------------------------------------ */
+
+export function DashboardFilterRow({
+  funnel,
+  onFunnelChange,
+  teamId,
+  onTeamChange,
+  operatorId,
+  onOperatorChange,
+  dateFilter,
+  onDateFilterChange,
+  amountRange,
+  onAmountRangeChange,
+  funnelNames,
+  rops,
+  operators,
+}: {
+  funnel: string | null;
+  onFunnelChange: (v: string | null) => void;
+  teamId: string | null;
+  onTeamChange: (v: string | null) => void;
+  operatorId: string | null;
+  onOperatorChange: (v: string | null) => void;
+  dateFilter: DateFilterValue;
+  onDateFilterChange: (v: DateFilterValue) => void;
+  amountRange: AmountRangeValue;
+  onAmountRangeChange: (v: AmountRangeValue) => void;
+  funnelNames: string[];
+  rops: ProfileRow[];
+  operators: ProfileRow[];
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <FilterTile
+        icon={Users}
+        label={t("leadAnalytics.jamoaLabel")}
+        value={rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams")}
+      >
+        <TileOption
+          label={t("leadAnalytics.allTeams")}
+          active={!teamId}
+          onClick={() => {
+            onTeamChange(null);
+            onOperatorChange(null);
+          }}
+        />
+        {rops.map((r) => (
+          <TileOption
+            key={r.id}
+            label={r.full_name}
+            active={teamId === r.id}
+            onClick={() => {
+              onTeamChange(r.id);
+              onOperatorChange(null);
+            }}
+          />
+        ))}
+      </FilterTile>
+      <FilterTile
+        icon={User}
+        label={t("leadAnalytics.operatorLabel")}
+        value={
+          operators.find((m) => m.id === operatorId)?.full_name ?? t("leadAnalytics.allManagers")
+        }
+      >
+        <TileOption
+          label={t("leadAnalytics.allManagers")}
+          active={!operatorId}
+          onClick={() => onOperatorChange(null)}
+        />
+        {operators.map((m) => (
+          <TileOption
+            key={m.id}
+            label={m.full_name}
+            active={operatorId === m.id}
+            onClick={() => onOperatorChange(m.id)}
+          />
+        ))}
+      </FilterTile>
+      <FilterTile
+        icon={GitBranch}
+        label={t("leadAnalytics.funnelLabel")}
+        value={funnel ?? t("leadFilter.allFunnels")}
+      >
+        <TileOption
+          label={t("leadFilter.allFunnels")}
+          active={!funnel}
+          onClick={() => onFunnelChange(null)}
+        />
+        {funnelNames.map((f) => (
+          <TileOption key={f} label={f} active={funnel === f} onClick={() => onFunnelChange(f)} />
+        ))}
+      </FilterTile>
+      <DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
+      <AmountRangeFilter value={amountRange} onChange={onAmountRangeChange} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* The 8 headline KPI cards, self-contained (runs its own funnel/call/  */
 /* task stats hooks) so both dashboard.tsx and daily-report.tsx can     */
 /* render the same block from just a `funnel` value, without either     */
@@ -578,76 +684,21 @@ export function DashboardDailyReport({
           </div>
         }
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <FilterTile
-            icon={Users}
-            label={t("leadAnalytics.jamoaLabel")}
-            value={rops.find((r) => r.id === teamId)?.full_name ?? t("leadAnalytics.allTeams")}
-          >
-            <TileOption
-              label={t("leadAnalytics.allTeams")}
-              active={!teamId}
-              onClick={() => {
-                onTeamChange(null);
-                onOperatorChange(null);
-              }}
-            />
-            {rops.map((r) => (
-              <TileOption
-                key={r.id}
-                label={r.full_name}
-                active={teamId === r.id}
-                onClick={() => {
-                  onTeamChange(r.id);
-                  onOperatorChange(null);
-                }}
-              />
-            ))}
-          </FilterTile>
-          <FilterTile
-            icon={User}
-            label={t("leadAnalytics.operatorLabel")}
-            value={
-              operators.find((m) => m.id === operatorId)?.full_name ??
-              t("leadAnalytics.allManagers")
-            }
-          >
-            <TileOption
-              label={t("leadAnalytics.allManagers")}
-              active={!operatorId}
-              onClick={() => onOperatorChange(null)}
-            />
-            {operators.map((m) => (
-              <TileOption
-                key={m.id}
-                label={m.full_name}
-                active={operatorId === m.id}
-                onClick={() => onOperatorChange(m.id)}
-              />
-            ))}
-          </FilterTile>
-          <FilterTile
-            icon={GitBranch}
-            label={t("leadAnalytics.funnelLabel")}
-            value={funnel ?? t("leadFilter.allFunnels")}
-          >
-            <TileOption
-              label={t("leadFilter.allFunnels")}
-              active={!funnel}
-              onClick={() => onFunnelChange(null)}
-            />
-            {funnelNames.map((f) => (
-              <TileOption
-                key={f}
-                label={f}
-                active={funnel === f}
-                onClick={() => onFunnelChange(f)}
-              />
-            ))}
-          </FilterTile>
-          <DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
-          <AmountRangeFilter value={amountRange} onChange={onAmountRangeChange} />
-        </div>
+        <DashboardFilterRow
+          funnel={funnel}
+          onFunnelChange={onFunnelChange}
+          teamId={teamId}
+          onTeamChange={onTeamChange}
+          operatorId={operatorId}
+          onOperatorChange={onOperatorChange}
+          dateFilter={dateFilter}
+          onDateFilterChange={onDateFilterChange}
+          amountRange={amountRange}
+          onAmountRangeChange={onAmountRangeChange}
+          funnelNames={funnelNames}
+          rops={rops}
+          operators={operators}
+        />
 
         <PeriodStrip period={period} selected={selected} onSelect={setSelected} t={t} />
       </SectionCard>

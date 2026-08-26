@@ -1,7 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { DashboardFilterRow, DashboardKpiCards } from "@/components/dashboard/DailyReport";
 import {
   ImportantTasksWidget,
   LeadTasksWidget,
@@ -12,6 +13,9 @@ import {
 } from "@/components/dashboard/Widgets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/lib/i18n";
+import { useFunnelNames, useProfilesRaw } from "@/hooks/use-crm-data";
+import type { DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
+import type { AmountRangeValue } from "@/components/filters/AmountRangeFilter";
 
 const RevenueChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.RevenueChart })),
@@ -77,22 +81,74 @@ function ChartSkeleton({ height = 300, className }: { height?: number; className
 function Dashboard() {
   const { t } = useI18n();
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   // Funnel lives in the URL (not local state) so refreshing the page or
   // navigating back keeps whatever was picked instead of resetting to
   // "nothing selected" -- same pattern used across Funnels/AmoCRM/Reyting.
-  // The Kunlik hisobot card (with its own team/operator/date/amount filter
-  // row and the 8 KPI cards) used to live at the top of this page -- it's
-  // now its own sidebar entry (/daily-report), so the charts below just
-  // read `funnel` from this page's own URL instead of a shared filter row.
+  // The 5-section Kunlik hisobot report moved out to its own sidebar page
+  // (/daily-report), but this page keeps its own filter row and the 8 KPI
+  // cards -- they drive the charts below, independent of daily-report's
+  // own filter state.
   const funnel = search.funnel ?? null;
-  // No date-range picker lives on this page anymore (it moved with the
-  // daily report), so the few charts that take a range just get "all time".
-  const allTime = { from: null, to: null };
+  const [teamId, setTeamId] = useState("");
+  const [operatorId, setOperatorId] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    from: null,
+    to: null,
+    label: t("lb.presetAll"),
+  });
+  const [amountRange, setAmountRange] = useState<AmountRangeValue>({ min: null, max: null });
+
+  function setFunnel(v: string | null) {
+    void navigate({ search: (prev) => ({ ...prev, funnel: v ?? undefined }), replace: true });
+  }
+
+  const { names: funnelNames } = useFunnelNames();
+  const { data: profiles } = useProfilesRaw();
+  const rops = useMemo(
+    () =>
+      (profiles ?? [])
+        .filter((p) => p.role === "rop")
+        .slice()
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
+    [profiles],
+  );
+  const operators = useMemo(() => {
+    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (!teamId) return all;
+    return all.filter((p) => p.id === teamId || p.manager_id === teamId);
+  }, [profiles, teamId]);
+
+  const dateRange = { from: dateFilter.from, to: dateFilter.to };
 
   return (
     <>
       <PageHeader title={t("dash.title")} description={t("dash.desc")} />
+
+      <div className="mt-6">
+        <SectionCard title={t("lb.filters")}>
+          <DashboardFilterRow
+            funnel={funnel}
+            onFunnelChange={setFunnel}
+            teamId={teamId || null}
+            onTeamChange={(v) => setTeamId(v ?? "")}
+            operatorId={operatorId || null}
+            onOperatorChange={(v) => setOperatorId(v ?? "")}
+            dateFilter={dateFilter}
+            onDateFilterChange={setDateFilter}
+            amountRange={amountRange}
+            onAmountRangeChange={setAmountRange}
+            funnelNames={funnelNames}
+            rops={rops}
+            operators={operators}
+          />
+        </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <DashboardKpiCards funnel={funnel} />
+      </div>
 
       <div className="mt-6 space-y-6">
         <Suspense fallback={<ChartSkeleton />}>
@@ -111,13 +167,13 @@ function Dashboard() {
           <MonthlyRevenueTrendChart funnel={funnel} />
         </Suspense>
         <Suspense fallback={<ChartSkeleton />}>
-          <RevenueByOwnerChart funnel={funnel} dateRange={allTime} />
+          <RevenueByOwnerChart funnel={funnel} dateRange={dateRange} />
         </Suspense>
       </div>
 
       <div className="mt-6">
         <Suspense fallback={<ChartSkeleton />}>
-          <LostReasonsChart funnel={funnel} dateRange={allTime} />
+          <LostReasonsChart funnel={funnel} dateRange={dateRange} />
         </Suspense>
       </div>
 
@@ -142,7 +198,7 @@ function Dashboard() {
       </div>
 
       <div className="mt-6">
-        <AiInsightsWidget funnel={funnel} dateRange={allTime} />
+        <AiInsightsWidget funnel={funnel} dateRange={dateRange} />
       </div>
 
       <QuickActions />
