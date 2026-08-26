@@ -457,9 +457,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         )}
       >
         <div className="flex h-16 items-center gap-2.5 px-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
-            <Logo className="h-6 w-6" />
-          </div>
+          <Logo className="h-9 w-9 shrink-0" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
               <p className="truncate text-lg font-bold text-foreground">{t("app.name")}</p>
@@ -484,9 +482,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       <div
         className={cn("flex h-16 items-center gap-2.5 px-4", collapsed && "justify-center px-0")}
       >
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
-          <Logo className="h-6 w-6" />
-        </div>
+        <Logo className="h-9 w-9 shrink-0" />
         {!collapsed && (
           <>
             <div className="min-w-0 flex-1">
