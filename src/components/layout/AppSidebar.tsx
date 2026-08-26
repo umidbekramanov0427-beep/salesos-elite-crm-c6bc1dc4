@@ -313,7 +313,7 @@ function FunnelsNavGroup({
         to={item.to}
         title={t(`nav.${item.to}`)}
         className={cn(
-          "group flex w-full items-center justify-center rounded-lg px-0 py-2.5 transition-colors duration-150",
+          "group flex w-full flex-col items-center justify-center gap-1 rounded-lg px-1 py-2.5 text-center transition-colors duration-150",
           active
             ? "bg-sidebar-active text-sidebar-active-foreground"
             : "text-sidebar-foreground hover:bg-accent",
@@ -321,10 +321,13 @@ function FunnelsNavGroup({
       >
         <item.icon
           className={cn(
-            "h-[18px] w-[18px] shrink-0",
-            active ? "text-sidebar-active-foreground" : (item.iconColor ?? "text-sidebar-muted"),
+            "h-5 w-5 shrink-0",
+            active ? "text-sidebar-active-foreground" : "text-sidebar-muted",
           )}
         />
+        <span className="w-full truncate text-[10px] font-semibold leading-tight">
+          {t(`nav.${item.to}`)}
+        </span>
       </Link>
     );
   }
@@ -349,7 +352,7 @@ function FunnelsNavGroup({
           <item.icon
             className={cn(
               "h-[18px] w-[18px] shrink-0",
-              active ? "text-sidebar-active-foreground" : (item.iconColor ?? "text-sidebar-muted"),
+              active ? "text-sidebar-active-foreground" : "text-sidebar-muted",
             )}
           />
           <span className="truncate">{t(`nav.${item.to}`)}</span>
@@ -440,25 +443,29 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         to={item.to}
         title={collapsed ? t(`nav.${item.to}`) : undefined}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-lg border-l-2 text-base font-bold transition-colors duration-150",
-          active
-            ? "border-mint bg-sidebar-active text-sidebar-active-foreground"
-            : "border-transparent text-sidebar-foreground",
+          "group flex items-center transition-colors duration-150",
+          active ? "bg-sidebar-active text-sidebar-active-foreground" : "text-sidebar-foreground",
           !active && isSettings && "hover:bg-primary/15 hover:text-primary",
           !active && isActivityLog && "hover:bg-destructive/15 hover:text-destructive",
           !active && !isSettings && !isActivityLog && "hover:bg-accent",
-          collapsed ? "justify-center border-l-0 px-0 py-2.5" : "py-2 pl-[10px] pr-3",
+          collapsed
+            ? "w-full flex-col justify-center gap-1 rounded-lg px-1 py-2.5 text-center text-[10px] font-semibold leading-tight"
+            : cn(
+                "w-full gap-3 rounded-lg border-l-2 py-2 pl-[10px] pr-3 text-base font-bold",
+                active ? "border-mint" : "border-transparent",
+              ),
         )}
       >
         <item.icon
           className={cn(
-            "h-[18px] w-[18px] shrink-0 transition-colors",
-            active
-              ? "text-sidebar-active-foreground"
-              : (item.iconColor ?? "text-sidebar-muted group-hover:text-current"),
+            collapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+            "shrink-0 transition-colors",
+            active ? "text-sidebar-active-foreground" : "text-sidebar-muted",
           )}
         />
-        {!collapsed && (
+        {collapsed ? (
+          <span className="w-full truncate">{t(`nav.${item.to}`)}</span>
+        ) : (
           <>
             <span className="truncate">{t(`nav.${item.to}`)}</span>
             {badge && badge !== "0" && (
@@ -482,7 +489,12 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
           </p>
         )}
         {collapsed && <div className="my-3 border-t border-sidebar-border" />}
-        <div className={cn("space-y-0.5", !collapsed && "rounded-2xl bg-sidebar-group p-1.5")}>
+        <div
+          className={cn(
+            "space-y-0.5",
+            !collapsed && "rounded-2xl bg-sidebar-group p-1.5 dark:bg-transparent dark:p-0",
+          )}
+        >
           {items.map((item) =>
             item.to === "/funnels" ? (
               <FunnelsNavGroup
@@ -513,7 +525,7 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
       <aside
         className={cn(
           "sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",
-          collapsed ? "w-[76px]" : "w-[264px]",
+          collapsed ? "w-[92px]" : "w-[264px]",
         )}
       >
         <div className="flex h-16 items-center gap-2.5 px-4">
