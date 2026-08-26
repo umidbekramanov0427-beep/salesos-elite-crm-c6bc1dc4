@@ -160,62 +160,63 @@ function LoginPage() {
                 {t("login.tagline")}
               </p>
             </div>
-          </div>
 
-          {/* Decorative wave graphic — abstract rather than a literal product
-              screenshot, sitting where the old monitor mockup did (right
-              below the tagline, not glued to the viewport edge). Each layer
-              is a seamless tile: the same path is drawn twice side by side
-              and drifted left by exactly one tile width in a loop, so it
-              reads as a slowly flowing wave rather than a static image. */}
-          <div className="relative h-56 w-full shrink-0">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 800 260"
-              preserveAspectRatio="none"
-              className="pointer-events-none h-full w-full overflow-visible"
-            >
-              <defs>
-                <linearGradient id="loginWave1" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#10B981" />
-                  <stop offset="100%" stopColor="#5EEAD4" />
-                </linearGradient>
-                <linearGradient id="loginWave2" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#5EEAD4" />
-                  <stop offset="100%" stopColor="#10B981" />
-                </linearGradient>
-                <path
-                  id="loginWavePath1"
-                  d="M0,140 C120,100 220,180 340,150 C460,120 540,70 660,100 C720,115 760,135 800,130 L800,260 L0,260 Z"
-                />
-                <path
-                  id="loginWavePath2"
-                  d="M0,180 C140,160 240,210 360,185 C480,160 560,130 680,155 C730,167 770,175 800,170 L800,260 L0,260 Z"
-                />
-                <path
-                  id="loginWavePath3"
-                  d="M0,215 C160,200 260,235 380,217 C500,199 580,180 700,195 C740,201 770,207 800,203 L800,260 L0,260 Z"
-                />
-              </defs>
-              <style>
-                {`
+            {/* Decorative wave graphic — abstract rather than a literal
+                product screenshot, grouped with the logo/headline above so
+                the whole block centers together instead of sinking to the
+                bottom of the panel. Each layer is a seamless tile: the same
+                path is drawn twice side by side and drifted left by exactly
+                one tile width in a loop, reading as a slowly flowing wave
+                rather than a static image. */}
+            <div className="relative h-40 w-full max-w-lg shrink-0">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 800 260"
+                preserveAspectRatio="none"
+                className="pointer-events-none h-full w-full overflow-visible"
+              >
+                <defs>
+                  <linearGradient id="loginWave1" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="100%" stopColor="#5EEAD4" />
+                  </linearGradient>
+                  <linearGradient id="loginWave2" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#5EEAD4" />
+                    <stop offset="100%" stopColor="#10B981" />
+                  </linearGradient>
+                  <path
+                    id="loginWavePath1"
+                    d="M0,140 C120,100 220,180 340,150 C460,120 540,70 660,100 C720,115 760,135 800,130 L800,260 L0,260 Z"
+                  />
+                  <path
+                    id="loginWavePath2"
+                    d="M0,180 C140,160 240,210 360,185 C480,160 560,130 680,155 C730,167 770,175 800,170 L800,260 L0,260 Z"
+                  />
+                  <path
+                    id="loginWavePath3"
+                    d="M0,215 C160,200 260,235 380,217 C500,199 580,180 700,195 C740,201 770,207 800,203 L800,260 L0,260 Z"
+                  />
+                </defs>
+                <style>
+                  {`
                   @keyframes loginWaveDrift { from { transform: translateX(0); } to { transform: translateX(-800px); } }
                   .login-wave-layer { animation: loginWaveDrift linear infinite; }
                 `}
-              </style>
-              <g className="login-wave-layer" style={{ animationDuration: "22s" }} opacity="0.12">
-                <use href="#loginWavePath1" fill="url(#loginWave1)" />
-                <use href="#loginWavePath1" fill="url(#loginWave1)" x={800} />
-              </g>
-              <g className="login-wave-layer" style={{ animationDuration: "16s" }} opacity="0.16">
-                <use href="#loginWavePath2" fill="url(#loginWave2)" />
-                <use href="#loginWavePath2" fill="url(#loginWave2)" x={800} />
-              </g>
-              <g className="login-wave-layer" style={{ animationDuration: "12s" }} opacity="0.22">
-                <use href="#loginWavePath3" fill="url(#loginWave1)" />
-                <use href="#loginWavePath3" fill="url(#loginWave1)" x={800} />
-              </g>
-            </svg>
+                </style>
+                <g className="login-wave-layer" style={{ animationDuration: "22s" }} opacity="0.12">
+                  <use href="#loginWavePath1" fill="url(#loginWave1)" />
+                  <use href="#loginWavePath1" fill="url(#loginWave1)" x={800} />
+                </g>
+                <g className="login-wave-layer" style={{ animationDuration: "16s" }} opacity="0.16">
+                  <use href="#loginWavePath2" fill="url(#loginWave2)" />
+                  <use href="#loginWavePath2" fill="url(#loginWave2)" x={800} />
+                </g>
+                <g className="login-wave-layer" style={{ animationDuration: "12s" }} opacity="0.22">
+                  <use href="#loginWavePath3" fill="url(#loginWave1)" />
+                  <use href="#loginWavePath3" fill="url(#loginWave1)" x={800} />
+                </g>
+              </svg>
+            </div>
           </div>
         </section>
 
