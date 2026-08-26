@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const mounted = useRef(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     mounted.current = true;
@@ -119,6 +121,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      // A real sign-in or sign-out changes which organization's data every
+      // query is allowed to return. Without clearing the cache here, the
+      // previous account's leads/deals/dashboard numbers stayed in memory
+      // and rendered immediately for whoever logged in next in the same
+      // tab (e.g. a platform owner creating one org, then logging into
+      // it) -- query keys aren't organization-scoped, so RLS alone
+      // doesn't stop React Query from serving what it already cached.
+      // TOKEN_REFRESHED/INITIAL_SESSION fire for the *same* identity and
+      // must not clear the cache, or every page would refetch constantly.
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        queryClient.clear();
+      }
       if (session?.user) {
         void hydrate(session.user.id).finally(() => {
           if (mounted.current) setReady(true);
@@ -130,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, [hydrate]);
+  }, [hydrate, queryClient]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -140,8 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    queryClient.clear();
     setUser(null);
-  }, []);
+  }, [queryClient]);
 
   const refreshProfile = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
