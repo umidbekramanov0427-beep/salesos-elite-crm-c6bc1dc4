@@ -3,13 +3,10 @@ import { useState } from "react";
 import {
   Bell,
   ChevronDown,
-  ChevronRight,
   ChevronsUpDown,
   ChevronsLeft,
-  CircleCheck,
   Command,
   LogOut,
-  Plug,
   ShieldCheck,
   UserCircle,
   Users,
@@ -22,12 +19,10 @@ import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import {
   useFunnelNames,
-  useIntegrationSetting,
   useMarkNotificationRead,
   useNotificationsView,
   useTasksView,
 } from "@/hooks/use-crm-data";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
@@ -37,46 +32,6 @@ type Props = {
   isAdmin: boolean;
   isPlatformOwner: boolean;
 };
-
-function IntegrationsStatus({ collapsed }: { collapsed: boolean }) {
-  const { t } = useI18n();
-  const { data: amocrm } = useIntegrationSetting("amocrm");
-  const connected = amocrm?.enabled ?? false;
-
-  if (collapsed) {
-    return (
-      <TooltipProvider delayDuration={150}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              to="/admin/amocrm-import"
-              className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/20 text-warning"
-            >
-              <Plug className="h-5 w-5" />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right">{t("nav.integrations")}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
-  return (
-    <Link
-      to="/admin/amocrm-import"
-      className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-3 text-sm font-semibold text-warning-foreground shadow-soft transition-colors hover:bg-warning/25"
-    >
-      <Plug className={cn("h-5 w-5 shrink-0", connected ? "text-success" : "text-warning")} />
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate">{t("nav.integrations")}</span>
-        <span className="block truncate text-[11px] font-normal text-warning-foreground/70">
-          AmoCRM
-        </span>
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-warning" />
-    </Link>
-  );
-}
 
 function NotificationBell() {
   const { t } = useI18n();
@@ -154,41 +109,6 @@ function NotificationBell() {
         </Link>
       </PopoverContent>
     </Popover>
-  );
-}
-
-function BusinessProfileLink({ collapsed }: { collapsed: boolean }) {
-  const { t } = useI18n();
-
-  if (collapsed) {
-    return (
-      <TooltipProvider delayDuration={150}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              to="/settings"
-              search={{ section: "business" }}
-              className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/20 text-warning"
-            >
-              <CircleCheck className="h-5 w-5" />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right">{t("settings.nav.business")}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
-  return (
-    <Link
-      to="/settings"
-      search={{ section: "business" }}
-      className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-3 text-sm font-semibold text-warning-foreground shadow-soft transition-colors hover:bg-warning/25"
-    >
-      <CircleCheck className="h-5 w-5 shrink-0 text-warning" />
-      <span className="flex-1 truncate">{t("settings.nav.business")}</span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-warning" />
-    </Link>
   );
 }
 
@@ -551,7 +471,9 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         collapsed ? "w-[132px]" : "w-[264px]",
       )}
     >
-      <div className="flex h-16 items-center gap-2.5 px-4">
+      <div
+        className={cn("flex h-16 items-center gap-2.5 px-4", collapsed && "justify-center px-0")}
+      >
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-soft">
           <Logo className="h-6 w-6" />
         </div>
@@ -563,11 +485,6 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
             <NotificationBell />
           </>
         )}
-      </div>
-
-      <div className="px-0 pb-1 pt-1">
-        {isAdmin && <IntegrationsStatus collapsed={collapsed} />}
-        <BusinessProfileLink collapsed={collapsed} />
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
