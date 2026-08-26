@@ -16,8 +16,12 @@ export const Route = createFileRoute("/platform/integrations")({
 function PlatformIntegrationsPage() {
   const { user } = useAuth();
   const { t } = useI18n();
-  const { data: orgs, isLoading: orgsLoading } = useOrganizations();
-  const { data: connections, isLoading: connectionsLoading } = useAllAmoConnections();
+  const { data: orgs, isLoading: orgsLoading, error: orgsError } = useOrganizations();
+  const {
+    data: connections,
+    isLoading: connectionsLoading,
+    error: connectionsError,
+  } = useAllAmoConnections();
 
   if (user && user.role !== "platform_owner") {
     return (
@@ -42,6 +46,13 @@ function PlatformIntegrationsPage() {
       <SectionCard title={t("platform.integrationsTitle")}>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+        ) : orgsError || connectionsError ? (
+          <p className="text-sm text-destructive">
+            {t("platform.loadFailed")}:{" "}
+            {(orgsError ?? connectionsError) instanceof Error
+              ? (orgsError ?? connectionsError)!.message
+              : String(orgsError ?? connectionsError)}
+          </p>
         ) : !orgs?.length ? (
           <p className="flex items-center gap-2 text-sm text-subtle">
             <Plug className="h-4 w-4" /> {t("platform.noOrgs")}
