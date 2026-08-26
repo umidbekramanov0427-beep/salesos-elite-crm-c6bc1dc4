@@ -2,13 +2,13 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 // Full splash lockup for decorative/marketing placements (the login
-// screen's branding panel): the same flowing-wave mark as Logo.tsx —
-// one bright wave with two fainter trailing ripples behind it, ending
-// in a leading dot — plus the "SalesOS Elite CRM" wordmark on one line
-// beneath it. The wave echoes the login screen's own animated wave
-// graphic. The small in-app icon used everywhere else (sidebar, compact
-// headers) stays Logo.tsx — this version is only meant for a larger,
-// decorative size.
+// screen's branding panel): the same two-line crossing mark as
+// Logo.tsx — a dark-green-to-light-green front line over a lighter
+// green line underneath, crossing once and flicking upward at the end
+// — plus the "SalesOS Elite CRM" wordmark on one line beneath it. The
+// small in-app icon used everywhere else (sidebar, compact headers)
+// stays Logo.tsx — this version is only meant for a larger, decorative
+// size.
 export function BrandMark({
   className,
   iconClassName,
@@ -18,51 +18,42 @@ export function BrandMark({
   iconClassName?: string;
   wordmarkClassName?: string;
 }) {
-  const waveGrad = useId();
+  const heroGrad = useId();
 
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
       <svg
-        viewBox="0 0 100 100"
+        viewBox="0 0 100 56"
         fill="none"
-        className={cn("h-16 w-16", iconClassName)}
+        className={cn("h-14 w-24", iconClassName)}
         aria-hidden="true"
       >
         <defs>
           <linearGradient
-            id={waveGrad}
-            x1="8"
-            y1="60"
-            x2="90"
-            y2="36"
+            id={heroGrad}
+            x1="4"
+            y1="50"
+            x2="98"
+            y2="3"
             gradientUnits="userSpaceOnUse"
           >
             <stop offset="0" stopColor="#14532D" />
-            <stop offset="0.55" stopColor="#16A34A" />
             <stop offset="1" stopColor="#4ADE80" />
           </linearGradient>
         </defs>
         <path
-          d="M4 50 C16 22 32 22 42 44 C52 66 68 66 80 36"
+          d="M4,44 C22,40 36,32 50,30 C64,28 78,22 90,26 C94,27 97,29 100,31"
           stroke="#16A34A"
-          strokeOpacity="0.18"
-          strokeWidth="5"
+          strokeOpacity="0.75"
+          strokeWidth="2.2"
           strokeLinecap="round"
         />
         <path
-          d="M8 54 C20 26 36 26 46 48 C56 70 72 70 84 40"
-          stroke="#16A34A"
-          strokeOpacity="0.35"
-          strokeWidth="6"
+          d="M4,50 C20,42 32,20 48,18 C62,16 74,28 86,24 C92,22 94,12 98,3"
+          stroke={`url(#${heroGrad})`}
+          strokeWidth="2.6"
           strokeLinecap="round"
         />
-        <path
-          d="M12 58 C24 30 40 30 50 52 C60 74 76 74 88 44"
-          stroke={`url(#${waveGrad})`}
-          strokeWidth="9"
-          strokeLinecap="round"
-        />
-        <circle cx="88" cy="44" r="4.5" fill="#86EFAC" />
       </svg>
 
       <p

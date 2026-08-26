@@ -130,24 +130,25 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.014 264.7);
-  --surface: oklch(0.19 0.016 264.7);
+  /* Near-black graphite palette (not the old neutral blue-gray): page
+     canvas darkest, each surface a small, deliberate step lighter than
+     the one it sits on, so cards/popovers/inputs stay readable against
+     each other without leaning on translucent-white overlays. */
+  --background: #0a0d0e;
+  --surface: #0d1112;
   --foreground: oklch(0.97 0.003 247.9);
-  /* Was oklch(0.2 ...) -- only 0.01 lighter than --surface, so cards were
-     visually indistinguishable from the page background. Matches light
-     mode's own surface-to-card gap (0.928 -> 1.0) instead. */
-  --card: oklch(0.28 0.02 264.7);
+  --card: #12171a;
   --card-foreground: oklch(0.97 0.003 247.9);
-  --popover: oklch(0.235 0.018 264.7);
+  --popover: #171d20;
   --popover-foreground: oklch(0.97 0.003 247.9);
   --primary: oklch(0.66 0.17 152);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.26 0.02 264.7);
+  --secondary: #11161a;
   --secondary-foreground: oklch(0.97 0.003 247.9);
-  --muted: oklch(0.26 0.02 264.7);
+  --muted: #11161a;
   --muted-foreground: oklch(0.7 0.02 261.3);
   --subtle: oklch(0.62 0.02 261.3);
-  --accent: oklch(0.27 0.02 264.7);
+  --accent: #171d20;
   --accent-foreground: oklch(0.97 0.003 247.9);
   --mint: oklch(0.28 0.05 156.5);
   --mint-border: oklch(0.34 0.06 156.5);
@@ -156,15 +157,15 @@
   --warning-foreground: oklch(0.9 0.1 80);
   --destructive: oklch(0.637 0.208 25.3);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(1 0 0 / 16%);
-  --input: oklch(1 0 0 / 18%);
+  --border: #232b2e;
+  --input: #1a2124;
   --ring: oklch(0.66 0.17 152);
-  --sidebar: oklch(0.18 0.015 264.7);
+  --sidebar: #0d1112;
   --sidebar-foreground: oklch(0.9 0.01 247.9);
   --sidebar-muted: oklch(0.68 0.02 261.3);
   --sidebar-active: oklch(0.26 0.03 156.5);
   --sidebar-active-foreground: oklch(0.97 0.003 247.9);
-  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-border: #1a2124;
   --sidebar-group: oklch(0.34 0.075 156.5);
 }
 
