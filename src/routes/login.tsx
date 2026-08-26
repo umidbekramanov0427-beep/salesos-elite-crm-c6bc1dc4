@@ -140,23 +140,21 @@ function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-3 py-4 sm:px-6 sm:py-6">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-[420px] w-[420px] rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-24 h-[460px] w-[460px] rounded-full bg-mint blur-3xl" />
-
-      <div className="relative grid w-full max-w-[1600px] overflow-hidden rounded-3xl border border-border bg-background/70 shadow-soft backdrop-blur-xl lg:h-[calc(100vh-3rem)] lg:grid-cols-2">
-        <section className="relative hidden flex-col justify-between gap-8 overflow-hidden border-r border-border bg-gradient-to-br from-[#0B1120] via-[#0E1A2E] to-[#0B1120] p-10 lg:flex">
+    <main className="h-screen w-full overflow-hidden bg-[#0B1120]">
+      <div className="grid h-full w-full lg:grid-cols-2">
+        <section className="relative hidden flex-col justify-between gap-8 overflow-hidden bg-gradient-to-br from-[#0B1120] via-[#0E1A2E] to-[#0B1120] p-10 lg:flex">
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div className="relative flex justify-center">
+          <div className="relative">
             <BrandMark
-              className="items-center text-center"
-              iconClassName="h-24 w-24 sm:h-28 sm:w-28"
-              wordmarkClassName="text-3xl sm:text-4xl"
+              className="items-start text-left"
+              iconClassName="h-12 w-12"
+              wordmarkClassName="text-xl"
             />
           </div>
-          <div className="relative text-center">
+
+          <div className="relative max-w-md">
             <h2 className="text-4xl font-bold leading-tight text-white sm:text-5xl">
               {t("login.title")}
             </h2>
@@ -165,106 +163,49 @@ function LoginPage() {
             </p>
           </div>
 
-          {/* A hand-drawn preview that mirrors the real Reyting (Leaderboard)
-              page's podium + live-ranking table — not a literal screenshot,
-              but built from the same fields, framed as if inside a monitor
-              so the branding panel reads as "this is the real product". */}
-          <div className="relative">
-            <div className="rounded-t-2xl border border-white/10 bg-[#04070f] p-4 shadow-elevated">
-              <div className="mb-3 flex items-center gap-2 px-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-                <span className="ml-2 truncate rounded-md bg-white/[0.06] px-2.5 py-1 text-xs text-white/30">
-                  app.salesos.uz/reyting
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-white/10 bg-white/[0.05] p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  </span>
-                  <p className="text-base font-semibold text-white/80">{t("lb.title")}</p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { initials: "MR", name: "Mavjuda R.", crown: true },
-                    { initials: "MR", name: "Munira R.", crown: false },
-                    { initials: "NI", name: "Nilufar I.", crown: false },
-                  ].map((p, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "rounded-lg border p-3",
-                        p.crown
-                          ? "border-amber-400/50 bg-amber-400/[0.07]"
-                          : "border-white/10 bg-white/[0.04]",
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
-                          {p.initials}
-                        </span>
-                        <span className="truncate text-sm font-semibold text-white/80">
-                          {p.name}
-                        </span>
-                        {p.crown && <span className="ml-auto shrink-0 text-base">👑</span>}
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-1.5">
-                        <div>
-                          <p className="text-[10px] text-white/35">{t("lb.colRevenue")}</p>
-                          <p className="text-sm font-bold text-emerald-300">UZS 0</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-white/35">{t("lb.colWonLeads")}</p>
-                          <p className="text-sm font-bold text-white">0</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="mb-2.5 mt-5 text-xs font-semibold uppercase tracking-wide text-white/40">
-                  {t("lb.liveRanking2")}
-                </p>
-                <div className="space-y-3 border-t border-white/10 pt-3">
-                  {[
-                    { rank: 1, name: "Mavjuda R.", target: 92, bonus: "1.8M" },
-                    { rank: 2, name: "Munira R.", target: 74, bonus: "1.3M" },
-                    { rank: 3, name: "Nilufar I.", target: 58, bonus: "0.9M" },
-                  ].map((r) => (
-                    <div key={r.rank} className="flex items-center gap-3">
-                      <span className="w-5 shrink-0 text-sm font-bold text-amber-400">
-                        #{r.rank}
-                      </span>
-                      <span className="w-24 shrink-0 truncate text-sm text-white/65">{r.name}</span>
-                      <div className="h-2 flex-1 rounded-full bg-white/10">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-300"
-                          style={{ width: `${r.target}%` }}
-                        />
-                      </div>
-                      <span className="w-12 shrink-0 text-right text-sm font-semibold text-emerald-300">
-                        {r.bonus}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {/* monitor stand */}
-            <div className="mx-auto h-4 w-20 bg-[#04070f]" />
-            <div className="mx-auto h-2 w-36 rounded-full bg-[#04070f]" />
-          </div>
+          {/* Decorative wave graphic — deliberately abstract rather than a
+              literal product screenshot, so the branding panel reads as a
+              calm, confident backdrop instead of competing with the form. */}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 800 320"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-56 w-full"
+          >
+            <defs>
+              <linearGradient id="loginWave1" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#2DD4BF" />
+                <stop offset="100%" stopColor="#3B82F6" />
+              </linearGradient>
+              <linearGradient id="loginWave2" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#3B82F6" />
+                <stop offset="100%" stopColor="#2DD4BF" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M0,180 C120,140 220,220 340,190 C460,160 540,110 660,140 C720,155 760,175 800,170 L800,320 L0,320 Z"
+              fill="url(#loginWave1)"
+              opacity="0.12"
+            />
+            <path
+              d="M0,220 C140,200 240,250 360,225 C480,200 560,170 680,195 C730,207 770,215 800,210 L800,320 L0,320 Z"
+              fill="url(#loginWave2)"
+              opacity="0.16"
+            />
+            <path
+              d="M0,260 C160,245 260,280 380,262 C500,244 580,225 700,240 C740,246 770,252 800,248 L800,320 L0,320 Z"
+              fill="url(#loginWave1)"
+              opacity="0.22"
+            />
+          </svg>
         </section>
 
-        <section className="flex flex-col justify-center overflow-y-auto p-8 sm:p-10 lg:p-14">
-          <div className="mb-6 flex items-center justify-end">
-            <div className="flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 p-1">
-              <Globe className="ml-1 h-3.5 w-3.5 shrink-0 text-primary" />
+        <section className="relative flex flex-col justify-center overflow-y-auto bg-[#0B1120] p-8 sm:p-10 lg:p-14">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl lg:hidden" />
+
+          <div className="relative mb-6 flex items-center justify-end">
+            <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 p-1">
+              <Globe className="ml-1 h-3.5 w-3.5 shrink-0 text-teal-300" />
               {LANGS.map((l) => (
                 <button
                   key={l}
@@ -274,7 +215,7 @@ function LoginPage() {
                     "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
                     lang === l
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent",
+                      : "text-white/50 hover:bg-white/10",
                   )}
                 >
                   {LANG_SHORT[l]}
@@ -283,58 +224,58 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-md">
-            <div className="mb-8 flex flex-col items-center text-center">
-              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-background shadow-soft">
-                <Logo className="h-11 w-11" />
+          <div className="relative mx-auto w-full max-w-md">
+            <div className="mb-8 flex items-center gap-3 lg:hidden">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <Logo className="h-6 w-6" />
               </span>
-              <p className="mt-4 text-3xl font-bold text-foreground">SalesOS Elite CRM</p>
-              <p className="mt-2 text-base font-bold uppercase tracking-wide text-primary">
-                {t("login.subtitle")}
-              </p>
+              <p className="text-lg font-bold text-white">SalesOS Elite CRM</p>
+            </div>
+
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-white">{t("login.welcomeBack")}</h1>
+              <p className="mt-2 text-sm text-white/50">{t("login.welcomeBackDesc")}</p>
             </div>
 
             {recoveryMode ? (
               <form onSubmit={onRecoverySubmit} noValidate className="space-y-5">
-                <p className="text-center text-sm text-muted-foreground">
-                  {t("login.setNewPasswordDesc")}
-                </p>
+                <p className="text-center text-sm text-white/50">{t("login.setNewPasswordDesc")}</p>
                 <label className="block">
-                  <span className="text-[13px] font-medium text-muted-foreground">
+                  <span className="text-[13px] font-medium text-white/60">
                     {t("login.newPassword")}
                   </span>
                   <span className="relative mt-2 block">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <input
                       type="password"
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                     />
                   </span>
                 </label>
                 <label className="block">
-                  <span className="text-[13px] font-medium text-muted-foreground">
+                  <span className="text-[13px] font-medium text-white/60">
                     {t("login.newPasswordConfirm")}
                   </span>
                   <span className="relative mt-2 block">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <input
                       type="password"
                       autoComplete="new-password"
                       value={newPasswordConfirm}
                       onChange={(e) => setNewPasswordConfirm(e.target.value)}
                       placeholder="••••••••"
-                      className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                     />
                   </span>
                 </label>
                 {recoveryError && (
                   <p
                     role="alert"
-                    className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                    className="rounded-xl border border-destructive/30 bg-destructive/15 px-3 py-2 text-sm font-medium text-red-300"
                   >
                     {recoveryError}
                   </p>
@@ -351,36 +292,34 @@ function LoginPage() {
             ) : forgotOpen ? (
               <div className="space-y-5">
                 {forgotSent ? (
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-                    <p className="text-sm text-foreground">
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-center">
+                    <p className="text-sm text-white">
                       {t("login.forgotSent", { email: forgotEmail })}
                     </p>
                   </div>
                 ) : (
                   <form onSubmit={onForgotSubmit} noValidate className="space-y-5">
-                    <p className="text-center text-sm text-muted-foreground">
-                      {t("login.forgotDesc")}
-                    </p>
+                    <p className="text-center text-sm text-white/50">{t("login.forgotDesc")}</p>
                     <label className="block">
-                      <span className="text-[13px] font-medium text-muted-foreground">
+                      <span className="text-[13px] font-medium text-white/60">
                         {t("login.email")}
                       </span>
                       <span className="relative mt-2 block">
-                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                         <input
                           type="email"
                           autoComplete="email"
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
                           placeholder="super@admin.com"
-                          className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                          className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                         />
                       </span>
                     </label>
                     {forgotError && (
                       <p
                         role="alert"
-                        className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                        className="rounded-xl border border-destructive/30 bg-destructive/15 px-3 py-2 text-sm font-medium text-red-300"
                       >
                         {forgotError}
                       </p>
@@ -402,7 +341,7 @@ function LoginPage() {
                     setForgotSent(false);
                     setForgotError("");
                   }}
-                  className="block w-full text-center text-sm font-medium text-muted-foreground hover:text-foreground"
+                  className="block w-full text-center text-sm font-medium text-white/50 hover:text-white"
                 >
                   {t("login.backToSignIn")}
                 </button>
@@ -410,7 +349,7 @@ function LoginPage() {
             ) : (
               <>
                 {linkExpiredNotice && (
-                  <div className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">
+                  <div className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-200">
                     <p>{t("login.recoveryLinkExpired")}</p>
                     <button
                       type="button"
@@ -429,11 +368,11 @@ function LoginPage() {
                 )}
                 <form onSubmit={onSubmit} noValidate className="space-y-5">
                   <label className="block">
-                    <span className="text-[13px] font-medium text-muted-foreground">
+                    <span className="text-[13px] font-medium text-white/60">
                       {t("login.email")}
                     </span>
                     <span className="relative mt-2 block">
-                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                       <input
                         type="email"
                         autoComplete="email"
@@ -441,20 +380,20 @@ function LoginPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="super@admin.com"
                         aria-invalid={!!errors.email}
-                        className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                        className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                       />
                     </span>
                     {errors.email && (
-                      <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
+                      <span className="mt-1.5 block text-xs text-red-300">{errors.email}</span>
                     )}
                   </label>
 
                   <label className="block">
-                    <span className="text-[13px] font-medium text-muted-foreground">
+                    <span className="text-[13px] font-medium text-white/60">
                       {t("login.password")}
                     </span>
                     <span className="relative mt-2 block">
-                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                       <input
                         type="password"
                         autoComplete="current-password"
@@ -462,13 +401,11 @@ function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         aria-invalid={!!errors.password}
-                        className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                        className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                       />
                     </span>
                     {errors.password && (
-                      <span className="mt-1.5 block text-xs text-destructive">
-                        {errors.password}
-                      </span>
+                      <span className="mt-1.5 block text-xs text-red-300">{errors.password}</span>
                     )}
                     <span className="mt-2 block text-right">
                       <button
@@ -489,7 +426,7 @@ function LoginPage() {
                   {errors.form && (
                     <p
                       role="alert"
-                      className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                      className="rounded-xl border border-destructive/30 bg-destructive/15 px-3 py-2 text-sm font-medium text-red-300"
                     >
                       {errors.form}
                     </p>
