@@ -1141,15 +1141,41 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       // upsert, so a stage/owner change can be detected by diffing against
       // it below -- the upsert itself only ever returns the *new* row, an
       // unconditional overwrite gives no signal about what actually moved.
+      // Also used to skip writing rows that are byte-for-byte unchanged --
+      // AmoCRM re-sends every lead on every sync tick regardless of whether
+      // it actually changed, and an unconditional upsert used to write (and
+      // trigger a full audit_logs snapshot for) every single one of them,
+      // every 5 minutes, which is how that table reached 5.8M rows.
       const { data: existingLeadRows } = await supabaseAdmin
         .from("leads")
-        .select("id, amocrm_id, stage_id, owner_id")
+        .select(
+          "id, amocrm_id, name, company_name, company_id, contact_id, expected_revenue, budget, funnel, stage_id, owner_id, loss_reason, tags",
+        )
         .eq("organization_id", organizationId)
         .in(
           "amocrm_id",
           dedupedLeadRows.map((r) => r.amocrm_id),
         );
       const existingByAmoId = new Map((existingLeadRows ?? []).map((r) => [r.amocrm_id, r]));
+
+      function leadRowUnchanged(
+        existing: NonNullable<typeof existingLeadRows>[number],
+        candidate: (typeof dedupedLeadRows)[number],
+      ): boolean {
+        return (
+          existing.name === candidate.name &&
+          existing.company_name === candidate.company_name &&
+          existing.company_id === candidate.company_id &&
+          existing.contact_id === candidate.contact_id &&
+          existing.expected_revenue === candidate.expected_revenue &&
+          existing.budget === candidate.budget &&
+          existing.funnel === candidate.funnel &&
+          existing.stage_id === candidate.stage_id &&
+          existing.owner_id === candidate.owner_id &&
+          existing.loss_reason === candidate.loss_reason &&
+          JSON.stringify(existing.tags ?? []) === JSON.stringify(candidate.tags ?? [])
+        );
+      }
 
       const notifDrafts: NotificationDraft[] = [];
       for (const r of dedupedLeadRows) {
@@ -1187,6 +1213,11 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
         }
       }
 
+      const rowsToUpsert = dedupedLeadRows.filter((r) => {
+        const existing = existingByAmoId.get(r.amocrm_id);
+        return !existing || !leadRowUnchanged(existing, r);
+      });
+
       // Each AmoCRM page already caps at 250 leads, but that turned out to
       // be close enough to the same per-statement audit-trail overhead that
       // forced pipeline_stages down to 200-row chunks (see above) that a
@@ -1194,8 +1225,8 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       // rather than wait for a second report of the same failure mode.
       const LEADS_UPSERT_CHUNK = 100;
       const upsertedIdByAmoId = new Map<number, string>();
-      for (let i = 0; i < dedupedLeadRows.length; i += LEADS_UPSERT_CHUNK) {
-        const chunk = dedupedLeadRows.slice(i, i + LEADS_UPSERT_CHUNK);
+      for (let i = 0; i < rowsToUpsert.length; i += LEADS_UPSERT_CHUNK) {
+        const chunk = rowsToUpsert.slice(i, i + LEADS_UPSERT_CHUNK);
         if (chunk.length === 0) continue;
         const { data: upserted, error } = await supabaseAdmin
           .from("leads")
