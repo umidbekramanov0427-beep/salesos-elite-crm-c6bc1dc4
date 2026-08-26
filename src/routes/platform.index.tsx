@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Building2, Loader2, Plus, ShieldAlert } from "lucide-react";
+import { Building2, Loader2, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -20,7 +20,10 @@ import { timeAgo } from "@/lib/utils";
 import {
   useOrganizations,
   useCreateOrganization,
+  useUpdateOrganization,
+  useDeleteOrganization,
   useDeactivateExpiredTrials,
+  type OrganizationRow,
 } from "@/hooks/use-crm-data";
 
 const PLANS = ["Basic", "Pro", "Enterprise"] as const;
@@ -243,6 +246,168 @@ function CreateOrgDialog() {
   );
 }
 
+function RenameOrgDialog({ org }: { org: OrganizationRow }) {
+  const { t } = useI18n();
+  const updateOrg = useUpdateOrganization();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(org.name);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || name.trim() === org.name) {
+      setOpen(false);
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateOrg.mutateAsync({ id: org.id, patch: { name: name.trim() } });
+      toast.success(t("platform.orgUpdated"));
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("platform.orgUpdateFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setName(org.name);
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          aria-label={t("platform.renameOrg")}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("platform.renameOrg")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label htmlFor="rename-org-name">{t("platform.orgName")}</Label>
+            <Input
+              id="rename-org-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              required
+            />
+          </div>
+          <DialogFooter>
+            <button
+              type="submit"
+              disabled={busy}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteOrgButton({ org }: { org: OrganizationRow }) {
+  const { t } = useI18n();
+  const deleteOrg = useDeleteOrganization();
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await deleteOrg.mutateAsync(org.id);
+      toast.success(t("platform.orgDeleted"));
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("platform.orgDeleteFailed"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setConfirmText("");
+        }}
+      >
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={t("platform.deleteOrgButton")}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("platform.dangerZone")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {t("platform.deleteOrgWarning", { name: org.name })}
+            </p>
+            <div>
+              <Label htmlFor="delete-org-confirm">
+                {t("platform.typeToConfirm", { name: org.name })}
+              </Label>
+              <Input
+                id="delete-org-confirm"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={org.name}
+              />
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                disabled={confirmText.trim() !== org.name || busy}
+                onClick={() => setConfirming(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Trash2 className="h-4 w-4" />
+                {t("platform.deleteOrgButton")}
+              </button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={t("platform.confirmDeleteOrgTitle")}
+        description={t("platform.confirmDeleteOrgDesc", { name: org.name })}
+        onConfirm={() => {
+          setConfirming(false);
+          void submit();
+        }}
+      />
+    </>
+  );
+}
+
 function PlatformPage() {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -287,11 +452,11 @@ function PlatformPage() {
         ) : (
           <ul className="divide-y divide-border">
             {orgs.map((org) => (
-              <li key={org.id}>
+              <li key={org.id} className="flex items-center gap-2 py-3">
                 <Link
                   to="/platform/organizations/$orgId"
                   params={{ orgId: org.id }}
-                  className="flex items-center gap-3 py-3 transition-colors hover:bg-accent"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg transition-colors hover:bg-accent"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Building2 className="h-4 w-4" />
@@ -304,10 +469,12 @@ function PlatformPage() {
                         ` · ${t("platform.trialEnds")}: ${new Date(org.trial_ends_at).toLocaleDateString()}`}
                     </p>
                   </div>
-                  <Pill tone={org.active ? "success" : "neutral"}>
-                    {org.active ? t("platform.active") : t("platform.inactive")}
-                  </Pill>
                 </Link>
+                <Pill tone={org.active ? "success" : "neutral"}>
+                  {org.active ? t("platform.active") : t("platform.inactive")}
+                </Pill>
+                <RenameOrgDialog org={org} />
+                <DeleteOrgButton org={org} />
               </li>
             ))}
           </ul>
