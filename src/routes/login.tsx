@@ -162,47 +162,67 @@ function LoginPage() {
             </div>
           </div>
 
-          {/* Decorative wave graphic — abstract rather than a literal
-              product screenshot, so the branding panel reads as a calm,
-              confident backdrop instead of competing with the form. */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 800 260"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-48 w-full"
-          >
-            <defs>
-              <linearGradient id="loginWave1" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#10B981" />
-                <stop offset="100%" stopColor="#5EEAD4" />
-              </linearGradient>
-              <linearGradient id="loginWave2" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#5EEAD4" />
-                <stop offset="100%" stopColor="#10B981" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,140 C120,100 220,180 340,150 C460,120 540,70 660,100 C720,115 760,135 800,130 L800,260 L0,260 Z"
-              fill="url(#loginWave1)"
-              opacity="0.12"
-            />
-            <path
-              d="M0,180 C140,160 240,210 360,185 C480,160 560,130 680,155 C730,167 770,175 800,170 L800,260 L0,260 Z"
-              fill="url(#loginWave2)"
-              opacity="0.16"
-            />
-            <path
-              d="M0,215 C160,200 260,235 380,217 C500,199 580,180 700,195 C740,201 770,207 800,203 L800,260 L0,260 Z"
-              fill="url(#loginWave1)"
-              opacity="0.22"
-            />
-          </svg>
+          {/* Decorative wave graphic — abstract rather than a literal product
+              screenshot, sitting where the old monitor mockup did (right
+              below the tagline, not glued to the viewport edge). Each layer
+              is a seamless tile: the same path is drawn twice side by side
+              and drifted left by exactly one tile width in a loop, so it
+              reads as a slowly flowing wave rather than a static image. */}
+          <div className="relative h-56 w-full shrink-0">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 800 260"
+              preserveAspectRatio="none"
+              className="pointer-events-none h-full w-full overflow-visible"
+            >
+              <defs>
+                <linearGradient id="loginWave1" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#10B981" />
+                  <stop offset="100%" stopColor="#5EEAD4" />
+                </linearGradient>
+                <linearGradient id="loginWave2" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#5EEAD4" />
+                  <stop offset="100%" stopColor="#10B981" />
+                </linearGradient>
+                <path
+                  id="loginWavePath1"
+                  d="M0,140 C120,100 220,180 340,150 C460,120 540,70 660,100 C720,115 760,135 800,130 L800,260 L0,260 Z"
+                />
+                <path
+                  id="loginWavePath2"
+                  d="M0,180 C140,160 240,210 360,185 C480,160 560,130 680,155 C730,167 770,175 800,170 L800,260 L0,260 Z"
+                />
+                <path
+                  id="loginWavePath3"
+                  d="M0,215 C160,200 260,235 380,217 C500,199 580,180 700,195 C740,201 770,207 800,203 L800,260 L0,260 Z"
+                />
+              </defs>
+              <style>
+                {`
+                  @keyframes loginWaveDrift { from { transform: translateX(0); } to { transform: translateX(-800px); } }
+                  .login-wave-layer { animation: loginWaveDrift linear infinite; }
+                `}
+              </style>
+              <g className="login-wave-layer" style={{ animationDuration: "22s" }} opacity="0.12">
+                <use href="#loginWavePath1" fill="url(#loginWave1)" />
+                <use href="#loginWavePath1" fill="url(#loginWave1)" x={800} />
+              </g>
+              <g className="login-wave-layer" style={{ animationDuration: "16s" }} opacity="0.16">
+                <use href="#loginWavePath2" fill="url(#loginWave2)" />
+                <use href="#loginWavePath2" fill="url(#loginWave2)" x={800} />
+              </g>
+              <g className="login-wave-layer" style={{ animationDuration: "12s" }} opacity="0.22">
+                <use href="#loginWavePath3" fill="url(#loginWave1)" />
+                <use href="#loginWavePath3" fill="url(#loginWave1)" x={800} />
+              </g>
+            </svg>
+          </div>
         </section>
 
-        <section className="flex flex-col justify-center overflow-y-auto p-8 sm:p-10 lg:p-14">
+        <section className="flex flex-col justify-center overflow-y-auto bg-gradient-to-br from-[#0B1120] via-[#0E1A2E] to-[#0B1120] p-8 sm:p-10 lg:p-14">
           <div className="mb-6 flex items-center justify-end">
-            <div className="flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 p-1">
-              <Globe className="ml-1 h-3.5 w-3.5 shrink-0 text-primary" />
+            <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 p-1">
+              <Globe className="ml-1 h-3.5 w-3.5 shrink-0 text-emerald-300" />
               {LANGS.map((l) => (
                 <button
                   key={l}
@@ -212,7 +232,7 @@ function LoginPage() {
                     "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
                     lang === l
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent",
+                      : "text-white/50 hover:bg-white/10",
                   )}
                 >
                   {LANG_SHORT[l]}
@@ -223,10 +243,10 @@ function LoginPage() {
 
           <div className="mx-auto w-full max-w-md">
             <div className="mb-8 flex flex-col items-center text-center">
-              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-background shadow-soft">
+              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-soft">
                 <Logo className="h-11 w-11" />
               </span>
-              <p className="mt-4 text-3xl font-bold text-foreground">SalesOS Elite CRM</p>
+              <p className="mt-4 text-3xl font-bold text-white">SalesOS Elite CRM</p>
               <p className="mt-2 text-base font-bold uppercase tracking-wide text-primary">
                 {t("login.subtitle")}
               </p>
@@ -234,45 +254,43 @@ function LoginPage() {
 
             {recoveryMode ? (
               <form onSubmit={onRecoverySubmit} noValidate className="space-y-5">
-                <p className="text-center text-sm text-muted-foreground">
-                  {t("login.setNewPasswordDesc")}
-                </p>
+                <p className="text-center text-sm text-white/50">{t("login.setNewPasswordDesc")}</p>
                 <label className="block">
-                  <span className="text-[13px] font-medium text-muted-foreground">
+                  <span className="text-[13px] font-medium text-white/60">
                     {t("login.newPassword")}
                   </span>
                   <span className="relative mt-2 block">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <input
                       type="password"
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                     />
                   </span>
                 </label>
                 <label className="block">
-                  <span className="text-[13px] font-medium text-muted-foreground">
+                  <span className="text-[13px] font-medium text-white/60">
                     {t("login.newPasswordConfirm")}
                   </span>
                   <span className="relative mt-2 block">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <input
                       type="password"
                       autoComplete="new-password"
                       value={newPasswordConfirm}
                       onChange={(e) => setNewPasswordConfirm(e.target.value)}
                       placeholder="••••••••"
-                      className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                      className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                     />
                   </span>
                 </label>
                 {recoveryError && (
                   <p
                     role="alert"
-                    className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                    className="rounded-xl border border-destructive/30 bg-destructive/15 px-3 py-2 text-sm font-medium text-red-300"
                   >
                     {recoveryError}
                   </p>
@@ -289,36 +307,34 @@ function LoginPage() {
             ) : forgotOpen ? (
               <div className="space-y-5">
                 {forgotSent ? (
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-                    <p className="text-sm text-foreground">
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-center">
+                    <p className="text-sm text-white">
                       {t("login.forgotSent", { email: forgotEmail })}
                     </p>
                   </div>
                 ) : (
                   <form onSubmit={onForgotSubmit} noValidate className="space-y-5">
-                    <p className="text-center text-sm text-muted-foreground">
-                      {t("login.forgotDesc")}
-                    </p>
+                    <p className="text-center text-sm text-white/50">{t("login.forgotDesc")}</p>
                     <label className="block">
-                      <span className="text-[13px] font-medium text-muted-foreground">
+                      <span className="text-[13px] font-medium text-white/60">
                         {t("login.email")}
                       </span>
                       <span className="relative mt-2 block">
-                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                         <input
                           type="email"
                           autoComplete="email"
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
                           placeholder="super@admin.com"
-                          className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                          className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                         />
                       </span>
                     </label>
                     {forgotError && (
                       <p
                         role="alert"
-                        className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                        className="rounded-xl border border-destructive/30 bg-destructive/15 px-3 py-2 text-sm font-medium text-red-300"
                       >
                         {forgotError}
                       </p>
@@ -340,7 +356,7 @@ function LoginPage() {
                     setForgotSent(false);
                     setForgotError("");
                   }}
-                  className="block w-full text-center text-sm font-medium text-muted-foreground hover:text-foreground"
+                  className="block w-full text-center text-sm font-medium text-white/50 hover:text-white"
                 >
                   {t("login.backToSignIn")}
                 </button>
@@ -348,7 +364,7 @@ function LoginPage() {
             ) : (
               <>
                 {linkExpiredNotice && (
-                  <div className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">
+                  <div className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-200">
                     <p>{t("login.recoveryLinkExpired")}</p>
                     <button
                       type="button"
@@ -367,11 +383,11 @@ function LoginPage() {
                 )}
                 <form onSubmit={onSubmit} noValidate className="space-y-5">
                   <label className="block">
-                    <span className="text-[13px] font-medium text-muted-foreground">
+                    <span className="text-[13px] font-medium text-white/60">
                       {t("login.email")}
                     </span>
                     <span className="relative mt-2 block">
-                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                       <input
                         type="email"
                         autoComplete="email"
@@ -379,20 +395,20 @@ function LoginPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="super@admin.com"
                         aria-invalid={!!errors.email}
-                        className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                        className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                       />
                     </span>
                     {errors.email && (
-                      <span className="mt-1.5 block text-xs text-destructive">{errors.email}</span>
+                      <span className="mt-1.5 block text-xs text-red-300">{errors.email}</span>
                     )}
                   </label>
 
                   <label className="block">
-                    <span className="text-[13px] font-medium text-muted-foreground">
+                    <span className="text-[13px] font-medium text-white/60">
                       {t("login.password")}
                     </span>
                     <span className="relative mt-2 block">
-                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                       <input
                         type="password"
                         autoComplete="current-password"
@@ -400,13 +416,11 @@ function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         aria-invalid={!!errors.password}
-                        className="h-14 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-base outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                        className="h-14 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 text-base text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/50 focus:bg-white/10"
                       />
                     </span>
                     {errors.password && (
-                      <span className="mt-1.5 block text-xs text-destructive">
-                        {errors.password}
-                      </span>
+                      <span className="mt-1.5 block text-xs text-red-300">{errors.password}</span>
                     )}
                     <span className="mt-2 block text-right">
                       <button
@@ -427,7 +441,7 @@ function LoginPage() {
                   {errors.form && (
                     <p
                       role="alert"
-                      className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                      className="rounded-xl border border-destructive/30 bg-destructive/15 px-3 py-2 text-sm font-medium text-red-300"
                     >
                       {errors.form}
                     </p>
