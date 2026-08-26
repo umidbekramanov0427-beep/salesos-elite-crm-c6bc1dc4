@@ -325,7 +325,6 @@ function DeleteOrgButton({ org }: { org: OrganizationRow }) {
   const deleteOrg = useDeleteOrganization();
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
-  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -336,75 +335,64 @@ function DeleteOrgButton({ org }: { org: OrganizationRow }) {
       setOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("platform.orgDeleteFailed"));
+    } finally {
       setBusy(false);
     }
   }
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onOpenChange={(v) => {
-          setOpen(v);
-          if (!v) setConfirmText("");
-        }}
-      >
-        <DialogTrigger asChild>
-          <button
-            type="button"
-            aria-label={t("platform.deleteOrgButton")}
-            onClick={(e) => e.stopPropagation()}
-            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("platform.dangerZone")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {t("platform.deleteOrgWarning", { name: org.name })}
-            </p>
-            <div>
-              <Label htmlFor="delete-org-confirm">
-                {t("platform.typeToConfirm", { name: org.name })}
-              </Label>
-              <Input
-                id="delete-org-confirm"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder={org.name}
-              />
-            </div>
-            <DialogFooter>
-              <button
-                type="button"
-                disabled={confirmText.trim() !== org.name || busy}
-                onClick={() => setConfirming(true)}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-              >
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                <Trash2 className="h-4 w-4" />
-                {t("platform.deleteOrgButton")}
-              </button>
-            </DialogFooter>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setConfirmText("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          aria-label={t("platform.deleteOrgButton")}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("platform.confirmDeleteOrgTitle")}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t("platform.deleteOrgWarning", { name: org.name })}
+          </p>
+          <div>
+            <Label htmlFor={`delete-org-confirm-${org.id}`}>
+              {t("platform.typeToConfirm", { name: org.name })}
+            </Label>
+            <Input
+              id={`delete-org-confirm-${org.id}`}
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={org.name}
+              autoFocus
+            />
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog
-        open={confirming}
-        onOpenChange={setConfirming}
-        title={t("platform.confirmDeleteOrgTitle")}
-        description={t("platform.confirmDeleteOrgDesc", { name: org.name })}
-        onConfirm={() => {
-          setConfirming(false);
-          void submit();
-        }}
-      />
-    </>
+          <DialogFooter>
+            <button
+              type="button"
+              disabled={confirmText.trim() !== org.name || busy}
+              onClick={() => void submit()}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Trash2 className="h-4 w-4" />
+              {t("platform.deleteOrgButton")}
+            </button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
