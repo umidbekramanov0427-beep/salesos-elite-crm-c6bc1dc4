@@ -347,7 +347,9 @@ function AmoCrmCard() {
                 !connectionStatus?.last_sync_error &&
                 connectionStatus?.initial_sync_page != null && (
                   <p className="mt-2 max-w-md text-xs text-warning-foreground">
-                    {t("amocrm.initialSyncInProgress")}
+                    {t("amocrm.initialSyncInProgress", {
+                      page: String(connectionStatus.initial_sync_page),
+                    })}
                   </p>
                 )}
               {!isAdmin && <p className="mt-2 text-xs text-subtle">{t("amocrm.adminOnly")}</p>}
