@@ -90,6 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const mounted = useRef(true);
+  // Tracks whose session is currently hydrated, so a re-emitted SIGNED_IN
+  // for the *same* user (see the onAuthStateChange comment below) can be
+  // told apart from an actual sign-in by a different one.
+  const lastUserIdRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -115,12 +119,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session?.user) await hydrate(data.session.user.id);
+      if (data.session?.user) {
+        lastUserIdRef.current = data.session.user.id;
+        await hydrate(data.session.user.id);
+      }
       if (mounted.current) setReady(true);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+
+      const sessionUserId = session?.user?.id ?? null;
+      const isNewIdentity = sessionUserId !== lastUserIdRef.current;
+
       // A real sign-in or sign-out changes which organization's data every
       // query is allowed to return. Without clearing the cache here, the
       // previous account's leads/deals/dashboard numbers stayed in memory
@@ -128,16 +139,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // tab (e.g. a platform owner creating one org, then logging into
       // it) -- query keys aren't organization-scoped, so RLS alone
       // doesn't stop React Query from serving what it already cached.
-      // TOKEN_REFRESHED/INITIAL_SESSION fire for the *same* identity and
-      // must not clear the cache, or every page would refetch constantly.
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      //
+      // SIGNED_IN isn't only a real login, though -- supabase-js re-emits
+      // it (not just TOKEN_REFRESHED) every time the tab regains focus
+      // after sitting in the background, even for the exact same session.
+      // Clearing on every one of those turned "switch tabs for a few
+      // seconds and come back" into every open page reloading from
+      // scratch. Only a genuine identity change should blow away the
+      // cache and re-fetch the profile below.
+      if (event === "SIGNED_OUT" || (event === "SIGNED_IN" && isNewIdentity)) {
         queryClient.clear();
       }
+
       if (session?.user) {
-        void hydrate(session.user.id).finally(() => {
-          if (mounted.current) setReady(true);
-        });
+        if (isNewIdentity) {
+          lastUserIdRef.current = session.user.id;
+          void hydrate(session.user.id).finally(() => {
+            if (mounted.current) setReady(true);
+          });
+        } else if (mounted.current) {
+          setReady(true);
+        }
       } else {
+        lastUserIdRef.current = null;
         setUser(null);
         setReady(true);
       }
