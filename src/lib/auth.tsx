@@ -118,14 +118,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session?.user) {
-        lastUserIdRef.current = data.session.user.id;
-        await hydrate(data.session.user.id);
-      }
-      if (mounted.current) setReady(true);
-    });
-
+    // Deliberately NOT also calling supabase.auth.getSession() here --
+    // onAuthStateChange fires once immediately on subscribe with whatever
+    // session already exists (event "INITIAL_SESSION"), so a separate
+    // getSession().then(...) alongside it used to race this same handler:
+    // both independently called hydrate() for the same user and both
+    // called setReady(true), and whichever of the two duplicate hydrate
+    // calls happened to resolve *last* won, overwriting the other's state.
+    // On a hard refresh that occasionally meant the already-correct user
+    // got clobbered back to null right after render, which sent AuthGate
+    // to /login and then login.tsx's own "already signed in" effect bounced
+    // it to "/" -- losing whatever page (e.g. /funnels) was actually
+    // requested. One listener, one hydrate call per identity change, below.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
 
