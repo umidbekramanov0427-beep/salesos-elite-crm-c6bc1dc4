@@ -153,18 +153,11 @@ function AuthGate() {
   const { user, ready } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  // Full path incl. query string (e.g. "/funnels?funnel=X") -- carried
-  // through to /login so a genuinely logged-out visit, or any transient
-  // moment where `user` isn't resolved yet, sends them back to the exact
-  // page they were on afterward instead of always landing on "/".
-  const href = useRouterState({ select: (s) => s.location.href });
   const isLogin = pathname === "/login";
 
   useEffect(() => {
-    if (ready && !user && !isLogin) {
-      void navigate({ to: "/login", search: { redirect: href }, replace: true });
-    }
-  }, [ready, user, isLogin, href, navigate]);
+    if (ready && !user && !isLogin) void navigate({ to: "/login", replace: true });
+  }, [ready, user, isLogin, navigate]);
 
   if (isLogin) return <Outlet />;
 
