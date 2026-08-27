@@ -72,44 +72,44 @@ function InboxPage() {
         </div>
       )}
 
-      <SectionCard>
-        {rows.length === 0 && !isLoading && (
+      {rows.length === 0 && !isLoading ? (
+        <SectionCard>
           <p className="py-10 text-center text-sm text-muted-foreground">{t("inbox.empty")}</p>
-        )}
-        <ul className="-m-6 divide-y divide-border">
+        </SectionCard>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((n) => (
-            <li
+            <div
               key={n.id}
               onClick={() => open(n)}
               className={cn(
-                "flex items-start gap-4 px-6 py-5 transition-colors hover:bg-surface",
+                "flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft transition-colors hover:border-primary/40",
                 (n.unread || n.link) && "cursor-pointer",
-                n.unread && "bg-mint/40",
+                n.unread && "bg-mint/10",
               )}
             >
-              <span
-                className={cn(
-                  "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                  n.unread ? "bg-primary" : "bg-border",
-                )}
-              />
+              <div className="flex items-start justify-between gap-2">
+                <Pill tone={n.type === "Overdue" ? "danger" : n.type === "AI" ? "info" : "neutral"}>
+                  {n.type}
+                </Pill>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {n.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                  <span className="text-[11px] text-subtle">{n.meta}</span>
+                </div>
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{n.title}</p>
+                <p className="text-sm font-semibold text-foreground">{n.title}</p>
                 {n.body && <p className="mt-1 text-xs text-muted-foreground">{n.body}</p>}
-                <p className="mt-1 text-xs text-subtle">{n.meta}</p>
               </div>
               {n.link && (
-                <span className="shrink-0 text-xs font-semibold text-primary">
+                <span className="self-start text-xs font-semibold text-primary">
                   {t("inbox.open")}
                 </span>
               )}
-              <Pill tone={n.type === "Overdue" ? "danger" : n.type === "AI" ? "info" : "neutral"}>
-                {n.type}
-              </Pill>
-            </li>
+            </div>
           ))}
-        </ul>
-      </SectionCard>
+        </div>
+      )}
     </>
   );
 }
