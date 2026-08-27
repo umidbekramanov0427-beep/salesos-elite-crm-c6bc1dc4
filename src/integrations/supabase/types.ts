@@ -116,6 +116,51 @@ export type Database = {
           },
         ];
       };
+      alert_states: {
+        Row: {
+          alert_key: string;
+          created_at: string;
+          dismissed_at: string | null;
+          id: string;
+          organization_id: string;
+          read_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          alert_key: string;
+          created_at?: string;
+          dismissed_at?: string | null;
+          id?: string;
+          organization_id: string;
+          read_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          alert_key?: string;
+          created_at?: string;
+          dismissed_at?: string | null;
+          id?: string;
+          organization_id?: string;
+          read_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "alert_states_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "alert_states_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       amocrm_calls: {
         Row: {
           ai_summary: string | null;

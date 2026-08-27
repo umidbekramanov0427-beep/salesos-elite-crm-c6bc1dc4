@@ -1539,6 +1539,199 @@ export function useAudioAnalyticsView(
   return { recent, totals, perRep, recoverable, isLoading };
 }
 
+export type AlertStateRow = Tables["alert_states"]["Row"];
+
+export type AlertType = "manager_inactive" | "no_audio" | "low_quality" | "red_flag";
+
+export type AlertView = {
+  key: string;
+  type: AlertType;
+  title: string;
+  body: string;
+  meta: string;
+  link: string | null;
+  createdAt: string;
+  read: boolean;
+  dismissed: boolean;
+};
+
+function useAlertStatesRaw() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["alert_states", user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<AlertStateRow[]> => {
+      const { data, error } = await supabase.from("alert_states").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+// Ogohlantirishlar (operational alerts): unlike notifications, these aren't
+// rows someone inserted -- they're facts computed live from amocrm_calls and
+// profiles (a rep with zero calls today, a call with no recording, a
+// low-scored call, an AI-flagged deal-loss risk), so they can never go stale
+// or need a backfill. Only "read"/"dismissed" is real per-admin state, kept
+// in alert_states and merged in below by the same alert_key both sides
+// agree on.
+export function useAlertsView() {
+  const ALERT_WINDOW_DAYS = 7;
+  const from = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - ALERT_WINDOW_DAYS);
+    return d;
+  }, []);
+  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsSince({ from, to: null });
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const { data: profiles, isLoading: profilesLoading } = useProfilesRaw();
+  const { data: states, isLoading: statesLoading } = useAlertStatesRaw();
+  const isLoading = callsLoading || leadsLoading || profilesLoading || statesLoading;
+
+  const alerts = useMemo<AlertView[]>(() => {
+    const leadsById = byId(leads);
+    const profilesById = byId(profiles);
+    const out: AlertView[] = [];
+
+    // Faoliyatsiz menejer -- a rep who owns at least one lead (so they're an
+    // active seller, not e.g. a brand-new hire with nothing assigned yet)
+    // but made zero calls in the last 24 hours.
+    const ownerIdsWithLeads = new Set(
+      (leads ?? []).filter((l) => !!l.owner_id).map((l) => l.owner_id as string),
+    );
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const callsLast24hByOwner = new Set<string>();
+    for (const c of calls ?? []) {
+      if (new Date(c.occurred_at).getTime() < dayAgo) continue;
+      const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+      if (lead?.owner_id) callsLast24hByOwner.add(lead.owner_id);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    for (const ownerId of ownerIdsWithLeads) {
+      if (callsLast24hByOwner.has(ownerId)) continue;
+      const rep = profilesById.get(ownerId);
+      if (!rep || (rep.role !== "rep" && rep.role !== "sotuv_menejeri")) continue;
+      out.push({
+        key: `manager_inactive:${ownerId}:${today}`,
+        type: "manager_inactive",
+        title: `${profileName(rep)} so'nggi 24 soatda qo'ng'iroq qilmagan`,
+        body: "Faoliyatini tekshiring — bugun hech qanday qo'ng'iroq amalga oshirilmadi.",
+        meta: "Bugun",
+        link: null,
+        createdAt: new Date().toISOString(),
+        read: false,
+        dismissed: false,
+      });
+    }
+
+    for (const c of calls ?? []) {
+      const lead = c.lead_id ? leadsById.get(c.lead_id) : undefined;
+      const leadLink = lead ? `/crm/leads/${lead.id}` : null;
+      const ownerName = lead?.owner_id ? profileName(profilesById.get(lead.owner_id)) : null;
+      const who = ownerName ? ` (${ownerName})` : "";
+
+      // Audio yo'q -- a connected call with no recording ever landed.
+      if (c.connected && !c.recording_url) {
+        out.push({
+          key: `no_audio:${c.id}`,
+          type: "no_audio",
+          title: `${lead?.name ?? "Noma'lum lid"}${who} bilan qo'ng'iroqning audiosi yo'q`,
+          body: "AmoCRM'dan yozuv fayli kelmadi — qo'ng'iroq ulangan bo'lsa ham audio topilmadi.",
+          meta: timeAgo(c.occurred_at),
+          link: leadLink,
+          createdAt: c.occurred_at,
+          read: false,
+          dismissed: false,
+        });
+      }
+
+      // Past sifatli qo'ng'iroq -- AI baholagan, past ball bilan.
+      if (c.score != null && c.score < 40) {
+        out.push({
+          key: `low_quality:${c.id}`,
+          type: "low_quality",
+          title: `${lead?.name ?? "Noma'lum lid"}${who} bilan past sifatli qo'ng'iroq`,
+          body: `AI bahosi: ${c.score}/100. Qo'ng'iroqni tinglab, sababini aniqlang.`,
+          meta: timeAgo(c.occurred_at),
+          link: leadLink,
+          createdAt: c.occurred_at,
+          read: false,
+          dismissed: false,
+        });
+      }
+
+      // Red Flag xatosi -- AI tahlili bitim yo'qolish xavfini aniqlagan.
+      const risks = (c.analysis as CallAnalysis | null)?.risks;
+      if (risks && risks.length > 0) {
+        out.push({
+          key: `red_flag:${c.id}`,
+          type: "red_flag",
+          title: `${lead?.name ?? "Noma'lum lid"}${who} bo'yicha bitim yo'qolish xavfi`,
+          body: risks[0] ?? "",
+          meta: timeAgo(c.occurred_at),
+          link: leadLink,
+          createdAt: c.occurred_at,
+          read: false,
+          dismissed: false,
+        });
+      }
+    }
+
+    const stateByKey = new Map((states ?? []).map((s) => [s.alert_key, s]));
+    return out
+      .map((a) => {
+        const s = stateByKey.get(a.key);
+        return { ...a, read: !!s?.read_at, dismissed: !!s?.dismissed_at };
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [calls, leads, profiles, states]);
+
+  return { alerts, isLoading };
+}
+
+function useUpsertAlertState() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { key: string; readAt?: string; dismissedAt?: string }) => {
+      const { error } = await supabase.from("alert_states").upsert(
+        {
+          organization_id: user!.organizationId!,
+          user_id: user!.id,
+          alert_key: input.key,
+          ...(input.readAt ? { read_at: input.readAt } : {}),
+          ...(input.dismissedAt ? { dismissed_at: input.dismissedAt } : {}),
+        },
+        { onConflict: "user_id,alert_key", ignoreDuplicates: false },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["alert_states", user?.id] }),
+  });
+}
+
+export function useMarkAlertRead() {
+  const upsert = useUpsertAlertState();
+  return {
+    ...upsert,
+    mutate: (key: string) => upsert.mutate({ key, readAt: new Date().toISOString() }),
+  };
+}
+
+export function useDismissAlert() {
+  const upsert = useUpsertAlertState();
+  return {
+    ...upsert,
+    mutate: (key: string) =>
+      upsert.mutate({
+        key,
+        readAt: new Date().toISOString(),
+        dismissedAt: new Date().toISOString(),
+      }),
+  };
+}
+
 // A small, cheap preview for widgets (Dashboard's Audio tahlil card) that
 // only need "the last few AI-scored calls" — not the full useAudioAnalyticsView
 // (every call, every column, for the whole org). Filtering server-side on

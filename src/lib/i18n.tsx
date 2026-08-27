@@ -1976,6 +1976,23 @@ const en: Dict = {
   "normatives.notifyBody":
     "You're currently at {pct}% of your monthly target. Check in with your manager if you need support.",
   "normatives.noEmployees": "No employees yet.",
+  "alerts.title": "Alerts",
+  "alerts.desc":
+    "Operational issues that need a look — inactive reps, missing recordings, low-scored calls, AI-flagged risks.",
+  "alerts.viewAll": "View all alerts",
+  "alerts.tabAll": "All",
+  "alerts.tabNew": "New",
+  "alerts.tabRead": "Read",
+  "alerts.tabDismissed": "Dismissed",
+  "alerts.typeLabel": "Type",
+  "alerts.filterAllTypes": "All types",
+  "alerts.type.manager_inactive": "Inactive rep",
+  "alerts.type.no_audio": "No recording",
+  "alerts.type.low_quality": "Low-quality call",
+  "alerts.type.red_flag": "Deal-loss risk",
+  "alerts.dismiss": "Dismiss",
+  "alerts.empty": "No alerts here.",
+  "userMenu.alerts": "Alerts",
 };
 
 const ru: Dict = {
@@ -3933,6 +3950,23 @@ const ru: Dict = {
   "normatives.notifyBody":
     "Сейчас вы на {pct}% от месячной цели. Обратитесь к менеджеру, если нужна поддержка.",
   "normatives.noEmployees": "Пока нет сотрудников.",
+  "alerts.title": "Оповещения",
+  "alerts.desc":
+    "Оперативные проблемы, требующие внимания — неактивные менеджеры, звонки без записи, звонки с низкой оценкой, риски AI.",
+  "alerts.viewAll": "Все оповещения",
+  "alerts.tabAll": "Все",
+  "alerts.tabNew": "Новые",
+  "alerts.tabRead": "Прочитанные",
+  "alerts.tabDismissed": "Отклонённые",
+  "alerts.typeLabel": "Тип",
+  "alerts.filterAllTypes": "Все типы",
+  "alerts.type.manager_inactive": "Неактивный менеджер",
+  "alerts.type.no_audio": "Нет записи",
+  "alerts.type.low_quality": "Звонок низкого качества",
+  "alerts.type.red_flag": "Риск потери сделки",
+  "alerts.dismiss": "Отклонить",
+  "alerts.empty": "Оповещений нет.",
+  "userMenu.alerts": "Оповещения",
 };
 
 const uz: Dict = {
@@ -5925,6 +5959,23 @@ const uz: Dict = {
   "normatives.notifyBody":
     "Hozir siz oylik maqsadning {pct}% ida turibsiz. Yordam kerak bo‘lsa, menejeringizga murojaat qiling.",
   "normatives.noEmployees": "Hozircha xodimlar yo‘q.",
+  "alerts.title": "Ogohlantirishlar",
+  "alerts.desc":
+    "Diqqat talab qiladigan holatlar — faoliyatsiz menejerlar, audiosi yo'q qo'ng'iroqlar, past sifatli qo'ng'iroqlar, AI aniqlagan xavflar.",
+  "alerts.viewAll": "Barcha ogohlantirishlar",
+  "alerts.tabAll": "Barchasi",
+  "alerts.tabNew": "Yangi",
+  "alerts.tabRead": "O'qilgan",
+  "alerts.tabDismissed": "Bekor qilingan",
+  "alerts.typeLabel": "Turi",
+  "alerts.filterAllTypes": "Barcha turlar",
+  "alerts.type.manager_inactive": "Faoliyatsiz menejer",
+  "alerts.type.no_audio": "Audio yo'q",
+  "alerts.type.low_quality": "Past sifatli qo'ng'iroq",
+  "alerts.type.red_flag": "Red Flag xatosi",
+  "alerts.dismiss": "Bekor qilish",
+  "alerts.empty": "Bu yerda ogohlantirishlar yo'q.",
+  "userMenu.alerts": "Ogohlantirishlar",
 };
 
 const DICTS: Record<Lang, Dict> = { uz, ru, en };
