@@ -118,18 +118,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Deliberately NOT also calling supabase.auth.getSession() here --
-    // onAuthStateChange fires once immediately on subscribe with whatever
-    // session already exists (event "INITIAL_SESSION"), so a separate
-    // getSession().then(...) alongside it used to race this same handler:
-    // both independently called hydrate() for the same user and both
-    // called setReady(true), and whichever of the two duplicate hydrate
-    // calls happened to resolve *last* won, overwriting the other's state.
-    // On a hard refresh that occasionally meant the already-correct user
-    // got clobbered back to null right after render, which sent AuthGate
-    // to /login and then login.tsx's own "already signed in" effect bounced
-    // it to "/" -- losing whatever page (e.g. /funnels) was actually
-    // requested. One listener, one hydrate call per identity change, below.
+    // Both this call AND onAuthStateChange fire once for whatever session
+    // already exists on mount -- that used to mean two independent hydrate()
+    // + setReady(true) calls for the *same* user, racing each other, and
+    // whichever resolved last could overwrite an already-correct user with
+    // null moments after a correct render (sending AuthGate to /login, then
+    // login.tsx's own "already signed in" effect bounced it to "/", losing
+    // whatever page e.g. /funnels was actually open). Removing this call
+    // entirely (an earlier attempt at this fix) turned out to be worse --
+    // login got stuck permanently on some loads, so onAuthStateChange's
+    // initial fire alone isn't reliably sufficient here. Instead, both
+    // paths now check lastUserIdRef the same way: whichever fires first
+    // claims the hydrate; the other is a same-identity no-op that still
+    // calls setReady(true) (idempotent).
+    supabase.auth.getSession().then(async ({ data }) => {
+      const sessionUserId = data.session?.user?.id ?? null;
+      if (sessionUserId && sessionUserId !== lastUserIdRef.current) {
+        lastUserIdRef.current = sessionUserId;
+        await hydrate(sessionUserId);
+      }
+      if (mounted.current) setReady(true);
+    });
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
 
