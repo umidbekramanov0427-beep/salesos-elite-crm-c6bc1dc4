@@ -1431,7 +1431,7 @@ const en: Dict = {
   "amocrm.never": "Never",
   "amocrm.autoSyncActive": "Auto-sync active — every 5 min",
   "amocrm.initialSyncInProgress":
-    "Importing your lead history — this can take a few sync cycles for large accounts.",
+    "Importing your lead history — this can take a few sync cycles for large accounts. Reached page {page} so far.",
   "amocrm.leadsCount": "{count} leads",
   "amocrm.adminOnly": "Only admins can connect or sync AmoCRM.",
   "amocrm.syncNow": "Sync now",
@@ -3382,7 +3382,7 @@ const ru: Dict = {
   "amocrm.never": "Никогда",
   "amocrm.autoSyncActive": "Автосинхронизация активна — каждые 5 мин",
   "amocrm.initialSyncInProgress":
-    "Идёт импорт истории лидов — для больших аккаунтов это может занять несколько циклов синхронизации.",
+    "Идёт импорт истории лидов — для больших аккаунтов это может занять несколько циклов синхронизации. Дошло до страницы {page}.",
   "amocrm.leadsCount": "лидов: {count}",
   "amocrm.adminOnly": "Только администраторы могут подключать или синхронизировать AmoCRM.",
   "amocrm.syncNow": "Синхронизировать",
@@ -5363,7 +5363,7 @@ const uz: Dict = {
   "amocrm.never": "Hech qachon",
   "amocrm.autoSyncActive": "Avtomatik sinxronlash faol — har 5 daqiqada",
   "amocrm.initialSyncInProgress":
-    "Lidlar tarixi import qilinmoqda — katta hajmdagi akkauntlar uchun bu bir necha sinxronlash sikli davom etishi mumkin.",
+    "Lidlar tarixi import qilinmoqda — katta hajmdagi akkauntlar uchun bu bir necha sinxronlash sikli davom etishi mumkin. Hozircha {page}-sahifaga yetdi.",
   "amocrm.leadsCount": "{count} ta lid",
   "amocrm.adminOnly": "Faqat adminlar AmoCRM'ni ulashi yoki sinxronlashi mumkin.",
   "amocrm.syncNow": "Sinxronlash",

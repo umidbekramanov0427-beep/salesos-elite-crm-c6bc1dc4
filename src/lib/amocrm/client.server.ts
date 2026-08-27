@@ -1007,7 +1007,17 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
     // restarts from page 1 and hits the same wall forever. Cap how long
     // this loop runs per invocation and pick back up from where it left off
     // (via initial_sync_page) on the next 5-minute cron tick instead.
-    const LEADS_LOOP_TIME_BUDGET_MS = 15_000;
+    //
+    // Was 15s, which for a large multi-pipeline account (hundreds of pages)
+    // meant the backfill only advanced a page or two per 5-minute tick --
+    // technically progressing, but slowly enough to look and feel
+    // permanently stuck ("Oxirgi sinxronizatsiya: Hech qachon" for hours).
+    // net.http_post's own timeout for this whole request is 4 minutes (see
+    // the amocrm-auto-sync-5min cron job) and everything else this function
+    // does outside this loop (pipeline stages, users, loss reasons, calls)
+    // is comfortably sub-minute, so there's plenty of room to let the
+    // resumable part of the loop itself run much longer per tick.
+    const LEADS_LOOP_TIME_BUDGET_MS = 150_000;
     const leadsLoopStartedAt = Date.now();
     let backfillPaused = false;
 
