@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Loader2, MessageSquare, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { AdminBackLink } from "@/components/admin/AdminBackLink";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -27,15 +27,11 @@ export const Route = createFileRoute("/admin/ai-agents")({
   component: AiAgentsPage,
 });
 
-const MODELS = ["deepseek-chat", "deepseek-reasoner"] as const;
-const MODEL_LABEL: Record<(typeof MODELS)[number], string> = {
-  "deepseek-chat": "DeepSeek Chat",
-  "deepseek-reasoner": "DeepSeek Reasoner",
-};
-const MODEL_HINT: Record<(typeof MODELS)[number], string> = {
-  "deepseek-chat": "Tavsiya etiladi — tez va sifatli javoblar uchun",
-  "deepseek-reasoner": "Chuqurroq mulohaza yuritadi, murakkab tahlil uchun (sekinroq)",
-};
+// Both agents always run on the platform's own Gemini-backed pipeline
+// (src/routes/ai-assistant.chat.ts, src/routes/audio-analytics.analyze.ts) --
+// there was never a real per-agent model choice, so the old DeepSeek picker
+// here just showed a value that had zero effect on what actually ran.
+const ACTIVE_MODEL_LABEL = "Gemini";
 
 const CHANNELS = ["telegram_bot", "telegram", "whatsapp", "instagram"] as const;
 const CHANNEL_LABEL: Record<(typeof CHANNELS)[number], string> = {
@@ -52,6 +48,18 @@ const DEFAULTS: Record<Kind, { icon: typeof MessageSquare; promptKey: string }> 
   call: { icon: Phone, promptKey: "admin.ai.callDefaultPrompt" },
 };
 
+// Supabase's PostgrestError is a real Error subclass, but a save can also
+// fail before the network call (e.g. a stale RLS policy rejecting the
+// write) with other error shapes -- read .message off anything that has
+// one instead of only trusting `instanceof Error`, so a real reason shows
+// up in the toast instead of always falling back to the generic text.
+function errorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err && typeof err.message === "string") {
+    return err.message || fallback;
+  }
+  return fallback;
+}
+
 function ConfigDialog({
   kind,
   agent,
@@ -65,14 +73,12 @@ function ConfigDialog({
 }) {
   const { t } = useI18n();
   const updateAgent = useUpdateAiAgent();
-  const [model, setModel] = useState<string>("deepseek-chat");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setModel(agent?.model ?? "deepseek-chat");
     setSystemPrompt(agent?.system_prompt ?? t(DEFAULTS[kind].promptKey));
     setChannels(agent?.channels ?? []);
   }, [open, agent, kind, t]);
@@ -87,7 +93,7 @@ function ConfigDialog({
     try {
       await updateAgent.mutateAsync({
         kind,
-        model,
+        model: "gemini",
         system_prompt: systemPrompt.trim(),
         channels: kind === "chat" ? channels : [],
         active: agent?.active ?? true,
@@ -95,7 +101,7 @@ function ConfigDialog({
       toast.success(t("admin.ai.saved"));
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.ai.saveFailed"));
+      toast.error(errorMessage(err, t("admin.ai.saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -113,32 +119,10 @@ function ConfigDialog({
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <span className="text-[13px] font-medium text-muted-foreground">
-              {t("admin.ai.model")}
-            </span>
-            <div className="mt-1.5 space-y-1.5">
-              {MODELS.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setModel(m)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
-                    model === m
-                      ? "border-primary/40 bg-primary/10"
-                      : "border-border hover:bg-accent",
-                  )}
-                >
-                  <span>
-                    <span className="font-medium text-foreground">{MODEL_LABEL[m]}</span>
-                    <span className="block text-[11px] text-subtle">{MODEL_HINT[m]}</span>
-                  </span>
-                  {model === m && <Pill tone="info">{t("admin.ai.selected")}</Pill>}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-[13px] text-muted-foreground">
+            {t("admin.ai.model")}:{" "}
+            <span className="font-medium text-foreground">{ACTIVE_MODEL_LABEL}</span>
+          </p>
 
           <label className="block">
             <span className="text-[13px] font-medium text-muted-foreground">
@@ -209,7 +193,7 @@ function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined 
         channels: agent?.channels,
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("admin.ai.saveFailed"));
+      toast.error(errorMessage(err, t("admin.ai.saveFailed")));
     }
   }
 
@@ -247,7 +231,8 @@ function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined 
 
       {agent && (
         <p className="mt-3 text-[11px] text-subtle">
-          {t("admin.ai.model")}: <span className="font-medium text-foreground">{agent.model}</span>
+          {t("admin.ai.model")}:{" "}
+          <span className="font-medium text-foreground">{ACTIVE_MODEL_LABEL}</span>
         </p>
       )}
 
