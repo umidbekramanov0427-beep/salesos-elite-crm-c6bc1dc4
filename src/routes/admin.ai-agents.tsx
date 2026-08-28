@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Bot, Loader2, MessageSquare, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
@@ -7,7 +8,34 @@ import { AdminBackLink } from "@/components/admin/AdminBackLink";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { useAiAgents, useUpdateAiAgent, type AiAgentRow } from "@/hooks/use-crm-data";
+
+// Temporary: two RLS-shape fixes to ai_agents_write still failed for an
+// account confirmed client-side to be organizationId=<real uuid>,
+// role=super_admin -- calling the same security-definer functions the
+// policy itself calls answers whether the server sees the same identity
+// the client does, instead of guessing at the policy text a third time.
+function useServerAuthContext() {
+  return useQuery({
+    queryKey: ["debug-server-auth-context"],
+    queryFn: async () => {
+      // current_user_org_id exists in the DB (used by dozens of RLS
+      // policies) but isn't in the generated Functions type list -- cast
+      // past that gap for this temporary debug-only call.
+      const [org, role] = await Promise.all([
+        supabase.rpc("current_user_org_id" as "current_user_role"),
+        supabase.rpc("current_user_role"),
+      ]);
+      return {
+        org: org.data as string | null,
+        orgError: org.error?.message ?? null,
+        role: role.data as string | null,
+        roleError: role.error?.message ?? null,
+      };
+    },
+  });
+}
 import {
   Dialog,
   DialogContent,
@@ -263,6 +291,7 @@ function AiAgentsPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { data: agents, isLoading } = useAiAgents();
+  const { data: serverAuth } = useServerAuthContext();
 
   if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
@@ -287,6 +316,12 @@ function AiAgentsPage() {
 
       <p className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
         {t("admin.ai.notice")}
+      </p>
+
+      <p className="mb-6 rounded-xl border border-border bg-surface px-3 py-2 font-mono text-[11px] text-muted-foreground">
+        debug: client org={user?.organizationId ?? "null"} role={user?.role ?? "null"} · server org=
+        {serverAuth?.org ?? serverAuth?.orgError ?? "…"} role=
+        {serverAuth?.role ?? serverAuth?.roleError ?? "…"}
       </p>
 
       {isLoading ? (
