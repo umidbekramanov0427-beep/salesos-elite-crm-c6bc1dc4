@@ -177,14 +177,26 @@ function AlertsPageContent() {
                   <p className="text-sm font-semibold text-foreground">{a.title}</p>
                   {a.body && <p className="mt-1 text-xs text-muted-foreground">{a.body}</p>}
                 </div>
-                {!a.dismissed && (
-                  <button
-                    onClick={() => dismiss.mutate(a.key)}
-                    className="self-start rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    {t("alerts.dismiss")}
-                  </button>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  {a.link ? (
+                    <button
+                      onClick={() => open(a)}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      {t("inbox.open")}
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  {!a.dismissed && (
+                    <button
+                      onClick={() => dismiss.mutate(a.key)}
+                      className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      {t("alerts.dismiss")}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

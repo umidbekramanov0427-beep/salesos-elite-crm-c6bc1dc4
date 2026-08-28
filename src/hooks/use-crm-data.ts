@@ -1618,7 +1618,7 @@ export function useAlertsView() {
         title: `${profileName(rep)} so'nggi 24 soatda qo'ng'iroq qilmagan`,
         body: "Faoliyatini tekshiring — bugun hech qanday qo'ng'iroq amalga oshirilmadi.",
         meta: "Bugun",
-        link: null,
+        link: "/audio-analytics",
         createdAt: new Date().toISOString(),
         read: false,
         dismissed: false,
