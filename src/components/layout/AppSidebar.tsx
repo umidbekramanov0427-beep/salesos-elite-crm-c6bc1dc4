@@ -1,7 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  AlertTriangle,
   Bell,
   ChevronDown,
   ChevronsUpDown,
@@ -198,12 +197,6 @@ function UserMenu({ collapsed, isAdmin }: { collapsed: boolean; isAdmin: boolean
                 className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
               >
                 <ShieldCheck className="h-4 w-4" /> {t("nav./admin")}
-              </Link>
-              <Link
-                to="/alerts"
-                className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                <AlertTriangle className="h-4 w-4" /> {t("userMenu.alerts")}
               </Link>
             </>
           )}

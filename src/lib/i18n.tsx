@@ -33,6 +33,7 @@ const en: Dict = {
   "nav./crm-stages": "CRM Stages",
   "nav./audio-analytics": "Audio Analytics",
   "nav./attendance": "Attendance & Quotas",
+  "nav./alerts": "Alerts",
   "nav./history": "History",
   "nav./normatives": "Normatives",
   "nav./integrations": "Integrations",
@@ -1991,7 +1992,6 @@ const en: Dict = {
   "alerts.type.red_flag": "Deal-loss risk",
   "alerts.dismiss": "Dismiss",
   "alerts.empty": "No alerts here.",
-  "userMenu.alerts": "Alerts",
 };
 
 const ru: Dict = {
@@ -2010,6 +2010,7 @@ const ru: Dict = {
   "nav./crm-stages": "Этапы CRM",
   "nav./audio-analytics": "Аудио-аналитика",
   "nav./attendance": "Посещаемость и нормативы",
+  "nav./alerts": "Оповещения",
   "nav./history": "История",
   "nav./normatives": "Нормативы",
   "nav./integrations": "Интеграции",
@@ -3964,7 +3965,6 @@ const ru: Dict = {
   "alerts.type.red_flag": "Риск потери сделки",
   "alerts.dismiss": "Отклонить",
   "alerts.empty": "Оповещений нет.",
-  "userMenu.alerts": "Оповещения",
 };
 
 const uz: Dict = {
@@ -3983,6 +3983,7 @@ const uz: Dict = {
   "nav./crm-stages": "CRM bosqichlari",
   "nav./audio-analytics": "Audio tahlil",
   "nav./attendance": "Davomat va Normativ",
+  "nav./alerts": "Ogohlantirishlar",
   "nav./history": "Tarix",
   "nav./normatives": "Normativlar",
   "nav./integrations": "Integratsiyalar",
@@ -5972,7 +5973,6 @@ const uz: Dict = {
   "alerts.type.red_flag": "Red Flag xatosi",
   "alerts.dismiss": "Bekor qilish",
   "alerts.empty": "Bu yerda ogohlantirishlar yo'q.",
-  "userMenu.alerts": "Ogohlantirishlar",
 };
 
 const DICTS: Record<Lang, Dict> = { uz, ru, en };
