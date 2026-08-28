@@ -1548,7 +1548,6 @@ export type AlertView = {
   type: AlertType;
   title: string;
   body: string;
-  meta: string;
   link: string | null;
   createdAt: string;
   read: boolean;
@@ -1577,7 +1576,12 @@ function useAlertStatesRaw() {
 // in alert_states and merged in below by the same alert_key both sides
 // agree on.
 export function useAlertsView() {
-  const ALERT_WINDOW_DAYS = 7;
+  // This account's AmoCRM history is still backfilling, so most calls
+  // landing in the DB today have an old real occurred_at (from months back,
+  // not from today) -- a narrow 7-day window filtered nearly all of them
+  // out and made the page look almost empty. 90 days surfaces the actual
+  // backlog of real issues instead of just whatever happened this week.
+  const ALERT_WINDOW_DAYS = 90;
   const from = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - ALERT_WINDOW_DAYS);
@@ -1617,8 +1621,7 @@ export function useAlertsView() {
         type: "manager_inactive",
         title: `${profileName(rep)} so'nggi 24 soatda qo'ng'iroq qilmagan`,
         body: "Faoliyatini tekshiring — bugun hech qanday qo'ng'iroq amalga oshirilmadi.",
-        meta: "Bugun",
-        link: null,
+        link: "/audio-analytics",
         createdAt: new Date().toISOString(),
         read: false,
         dismissed: false,
@@ -1638,7 +1641,6 @@ export function useAlertsView() {
           type: "no_audio",
           title: `${lead?.name ?? "Noma'lum lid"}${who} bilan qo'ng'iroqning audiosi yo'q`,
           body: "AmoCRM'dan yozuv fayli kelmadi — qo'ng'iroq ulangan bo'lsa ham audio topilmadi.",
-          meta: timeAgo(c.occurred_at),
           link: leadLink,
           createdAt: c.occurred_at,
           read: false,
@@ -1653,7 +1655,6 @@ export function useAlertsView() {
           type: "low_quality",
           title: `${lead?.name ?? "Noma'lum lid"}${who} bilan past sifatli qo'ng'iroq`,
           body: `AI bahosi: ${c.score}/100. Qo'ng'iroqni tinglab, sababini aniqlang.`,
-          meta: timeAgo(c.occurred_at),
           link: leadLink,
           createdAt: c.occurred_at,
           read: false,
@@ -1669,7 +1670,6 @@ export function useAlertsView() {
           type: "red_flag",
           title: `${lead?.name ?? "Noma'lum lid"}${who} bo'yicha bitim yo'qolish xavfi`,
           body: risks[0] ?? "",
-          meta: timeAgo(c.occurred_at),
           link: leadLink,
           createdAt: c.occurred_at,
           read: false,
@@ -1715,7 +1715,8 @@ export function useMarkAlertRead() {
   const upsert = useUpsertAlertState();
   return {
     ...upsert,
-    mutate: (key: string) => upsert.mutate({ key, readAt: new Date().toISOString() }),
+    mutate: (key: string, options?: Parameters<(typeof upsert)["mutate"]>[1]) =>
+      upsert.mutate({ key, readAt: new Date().toISOString() }, options),
   };
 }
 
@@ -1723,12 +1724,11 @@ export function useDismissAlert() {
   const upsert = useUpsertAlertState();
   return {
     ...upsert,
-    mutate: (key: string) =>
-      upsert.mutate({
-        key,
-        readAt: new Date().toISOString(),
-        dismissedAt: new Date().toISOString(),
-      }),
+    mutate: (key: string, options?: Parameters<(typeof upsert)["mutate"]>[1]) =>
+      upsert.mutate(
+        { key, readAt: new Date().toISOString(), dismissedAt: new Date().toISOString() },
+        options,
+      ),
   };
 }
 

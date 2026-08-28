@@ -1992,6 +1992,7 @@ const en: Dict = {
   "alerts.type.red_flag": "Deal-loss risk",
   "alerts.dismiss": "Dismiss",
   "alerts.empty": "No alerts here.",
+  "alerts.actionFailed": "Couldn't do that",
 };
 
 const ru: Dict = {
@@ -3965,6 +3966,7 @@ const ru: Dict = {
   "alerts.type.red_flag": "Риск потери сделки",
   "alerts.dismiss": "Отклонить",
   "alerts.empty": "Оповещений нет.",
+  "alerts.actionFailed": "Не удалось выполнить",
 };
 
 const uz: Dict = {
@@ -5973,6 +5975,7 @@ const uz: Dict = {
   "alerts.type.red_flag": "Red Flag xatosi",
   "alerts.dismiss": "Bekor qilish",
   "alerts.empty": "Bu yerda ogohlantirishlar yo'q.",
+  "alerts.actionFailed": "Bajarib bo'lmadi",
 };
 
 const DICTS: Record<Lang, Dict> = { uz, ru, en };

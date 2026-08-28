@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Flag, Loader2, MicOff, ShieldAlert, TrendingDown, UserX } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { FilterSelect } from "@/components/filters/FilterSelect";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,13 @@ import {
   type AlertType,
   type AlertView,
 } from "@/hooks/use-crm-data";
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err && typeof err.message === "string") {
+    return err.message || fallback;
+  }
+  return fallback;
+}
 
 export const Route = createFileRoute("/alerts")({
   head: () => ({
@@ -43,6 +51,15 @@ const TYPE_TONE: Record<AlertType, "warning" | "info" | "danger"> = {
   low_quality: "warning",
   red_flag: "danger",
 };
+
+function formatDateTime(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
 
 function AlertsPage() {
   const { t } = useI18n();
@@ -94,7 +111,11 @@ function AlertsPageContent() {
   );
 
   function open(a: AlertView) {
-    if (!a.read) markRead.mutate(a.key);
+    if (!a.read) {
+      markRead.mutate(a.key, {
+        onError: (err) => toast.error(errorMessage(err, t("alerts.actionFailed"))),
+      });
+    }
     if (a.link) void navigate({ to: a.link });
   }
 
@@ -161,14 +182,15 @@ function AlertsPageContent() {
                 className={cn(
                   "flex flex-col gap-3 rounded-2xl border border-border border-l-4 bg-card p-5 shadow-soft transition-colors",
                   borderTone,
-                  !a.read && !a.dismissed && "bg-surface",
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <Pill tone={tone === "info" ? "info" : tone === "danger" ? "danger" : "warning"}>
                     <Icon className="mr-1 h-3 w-3" /> {t(`alerts.type.${a.type}`)}
                   </Pill>
-                  <span className="shrink-0 text-xs text-subtle">{a.meta}</span>
+                  <span className="shrink-0 text-xs text-subtle">
+                    {formatDateTime(a.createdAt)}
+                  </span>
                 </div>
                 <div
                   onClick={() => open(a)}
@@ -177,14 +199,31 @@ function AlertsPageContent() {
                   <p className="text-sm font-semibold text-foreground">{a.title}</p>
                   {a.body && <p className="mt-1 text-xs text-muted-foreground">{a.body}</p>}
                 </div>
-                {!a.dismissed && (
-                  <button
-                    onClick={() => dismiss.mutate(a.key)}
-                    className="self-start rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    {t("alerts.dismiss")}
-                  </button>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  {a.link ? (
+                    <button
+                      onClick={() => open(a)}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      {t("inbox.open")}
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  {!a.dismissed && (
+                    <button
+                      onClick={() =>
+                        dismiss.mutate(a.key, {
+                          onError: (err) =>
+                            toast.error(errorMessage(err, t("alerts.actionFailed"))),
+                        })
+                      }
+                      className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      {t("alerts.dismiss")}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
