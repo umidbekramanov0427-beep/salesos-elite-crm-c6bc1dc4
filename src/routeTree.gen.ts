@@ -70,6 +70,7 @@ import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.s
 import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
 import { Route as TelegramWebhookRouteImport } from './routes/telegram.webhook'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AdminAiAgentsUpdateRouteImport } from './routes/admin.ai-agents.update'
 import { Route as CrmLeadsIndexRouteImport } from './routes/crm.leads.index'
 import { Route as CrmLeadsLeadIdRouteImport } from './routes/crm.leads.$leadId'
 import { Route as IntegrationsAmocrmCallbackRouteImport } from './routes/integrations.amocrm.callback'
@@ -392,6 +393,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminAiAgentsUpdateRoute = AdminAiAgentsUpdateRouteImport.update({
+  id: '/update',
+  path: '/update',
+  getParentRoute: () => AdminAiAgentsRoute,
+} as any)
 const CrmLeadsIndexRoute = CrmLeadsIndexRouteImport.update({
   id: '/crm/leads/',
   path: '/crm/leads/',
@@ -460,7 +466,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/admin/ai-agents': typeof AdminAiAgentsRoute
+  '/admin/ai-agents': typeof AdminAiAgentsRouteWithChildren
   '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
   '/admin/amocrm-disconnect': typeof AdminAmocrmDisconnectRoute
   '/admin/amocrm-import': typeof AdminAmocrmImportRoute
@@ -500,6 +506,7 @@ export interface FileRoutesByFullPath {
   '/telegram/webhook': typeof TelegramWebhookRoute
   '/platform/': typeof PlatformIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/ai-agents/update': typeof AdminAiAgentsUpdateRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
@@ -531,7 +538,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/admin/ai-agents': typeof AdminAiAgentsRoute
+  '/admin/ai-agents': typeof AdminAiAgentsRouteWithChildren
   '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
   '/admin/amocrm-disconnect': typeof AdminAmocrmDisconnectRoute
   '/admin/amocrm-import': typeof AdminAmocrmImportRoute
@@ -571,6 +578,7 @@ export interface FileRoutesByTo {
   '/telegram/webhook': typeof TelegramWebhookRoute
   '/platform': typeof PlatformIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/ai-agents/update': typeof AdminAiAgentsUpdateRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
@@ -603,7 +611,7 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/admin/ai-agents': typeof AdminAiAgentsRoute
+  '/admin/ai-agents': typeof AdminAiAgentsRouteWithChildren
   '/admin/amocrm-catalog': typeof AdminAmocrmCatalogRoute
   '/admin/amocrm-disconnect': typeof AdminAmocrmDisconnectRoute
   '/admin/amocrm-import': typeof AdminAmocrmImportRoute
@@ -643,6 +651,7 @@ export interface FileRoutesById {
   '/telegram/webhook': typeof TelegramWebhookRoute
   '/platform/': typeof PlatformIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/ai-agents/update': typeof AdminAiAgentsUpdateRoute
   '/crm/leads/$leadId': typeof CrmLeadsLeadIdRoute
   '/integrations/amocrm/callback': typeof IntegrationsAmocrmCallbackRoute
   '/integrations/amocrm/connect': typeof IntegrationsAmocrmConnectRoute
@@ -716,6 +725,7 @@ export interface FileRouteTypes {
     | '/telegram/webhook'
     | '/platform/'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/ai-agents/update'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
     | '/integrations/amocrm/connect'
@@ -787,6 +797,7 @@ export interface FileRouteTypes {
     | '/telegram/webhook'
     | '/platform'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/ai-agents/update'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
     | '/integrations/amocrm/connect'
@@ -858,6 +869,7 @@ export interface FileRouteTypes {
     | '/telegram/webhook'
     | '/platform/'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/ai-agents/update'
     | '/crm/leads/$leadId'
     | '/integrations/amocrm/callback'
     | '/integrations/amocrm/connect'
@@ -1347,6 +1359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/ai-agents/update': {
+      id: '/admin/ai-agents/update'
+      path: '/update'
+      fullPath: '/admin/ai-agents/update'
+      preLoaderRoute: typeof AdminAiAgentsUpdateRouteImport
+      parentRoute: typeof AdminAiAgentsRoute
+    }
     '/crm/leads/': {
       id: '/crm/leads/'
       path: '/crm/leads'
@@ -1406,8 +1425,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminAiAgentsRouteChildren {
+  AdminAiAgentsUpdateRoute: typeof AdminAiAgentsUpdateRoute
+}
+
+const AdminAiAgentsRouteChildren: AdminAiAgentsRouteChildren = {
+  AdminAiAgentsUpdateRoute: AdminAiAgentsUpdateRoute,
+}
+
+const AdminAiAgentsRouteWithChildren = AdminAiAgentsRoute._addFileChildren(
+  AdminAiAgentsRouteChildren,
+)
+
 interface AdminRouteChildren {
-  AdminAiAgentsRoute: typeof AdminAiAgentsRoute
+  AdminAiAgentsRoute: typeof AdminAiAgentsRouteWithChildren
   AdminAmocrmCatalogRoute: typeof AdminAmocrmCatalogRoute
   AdminAmocrmDisconnectRoute: typeof AdminAmocrmDisconnectRoute
   AdminAmocrmImportRoute: typeof AdminAmocrmImportRoute
@@ -1424,7 +1455,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminAiAgentsRoute: AdminAiAgentsRoute,
+  AdminAiAgentsRoute: AdminAiAgentsRouteWithChildren,
   AdminAmocrmCatalogRoute: AdminAmocrmCatalogRoute,
   AdminAmocrmDisconnectRoute: AdminAmocrmDisconnectRoute,
   AdminAmocrmImportRoute: AdminAmocrmImportRoute,

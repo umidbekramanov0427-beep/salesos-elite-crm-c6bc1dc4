@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Bot, Loader2, MessageSquare, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
@@ -8,34 +7,7 @@ import { AdminBackLink } from "@/components/admin/AdminBackLink";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import { useAiAgents, useUpdateAiAgent, type AiAgentRow } from "@/hooks/use-crm-data";
-
-// Temporary: two RLS-shape fixes to ai_agents_write still failed for an
-// account confirmed client-side to be organizationId=<real uuid>,
-// role=super_admin -- calling the same security-definer functions the
-// policy itself calls answers whether the server sees the same identity
-// the client does, instead of guessing at the policy text a third time.
-function useServerAuthContext() {
-  return useQuery({
-    queryKey: ["debug-server-auth-context"],
-    queryFn: async () => {
-      // current_user_org_id exists in the DB (used by dozens of RLS
-      // policies) but isn't in the generated Functions type list -- cast
-      // past that gap for this temporary debug-only call.
-      const [org, role] = await Promise.all([
-        supabase.rpc("current_user_org_id" as "current_user_role"),
-        supabase.rpc("current_user_role"),
-      ]);
-      return {
-        org: org.data as string | null,
-        orgError: org.error?.message ?? null,
-        role: role.data as string | null,
-        roleError: role.error?.message ?? null,
-      };
-    },
-  });
-}
 import {
   Dialog,
   DialogContent,
@@ -100,7 +72,6 @@ function ConfigDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useI18n();
-  const { user } = useAuth();
   const updateAgent = useUpdateAiAgent();
   const [systemPrompt, setSystemPrompt] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
@@ -130,13 +101,7 @@ function ConfigDialog({
       toast.success(t("admin.ai.saved"));
       onOpenChange(false);
     } catch (err) {
-      // Temporary: this RLS check has failed for a literal super_admin
-      // twice already despite the policy looking right on paper -- surface
-      // the exact values it's evaluating so the next report has facts
-      // instead of another guess.
-      toast.error(
-        `${errorMessage(err, t("admin.ai.saveFailed"))} [org=${user?.organizationId ?? "null"} role=${user?.role ?? "null"}]`,
-      );
+      toast.error(errorMessage(err, t("admin.ai.saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -214,7 +179,6 @@ function ConfigDialog({
 
 function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined }) {
   const { t } = useI18n();
-  const { user } = useAuth();
   const updateAgent = useUpdateAiAgent();
   const [open, setOpen] = useState(false);
   const Icon = DEFAULTS[kind].icon;
@@ -229,9 +193,7 @@ function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined 
         channels: agent?.channels,
       });
     } catch (err) {
-      toast.error(
-        `${errorMessage(err, t("admin.ai.saveFailed"))} [org=${user?.organizationId ?? "null"} role=${user?.role ?? "null"}]`,
-      );
+      toast.error(errorMessage(err, t("admin.ai.saveFailed")));
     }
   }
 
@@ -291,7 +253,6 @@ function AiAgentsPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { data: agents, isLoading } = useAiAgents();
-  const { data: serverAuth } = useServerAuthContext();
 
   if (user && user.role !== "super_admin" && user.role !== "platform_owner") {
     return (
@@ -316,12 +277,6 @@ function AiAgentsPage() {
 
       <p className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
         {t("admin.ai.notice")}
-      </p>
-
-      <p className="mb-6 rounded-xl border border-border bg-surface px-3 py-2 font-mono text-[11px] text-muted-foreground">
-        debug: client org={user?.organizationId ?? "null"} role={user?.role ?? "null"} · server org=
-        {serverAuth?.org ?? serverAuth?.orgError ?? "…"} role=
-        {serverAuth?.role ?? serverAuth?.roleError ?? "…"}
       </p>
 
       {isLoading ? (
