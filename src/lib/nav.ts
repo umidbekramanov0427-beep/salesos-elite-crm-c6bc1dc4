@@ -94,6 +94,14 @@ export const NAV_ITEMS: NavItem[] = [
     group: "control",
     iconColor: "text-teal-500",
   },
+  {
+    label: "Alerts",
+    to: "/alerts",
+    icon: AlertTriangle,
+    adminOnly: true,
+    group: "control",
+    iconColor: "text-red-500",
+  },
   { label: "AI Assistant", to: "/ai-assistant", icon: Sparkles, iconColor: "text-violet-500" },
   { label: "Settings", to: "/settings", icon: Settings },
   {
