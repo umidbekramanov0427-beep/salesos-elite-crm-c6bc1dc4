@@ -72,6 +72,7 @@ function ConfigDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const updateAgent = useUpdateAiAgent();
   const [systemPrompt, setSystemPrompt] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
@@ -101,7 +102,13 @@ function ConfigDialog({
       toast.success(t("admin.ai.saved"));
       onOpenChange(false);
     } catch (err) {
-      toast.error(errorMessage(err, t("admin.ai.saveFailed")));
+      // Temporary: this RLS check has failed for a literal super_admin
+      // twice already despite the policy looking right on paper -- surface
+      // the exact values it's evaluating so the next report has facts
+      // instead of another guess.
+      toast.error(
+        `${errorMessage(err, t("admin.ai.saveFailed"))} [org=${user?.organizationId ?? "null"} role=${user?.role ?? "null"}]`,
+      );
     } finally {
       setSaving(false);
     }
@@ -179,6 +186,7 @@ function ConfigDialog({
 
 function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined }) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const updateAgent = useUpdateAiAgent();
   const [open, setOpen] = useState(false);
   const Icon = DEFAULTS[kind].icon;
@@ -193,7 +201,9 @@ function AgentCard({ kind, agent }: { kind: Kind; agent: AiAgentRow | undefined 
         channels: agent?.channels,
       });
     } catch (err) {
-      toast.error(errorMessage(err, t("admin.ai.saveFailed")));
+      toast.error(
+        `${errorMessage(err, t("admin.ai.saveFailed"))} [org=${user?.organizationId ?? "null"} role=${user?.role ?? "null"}]`,
+      );
     }
   }
 
