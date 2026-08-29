@@ -100,7 +100,7 @@ function MultiSelectDialog({
             return (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-accent px-4 py-3"
               >
                 <span className="text-sm font-medium text-foreground">{item.label}</span>
                 <Switch
@@ -148,9 +148,9 @@ function SectionToggleRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="rounded-xl border border-border bg-accent p-5">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
         <div className="flex items-center gap-2.5">
           <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggleEnabled} />
           <span className="text-sm text-muted-foreground">
@@ -189,9 +189,9 @@ function SimpleToggleRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="rounded-xl border border-border bg-accent p-5">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
         <div className="flex items-center gap-2.5">
           <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggleEnabled} />
           <span className="text-sm text-muted-foreground">
@@ -544,7 +544,7 @@ function StageTransitionRuleDialog({
               <select
                 value={managerId}
                 onChange={(e) => setManagerId(e.target.value)}
-                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
               >
                 <option value="">Menejerni tanlang</option>
                 {managers.map((m) => (
@@ -560,7 +560,7 @@ function StageTransitionRuleDialog({
             <select
               value={funnel}
               onChange={(e) => setFunnel(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             >
               <option value="">Voronkani tanlang</option>
               {funnelNames.map((f) => (
@@ -575,7 +575,7 @@ function StageTransitionRuleDialog({
             <select
               value={fromStageId}
               onChange={(e) => setFromStageId(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             >
               <option value="">Hamma bosqichdan</option>
               {(stages ?? []).map((s) => (
@@ -590,7 +590,7 @@ function StageTransitionRuleDialog({
             <select
               value={toStageId}
               onChange={(e) => setToStageId(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             >
               <option value="">Bosqichni tanlang</option>
               {(stages ?? []).map((s) => (
@@ -627,7 +627,7 @@ function StageTransitionRuleDialog({
             {(rules ?? []).map((rule) => (
               <li
                 key={rule.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-accent px-4 py-3"
               >
                 <div className="text-sm text-foreground">
                   <span className="font-medium">
@@ -690,7 +690,7 @@ function StageTransitionCard() {
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
             <FileText className="h-4 w-4" />
           </span>
-          <h3 className="text-sm font-semibold text-foreground">Voronka bosqichlari harakati</h3>
+          <h3 className="text-base font-semibold text-foreground">Voronka bosqichlari harakati</h3>
         </div>
         <button
           type="button"
@@ -768,7 +768,7 @@ function ReportSampleEditDialog({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={18}
-          className="w-full resize-y rounded-xl border border-border bg-surface p-3 font-mono text-xs outline-none focus:border-primary/40"
+          className="w-full resize-y rounded-xl border border-border bg-accent p-3 font-mono text-xs outline-none focus:border-primary/40"
         />
         <DialogFooter className="sm:justify-between">
           <button
@@ -840,12 +840,12 @@ function ReportSamplePreview() {
         </p>
       )}
       {!isLoading && !isError && blocks.length > 0 && (
-        <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+        <div className="space-y-4 rounded-xl border border-border bg-accent p-4">
           {blocks.map((block, i) => {
             const [header, ...rest] = block.split("\n");
             return (
               <div key={i} className="border-l-2 border-primary/40 pl-3">
-                <p className="text-sm font-semibold text-foreground">{header}</p>
+                <p className="text-base font-semibold text-foreground">{header}</p>
                 {rest.map((line, j) => (
                   <p key={j} className="whitespace-pre-wrap text-sm text-subtle">
                     {line}

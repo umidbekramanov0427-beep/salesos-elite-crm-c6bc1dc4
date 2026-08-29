@@ -70,7 +70,7 @@ function ToggleRow({
   return (
     <div>
       <div className="flex items-center justify-between gap-4">
-        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <span className="text-base font-semibold text-foreground">{title}</span>
         <div className="flex items-center gap-2.5">
           <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggle} />
           <span className="text-sm text-muted-foreground">
@@ -107,10 +107,10 @@ function ManagerConversionCriteria({
 
   return (
     <div className="mt-4 rounded-xl border border-border bg-background p-4">
-      <p className="text-sm font-semibold text-foreground">
+      <p className="text-base font-semibold text-foreground">
         Hisobot tavsiyasida ishlatiladigan mezonlar
       </p>
-      <p className="mt-1 text-xs text-subtle">
+      <p className="mt-1 text-sm text-subtle">
         Belgini olib tashlagan mezon faqat shu konversiya tavsiyasi blokida ko'rsatilmaydi.
       </p>
       <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
@@ -136,7 +136,7 @@ function ManagerConversionCriteria({
           );
         })}
       </div>
-      <p className="mt-3 text-xs text-subtle">
+      <p className="mt-3 text-sm text-subtle">
         Bu tanlov Playbook va qo'ng'iroq analizlariga ta'sir qilmaydi. Barcha mezonlar
         qo'ng'iroqlarni baholashda faol qoladi.
       </p>
@@ -195,7 +195,7 @@ function MiniAppAudioRules() {
           <select
             value={funnel}
             onChange={(e) => setFunnel(e.target.value)}
-            className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
           >
             <option value="">Voronkani tanlang</option>
             {funnelNames.map((f) => (
@@ -209,9 +209,9 @@ function MiniAppAudioRules() {
           <span className="text-[13px] font-medium text-muted-foreground">
             Bosqichlarni tanlang
           </span>
-          <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-border bg-surface p-2">
+          <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-border bg-accent p-2">
             {(stages ?? []).length === 0 && (
-              <p className="px-2 py-1 text-xs text-subtle">Bosqichlarni tanlang</p>
+              <p className="px-2 py-1 text-sm text-subtle">Bosqichlarni tanlang</p>
             )}
             {(stages ?? []).map((s) => (
               <label
@@ -248,11 +248,11 @@ function MiniAppAudioRules() {
       {(rules ?? []).map((rule) => (
         <div
           key={rule.id}
-          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-accent px-4 py-3"
         >
           <div>
-            <p className="text-sm font-semibold text-foreground">{rule.funnel}</p>
-            <p className="text-xs text-subtle">
+            <p className="text-base font-semibold text-foreground">{rule.funnel}</p>
+            <p className="text-sm text-subtle">
               {rule.stage_ids.map((id) => stageById.get(id) ?? "?").join(" | ")}
             </p>
           </div>
@@ -349,7 +349,7 @@ function DailyReportSettingsPage() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
               <Sparkles className="h-4 w-4" />
             </span>
-            <h3 className="text-sm font-semibold text-foreground">Yuborish va til</h3>
+            <h3 className="text-base font-semibold text-foreground">Yuborish va til</h3>
           </div>
 
           <div className="mt-4 space-y-5">
@@ -373,7 +373,7 @@ function DailyReportSettingsPage() {
                 type="time"
                 value={sendTime}
                 onChange={(e) => setSendTime(e.target.value)}
-                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
               />
             </label>
 
@@ -382,7 +382,7 @@ function DailyReportSettingsPage() {
               <select
                 value={reportLanguage}
                 onChange={(e) => setReportLanguage(e.target.value)}
-                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
               >
                 {LANGUAGE_OPTIONS.map((l) => (
                   <option key={l.value} value={l.value}>
@@ -390,7 +390,7 @@ function DailyReportSettingsPage() {
                   </option>
                 ))}
               </select>
-              <span className="mt-1.5 block text-xs text-subtle">
+              <span className="mt-1.5 block text-sm text-subtle">
                 Kunlik hisobot va Telegram xabari shu tilda yuboriladi. Odatiy holatda biznes tili
                 ishlatiladi.
               </span>
@@ -404,10 +404,10 @@ function DailyReportSettingsPage() {
               <Bell className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="text-base font-semibold text-foreground">
                 Telegram vazifa bildirishnomalari
               </h3>
-              <p className="text-xs text-subtle">
+              <p className="text-sm text-subtle">
                 Faqat Telegram botiga ulangan sotuv menejerlariga shaxsiy xabar yuboradi. Bu
                 sozlamalar yuqoridagi kunlik hisobotdan mustaqil.
               </p>
@@ -432,9 +432,9 @@ function DailyReportSettingsPage() {
                   max={5}
                   value={taskDueReminderMinutes}
                   onChange={(e) => setTaskDueReminderMinutes(e.target.value)}
-                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
                 />
-                <span className="mt-1.5 block text-xs text-subtle">
+                <span className="mt-1.5 block text-sm text-subtle">
                   2 dan 5 gacha butun son tanlang. 2 daqiqalik variant kechikmasligi uchun bir
                   daqiqagacha ertaroq kelishi mumkin.
                 </span>
@@ -449,7 +449,7 @@ function DailyReportSettingsPage() {
                 disabled={updateSettings.isPending}
                 onToggle={setMorningSummaryEnabled}
               >
-                <p className="mt-3 rounded-xl bg-muted/50 px-4 py-3 text-xs text-subtle">
+                <p className="mt-3 rounded-xl bg-muted/50 px-4 py-3 text-sm text-subtle">
                   Menejerning ish kuni boshlanishidan 5 daqiqa oldin yuboriladi. Shaxsiy menejer
                   jadvali yoqilgan bo'lsa, menejerning boshlanish vaqti; aks holda biznesning
                   boshlanish vaqti ishlatiladi.
@@ -480,8 +480,8 @@ function DailyReportSettingsPage() {
               <FileText className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Kengaytirilgan sozlamalar</h3>
-              <p className="text-xs text-subtle">
+              <h3 className="text-base font-semibold text-foreground">Kengaytirilgan sozlamalar</h3>
+              <p className="text-sm text-subtle">
                 Kunlik hisobotni yanada batafsil boshqarish uchun qo'shimcha sozlamalar.
               </p>
             </div>
@@ -536,7 +536,7 @@ function DailyReportSettingsPage() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
               <FileText className="h-4 w-4" />
             </span>
-            <h3 className="text-sm font-semibold text-foreground">Hisobot tarkibi sozlamalari</h3>
+            <h3 className="text-base font-semibold text-foreground">Hisobot tarkibi sozlamalari</h3>
           </div>
           <p className="mt-3 text-sm text-subtle">
             Yuborish sozlamalarini band qilmasdan, hisobot qismlari, kiritiladigan menejerlar, CRM
