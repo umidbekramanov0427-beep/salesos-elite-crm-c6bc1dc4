@@ -27,7 +27,7 @@ alter table public.call_categories add column if not exists exclusion_reason tex
 
 -- "Xizmat yo'nalishlari": the business's own service/product lines, with
 -- aliases and sample phrases so the AI can route a call to the right one.
-create table public.service_lines (
+create table if not exists public.service_lines (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id),
   name text not null,
@@ -40,7 +40,7 @@ create table public.service_lines (
 
 -- "Anketa savollari": intake questions the AI should try to answer per
 -- call, optionally scoped to one service line (null = general/all).
-create table public.intake_questions (
+create table if not exists public.intake_questions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id),
   service_line_id uuid references public.service_lines(id) on delete cascade,
@@ -52,7 +52,7 @@ create table public.intake_questions (
 -- "Lid sifati bosqichlari": ordered AI-facing lead-quality stages, each
 -- marked qualified/unqualified. The last one is always the system's
 -- built-in unqualified catch-all and can't be deleted.
-create table public.lead_quality_stages (
+create table if not exists public.lead_quality_stages (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id),
   position integer not null default 0,
@@ -73,43 +73,56 @@ alter table public.service_lines enable row level security;
 alter table public.intake_questions enable row level security;
 alter table public.lead_quality_stages enable row level security;
 
+drop trigger if exists set_org_id on public.service_lines;
 create trigger set_org_id before insert on public.service_lines
   for each row execute function public.set_organization_id();
+drop trigger if exists set_org_id on public.intake_questions;
 create trigger set_org_id before insert on public.intake_questions
   for each row execute function public.set_organization_id();
+drop trigger if exists set_org_id on public.lead_quality_stages;
 create trigger set_org_id before insert on public.lead_quality_stages
   for each row execute function public.set_organization_id();
 
+drop policy if exists "service_lines_select" on public.service_lines;
 create policy "service_lines_select" on public.service_lines for select to authenticated
   using (organization_id = public.current_user_org_id());
+drop policy if exists "service_lines_write" on public.service_lines;
 create policy "service_lines_write" on public.service_lines for all to authenticated
   using (organization_id = public.current_user_org_id() and public.is_admin_or_manager())
   with check (organization_id = public.current_user_org_id() and public.is_admin_or_manager());
 
+drop policy if exists "intake_questions_select" on public.intake_questions;
 create policy "intake_questions_select" on public.intake_questions for select to authenticated
   using (organization_id = public.current_user_org_id());
+drop policy if exists "intake_questions_write" on public.intake_questions;
 create policy "intake_questions_write" on public.intake_questions for all to authenticated
   using (organization_id = public.current_user_org_id() and public.is_admin_or_manager())
   with check (organization_id = public.current_user_org_id() and public.is_admin_or_manager());
 
+drop policy if exists "lead_quality_stages_select" on public.lead_quality_stages;
 create policy "lead_quality_stages_select" on public.lead_quality_stages for select to authenticated
   using (organization_id = public.current_user_org_id());
+drop policy if exists "lead_quality_stages_write" on public.lead_quality_stages;
 create policy "lead_quality_stages_write" on public.lead_quality_stages for all to authenticated
   using (organization_id = public.current_user_org_id() and public.is_admin_or_manager())
   with check (organization_id = public.current_user_org_id() and public.is_admin_or_manager());
 
-create index service_lines_org_idx on public.service_lines (organization_id, position);
-create index intake_questions_org_idx on public.intake_questions (organization_id, position);
-create index intake_questions_service_line_idx on public.intake_questions (service_line_id);
-create index lead_quality_stages_org_idx on public.lead_quality_stages (organization_id, position);
+create index if not exists service_lines_org_idx on public.service_lines (organization_id, position);
+create index if not exists intake_questions_org_idx on public.intake_questions (organization_id, position);
+create index if not exists intake_questions_service_line_idx on public.intake_questions (service_line_id);
+create index if not exists lead_quality_stages_org_idx on public.lead_quality_stages (organization_id, position);
 
 -- Seed the mandatory system stage every org needs (mirrors the reference's
 -- locked "Yaroqsiz lid" catch-all) for every existing organization.
 insert into public.lead_quality_stages (organization_id, position, title, conditions, qualified, system_locked)
-select id, 999, 'Yaroqsiz lid',
+select o.id, 999, 'Yaroqsiz lid',
   array['Tizimli holat.', 'Mijoz ariza qoldirmaganini aytadi.', 'Raqam noto''g''ri yoki boshqa odamga tegishli.'],
   false, true
-from public.organizations;
+from public.organizations o
+where not exists (
+  select 1 from public.lead_quality_stages lqs
+  where lqs.organization_id = o.id and lqs.system_locked = true
+);
 
 -- Same for new organizations going forward.
 create or replace function public.seed_lead_quality_stage()
@@ -127,5 +140,6 @@ begin
 end;
 $$;
 
+drop trigger if exists seed_lead_quality_stage on public.organizations;
 create trigger seed_lead_quality_stage after insert on public.organizations
   for each row execute function public.seed_lead_quality_stage();
