@@ -270,46 +270,89 @@ function buildCallInstructionsBlock(callInstructions: unknown): string {
   return parts.length > 0 ? "\n\n" + parts.join("\n\n") : "";
 }
 
-// "Xizmat yo'nalishlari" (service_lines) + "Lid sifati bosqichlari"
-// (lead_quality_stages) configured on Baholash mezoni -- gives the model the
-// business's own product lines and qualification ladder so its summary/
-// next-step naturally reasons in those terms instead of generic categories.
-async function buildPlaybookBlock(organizationId: string): Promise<string> {
-  const [{ data: lines }, { data: stages }] = await Promise.all([
+type PlaybookOption = { id: string; label: string };
+
+// "Xizmat yo'nalishlari" (service_lines), "Lid sifati bosqichlari"
+// (lead_quality_stages) and "Anketa savollari" (intake_questions) configured
+// on Baholash mezoni -- gives the model the business's own product lines,
+// qualification ladder and intake questions so it reasons in those terms
+// instead of generic categories, AND (via the returned id-indexed lists)
+// lets the caller ask for a plain 1-based index back and resolve it to a
+// real row id afterwards -- never trust an LLM to echo a UUID correctly.
+async function buildPlaybookBlock(organizationId: string): Promise<{
+  text: string;
+  serviceLines: PlaybookOption[];
+  leadQualityStages: PlaybookOption[];
+  intakeQuestions: PlaybookOption[];
+}> {
+  const [{ data: lines }, { data: stages }, { data: questions }] = await Promise.all([
     supabaseAdmin
       .from("service_lines")
-      .select("name, description")
+      .select("id, name, description")
       .eq("organization_id", organizationId)
       .order("position", { ascending: true }),
     supabaseAdmin
       .from("lead_quality_stages")
-      .select("title, conditions, qualified")
+      .select("id, title, conditions, qualified")
+      .eq("organization_id", organizationId)
+      .order("position", { ascending: true }),
+    supabaseAdmin
+      .from("intake_questions")
+      .select("id, label")
       .eq("organization_id", organizationId)
       .order("position", { ascending: true }),
   ]);
 
+  const serviceLines: PlaybookOption[] = (lines ?? []).map((l) => ({ id: l.id, label: l.name }));
+  const leadQualityStages: PlaybookOption[] = (stages ?? []).map((s) => ({
+    id: s.id,
+    label: s.title,
+  }));
+  const intakeQuestions: PlaybookOption[] = (questions ?? []).map((q) => ({
+    id: q.id,
+    label: q.label,
+  }));
+
   const parts: string[] = [];
   if (lines && lines.length > 0) {
     parts.push(
-      "Kompaniyaning xizmat yo'nalishlari (mijoz qaysi biri haqida gapirayotganini aniqlang):\n" +
-        lines.map((l) => `- ${l.name}${l.description ? `: ${l.description}` : ""}`).join("\n"),
+      "Kompaniyaning xizmat yo'nalishlari (raqami bilan, mijoz qaysi biri haqida gapirayotganini aniqlang):\n" +
+        lines
+          .map((l, i) => `${i + 1}. ${l.name}${l.description ? `: ${l.description}` : ""}`)
+          .join("\n"),
     );
   }
   if (stages && stages.length > 0) {
     parts.push(
-      "Lid sifati bosqichlari (mos kelganini aniqlashga harakat qiling):\n" +
+      "Lid sifati bosqichlari (raqami bilan, mos kelganini aniqlashga harakat qiling):\n" +
         stages
           .map(
-            (s) =>
-              `- ${s.title} (${s.qualified ? "sifatli" : "sifatsiz"})${s.conditions.length > 0 ? `: ${s.conditions.join("; ")}` : ""}`,
+            (s, i) =>
+              `${i + 1}. ${s.title} (${s.qualified ? "sifatli" : "sifatsiz"})${s.conditions.length > 0 ? `: ${s.conditions.join("; ")}` : ""}`,
           )
           .join("\n"),
     );
   }
-  return parts.length > 0 ? "\n\n" + parts.join("\n\n") : "";
+  if (questions && questions.length > 0) {
+    parts.push(
+      "Anketa savollari (raqami bilan, suhbatdan javob topa olsangiz ajratib bering):\n" +
+        questions.map((q, i) => `${i + 1}. ${q.label}`).join("\n"),
+    );
+  }
+  return {
+    text: parts.length > 0 ? "\n\n" + parts.join("\n\n") : "",
+    serviceLines,
+    leadQualityStages,
+    intakeQuestions,
+  };
 }
 
-function buildJsonInstruction(rubric: RubricStep[]): string {
+function buildJsonInstruction(
+  rubric: RubricStep[],
+  serviceLines: PlaybookOption[],
+  leadQualityStages: PlaybookOption[],
+  intakeQuestions: PlaybookOption[],
+): string {
   const base =
     '{"summary": "qo\'ng\'iroq mavzusi va mijoz kayfiyati haqida qisqa xulosa", ' +
     '"next_step": "menejer keyin aniq nima qilishi kerak — bitta lo\'nda jumla", ' +
@@ -330,12 +373,40 @@ function buildJsonInstruction(rubric: RubricStep[]): string {
     standardsLines +
     '\n\n"service_standards" massivida yuqoridagi RO\'YXATDAGI HAR BIR band uchun aynan bitta yozuv bo\'lishi kerak, "n" band raqamiga mos kelishi kerak.';
 
+  // Reports (Kunlik hisobot) aggregate calls by service line / lead quality /
+  // intake-question answer -- ask the model for a plain 1-based index into
+  // the lists buildPlaybookBlock already put in the system prompt, never a
+  // UUID it would have to copy (and could get wrong).
+  const extraFields: string[] = [];
+  let extraInstruction = "";
+  if (serviceLines.length > 0) {
+    extraFields.push(
+      '"service_line_n": "yuqoridagi xizmat yo\'nalishlari ro\'yxatidan mos kelgan raqam, aniqlab bo\'lmasa null"',
+    );
+  }
+  if (leadQualityStages.length > 0) {
+    extraFields.push(
+      '"lead_quality_stage_n": "yuqoridagi lid sifati bosqichlari ro\'yxatidan mos kelgan raqam, aniqlab bo\'lmasa null"',
+    );
+  }
+  if (intakeQuestions.length > 0) {
+    extraFields.push(
+      '"intake_answers": [{"n": "yuqoridagi anketa savollari ro\'yxatidagi savol raqami", "answer": "suhbatdan topilgan javob, topilmasa bo\'sh matn"}, ...]',
+    );
+    extraInstruction =
+      '\n\n"intake_answers" massivida yuqoridagi anketa savollari RO\'YXATIDAGI HAR BIR savol uchun aynan bitta yozuv bo\'lishi kerak (javob topilmasa ham, "answer" bo\'sh matn bilan).';
+  }
+  const extra = extraFields.length > 0 ? ", " + extraFields.join(", ") : "";
+
   if (rubric.length === 0) {
     return (
       standardsInstruction +
+      extraInstruction +
       "\n\nJavobni faqat quyidagi JSON formatida qaytar, boshqa hech qanday matn yozma:\n{" +
       base.slice(1) +
-      ', "score": "qo\'ng\'iroqqa umumiy baho, 0 dan 100 gacha butun son"}'
+      ', "score": "qo\'ng\'iroqqa umumiy baho, 0 dan 100 gacha butun son"' +
+      extra +
+      "}"
     );
   }
 
@@ -352,11 +423,14 @@ function buildJsonInstruction(rubric: RubricStep[]): string {
 
   return (
     standardsInstruction +
+    extraInstruction +
     "\n\nQuyidagi tekshiruv ro'yxati (checklist) asosida qo'ng'iroqni bahola. Har bir band uchun menejer buni bajarganmi yoki yo'qmi (met: true/false) va qisqa izoh (note) ber:\n" +
     checklistLines +
     "\n\nJavobni faqat quyidagi JSON formatida qaytar, boshqa hech qanday matn yozma:\n{" +
     base.slice(1) +
-    ', "checklist": [{"n": 1, "met": true, "note": "qisqa izoh"}, ...] — checklist massivida yuqoridagi RO\'YXATDAGI HAR BIR band uchun aynan bitta yozuv bo\'lishi kerak, "n" band raqamiga mos kelishi kerak}'
+    ', "checklist": [{"n": 1, "met": true, "note": "qisqa izoh"}, ...] — checklist massivida yuqoridagi RO\'YXATDAGI HAR BIR band uchun aynan bitta yozuv bo\'lishi kerak, "n" band raqamiga mos kelishi kerak' +
+    extra +
+    "}"
   );
 }
 
@@ -364,6 +438,9 @@ async function analyzeTranscript(
   transcript: string,
   systemPrompt: string,
   rubric: RubricStep[],
+  serviceLines: PlaybookOption[],
+  leadQualityStages: PlaybookOption[],
+  intakeQuestions: PlaybookOption[],
 ): Promise<{
   summary: string;
   nextStep: string | null;
@@ -379,6 +456,9 @@ async function analyzeTranscript(
   keyQuotes: string[];
   topObjections: string[];
   serviceStandards: { n: number; violated: boolean; evidence: string }[];
+  serviceLineN: number | null;
+  leadQualityStageN: number | null;
+  intakeAnswers: { n: number; answer: string }[];
 }> {
   const apiKey = requireEnv("GEMINI_API_KEY");
 
@@ -388,7 +468,15 @@ async function analyzeTranscript(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt + buildJsonInstruction(rubric) }] },
+        systemInstruction: {
+          parts: [
+            {
+              text:
+                systemPrompt +
+                buildJsonInstruction(rubric, serviceLines, leadQualityStages, intakeQuestions),
+            },
+          ],
+        },
         contents: [{ role: "user", parts: [{ text: transcript }] }],
         generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
       }),
@@ -423,8 +511,14 @@ async function analyzeTranscript(
       key_quotes?: string[];
       top_objections?: string[];
       service_standards?: { n?: number; violated?: boolean; evidence?: string }[];
+      service_line_n?: number | string | null;
+      lead_quality_stage_n?: number | string | null;
+      intake_answers?: { n?: number; answer?: string }[];
     };
     if (!parsed.summary) throw new Error("no summary");
+
+    const serviceLineN = Number(parsed.service_line_n);
+    const leadQualityStageN = Number(parsed.lead_quality_stage_n);
 
     const talkRatioNum = Number(parsed.talk_ratio);
     const scoreNum = Number(parsed.score);
@@ -456,6 +550,13 @@ async function analyzeTranscript(
               typeof s.n === "number" && typeof s.violated === "boolean",
           )
         : [],
+      serviceLineN: Number.isFinite(serviceLineN) ? serviceLineN : null,
+      leadQualityStageN: Number.isFinite(leadQualityStageN) ? leadQualityStageN : null,
+      intakeAnswers: Array.isArray(parsed.intake_answers)
+        ? parsed.intake_answers
+            .filter((a): a is { n: number; answer: string } => typeof a.n === "number")
+            .map((a) => ({ n: a.n, answer: (a.answer ?? "").trim() }))
+        : [],
     };
   } catch {
     // Model didn't return valid JSON (can happen with a heavily customized
@@ -477,6 +578,9 @@ async function analyzeTranscript(
       keyQuotes: [],
       topObjections: [],
       serviceStandards: [],
+      serviceLineN: null,
+      leadQualityStageN: null,
+      intakeAnswers: [],
     };
   }
 }
@@ -549,13 +653,20 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
             );
           }
 
-          const [rubric, playbookBlock] = await Promise.all([
+          const [rubric, playbook] = await Promise.all([
             loadRubric(organizationId),
             buildPlaybookBlock(organizationId),
           ]);
           const systemPrompt =
-            baseSystemPrompt + buildCallInstructionsBlock(agent?.call_instructions) + playbookBlock;
-          const result = await analyzeTranscript(transcript, systemPrompt, rubric);
+            baseSystemPrompt + buildCallInstructionsBlock(agent?.call_instructions) + playbook.text;
+          const result = await analyzeTranscript(
+            transcript,
+            systemPrompt,
+            rubric,
+            playbook.serviceLines,
+            playbook.leadQualityStages,
+            playbook.intakeQuestions,
+          );
 
           // A configured rubric always wins over the AI's own holistic
           // guess — it's a fixed, auditable formula instead of a number the
@@ -610,6 +721,23 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
             })),
           };
 
+          // "n" is a 1-based index into the same lists buildPlaybookBlock put
+          // in the prompt -- resolve back to a real row id here rather than
+          // trusting the model with a UUID (see buildJsonInstruction).
+          const serviceLineId =
+            result.serviceLineN != null
+              ? (playbook.serviceLines[result.serviceLineN - 1]?.id ?? null)
+              : null;
+          const leadQualityStageId =
+            result.leadQualityStageN != null
+              ? (playbook.leadQualityStages[result.leadQualityStageN - 1]?.id ?? null)
+              : null;
+          const intakeAnswers: Record<string, string> = {};
+          for (const a of result.intakeAnswers) {
+            const question = playbook.intakeQuestions[a.n - 1];
+            if (question && a.answer) intakeAnswers[question.id] = a.answer;
+          }
+
           await supabaseAdmin
             .from("amocrm_calls")
             .update({
@@ -621,13 +749,18 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
               talk_ratio: result.talkRatio,
               analysis,
               analyzed_at: new Date().toISOString(),
+              service_line_id: serviceLineId,
+              intake_answers: intakeAnswers,
             })
             .eq("id", call.id);
 
-          if (call.lead_id && score != null) {
+          if (call.lead_id && (score != null || leadQualityStageId)) {
             await supabaseAdmin
               .from("leads")
-              .update({ score, temperature: temperatureFromScore(score) })
+              .update({
+                ...(score != null ? { score, temperature: temperatureFromScore(score) } : {}),
+                ...(leadQualityStageId ? { lead_quality_stage_id: leadQualityStageId } : {}),
+              })
               .eq("id", call.lead_id);
           }
 
