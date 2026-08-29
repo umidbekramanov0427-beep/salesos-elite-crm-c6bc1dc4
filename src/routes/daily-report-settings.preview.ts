@@ -192,6 +192,7 @@ export const Route = createFileRoute("/daily-report-settings/preview")({
           leadQualityStagesRes,
           serviceLinesRes,
           intakeQuestionsRes,
+          transitionRulesRes,
         ] = await Promise.all([
           supabaseAdmin
             .from("profiles")
@@ -223,7 +224,7 @@ export const Route = createFileRoute("/daily-report-settings/preview")({
             .eq("organization_id", organizationId),
           supabaseAdmin
             .from("pipeline_stages")
-            .select("id, is_won, is_lost")
+            .select("id, name, is_won, is_lost")
             .eq("organization_id", organizationId),
           supabaseAdmin
             .from("lead_quality_stages")
@@ -240,6 +241,11 @@ export const Route = createFileRoute("/daily-report-settings/preview")({
             .select("id, label")
             .eq("organization_id", organizationId)
             .order("position", { ascending: true }),
+          supabaseAdmin
+            .from("daily_report_stage_transition_rules")
+            .select("id, manager_scope, manager_id, funnel, from_stage_id, to_stage_id")
+            .eq("organization_id", organizationId)
+            .order("position", { ascending: true }),
         ]);
 
         const profiles = profilesRes.data ?? [];
@@ -251,6 +257,7 @@ export const Route = createFileRoute("/daily-report-settings/preview")({
         const leadQualityStages = leadQualityStagesRes.data ?? [];
         const serviceLines = serviceLinesRes.data ?? [];
         const intakeQuestions = intakeQuestionsRes.data ?? [];
+        const transitionRules = transitionRulesRes.data ?? [];
 
         const managers = profiles.filter((p) => p.role === "sotuv_menejeri");
         const leadOwnerById = new Map(allLeads.map((l) => [l.id, l.owner_id]));
@@ -404,6 +411,65 @@ export const Route = createFileRoute("/daily-report-settings/preview")({
             `Bugun tizimga ${leadsInScope.length} ta yangi lid qo'shildi va ${wonToday.length} ta muvaffaqiyatli kelishuv qayd etildi.`,
           ].join("\n");
           sections.push(leadsMovementText);
+        }
+
+        // --- Voronka bosqichlari harakati ---
+        // A custom rule ("qaysi menejer, qaysi voronka, qaysi bosqichdan
+        // qaysi bosqichga") only has something to report once we can see
+        // *transitions*, not just current state -- audit_logs already
+        // stores a full old/new row snapshot on every real leads UPDATE
+        // (see audit_row_change()), so a lead's stage_id actually changing
+        // today is detectable there without any new tracking of our own.
+        if (transitionRules.length > 0) {
+          const stageNameById = new Map(stages.map((st) => [st.id, st.name]));
+          const managerLabelById = new Map(profiles.map((p) => [p.id, p.full_name || p.email]));
+          const { data: leadAuditRows } = await supabaseAdmin
+            .from("audit_logs")
+            .select("meta")
+            .eq("organization_id", organizationId)
+            .eq("entity_type", "leads")
+            .eq("action", "update")
+            .gte("created_at", today.start)
+            .lt("created_at", today.end);
+
+          const transitionsToday = (leadAuditRows ?? [])
+            .map((row) => {
+              const meta = row.meta as {
+                old?: { stage_id?: string | null };
+                new?: {
+                  stage_id?: string | null;
+                  funnel?: string | null;
+                  owner_id?: string | null;
+                };
+              } | null;
+              return {
+                fromStageId: meta?.old?.stage_id ?? null,
+                toStageId: meta?.new?.stage_id ?? null,
+                funnel: meta?.new?.funnel ?? null,
+                ownerId: meta?.new?.owner_id ?? null,
+              };
+            })
+            .filter((t) => t.toStageId && t.fromStageId !== t.toStageId);
+
+          const ruleLines = transitionRules.map((rule) => {
+            const count = transitionsToday.filter(
+              (t) =>
+                t.funnel === rule.funnel &&
+                t.toStageId === rule.to_stage_id &&
+                (rule.from_stage_id == null || t.fromStageId === rule.from_stage_id) &&
+                (rule.manager_scope === "all" || t.ownerId === rule.manager_id),
+            ).length;
+            const managerLabel =
+              rule.manager_scope === "specific"
+                ? (managerLabelById.get(rule.manager_id ?? "") ?? "Noma'lum menejer")
+                : "Barcha menejerlar";
+            const fromLabel = rule.from_stage_id
+              ? (stageNameById.get(rule.from_stage_id) ?? "?")
+              : "Hamma bosqichdan";
+            const toLabel = stageNameById.get(rule.to_stage_id) ?? "?";
+            return `- ${managerLabel} | ${rule.funnel}: ${fromLabel} → ${toLabel}: ${count} ta`;
+          });
+          sections.push(["Voronka bosqichlari harakati", ...ruleLines].join("\n"));
         }
 
         // --- Lid sifati ---
