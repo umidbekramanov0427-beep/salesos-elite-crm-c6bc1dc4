@@ -263,7 +263,7 @@ function FunnelsNavGroup({
         className={cn(
           "group flex w-full items-center gap-1 rounded-lg border-l-2 text-base font-bold transition-colors duration-150",
           active
-            ? "border-mint bg-sidebar-active text-sidebar-active-foreground"
+            ? "border-mint bg-sidebar-active text-sidebar-active-foreground shadow-soft"
             : "border-transparent text-sidebar-foreground",
         )}
       >
@@ -368,7 +368,9 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
         to={item.to}
         className={cn(
           "group flex items-center transition-colors duration-150",
-          active ? "bg-sidebar-active text-sidebar-active-foreground" : "text-sidebar-foreground",
+          active
+            ? "bg-sidebar-active text-sidebar-active-foreground shadow-soft"
+            : "text-sidebar-foreground",
           !active && isSettings && "hover:bg-primary/15 hover:text-primary",
           !active && isActivityLog && "hover:bg-destructive/15 hover:text-destructive",
           !active && !isSettings && !isActivityLog && "hover:bg-accent",
