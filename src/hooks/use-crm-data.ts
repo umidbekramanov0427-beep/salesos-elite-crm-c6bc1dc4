@@ -28,6 +28,7 @@ export type IntakeQuestionRow = Tables["intake_questions"]["Row"];
 export type LeadQualityStageRow = Tables["lead_quality_stages"]["Row"];
 export type DailyReportSettingsRow = Tables["daily_report_settings"]["Row"];
 export type ReportStageTransitionRuleRow = Tables["daily_report_stage_transition_rules"]["Row"];
+export type MiniAppAudioRuleRow = Tables["daily_report_mini_app_audio_rules"]["Row"];
 
 /* ------------------------------------------------------------------ */
 /* Generic CRUD resource factory — one query key per table, list reads */
@@ -179,6 +180,9 @@ const serviceLinesResource = makeResource("service_lines", ["service_lines"]);
 const intakeQuestionsResource = makeResource("intake_questions", ["intake_questions"]);
 const reportStageTransitionRulesResource = makeResource("daily_report_stage_transition_rules", [
   "daily_report_stage_transition_rules",
+]);
+const miniAppAudioRulesResource = makeResource("daily_report_mini_app_audio_rules", [
+  "daily_report_mini_app_audio_rules",
 ]);
 const leadQualityStagesResource = makeResource("lead_quality_stages", ["lead_quality_stages"]);
 
@@ -490,6 +494,15 @@ export function useUpdateDailyReportSettings() {
           | "recommendations_enabled"
           | "summary_enabled"
           | "report_sample_override"
+          | "send_enabled"
+          | "send_time"
+          | "report_language"
+          | "task_due_reminder_enabled"
+          | "task_due_reminder_minutes_before"
+          | "morning_summary_enabled"
+          | "manager_conversion_recommendations_enabled"
+          | "manager_conversion_recommendation_criterion_ids"
+          | "call_audio_mini_app_enabled"
         >
       >,
     ) => {
@@ -533,6 +546,12 @@ export const useReportStageTransitionRules = (
 ) => reportStageTransitionRulesResource.useList({ orderBy: "position", ...opts });
 export const useCreateReportStageTransitionRule = reportStageTransitionRulesResource.useCreate;
 export const useDeleteReportStageTransitionRule = reportStageTransitionRulesResource.useRemove;
+
+export const useMiniAppAudioRules = (
+  opts?: Parameters<typeof miniAppAudioRulesResource.useList>[0],
+) => miniAppAudioRulesResource.useList({ orderBy: "position", ...opts });
+export const useCreateMiniAppAudioRule = miniAppAudioRulesResource.useCreate;
+export const useDeleteMiniAppAudioRule = miniAppAudioRulesResource.useRemove;
 
 export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResource.useList>[0]) =>
   rolePermissionsResource.useList(opts);

@@ -844,6 +844,7 @@ export type Database = {
       };
       daily_report_settings: {
         Row: {
+          call_audio_mini_app_enabled: boolean;
           created_at: string;
           crm_activity_enabled: boolean;
           id: string;
@@ -856,15 +857,24 @@ export type Database = {
           leads_movement_funnels: string[] | null;
           managers_activity_enabled: boolean;
           managers_activity_manager_ids: string[] | null;
+          manager_conversion_recommendation_criterion_ids: string[] | null;
+          manager_conversion_recommendations_enabled: boolean;
+          morning_summary_enabled: boolean;
           organization_id: string;
           recommendations_enabled: boolean;
+          report_language: string;
           report_sample_override: string | null;
+          send_enabled: boolean;
+          send_time: string;
           service_lines_enabled: boolean;
           summary_enabled: boolean;
+          task_due_reminder_enabled: boolean;
+          task_due_reminder_minutes_before: number;
           tasks_plan_enabled: boolean;
           updated_at: string;
         };
         Insert: {
+          call_audio_mini_app_enabled?: boolean;
           created_at?: string;
           crm_activity_enabled?: boolean;
           id?: string;
@@ -877,15 +887,24 @@ export type Database = {
           leads_movement_funnels?: string[] | null;
           managers_activity_enabled?: boolean;
           managers_activity_manager_ids?: string[] | null;
+          manager_conversion_recommendation_criterion_ids?: string[] | null;
+          manager_conversion_recommendations_enabled?: boolean;
+          morning_summary_enabled?: boolean;
           organization_id: string;
           recommendations_enabled?: boolean;
+          report_language?: string;
           report_sample_override?: string | null;
+          send_enabled?: boolean;
+          send_time?: string;
           service_lines_enabled?: boolean;
           summary_enabled?: boolean;
+          task_due_reminder_enabled?: boolean;
+          task_due_reminder_minutes_before?: number;
           tasks_plan_enabled?: boolean;
           updated_at?: string;
         };
         Update: {
+          call_audio_mini_app_enabled?: boolean;
           created_at?: string;
           crm_activity_enabled?: boolean;
           id?: string;
@@ -898,11 +917,19 @@ export type Database = {
           leads_movement_funnels?: string[] | null;
           managers_activity_enabled?: boolean;
           managers_activity_manager_ids?: string[] | null;
+          manager_conversion_recommendation_criterion_ids?: string[] | null;
+          manager_conversion_recommendations_enabled?: boolean;
+          morning_summary_enabled?: boolean;
           organization_id?: string;
           recommendations_enabled?: boolean;
+          report_language?: string;
           report_sample_override?: string | null;
+          send_enabled?: boolean;
+          send_time?: string;
           service_lines_enabled?: boolean;
           summary_enabled?: boolean;
+          task_due_reminder_enabled?: boolean;
+          task_due_reminder_minutes_before?: number;
           tasks_plan_enabled?: boolean;
           updated_at?: string;
         };
@@ -977,6 +1004,41 @@ export type Database = {
             columns: ["to_stage_id"];
             isOneToOne: false;
             referencedRelation: "pipeline_stages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      daily_report_mini_app_audio_rules: {
+        Row: {
+          created_at: string;
+          funnel: string;
+          id: string;
+          organization_id: string;
+          position: number;
+          stage_ids: string[];
+        };
+        Insert: {
+          created_at?: string;
+          funnel: string;
+          id?: string;
+          organization_id: string;
+          position?: number;
+          stage_ids?: string[];
+        };
+        Update: {
+          created_at?: string;
+          funnel?: string;
+          id?: string;
+          organization_id?: string;
+          position?: number;
+          stage_ids?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_mini_app_audio_rules_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
             referencedColumns: ["id"];
           },
         ];

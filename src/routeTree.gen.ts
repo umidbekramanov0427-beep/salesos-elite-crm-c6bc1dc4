@@ -52,6 +52,7 @@ import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-report-settings.preview'
+import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-report-settings.sections'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
@@ -303,6 +304,12 @@ const DailyReportSettingsPreviewRoute =
     path: '/preview',
     getParentRoute: () => DailyReportSettingsRoute,
   } as any)
+const DailyReportSettingsSectionsRoute =
+  DailyReportSettingsSectionsRouteImport.update({
+    id: '/sections',
+    path: '/sections',
+    getParentRoute: () => DailyReportSettingsRoute,
+  } as any)
 const DashboardAmocrmTasksRoute = DashboardAmocrmTasksRouteImport.update({
   id: '/amocrm-tasks',
   path: '/amocrm-tasks',
@@ -507,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
+  '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -582,6 +590,7 @@ export interface FileRoutesByTo {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
+  '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -658,6 +667,7 @@ export interface FileRoutesById {
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
+  '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -735,6 +745,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/daily-report-settings/preview'
+    | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -810,6 +821,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/daily-report-settings/preview'
+    | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -885,6 +897,7 @@ export interface FileRouteTypes {
     | '/crm/contacts'
     | '/crm/deals'
     | '/daily-report-settings/preview'
+    | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -1272,6 +1285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DailyReportSettingsPreviewRouteImport
       parentRoute: typeof DailyReportSettingsRoute
     }
+    '/daily-report-settings/sections': {
+      id: '/daily-report-settings/sections'
+      path: '/sections'
+      fullPath: '/daily-report-settings/sections'
+      preLoaderRoute: typeof DailyReportSettingsSectionsRouteImport
+      parentRoute: typeof DailyReportSettingsRoute
+    }
     '/dashboard/amocrm-tasks': {
       id: '/dashboard/amocrm-tasks'
       path: '/amocrm-tasks'
@@ -1559,10 +1579,12 @@ const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
 
 interface DailyReportSettingsRouteChildren {
   DailyReportSettingsPreviewRoute: typeof DailyReportSettingsPreviewRoute
+  DailyReportSettingsSectionsRoute: typeof DailyReportSettingsSectionsRoute
 }
 
 const DailyReportSettingsRouteChildren: DailyReportSettingsRouteChildren = {
   DailyReportSettingsPreviewRoute: DailyReportSettingsPreviewRoute,
+  DailyReportSettingsSectionsRoute: DailyReportSettingsSectionsRoute,
 }
 
 const DailyReportSettingsRouteWithChildren =
