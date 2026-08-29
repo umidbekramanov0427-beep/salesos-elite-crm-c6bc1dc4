@@ -10,6 +10,7 @@ import {
   Building2,
   Check,
   ClipboardCheck,
+  FileBarChart,
   Globe,
   ListChecks,
   Loader2,
@@ -2318,7 +2319,14 @@ function SettingsPage() {
   // shown as their own "Muhim" group below the regular settings list.
   const IMPORTANT_LINKS: { to: string; icon: LucideIcon; label: string }[] = isSotuvMenejeri
     ? []
-    : [{ to: "/scoring-criteria", icon: ClipboardCheck, label: t("settings.nav.scoringCriteria") }];
+    : [
+        { to: "/scoring-criteria", icon: ClipboardCheck, label: t("settings.nav.scoringCriteria") },
+        {
+          to: "/daily-report-settings",
+          icon: FileBarChart,
+          label: t("settings.nav.dailyReportSettings"),
+        },
+      ];
 
   return (
     <>
