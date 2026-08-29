@@ -503,6 +503,7 @@ export type Database = {
         Row: {
           conversation_domain: string | null;
           created_at: string;
+          description: string;
           exclusion_reason: string | null;
           id: string;
           name: string;
@@ -516,6 +517,7 @@ export type Database = {
         Insert: {
           conversation_domain?: string | null;
           created_at?: string;
+          description?: string;
           exclusion_reason?: string | null;
           id?: string;
           name: string;
@@ -529,6 +531,7 @@ export type Database = {
         Update: {
           conversation_domain?: string | null;
           created_at?: string;
+          description?: string;
           exclusion_reason?: string | null;
           id?: string;
           name?: string;
@@ -1621,6 +1624,8 @@ export type Database = {
           amocrm_pipeline_id: number | null;
           amocrm_status_id: number | null;
           color: string;
+          counts_as_lost_override: boolean;
+          counts_as_won_override: boolean;
           created_at: string;
           id: string;
           is_lost: boolean;
@@ -1636,6 +1641,8 @@ export type Database = {
           amocrm_pipeline_id?: number | null;
           amocrm_status_id?: number | null;
           color?: string;
+          counts_as_lost_override?: boolean;
+          counts_as_won_override?: boolean;
           created_at?: string;
           id?: string;
           is_lost?: boolean;
@@ -1651,6 +1658,8 @@ export type Database = {
           amocrm_pipeline_id?: number | null;
           amocrm_status_id?: number | null;
           color?: string;
+          counts_as_lost_override?: boolean;
+          counts_as_won_override?: boolean;
           created_at?: string;
           id?: string;
           is_lost?: boolean;

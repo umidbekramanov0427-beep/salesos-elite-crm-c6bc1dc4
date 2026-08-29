@@ -5,15 +5,19 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
+  FileText,
   Loader2,
+  Lock,
   Pencil,
   Plus,
   ShieldAlert,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -585,20 +589,138 @@ function RubricTab() {
 /* Tab 2 — Anketa savollari                                               */
 /* ===================================================================== */
 
+function IntakeQuestionCard({
+  item,
+  groupLabel,
+  lines,
+  canManage,
+}: {
+  item: IntakeQuestionRow;
+  groupLabel: string;
+  lines: ServiceLineRow[];
+  canManage: boolean;
+}) {
+  const updateItem = useUpdateIntakeQuestion();
+  const deleteItem = useDeleteIntakeQuestion();
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(item.label);
+  const [editLineId, setEditLineId] = useState(item.service_line_id ?? "");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function save() {
+    try {
+      await updateItem.mutateAsync({
+        id: item.id,
+        patch: { label: editLabel.trim() || item.label, service_line_id: editLineId || null },
+      });
+      setEditing(false);
+    } catch (err) {
+      toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
+    }
+  }
+
+  async function remove() {
+    try {
+      await deleteItem.mutateAsync(item.id);
+      toast.success("O'chirildi");
+    } catch (err) {
+      toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
+    } finally {
+      setConfirmDelete(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="space-y-2 rounded-xl border border-primary/30 bg-surface p-4">
+        <input
+          autoFocus
+          value={editLabel}
+          onChange={(e) => setEditLabel(e.target.value)}
+          className={inputCls}
+        />
+        <select
+          value={editLineId}
+          onChange={(e) => setEditLineId(e.target.value)}
+          className="h-9 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
+        >
+          <option value="">Umumiy</option>
+          {lines.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void save()}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <Check className="h-3.5 w-3.5" /> Saqlash
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-xs font-medium text-subtle hover:bg-accent"
+          >
+            Bekor qilish
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-subtle">
+            <FileText className="h-4 w-4" />
+          </span>
+          <div>
+            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+              <Pill tone="neutral">Matn</Pill>
+              <Pill tone="info">{groupLabel}</Pill>
+            </div>
+            <p className="text-sm font-semibold text-foreground">{item.label}</p>
+          </div>
+        </div>
+        {canManage && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`"${item.label}" o'chirilsinmi?`}
+        description="Bu amalni ortga qaytarib bo'lmaydi."
+        onConfirm={() => void remove()}
+      />
+    </div>
+  );
+}
+
 function IntakeQuestionsTab() {
   const canManage = useCanManage();
   const { user } = useAuth();
   const { data: items = [], isLoading } = useIntakeQuestions();
   const { data: lines = [] } = useServiceLines();
   const createItem = useCreateIntakeQuestion();
-  const updateItem = useUpdateIntakeQuestion();
-  const deleteItem = useDeleteIntakeQuestion();
   const [label, setLabel] = useState("");
   const [lineId, setLineId] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState("");
-  const [editLineId, setEditLineId] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState<IntakeQuestionRow | null>(null);
+  const [filterLineId, setFilterLineId] = useState("");
 
   async function add(e: FormEvent) {
     e.preventDefault();
@@ -617,149 +739,100 @@ function IntakeQuestionsTab() {
     }
   }
 
-  async function save(id: string) {
-    try {
-      await updateItem.mutateAsync({
-        id,
-        patch: { label: editLabel.trim(), service_line_id: editLineId || null },
-      });
-      setEditingId(null);
-    } catch (err) {
-      toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
-    }
-  }
-
-  async function remove(id: string) {
-    try {
-      await deleteItem.mutateAsync(id);
-      toast.success("O'chirildi");
-    } catch (err) {
-      toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
-    } finally {
-      setConfirmDelete(null);
-    }
-  }
+  const visible = filterLineId ? items.filter((i) => i.service_line_id === filterLineId) : items;
+  const groups: { key: string; label: string; items: IntakeQuestionRow[] }[] = [
+    { key: "general", label: "Asosiy", items: visible.filter((i) => !i.service_line_id) },
+    ...lines.map((l) => ({
+      key: l.id,
+      label: l.name,
+      items: visible.filter((i) => i.service_line_id === l.id),
+    })),
+  ].filter((g) => g.items.length > 0);
 
   return (
     <SectionCard
       title="Anketa savollari"
-      description="AI har bir qo'ng'iroqda javob topishga harakat qiladigan savollar."
+      description="Hammasi ko'rinishi faqat ko'rish uchun. O'z savollarini tahrirlash uchun Asosiy yoki Asosiy + xizmat yo'nalishini tanlang."
     >
-      {canManage && (
-        <form onSubmit={(e) => void add(e)} className="mb-4 flex flex-wrap items-center gap-2">
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Savol matni"
-            className={cn(inputCls, "min-w-[220px] flex-1")}
-          />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
+        <div>
+          <p className="mb-1 text-xs font-medium text-subtle">Xizmat yo'nalishi</p>
           <select
-            value={lineId}
-            onChange={(e) => setLineId(e.target.value)}
-            className="h-10 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            value={filterLineId}
+            onChange={(e) => setFilterLineId(e.target.value)}
+            className="h-10 w-64 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
           >
-            <option value="">Umumiy (barcha yo'nalishlar)</option>
+            <option value="">Hammasi</option>
             {lines.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            disabled={createItem.isPending || !label.trim()}
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {createItem.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Qo'shish
-          </button>
-        </form>
-      )}
+        </div>
+        {canManage && (
+          <form onSubmit={(e) => void add(e)} className="flex flex-wrap items-center gap-2">
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Savol matni"
+              className="h-10 min-w-[200px] rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            />
+            <select
+              value={lineId}
+              onChange={(e) => setLineId(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            >
+              <option value="">Umumiy</option>
+              {lines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={createItem.isPending || !label.trim()}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {createItem.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Savol qo'shish
+            </button>
+          </form>
+        )}
+      </div>
       {isLoading && (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Yuklanmoqda...
         </div>
       )}
-      {!isLoading && items.length === 0 && (
+      {!isLoading && groups.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">Hali savol qo'shilmagan.</p>
       )}
-      <ul className="space-y-2">
-        {items.map((item) => {
-          const line = lines.find((l) => l.id === item.service_line_id);
-          return (
-            <li
-              key={item.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-2.5"
-            >
-              {editingId === item.id ? (
-                <div className="flex flex-1 flex-wrap items-center gap-2">
-                  <input
-                    autoFocus
-                    value={editLabel}
-                    onChange={(e) => setEditLabel(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && void save(item.id)}
-                    className="h-9 min-w-[160px] flex-1 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-primary/40"
-                  />
-                  <select
-                    value={editLineId}
-                    onChange={(e) => setEditLineId(e.target.value)}
-                    className="h-9 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
-                  >
-                    <option value="">Umumiy</option>
-                    {lines.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => void save(item.id)}
-                    className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">{item.label}</span>
-                  {line && <Pill tone="neutral">{line.name}</Pill>}
-                </div>
-              )}
-              {canManage && editingId !== item.id && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      setEditingId(item.id);
-                      setEditLabel(item.label);
-                      setEditLineId(item.service_line_id ?? "");
-                    }}
-                    className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(item)}
-                    className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      <ConfirmDialog
-        open={!!confirmDelete}
-        onOpenChange={(o) => !o && setConfirmDelete(null)}
-        title={confirmDelete ? `"${confirmDelete.label}" o'chirilsinmi?` : ""}
-        description="Bu amalni ortga qaytarib bo'lmaydi."
-        onConfirm={() => confirmDelete && void remove(confirmDelete.id)}
-      />
+      <div className="space-y-5">
+        {groups.map((group) => (
+          <div key={group.key}>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+              {group.label}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {group.items.map((item) => (
+                <IntakeQuestionCard
+                  key={item.id}
+                  item={item}
+                  groupLabel={group.label}
+                  lines={lines}
+                  canManage={canManage}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </SectionCard>
   );
 }
@@ -994,6 +1067,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
   const deleteItem = useDeleteCallCategory();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
+  const [description, setDescription] = useState(category.description);
   const [scored, setScored] = useState(category.scored);
   const [systemFamily, setSystemFamily] = useState(category.system_family);
   const [workflowFamily, setWorkflowFamily] = useState(category.workflow_family ?? "");
@@ -1010,6 +1084,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
         id: category.id,
         patch: {
           name: name.trim() || category.name,
+          description: description.trim(),
           scored,
           system_family: systemFamily,
           workflow_family: workflowFamily.trim() || null,
@@ -1038,42 +1113,71 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
     }
   }
 
+  const metaEntries = [
+    ["Ish oqimi oilasi", category.workflow_family],
+    ["Suhbat domeni", category.conversation_domain],
+    ["Chiqarish sababi", category.exclusion_reason],
+  ].filter(([, v]) => !!v) as [string, string][];
+
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">{category.name}</span>
-          <Pill tone={category.scored ? "success" : "neutral"}>
-            {category.scored ? "Baholanadi" : "Baholanmaydi"}
-          </Pill>
-          {category.system_family && <Pill tone="info">Tizimli</Pill>}
-          {category.temporary && <Pill tone="warning">Vaqtinchalik</Pill>}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-semibold text-foreground">{category.name}</span>
+            <Pill tone={category.scored ? "success" : "info"}>
+              {category.scored
+                ? "Baholash mezoni bo'yicha baholanadi"
+                : "Baholash mezoni bo'yicha baholanmaydi"}
+            </Pill>
+            <Pill tone="neutral">{category.scored ? "Baholanadigan" : "Operatsion"}</Pill>
+            {category.temporary && <Pill tone="warning">Vaqtinchalik</Pill>}
+            {category.system_family && <Pill tone="warning">Tizim oilasi</Pill>}
+          </div>
+          {category.system_family && (
+            <p className="mt-1 text-xs text-warning-foreground">
+              Bu tizim oilasi majburiy va o'chirib bo'lmaydi.
+            </p>
+          )}
+          {category.description && !editing && (
+            <p className="mt-1.5 text-xs text-subtle">{category.description}</p>
+          )}
         </div>
         {canManage && (
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               onClick={() => setEditing((v) => !v)}
               className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {category.system_family ? (
+              <span className="rounded-lg p-2 text-subtle/50" title="Tizim oilasi o'chirilmaydi">
+                <Lock className="h-3.5 w-3.5" />
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         )}
       </div>
-      {(category.workflow_family || category.conversation_domain || category.exclusion_reason) &&
-        !editing && (
-          <div className="mt-2 space-y-0.5 text-xs text-subtle">
-            {category.workflow_family && <p>Workflow: {category.workflow_family}</p>}
-            {category.conversation_domain && <p>Domen: {category.conversation_domain}</p>}
-            {category.exclusion_reason && <p>Sabab: {category.exclusion_reason}</p>}
-          </div>
-        )}
+      {metaEntries.length > 0 && !editing && (
+        <div className={cn("mt-3 grid gap-2", metaEntries.length === 1 ? "" : "sm:grid-cols-2")}>
+          {metaEntries.map(([label, value]) => (
+            <div key={label} className="rounded-lg bg-background px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-subtle">
+                {label}
+              </p>
+              <p className="text-sm text-foreground">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
       {editing && (
         <div className="mt-3 space-y-2 border-t border-border pt-3">
           <input
@@ -1081,6 +1185,13 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
             onChange={(e) => setName(e.target.value)}
             className={inputCls}
             placeholder="Nomi"
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            className={textareaCls}
+            placeholder="Tavsif"
           />
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-xs text-subtle">
@@ -1097,7 +1208,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
                 checked={systemFamily}
                 onChange={(e) => setSystemFamily(e.target.checked)}
               />
-              Tizimli oila
+              Tizim oilasi
             </label>
             <label className="flex items-center gap-2 text-xs text-subtle">
               <input
@@ -1112,19 +1223,19 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
             value={workflowFamily}
             onChange={(e) => setWorkflowFamily(e.target.value)}
             className={inputCls}
-            placeholder="Workflow oilasi (masalan: sotuv, qo'llab-quvvatlash)"
+            placeholder="Ish oqimi oilasi (masalan: Sotuv, Qayta aloqa)"
           />
           <input
             value={conversationDomain}
             onChange={(e) => setConversationDomain(e.target.value)}
             className={inputCls}
-            placeholder="Suhbat domeni (masalan: narx bo'yicha savol)"
+            placeholder="Suhbat domeni (masalan: Sotuv, Sotuvdan keyingi jarayon)"
           />
           <input
             value={exclusionReason}
             onChange={(e) => setExclusionReason(e.target.value)}
             className={inputCls}
-            placeholder="Baholanmaslik sababi (agar 'Baholanadi' o'chirilgan bo'lsa)"
+            placeholder="Chiqarish sababi (agar 'Baholanadi' o'chirilgan bo'lsa)"
           />
           <button
             onClick={() => void save()}
@@ -1173,46 +1284,88 @@ function CallFamiliesTab() {
     }
   }
 
+  const scoredItems = items.filter((c) => c.scored);
+  const unscoredItems = items.filter((c) => !c.scored);
+
   return (
     <SectionCard
       title="Qo'ng'iroq oilalari"
-      description="Qo'ng'iroq turlarini tasniflang va qaysilari umuman baholanmasligini belgilang."
+      description="AI qo'ng'iroqlarni to'g'ri turga ajratishi va qaysi suhbatlar baholash mezoni bilan baholanishini belgilovchi ro'yxat."
+      actions={
+        canManage && (
+          <form onSubmit={(e) => void add(e)} className="flex items-center gap-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Yangi oila nomi"
+              className="h-10 w-56 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            />
+            <button
+              type="submit"
+              disabled={createItem.isPending || !name.trim()}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {createItem.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Qo'ng'iroq oilasini qo'shish
+            </button>
+          </form>
+        )
+      }
     >
-      {canManage && (
-        <form onSubmit={(e) => void add(e)} className="mb-4 flex flex-wrap items-center gap-2">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Yangi oila nomi"
-            className={cn(inputCls, "min-w-[220px] flex-1")}
-          />
-          <button
-            type="submit"
-            disabled={createItem.isPending || !name.trim()}
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {createItem.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Qo'shish
-          </button>
-        </form>
-      )}
       {isLoading && (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Yuklanmoqda...
         </div>
       )}
+      {!isLoading && (
+        <p className="mb-4 border-b border-border pb-4 text-xs text-subtle">
+          {items.length} ta qo'ng'iroq oilasi sozlangan
+        </p>
+      )}
       {!isLoading && items.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">Hali oila qo'shilmagan.</p>
       )}
-      <div className="space-y-3">
-        {items.map((c) => (
-          <CallFamilyRow key={c.id} category={c} canManage={canManage} />
-        ))}
-      </div>
+      {scoredItems.length > 0 && (
+        <div className="mb-5">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-success">
+              Baholanadigan qo'ng'iroqlar
+            </p>
+            <Pill tone="success">{scoredItems.length} ta oila</Pill>
+          </div>
+          <p className="mb-2 text-xs text-subtle">
+            Baholash mezonlari bilan baholanadigan qo'ng'iroq oilalari shu yerda ko'rinadi.
+          </p>
+          <div className="space-y-3">
+            {scoredItems.map((c) => (
+              <CallFamilyRow key={c.id} category={c} canManage={canManage} />
+            ))}
+          </div>
+        </div>
+      )}
+      {unscoredItems.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-subtle">
+              Baholanmaydigan qo'ng'iroqlar
+            </p>
+            <Pill tone="neutral">{unscoredItems.length} ta oila</Pill>
+          </div>
+          <p className="mb-2 text-xs text-subtle">
+            Baholash mezonidan chiqarilgan operatsion yoki boshqa oqimlarga tegishli oilalar shu
+            yerda ko'rinadi.
+          </p>
+          <div className="space-y-3">
+            {unscoredItems.map((c) => (
+              <CallFamilyRow key={c.id} category={c} canManage={canManage} />
+            ))}
+          </div>
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -1341,9 +1494,29 @@ function LeadQualityTab() {
           </div>
         ) : (
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-subtle">
+                {index !== null ? index + 1 : movable.length + 1}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{stage.title}</p>
+                {stage.conditions.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 text-xs text-subtle">
+                    {stage.conditions.map((c) => (
+                      <li key={c}>{c}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-1.5">
+                  <Pill tone={stage.qualified ? "success" : "warning"}>
+                    {stage.qualified ? "Sifatli" : "Sifatsiz"}
+                  </Pill>
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
               {canManage && index !== null && (
-                <div className="flex flex-col pt-0.5">
+                <div className="flex flex-col">
                   <button
                     onClick={() => void move(index, -1)}
                     disabled={index === 0}
@@ -1360,44 +1533,37 @@ function LeadQualityTab() {
                   </button>
                 </div>
               )}
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">{stage.title}</p>
-                  <Pill tone={stage.qualified ? "success" : "danger"}>
-                    {stage.qualified ? "Sifatli" : "Sifatsiz"}
-                  </Pill>
-                  {stage.system_locked && <Pill tone="neutral">Tizimli</Pill>}
-                </div>
-                {stage.conditions.length > 0 && (
-                  <ul className="mt-1 list-inside list-disc text-xs text-subtle">
-                    {stage.conditions.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              {stage.system_locked ? (
+                <span
+                  className="rounded-lg p-2 text-subtle/50"
+                  title="Tizimli bosqich o'zgartirilmaydi"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                </span>
+              ) : (
+                canManage && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditingId(stage.id);
+                        setEditTitle(stage.title);
+                        setEditConditions(stage.conditions.join("\n"));
+                        setEditQualified(stage.qualified);
+                      }}
+                      className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(stage)}
+                      className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )
+              )}
             </div>
-            {canManage && !stage.system_locked && (
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  onClick={() => {
-                    setEditingId(stage.id);
-                    setEditTitle(stage.title);
-                    setEditConditions(stage.conditions.join("\n"));
-                    setEditQualified(stage.qualified);
-                  }}
-                  className="rounded-lg p-2 text-subtle hover:bg-accent hover:text-foreground"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(stage)}
-                  className="rounded-lg p-2 text-subtle hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
           </div>
         )}
       </li>
@@ -1407,8 +1573,12 @@ function LeadQualityTab() {
   return (
     <SectionCard
       title="Lid sifati bosqichlari"
-      description="AI lidni shu tartibda tekshiradi; oxirgi tizimli bosqich har doim yaroqsiz lidlar uchun."
+      actions={<Pill tone="success">Bosqichli baholash</Pill>}
     >
+      <p className="mb-4 -mt-2 text-sm text-muted-foreground">
+        Kelajakdagi lid sifati qarorlarida AI ishlatadigan bosqichlarni sozlang. Eski raqamli
+        natijalar o'zgarmaydi.
+      </p>
       {canManage && (
         <form onSubmit={(e) => void add(e)} className="mb-4 flex flex-wrap items-center gap-2">
           <input
@@ -1427,7 +1597,7 @@ function LeadQualityTab() {
             ) : (
               <Plus className="h-4 w-4" />
             )}
-            Qo'shish
+            Bosqich qo'shish
           </button>
         </form>
       )}
@@ -1455,27 +1625,134 @@ function LeadQualityTab() {
 /* Tab 6 — AI ko'rsatmalari                                                */
 /* ===================================================================== */
 
+function TagInput({
+  values,
+  onChange,
+  disabled,
+  placeholder,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function commit() {
+    const v = draft.trim();
+    if (v && !values.includes(v)) onChange([...values, v]);
+    setDraft("");
+  }
+
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {values.map((v) => (
+          <span
+            key={v}
+            className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
+          >
+            {v}
+            {!disabled && (
+              <button
+                onClick={() => onChange(values.filter((x) => x !== v))}
+                aria-label={`${v} olib tashlash`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            commit();
+          }
+        }}
+        onBlur={commit}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={inputCls}
+      />
+    </div>
+  );
+}
+
+function GuidanceField({
+  label,
+  value,
+  onChange,
+  disabled,
+  rows = 3,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  rows?: number;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm text-muted-foreground">{label}</p>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        rows={rows}
+        placeholder={placeholder}
+        className={textareaCls}
+      />
+    </div>
+  );
+}
+
+const AI_INSTRUCTIONS_DEFAULTS = {
+  transcriptTerms: [] as string[],
+  transcriptGuidance: "",
+  companyContext: "",
+  extractionGuidance: "",
+  taskCreationGuidance: "",
+  violationGuidance: "",
+  coachingGuidance: "",
+  scoringFocusGuidance: "",
+  qualifiedLeadGuidance: "",
+};
+
 function AiInstructionsTab() {
   const canManage = useCanManage();
   const { data: agents, isLoading } = useAiAgents();
   const updateAgent = useUpdateAiAgent();
   const agent = agents?.find((a) => a.kind === "call");
-  const instructions = asRecord(asRecord(agent?.call_instructions)["instructions"]);
+  const stored = asRecord(asRecord(agent?.call_instructions)["aiInstructions"]);
 
-  const [mainGoal, setMainGoal] = useState("");
-  const [keyBehaviors, setKeyBehaviors] = useState("");
-  const [redFlags, setRedFlags] = useState("");
-  const [extraNotes, setExtraNotes] = useState("");
+  const [form, setForm] = useState(AI_INSTRUCTIONS_DEFAULTS);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!agent) return;
-    setMainGoal(asString(instructions["mainGoal"]));
-    setKeyBehaviors(asStringArray(instructions["keyBehaviors"]).join("\n"));
-    setRedFlags(asStringArray(instructions["redFlags"]).join("\n"));
-    setExtraNotes(asString(instructions["extraNotes"]));
+    setForm({
+      transcriptTerms: asStringArray(stored["transcriptTerms"]),
+      transcriptGuidance: asString(stored["transcriptGuidance"]),
+      companyContext: asString(stored["companyContext"]),
+      extractionGuidance: asString(stored["extractionGuidance"]),
+      taskCreationGuidance: asString(stored["taskCreationGuidance"]),
+      violationGuidance: asString(stored["violationGuidance"]),
+      coachingGuidance: asString(stored["coachingGuidance"]),
+      scoringFocusGuidance: asString(stored["scoringFocusGuidance"]),
+      qualifiedLeadGuidance: asString(stored["qualifiedLeadGuidance"]),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent?.id]);
+
+  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
 
   async function save() {
     setSaving(true);
@@ -1483,15 +1760,7 @@ function AiInstructionsTab() {
       const existing = asRecord(agent?.call_instructions);
       await updateAgent.mutateAsync({
         kind: "call",
-        call_instructions: {
-          ...existing,
-          instructions: {
-            mainGoal: mainGoal.trim(),
-            keyBehaviors: linesToArray(keyBehaviors),
-            redFlags: linesToArray(redFlags),
-            extraNotes: extraNotes.trim(),
-          },
-        },
+        call_instructions: { ...existing, aiInstructions: form },
       });
       toast.success("Saqlandi");
     } catch (err) {
@@ -1504,73 +1773,108 @@ function AiInstructionsTab() {
   return (
     <SectionCard
       title="AI ko'rsatmalari"
-      description="Qo'ng'iroq tahlili AI agentiga beriladigan qo'shimcha, tuzilgan yo'riqnomalar."
+      description="Bu maydonlar AI'ga ko'rinadi va transkripsiya, anketa, vazifa yaratish hamda baholash natijasiga ta'sir qiladi."
+      actions={
+        canManage && (
+          <button
+            onClick={() => void save()}
+            disabled={saving}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Saqlash
+          </button>
+        )
+      }
     >
       {isLoading ? (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Yuklanmoqda...
         </div>
       ) : (
-        <div className="space-y-4">
-          <div>
-            <p className="mb-1 text-xs font-medium text-subtle">Asosiy vazifa</p>
-            <textarea
-              value={mainGoal}
-              onChange={(e) => setMainGoal(e.target.value)}
-              disabled={!canManage}
-              rows={2}
-              className={textareaCls}
-              placeholder="Masalan: menejer skriptga qanchalik amal qilganini baholash"
-            />
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-subtle">
-              E'tibor berilishi kerak bo'lgan xatti-harakatlar (har birini yangi qatorga)
+        <div className="space-y-6">
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">
+              1-bosqich: Transkripsiya sifati
             </p>
-            <textarea
-              value={keyBehaviors}
-              onChange={(e) => setKeyBehaviors(e.target.value)}
-              disabled={!canManage}
-              rows={4}
-              className={textareaCls}
-            />
+            <div className="space-y-3">
+              <div>
+                <p className="mb-1.5 text-sm text-muted-foreground">
+                  Qaysi atamalarni aynan shu ko'rinishda yozsin?
+                </p>
+                <TagInput
+                  values={form.transcriptTerms}
+                  onChange={(v) => set("transcriptTerms", v)}
+                  disabled={!canManage}
+                  placeholder="Masalan: mahsulot nomlari, brendlar, qisqartmalar"
+                />
+              </div>
+              <GuidanceField
+                label="Transkripsiyada nimalarni hisobga olsin?"
+                value={form.transcriptGuidance}
+                onChange={(v) => set("transcriptGuidance", v)}
+                disabled={!canManage}
+              />
+            </div>
           </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-subtle">
-              Qizil chiziqlar / xavf belgilari (har birini yangi qatorga)
+
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">
+              2-bosqich: Anketa va ma'lumot ajratish
             </p>
-            <textarea
-              value={redFlags}
-              onChange={(e) => setRedFlags(e.target.value)}
-              disabled={!canManage}
-              rows={4}
-              className={textareaCls}
-            />
+            <div className="space-y-3">
+              <GuidanceField
+                label="Kompaniyangiz haqida nimalarni bilishi kerak?"
+                value={form.companyContext}
+                onChange={(v) => set("companyContext", v)}
+                disabled={!canManage}
+              />
+              <GuidanceField
+                label="Qo'ng'iroqdan aynan nimalarni ajratib olsin?"
+                value={form.extractionGuidance}
+                onChange={(v) => set("extractionGuidance", v)}
+                disabled={!canManage}
+              />
+              <GuidanceField
+                label="AI vazifalarni qanday yaratishi kerak?"
+                value={form.taskCreationGuidance}
+                onChange={(v) => set("taskCreationGuidance", v)}
+                disabled={!canManage}
+              />
+            </div>
           </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-subtle">Qo'shimcha eslatmalar</p>
-            <textarea
-              value={extraNotes}
-              onChange={(e) => setExtraNotes(e.target.value)}
-              disabled={!canManage}
-              rows={2}
-              className={textareaCls}
-            />
+
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">
+              3-bosqich: Baholash va coaching
+            </p>
+            <div className="space-y-3">
+              <GuidanceField
+                label="Qaysi holatlarni qoida buzilgan deb hisoblansin?"
+                value={form.violationGuidance}
+                onChange={(v) => set("violationGuidance", v)}
+                disabled={!canManage}
+              />
+              <GuidanceField
+                label="Menejerga qanday tavsiyalar bersin?"
+                value={form.coachingGuidance}
+                onChange={(v) => set("coachingGuidance", v)}
+                disabled={!canManage}
+              />
+              <GuidanceField
+                label="Baholashda nimaga ko'proq e'tibor bersin?"
+                value={form.scoringFocusGuidance}
+                onChange={(v) => set("scoringFocusGuidance", v)}
+                disabled={!canManage}
+              />
+              <GuidanceField
+                label="Bu biznes uchun sifatli lid qanday bo'ladi?"
+                value={form.qualifiedLeadGuidance}
+                onChange={(v) => set("qualifiedLeadGuidance", v)}
+                disabled={!canManage}
+              />
+            </div>
           </div>
-          {canManage && (
-            <button
-              onClick={() => void save()}
-              disabled={saving}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              Saqlash
-            </button>
-          )}
         </div>
       )}
     </SectionCard>
@@ -1581,23 +1885,35 @@ function AiInstructionsTab() {
 /* Tab 7 — Lid analitikasi                                                */
 /* ===================================================================== */
 
+const LEAD_ANALYTICS_DEFAULTS = {
+  businessContext: "",
+  lossAnalysisGuidance: "",
+  recommendationGuidance: "",
+};
+
 function LeadAnalyticsTab() {
   const canManage = useCanManage();
   const { data: agents, isLoading } = useAiAgents();
   const updateAgent = useUpdateAiAgent();
   const agent = agents?.find((a) => a.kind === "call");
-  const leadAnalytics = asRecord(asRecord(agent?.call_instructions)["leadAnalytics"]);
+  const stored = asRecord(asRecord(agent?.call_instructions)["leadAnalytics"]);
 
-  const [questions, setQuestions] = useState("");
-  const [qualificationHints, setQualificationHints] = useState("");
+  const [form, setForm] = useState(LEAD_ANALYTICS_DEFAULTS);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!agent) return;
-    setQuestions(asStringArray(leadAnalytics["questions"]).join("\n"));
-    setQualificationHints(asStringArray(leadAnalytics["qualificationHints"]).join("\n"));
+    setForm({
+      businessContext: asString(stored["businessContext"]),
+      lossAnalysisGuidance: asString(stored["lossAnalysisGuidance"]),
+      recommendationGuidance: asString(stored["recommendationGuidance"]),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent?.id]);
+
+  function set<K extends keyof typeof form>(key: K, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
 
   async function save() {
     setSaving(true);
@@ -1605,13 +1921,7 @@ function LeadAnalyticsTab() {
       const existing = asRecord(agent?.call_instructions);
       await updateAgent.mutateAsync({
         kind: "call",
-        call_instructions: {
-          ...existing,
-          leadAnalytics: {
-            questions: linesToArray(questions),
-            qualificationHints: linesToArray(qualificationHints),
-          },
-        },
+        call_instructions: { ...existing, leadAnalytics: form },
       });
       toast.success("Saqlandi");
     } catch (err) {
@@ -1624,7 +1934,19 @@ function LeadAnalyticsTab() {
   return (
     <SectionCard
       title="Lid analitikasi"
-      description="AI har bir qo'ng'iroqdan qanday tahliliy xulosalar chiqarishi kerakligini belgilang."
+      description="Bu maydonlar AI'ga ko'rinadi va lid yo'qotilish sabablari hamda tavsiyalarni qanday yozishini boshqaradi."
+      actions={
+        canManage && (
+          <button
+            onClick={() => void save()}
+            disabled={saving}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Saqlash
+          </button>
+        )
+      }
     >
       {isLoading ? (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -1632,45 +1954,27 @@ function LeadAnalyticsTab() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div>
-            <p className="mb-1 text-xs font-medium text-subtle">
-              AI javob topishi kerak bo'lgan savollar (har birini yangi qatorga)
-            </p>
-            <textarea
-              value={questions}
-              onChange={(e) => setQuestions(e.target.value)}
-              disabled={!canManage}
-              rows={4}
-              className={textareaCls}
-              placeholder="Masalan: Mijoz nima uchun sotib olmadi?"
-            />
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-subtle">
-              Lid sifatini aniqlash uchun qo'shimcha belgilar (har birini yangi qatorga)
-            </p>
-            <textarea
-              value={qualificationHints}
-              onChange={(e) => setQualificationHints(e.target.value)}
-              disabled={!canManage}
-              rows={4}
-              className={textareaCls}
-            />
-          </div>
-          {canManage && (
-            <button
-              onClick={() => void save()}
-              disabled={saving}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              Saqlash
-            </button>
-          )}
+          <GuidanceField
+            label="Lidlar qaysi biznes kontekstida baholansin?"
+            value={form.businessContext}
+            onChange={(v) => set("businessContext", v)}
+            disabled={!canManage}
+            placeholder="Mahsulot, xizmat, auditoriya va savdo sikli haqida qisqacha yozing..."
+          />
+          <GuidanceField
+            label="Yo'qotilgan lidni qanday tahlil qilsin?"
+            value={form.lossAnalysisGuidance}
+            onChange={(v) => set("lossAnalysisGuidance", v)}
+            disabled={!canManage}
+            placeholder="Masalan: narx, vaqt, qayta aloqa, raqobatchi yoki ehtiyoj mosligi bo'yicha nimalarga qarasin..."
+          />
+          <GuidanceField
+            label="Menejer uchun qaysi tavsiyalarni ajratib ko'rsatsin?"
+            value={form.recommendationGuidance}
+            onChange={(v) => set("recommendationGuidance", v)}
+            disabled={!canManage}
+            placeholder="Masalan: keyingi safar nimani boshqacha qilish va qaysi ko'nikmalarni kuchaytirish kerakligini yozing..."
+          />
         </div>
       )}
     </SectionCard>
@@ -1678,99 +1982,134 @@ function LeadAnalyticsTab() {
 }
 
 /* ===================================================================== */
-/* Tab 8 — CRM natija bosqichlari (won/lost)                              */
+/* Tab 8 — CRM natija bosqichlari (won/lost analytics override)           */
 /* ===================================================================== */
 
-function OutcomeStageRow({
-  stage,
+type PipelineStageRow = ReturnType<typeof usePipelineStagesRaw>["data"] extends
+  (infer T)[] | undefined
+  ? T
+  : never;
+
+function OutcomeOverrideGroup({
+  title,
+  countLabel,
+  description,
+  tone,
+  stages,
+  overrideKey,
   canManage,
 }: {
-  stage: ReturnType<typeof usePipelineStagesRaw>["data"] extends (infer T)[] | undefined
-    ? T
-    : never;
+  title: string;
+  countLabel: string;
+  description: string;
+  tone: "success" | "danger";
+  stages: PipelineStageRow[];
+  overrideKey: "counts_as_won_override" | "counts_as_lost_override";
   canManage: boolean;
 }) {
   const updateStage = useUpdateStage();
-  const status: "active" | "won" | "lost" = stage.is_won
-    ? "won"
-    : stage.is_lost
-      ? "lost"
-      : "active";
+  const [expanded, setExpanded] = useState(false);
+  const count = stages.filter((s) => s[overrideKey]).length;
 
-  async function setStatus(next: "active" | "won" | "lost") {
+  async function toggle(stageId: string, checked: boolean) {
     try {
-      await updateStage.mutateAsync({
-        id: stage.id,
-        patch: { is_won: next === "won", is_lost: next === "lost" },
-      });
+      await updateStage.mutateAsync({ id: stageId, patch: { [overrideKey]: checked } });
     } catch (err) {
       toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
     }
   }
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-        <span className="text-sm font-medium text-foreground">{stage.name}</span>
-      </div>
-      {canManage ? (
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
-          {(
-            [
-              ["active", "Faol"],
-              ["won", "Yutilgan"],
-              ["lost", "Yo'qotilgan"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => void setStatus(value)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                status === value
-                  ? value === "won"
-                    ? "bg-mint text-mint-foreground"
-                    : value === "lost"
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-primary text-primary-foreground"
-                  : "text-subtle hover:bg-accent",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-foreground">{title}</p>
+            <Pill tone={tone}>
+              {countLabel}: {count}
+            </Pill>
+          </div>
+          <p className="mt-1 text-xs text-subtle">{description}</p>
         </div>
-      ) : (
-        <>
-          {stage.is_won && <Pill tone="success">Yutilgan</Pill>}
-          {stage.is_lost && <Pill tone="danger">Yo'qotilgan</Pill>}
-          {!stage.is_won && !stage.is_lost && <Pill tone="neutral">Faol</Pill>}
-        </>
+        <Switch
+          checked={expanded}
+          onCheckedChange={setExpanded}
+          disabled={!canManage}
+          className="mt-0.5 shrink-0"
+        />
+      </div>
+      {expanded && (
+        <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
+          {stages.length === 0 && (
+            <p className="text-xs text-subtle">Faol (yopilmagan) bosqichlar yo'q.</p>
+          )}
+          {stages.map((stage) => (
+            <li
+              key={stage.id}
+              className="flex items-center justify-between gap-2 rounded-lg bg-background px-3 py-2"
+            >
+              <span className="flex items-center gap-2 text-sm text-foreground">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                {stage.name}
+              </span>
+              <Switch
+                checked={stage[overrideKey]}
+                onCheckedChange={(v) => void toggle(stage.id, v)}
+                disabled={!canManage}
+              />
+            </li>
+          ))}
+        </ul>
       )}
-    </li>
+    </div>
   );
 }
 
 function OutcomesTab() {
   const canManage = useCanManage();
   const { data: stages = [], isLoading } = usePipelineStagesRaw();
+  const activeStages = stages.filter((s) => !s.is_won && !s.is_lost);
 
   return (
     <SectionCard
       title="CRM natija bosqichlari"
-      description="Qaysi bosqichlar 'yutilgan' yoki 'yo'qotilgan' natija sifatida hisoblanishini belgilang — AI va analitika shu belgidan foydalanadi."
+      description="CRMda yopilmay qoladigan bosqichlarni analitikada yutilgan (won) yoki yutqazilgan (lost) sifatida hisoblashni sozlang. CRMdagi lid statusi o'zgarmaydi."
     >
+      <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-4">
+        <p className="text-sm font-semibold text-warning-foreground">
+          Lidlar CRMda yopilmay qolsa ishlating
+        </p>
+        <p className="mt-1 text-xs text-warning-foreground/90">
+          Agar jamoangiz lidlarni CRMda to'g'ri yutilgan (won) yoki yutqazilgan (lost) qilib yopsa,
+          bu sozlamalarni yoqmang. Tanlangan bosqichlar faqat hisobot, analitika va konversiya
+          raqamlariga ta'sir qiladi.
+        </p>
+      </div>
       {isLoading && (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Yuklanmoqda...
         </div>
       )}
-      <ul className="space-y-2">
-        {stages.map((stage) => (
-          <OutcomeStageRow key={stage.id} stage={stage} canManage={canManage} />
-        ))}
-      </ul>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <OutcomeOverrideGroup
+          title="Yutilgan (won) sifatida hisoblanadigan bosqichlar"
+          countLabel="Yutilgan (won)"
+          description="CRMdagi rasmiy yutilgan (won) lidlar doim hisoblanadi. Quyidagi bosqichlarda turgan faol lidlar ham analitikada yutilgan (won) sifatida qo'shiladi."
+          tone="success"
+          stages={activeStages}
+          overrideKey="counts_as_won_override"
+          canManage={canManage}
+        />
+        <OutcomeOverrideGroup
+          title="Yutqazilgan (lost) sifatida hisoblanadigan bosqichlar"
+          countLabel="Yutqazilgan (lost)"
+          description="CRMdagi rasmiy yutqazilgan (lost) lidlar doim hisoblanadi. Quyidagi bosqichlarda turgan faol lidlar ham analitikada yutqazilgan (lost) sifatida qo'shiladi."
+          tone="danger"
+          stages={activeStages}
+          overrideKey="counts_as_lost_override"
+          canManage={canManage}
+        />
+      </div>
     </SectionCard>
   );
 }

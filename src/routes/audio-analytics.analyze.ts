@@ -222,43 +222,51 @@ function asStringArrayLoose(v: unknown): string[] {
 // Baholash mezoni -- rendered into plain instruction text and appended to
 // the agent's freeform system_prompt, same idea as the fixed rubric/service
 // standards below, just admin-configurable instead of hardcoded.
+function asStr(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
 function buildCallInstructionsBlock(callInstructions: unknown): string {
   const root = asRecord(callInstructions);
-  const instructions = asRecord(root["instructions"]);
+  const ai = asRecord(root["aiInstructions"]);
   const leadAnalytics = asRecord(root["leadAnalytics"]);
 
-  const mainGoal = typeof instructions["mainGoal"] === "string" ? instructions["mainGoal"] : "";
-  const keyBehaviors = asStringArrayLoose(instructions["keyBehaviors"]);
-  const redFlags = asStringArrayLoose(instructions["redFlags"]);
-  const extraNotes =
-    typeof instructions["extraNotes"] === "string" ? instructions["extraNotes"] : "";
-  const questions = asStringArrayLoose(leadAnalytics["questions"]);
-  const qualificationHints = asStringArrayLoose(leadAnalytics["qualificationHints"]);
+  const transcriptTerms = asStringArrayLoose(ai["transcriptTerms"]);
+  const transcriptGuidance = asStr(ai["transcriptGuidance"]);
+  const companyContext = asStr(ai["companyContext"]);
+  const extractionGuidance = asStr(ai["extractionGuidance"]);
+  const taskCreationGuidance = asStr(ai["taskCreationGuidance"]);
+  const violationGuidance = asStr(ai["violationGuidance"]);
+  const coachingGuidance = asStr(ai["coachingGuidance"]);
+  const scoringFocusGuidance = asStr(ai["scoringFocusGuidance"]);
+  const qualifiedLeadGuidance = asStr(ai["qualifiedLeadGuidance"]);
+
+  const businessContext = asStr(leadAnalytics["businessContext"]);
+  const lossAnalysisGuidance = asStr(leadAnalytics["lossAnalysisGuidance"]);
+  const recommendationGuidance = asStr(leadAnalytics["recommendationGuidance"]);
 
   const parts: string[] = [];
-  if (mainGoal.trim()) parts.push(`Asosiy vazifa: ${mainGoal.trim()}`);
-  if (keyBehaviors.length > 0) {
+  if (transcriptTerms.length > 0) {
     parts.push(
-      "E'tibor berilishi kerak bo'lgan xatti-harakatlar:\n" +
-        keyBehaviors.map((b) => `- ${b}`).join("\n"),
+      "Quyidagi atamalarni transkripsiyada aynan shu ko'rinishda yozing: " +
+        transcriptTerms.join(", "),
     );
   }
-  if (redFlags.length > 0) {
-    parts.push("Qizil chiziqlar / xavf belgilari:\n" + redFlags.map((b) => `- ${b}`).join("\n"));
-  }
-  if (extraNotes.trim()) parts.push(`Qo'shimcha eslatma: ${extraNotes.trim()}`);
-  if (questions.length > 0) {
-    parts.push(
-      "Tahlil xulosasida quyidagi savollarga imkon qadar javob toping:\n" +
-        questions.map((q) => `- ${q}`).join("\n"),
-    );
-  }
-  if (qualificationHints.length > 0) {
-    parts.push(
-      "Lid sifatini aniqlashda quyidagi belgilarga e'tibor bering:\n" +
-        qualificationHints.map((h) => `- ${h}`).join("\n"),
-    );
-  }
+  if (transcriptGuidance) parts.push(`Transkripsiya bo'yicha ko'rsatma: ${transcriptGuidance}`);
+  if (companyContext) parts.push(`Kompaniya haqida: ${companyContext}`);
+  if (extractionGuidance)
+    parts.push(`Qo'ng'iroqdan ajratib olinadigan ma'lumotlar: ${extractionGuidance}`);
+  if (taskCreationGuidance) parts.push(`Vazifa yaratish qoidasi: ${taskCreationGuidance}`);
+  if (violationGuidance)
+    parts.push(`Qoida buzilishi hisoblanadigan holatlar: ${violationGuidance}`);
+  if (coachingGuidance) parts.push(`Menejerga tavsiyalar berishda: ${coachingGuidance}`);
+  if (scoringFocusGuidance) parts.push(`Baholashda e'tibor: ${scoringFocusGuidance}`);
+  if (qualifiedLeadGuidance) parts.push(`Sifatli lid ta'rifi: ${qualifiedLeadGuidance}`);
+  if (businessContext) parts.push(`Biznes konteksti: ${businessContext}`);
+  if (lossAnalysisGuidance)
+    parts.push(`Yo'qotilgan lidni tahlil qilishda: ${lossAnalysisGuidance}`);
+  if (recommendationGuidance) parts.push(`Menejer uchun tavsiyalarda: ${recommendationGuidance}`);
+
   return parts.length > 0 ? "\n\n" + parts.join("\n\n") : "";
 }
 
