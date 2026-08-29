@@ -17,6 +17,7 @@ import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
 import { Route as DailyReportRouteImport } from './routes/daily-report'
+import { Route as DailyReportSettingsRouteImport } from './routes/daily-report-settings'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FunnelsRouteImport } from './routes/funnels'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -119,6 +120,11 @@ const CrmStagesRoute = CrmStagesRouteImport.update({
 const DailyReportRoute = DailyReportRouteImport.update({
   id: '/daily-report',
   path: '/daily-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DailyReportSettingsRoute = DailyReportSettingsRouteImport.update({
+  id: '/daily-report-settings',
+  path: '/daily-report-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -459,6 +465,7 @@ export interface FileRoutesByFullPath {
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
+  '/daily-report-settings': typeof DailyReportSettingsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -532,6 +539,7 @@ export interface FileRoutesByTo {
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
+  '/daily-report-settings': typeof DailyReportSettingsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -606,6 +614,7 @@ export interface FileRoutesById {
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
+  '/daily-report-settings': typeof DailyReportSettingsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -681,6 +690,7 @@ export interface FileRouteTypes {
     | '/audio-analytics'
     | '/crm-stages'
     | '/daily-report'
+    | '/daily-report-settings'
     | '/dashboard'
     | '/funnels'
     | '/inbox'
@@ -754,6 +764,7 @@ export interface FileRouteTypes {
     | '/audio-analytics'
     | '/crm-stages'
     | '/daily-report'
+    | '/daily-report-settings'
     | '/dashboard'
     | '/funnels'
     | '/inbox'
@@ -827,6 +838,7 @@ export interface FileRouteTypes {
     | '/audio-analytics'
     | '/crm-stages'
     | '/daily-report'
+    | '/daily-report-settings'
     | '/dashboard'
     | '/funnels'
     | '/inbox'
@@ -901,6 +913,7 @@ export interface RootRouteChildren {
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   CrmStagesRoute: typeof CrmStagesRoute
   DailyReportRoute: typeof DailyReportRoute
+  DailyReportSettingsRoute: typeof DailyReportSettingsRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
@@ -999,6 +1012,13 @@ declare module '@tanstack/react-router' {
       path: '/daily-report'
       fullPath: '/daily-report'
       preLoaderRoute: typeof DailyReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/daily-report-settings': {
+      id: '/daily-report-settings'
+      path: '/daily-report-settings'
+      fullPath: '/daily-report-settings'
+      preLoaderRoute: typeof DailyReportSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1558,6 +1578,7 @@ const rootRouteChildren: RootRouteChildren = {
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   CrmStagesRoute: CrmStagesRoute,
   DailyReportRoute: DailyReportRoute,
+  DailyReportSettingsRoute: DailyReportSettingsRoute,
   DashboardRoute: DashboardRouteWithChildren,
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,

@@ -829,6 +829,124 @@ export type Database = {
           },
         ];
       };
+      daily_report_settings: {
+        Row: {
+          created_at: string;
+          id: string;
+          intake_question_ids: string[] | null;
+          intake_questions_enabled: boolean;
+          lead_quality_enabled: boolean;
+          lead_quality_stage_ids: string[] | null;
+          leads_movement_enabled: boolean;
+          leads_movement_funnels: string[] | null;
+          managers_activity_enabled: boolean;
+          managers_activity_manager_ids: string[] | null;
+          organization_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          intake_question_ids?: string[] | null;
+          intake_questions_enabled?: boolean;
+          lead_quality_enabled?: boolean;
+          lead_quality_stage_ids?: string[] | null;
+          leads_movement_enabled?: boolean;
+          leads_movement_funnels?: string[] | null;
+          managers_activity_enabled?: boolean;
+          managers_activity_manager_ids?: string[] | null;
+          organization_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          intake_question_ids?: string[] | null;
+          intake_questions_enabled?: boolean;
+          lead_quality_enabled?: boolean;
+          lead_quality_stage_ids?: string[] | null;
+          leads_movement_enabled?: boolean;
+          leads_movement_funnels?: string[] | null;
+          managers_activity_enabled?: boolean;
+          managers_activity_manager_ids?: string[] | null;
+          organization_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_settings_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      daily_report_stage_transition_rules: {
+        Row: {
+          created_at: string;
+          from_stage_id: string | null;
+          funnel: string;
+          id: string;
+          manager_id: string | null;
+          manager_scope: string;
+          organization_id: string;
+          position: number;
+          to_stage_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          from_stage_id?: string | null;
+          funnel: string;
+          id?: string;
+          manager_id?: string | null;
+          manager_scope?: string;
+          organization_id: string;
+          position?: number;
+          to_stage_id: string;
+        };
+        Update: {
+          created_at?: string;
+          from_stage_id?: string | null;
+          funnel?: string;
+          id?: string;
+          manager_id?: string | null;
+          manager_scope?: string;
+          organization_id?: string;
+          position?: number;
+          to_stage_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_stage_transition_rules_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_report_stage_transition_rules_manager_id_fkey";
+            columns: ["manager_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_report_stage_transition_rules_from_stage_id_fkey";
+            columns: ["from_stage_id"];
+            isOneToOne: false;
+            referencedRelation: "pipeline_stages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_report_stage_transition_rules_to_stage_id_fkey";
+            columns: ["to_stage_id"];
+            isOneToOne: false;
+            referencedRelation: "pipeline_stages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       call_qualification_groups: {
         Row: {
           created_at: string;

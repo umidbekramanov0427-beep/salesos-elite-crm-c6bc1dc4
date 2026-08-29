@@ -26,6 +26,8 @@ export type CallStageStepRow = Tables["call_stage_steps"]["Row"];
 export type ServiceLineRow = Tables["service_lines"]["Row"];
 export type IntakeQuestionRow = Tables["intake_questions"]["Row"];
 export type LeadQualityStageRow = Tables["lead_quality_stages"]["Row"];
+export type DailyReportSettingsRow = Tables["daily_report_settings"]["Row"];
+export type ReportStageTransitionRuleRow = Tables["daily_report_stage_transition_rules"]["Row"];
 
 /* ------------------------------------------------------------------ */
 /* Generic CRUD resource factory — one query key per table, list reads */
@@ -175,6 +177,9 @@ const callStagesResource = makeResource("call_stages", ["call_stages"]);
 const callStageStepsResource = makeResource("call_stage_steps", ["call_stage_steps"]);
 const serviceLinesResource = makeResource("service_lines", ["service_lines"]);
 const intakeQuestionsResource = makeResource("intake_questions", ["intake_questions"]);
+const reportStageTransitionRulesResource = makeResource("daily_report_stage_transition_rules", [
+  "daily_report_stage_transition_rules",
+]);
 const leadQualityStagesResource = makeResource("lead_quality_stages", ["lead_quality_stages"]);
 
 export const useCompaniesRaw = (opts?: Parameters<typeof companiesResource.useList>[0]) =>
@@ -439,6 +444,69 @@ export const useLeadQualityStages = (
 export const useCreateLeadQualityStage = leadQualityStagesResource.useCreate;
 export const useUpdateLeadQualityStage = leadQualityStagesResource.useUpdate;
 export const useDeleteLeadQualityStage = leadQualityStagesResource.useRemove;
+
+/* ------------------------------------------------------------------ */
+/* "Kunlik hisobot sozlamalari" -- which sections/scopes appear in the */
+/* automated Telegram daily report (see telegram-report.server.ts).   */
+/* ------------------------------------------------------------------ */
+
+export function useDailyReportSettings() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["daily_report_settings", user?.organizationId],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<DailyReportSettingsRow | null> => {
+      const { data, error } = await supabase
+        .from("daily_report_settings")
+        .select("*")
+        .eq("organization_id", user!.organizationId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUpdateDailyReportSettings() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (
+      patch: Partial<
+        Pick<
+          DailyReportSettingsRow,
+          | "managers_activity_enabled"
+          | "managers_activity_manager_ids"
+          | "leads_movement_enabled"
+          | "leads_movement_funnels"
+          | "lead_quality_enabled"
+          | "lead_quality_stage_ids"
+          | "intake_questions_enabled"
+          | "intake_question_ids"
+        >
+      >,
+    ) => {
+      const { data, error } = await supabase
+        .from("daily_report_settings")
+        .upsert(
+          { organization_id: user!.organizationId!, ...patch },
+          { onConflict: "organization_id" },
+        )
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["daily_report_settings", user?.organizationId] }),
+  });
+}
+
+export const useReportStageTransitionRules = (
+  opts?: Parameters<typeof reportStageTransitionRulesResource.useList>[0],
+) => reportStageTransitionRulesResource.useList({ orderBy: "position", ...opts });
+export const useCreateReportStageTransitionRule = reportStageTransitionRulesResource.useCreate;
+export const useDeleteReportStageTransitionRule = reportStageTransitionRulesResource.useRemove;
 
 export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResource.useList>[0]) =>
   rolePermissionsResource.useList(opts);
