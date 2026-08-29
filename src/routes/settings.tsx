@@ -9,6 +9,7 @@ import {
   Bot,
   Building2,
   Check,
+  ClipboardCheck,
   Globe,
   ListChecks,
   Loader2,
@@ -2313,6 +2314,12 @@ function SettingsPage() {
     ? ALL_NAV.filter((n) => n.key === "profile" || n.key === "personalization")
     : ALL_NAV;
 
+  // Shortcuts to full standalone pages (not internal sections of this one) —
+  // shown as their own "Muhim" group below the regular settings list.
+  const IMPORTANT_LINKS: { to: string; icon: LucideIcon; label: string }[] = isSotuvMenejeri
+    ? []
+    : [{ to: "/scoring-criteria", icon: ClipboardCheck, label: t("settings.nav.scoringCriteria") }];
+
   return (
     <>
       <PageHeader title={t("settings.title")} description={t("settings.desc")} />
@@ -2345,6 +2352,23 @@ function SettingsPage() {
               )}
             </button>
           ))}
+          {IMPORTANT_LINKS.length > 0 && (
+            <>
+              <p className="mt-4 px-3 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                {t("settings.nav.important")}
+              </p>
+              {IMPORTANT_LINKS.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-muted-foreground transition-colors hover:bg-mint-border hover:text-mint-foreground"
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
         <div>

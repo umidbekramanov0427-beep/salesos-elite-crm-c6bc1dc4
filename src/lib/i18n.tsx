@@ -679,6 +679,8 @@ const en: Dict = {
   "settings.qualificationGroups.bantTemplate": "Use BANT template",
   "settings.nav.leadCategories": "Lead categories",
   "settings.nav.conversion": "Conversion",
+  "settings.nav.important": "Important",
+  "settings.nav.scoringCriteria": "Scoring Criteria",
   "settings.callSkills.desc": "Radar-chart axes used to score sales calls.",
   "settings.callStages.desc": "Stages group checklist steps; each step can score against a skill.",
   "settings.callStages.noCategory": "No category",
@@ -2618,6 +2620,8 @@ const ru: Dict = {
   "settings.qualificationGroups.bantTemplate": "Использовать шаблон BANT",
   "settings.nav.leadCategories": "Категории лидов",
   "settings.nav.conversion": "Конверсия",
+  "settings.nav.important": "Важное",
+  "settings.nav.scoringCriteria": "Критерии оценки",
   "settings.callSkills.desc": "Оси радар-диаграммы для оценки звонков.",
   "settings.callStages.desc":
     "Этапы содержат шаги чек-листа; каждый шаг может оцениваться по навыку.",
@@ -4582,6 +4586,8 @@ const uz: Dict = {
   "settings.qualificationGroups.bantTemplate": "BANT shablonini qo'llash",
   "settings.nav.leadCategories": "Lid kategoriyalari",
   "settings.nav.conversion": "Konversiya",
+  "settings.nav.important": "Muhim",
+  "settings.nav.scoringCriteria": "Baholash mezoni",
   "settings.callSkills.desc": "Qo'ng'iroqlarni baholash uchun radar diagramma o'qlari.",
   "settings.callStages.desc":
     "Bosqichlar tekshiruv qadamlarini guruhlaydi; har bir qadam ko'nikma bo'yicha baholanishi mumkin.",
