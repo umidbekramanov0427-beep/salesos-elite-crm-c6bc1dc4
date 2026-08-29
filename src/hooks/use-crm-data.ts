@@ -483,6 +483,13 @@ export function useUpdateDailyReportSettings() {
           | "lead_quality_stage_ids"
           | "intake_questions_enabled"
           | "intake_question_ids"
+          | "crm_activity_enabled"
+          | "tasks_plan_enabled"
+          | "call_quality_enabled"
+          | "service_lines_enabled"
+          | "recommendations_enabled"
+          | "summary_enabled"
+          | "report_sample_override"
         >
       >,
     ) => {
@@ -499,6 +506,25 @@ export function useUpdateDailyReportSettings() {
     },
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: ["daily_report_settings", user?.organizationId] }),
+  });
+}
+
+export function useDailyReportPreview() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["daily_report_preview", user?.organizationId],
+    enabled: !!user?.organizationId,
+    staleTime: 2 * 60 * 1000,
+    queryFn: async (): Promise<{ text: string; override: boolean }> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/daily-report-settings/preview", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Hisobot namunasini yuklab bo'lmadi");
+      return json;
+    },
   });
 }
 

@@ -51,6 +51,7 @@ import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analyt
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
+import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-report-settings.preview'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
@@ -296,6 +297,12 @@ const CrmDealsRoute = CrmDealsRouteImport.update({
   path: '/crm/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DailyReportSettingsPreviewRoute =
+  DailyReportSettingsPreviewRouteImport.update({
+    id: '/preview',
+    path: '/preview',
+    getParentRoute: () => DailyReportSettingsRoute,
+  } as any)
 const DashboardAmocrmTasksRoute = DashboardAmocrmTasksRouteImport.update({
   id: '/amocrm-tasks',
   path: '/amocrm-tasks',
@@ -465,7 +472,7 @@ export interface FileRoutesByFullPath {
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
-  '/daily-report-settings': typeof DailyReportSettingsRoute
+  '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -499,6 +506,7 @@ export interface FileRoutesByFullPath {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -539,7 +547,7 @@ export interface FileRoutesByTo {
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
-  '/daily-report-settings': typeof DailyReportSettingsRoute
+  '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -573,6 +581,7 @@ export interface FileRoutesByTo {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -614,7 +623,7 @@ export interface FileRoutesById {
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
-  '/daily-report-settings': typeof DailyReportSettingsRoute
+  '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
   '/inbox': typeof InboxRoute
@@ -648,6 +657,7 @@ export interface FileRoutesById {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -724,6 +734,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/preview'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -798,6 +809,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/preview'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -872,6 +884,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/preview'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/notifications/send-push'
@@ -913,7 +926,7 @@ export interface RootRouteChildren {
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   CrmStagesRoute: typeof CrmStagesRoute
   DailyReportRoute: typeof DailyReportRoute
-  DailyReportSettingsRoute: typeof DailyReportSettingsRoute
+  DailyReportSettingsRoute: typeof DailyReportSettingsRouteWithChildren
   DashboardRoute: typeof DashboardRouteWithChildren
   FunnelsRoute: typeof FunnelsRoute
   InboxRoute: typeof InboxRoute
@@ -1252,6 +1265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmDealsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/daily-report-settings/preview': {
+      id: '/daily-report-settings/preview'
+      path: '/preview'
+      fullPath: '/daily-report-settings/preview'
+      preLoaderRoute: typeof DailyReportSettingsPreviewRouteImport
+      parentRoute: typeof DailyReportSettingsRoute
+    }
     '/dashboard/amocrm-tasks': {
       id: '/dashboard/amocrm-tasks'
       path: '/amocrm-tasks'
@@ -1537,6 +1557,17 @@ const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
   AudioAnalyticsRouteChildren,
 )
 
+interface DailyReportSettingsRouteChildren {
+  DailyReportSettingsPreviewRoute: typeof DailyReportSettingsPreviewRoute
+}
+
+const DailyReportSettingsRouteChildren: DailyReportSettingsRouteChildren = {
+  DailyReportSettingsPreviewRoute: DailyReportSettingsPreviewRoute,
+}
+
+const DailyReportSettingsRouteWithChildren =
+  DailyReportSettingsRoute._addFileChildren(DailyReportSettingsRouteChildren)
+
 interface DashboardRouteChildren {
   DashboardAmocrmTasksRoute: typeof DashboardAmocrmTasksRoute
 }
@@ -1578,7 +1609,7 @@ const rootRouteChildren: RootRouteChildren = {
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   CrmStagesRoute: CrmStagesRoute,
   DailyReportRoute: DailyReportRoute,
-  DailyReportSettingsRoute: DailyReportSettingsRoute,
+  DailyReportSettingsRoute: DailyReportSettingsRouteWithChildren,
   DashboardRoute: DashboardRouteWithChildren,
   FunnelsRoute: FunnelsRoute,
   InboxRoute: InboxRoute,

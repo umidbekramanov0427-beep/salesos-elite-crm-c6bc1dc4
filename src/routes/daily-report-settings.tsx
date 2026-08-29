@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FileText, Loader2, Plus, Trash2 } from "lucide-react";
+import { FileText, Loader2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 import {
   useDailyReportSettings,
   useUpdateDailyReportSettings,
+  useDailyReportPreview,
   useReportStageTransitionRules,
   useCreateReportStageTransitionRule,
   useDeleteReportStageTransitionRule,
@@ -27,6 +28,7 @@ import {
   usePipelineStagesRaw,
   type DailyReportSettingsRow,
 } from "@/hooks/use-crm-data";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/daily-report-settings")({
   head: () => ({
@@ -172,6 +174,35 @@ function SectionToggleRow({
   );
 }
 
+function SimpleToggleRow({
+  title,
+  description,
+  enabled,
+  onToggleEnabled,
+  disabled,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggleEnabled: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-5">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <div className="flex items-center gap-2.5">
+          <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggleEnabled} />
+          <span className="text-sm text-muted-foreground">
+            {enabled ? "Yoqilgan" : "Yoqilmagan"}
+          </span>
+        </div>
+      </div>
+      <p className="mt-2 text-sm text-subtle">{description}</p>
+    </div>
+  );
+}
+
 function selectedCountOf(ids: string[] | null | undefined, total: number): number {
   return ids == null ? total : ids.length;
 }
@@ -234,6 +265,30 @@ function ReportSectionsCard() {
       description="Kunlik hisobotda qaysi bo'limlar ko'rinishini va har biri qanday qamrovda hisoblanishini boshqaring."
     >
       <div className="space-y-4">
+        <SimpleToggleRow
+          title="CRM faolligi"
+          description="Qo'ng'iroqlar soni, bog'langan qo'ng'iroqlar, bog'lanish darajasi, suhbat vaqti va oldingi ish kuni bilan taqqoslash."
+          enabled={settings?.crm_activity_enabled ?? true}
+          disabled={updateSettings.isPending}
+          onToggleEnabled={(v) => void patch({ crm_activity_enabled: v })}
+        />
+
+        <SimpleToggleRow
+          title="Vazifalar rejasi"
+          description="Bugun bajarilishi kerak bo'lgan vazifalar, ulardan nechtasi bajarilgani, qolgan qismi va har bir menejer bo'yicha ixcham qator."
+          enabled={settings?.tasks_plan_enabled ?? true}
+          disabled={updateSettings.isPending}
+          onToggleEnabled={(v) => void patch({ tasks_plan_enabled: v })}
+        />
+
+        <SimpleToggleRow
+          title="Qo'ng'iroqlar sifati"
+          description="Tahlil qilingan qo'ng'iroqlar, savdo ssenariysi ulushi, chiqarilgan qo'ng'iroqlar, audio muammolari va o'rtacha ball."
+          enabled={settings?.call_quality_enabled ?? true}
+          disabled={updateSettings.isPending}
+          onToggleEnabled={(v) => void patch({ call_quality_enabled: v })}
+        />
+
         <SectionToggleRow
           title="Menejerlar faoliyati"
           description="Menejerlar kesimidagi qo'ng'iroq ko'rsatkichlari, kuchli tomonlar va e'tibor kerak bo'lgan jihatlar."
@@ -269,8 +324,16 @@ function ReportSectionsCard() {
           onToggleEnabled={(v) => void patch({ lead_quality_enabled: v })}
           selectedCount={selectedCountOf(settings?.lead_quality_stage_ids, leadQualityItems.length)}
           totalCount={leadQualityItems.length}
-          pickerLabel="Guruhlarni tanlash"
+          pickerLabel="Lid sifati guruhlarini tanlash"
           onOpenPicker={() => setOpenPicker("leadQuality")}
+        />
+
+        <SimpleToggleRow
+          title="Xizmat yo'nalishlari"
+          description="Tahlil qilingan suhbatlardan aniqlangan mahsulot yoki xizmat yo'nalishlari."
+          enabled={settings?.service_lines_enabled ?? true}
+          disabled={updateSettings.isPending}
+          onToggleEnabled={(v) => void patch({ service_lines_enabled: v })}
         />
 
         <SectionToggleRow
@@ -283,6 +346,22 @@ function ReportSectionsCard() {
           totalCount={intakeQuestionItems.length}
           pickerLabel="Savollarni tanlash"
           onOpenPicker={() => setOpenPicker("intakeQuestions")}
+        />
+
+        <SimpleToggleRow
+          title="Tavsiyalar"
+          description="Hisobot ma'lumotlari asosidagi ertangi kun uchun aniq harakatlar."
+          enabled={settings?.recommendations_enabled ?? true}
+          disabled={updateSettings.isPending}
+          onToggleEnabled={(v) => void patch({ recommendations_enabled: v })}
+        />
+
+        <SimpleToggleRow
+          title="Xulosa"
+          description="Hisobot oxiridagi qisqa yakuniy xulosa."
+          enabled={settings?.summary_enabled ?? true}
+          disabled={updateSettings.isPending}
+          onToggleEnabled={(v) => void patch({ summary_enabled: v })}
         />
       </div>
 
@@ -635,6 +714,153 @@ function StageTransitionCard() {
   );
 }
 
+function ReportSampleEditDialog({
+  open,
+  onOpenChange,
+  initialText,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initialText: string;
+}) {
+  const updateSettings = useUpdateDailyReportSettings();
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const [draft, setDraft] = useState(initialText);
+
+  useEffect(() => {
+    if (open) setDraft(initialText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  async function save() {
+    try {
+      await updateSettings.mutateAsync({ report_sample_override: draft });
+      void qc.invalidateQueries({ queryKey: ["daily_report_preview", user?.organizationId] });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(errorMessage(err, "Saqlashda xatolik yuz berdi."));
+    }
+  }
+
+  async function resetToDefault() {
+    try {
+      await updateSettings.mutateAsync({ report_sample_override: null });
+      void qc.invalidateQueries({ queryKey: ["daily_report_preview", user?.organizationId] });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(errorMessage(err, "Standart holatga qaytarishda xatolik yuz berdi."));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Hisobot namunasini tahrirlash</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-subtle">
+          Bu matn "Hisobot namunasi" qismida ko'rsatiladi va shu holatda saqlanib qoladi (kunlik
+          real ma'lumotlar bilan avtomatik yangilanmaydi, toki standart holatga qaytarilmaguncha).
+        </p>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={18}
+          className="w-full resize-y rounded-xl border border-border bg-surface p-3 font-mono text-xs outline-none focus:border-primary/40"
+        />
+        <DialogFooter className="sm:justify-between">
+          <button
+            type="button"
+            onClick={() => void resetToDefault()}
+            disabled={updateSettings.isPending}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-subtle transition-colors hover:bg-accent disabled:opacity-60"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Standart holatga qaytarish
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={updateSettings.isPending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {updateSettings.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Saqlash
+            </button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ReportSamplePreview() {
+  const { data, isLoading, isError } = useDailyReportPreview();
+  const [editing, setEditing] = useState(false);
+  const text = data?.text ?? "";
+  const blocks = text.split("\n\n").filter((b) => b.trim());
+
+  return (
+    <SectionCard
+      title="Hisobot namunasi"
+      description="Tanlangan qismlar bilan kunlik hisobot qanday ko'rinishini ko'rsatadigan namunaviy ma'lumotlar."
+      actions={
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-subtle transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Tahrirlash"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+      }
+    >
+      {isLoading && (
+        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Yuklanmoqda...
+        </div>
+      )}
+      {isError && (
+        <p className="py-6 text-center text-sm text-destructive">
+          Hisobot namunasini yuklab bo'lmadi.
+        </p>
+      )}
+      {!isLoading && !isError && blocks.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Hozircha ko'rsatiladigan ma'lumot yo'q.
+        </p>
+      )}
+      {!isLoading && !isError && blocks.length > 0 && (
+        <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+          {blocks.map((block, i) => {
+            const [header, ...rest] = block.split("\n");
+            return (
+              <div key={i} className="border-l-2 border-primary/40 pl-3">
+                <p className="text-sm font-semibold text-foreground">{header}</p>
+                {rest.map((line, j) => (
+                  <p key={j} className="whitespace-pre-wrap text-sm text-subtle">
+                    {line}
+                  </p>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <ReportSampleEditDialog open={editing} onOpenChange={setEditing} initialText={text} />
+    </SectionCard>
+  );
+}
+
 function DailyReportSettingsPage() {
   return (
     <>
@@ -642,9 +868,12 @@ function DailyReportSettingsPage() {
         title="Kunlik hisobot sozlamalari"
         description="Telegram orqali yuboriladigan kunlik hisobotning tarkibini shu yerdan boshqaring."
       />
-      <div className="grid gap-6">
-        <ReportSectionsCard />
-        <StageTransitionCard />
+      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        <div className="grid gap-6">
+          <ReportSectionsCard />
+          <StageTransitionCard />
+        </div>
+        <ReportSamplePreview />
       </div>
     </>
   );

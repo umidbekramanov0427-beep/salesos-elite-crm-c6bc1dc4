@@ -177,6 +177,7 @@ export type Database = {
           direction: string;
           duration_seconds: number;
           id: string;
+          intake_answers: Json;
           lead_id: string | null;
           mood: string | null;
           next_step: string | null;
@@ -185,6 +186,7 @@ export type Database = {
           phone: string | null;
           recording_url: string | null;
           score: number | null;
+          service_line_id: string | null;
           source: string;
           synced_at: string;
           talk_ratio: number | null;
@@ -203,6 +205,7 @@ export type Database = {
           direction: string;
           duration_seconds?: number;
           id?: string;
+          intake_answers?: Json;
           lead_id?: string | null;
           mood?: string | null;
           next_step?: string | null;
@@ -211,6 +214,7 @@ export type Database = {
           phone?: string | null;
           recording_url?: string | null;
           score?: number | null;
+          service_line_id?: string | null;
           source?: string;
           synced_at?: string;
           talk_ratio?: number | null;
@@ -229,6 +233,7 @@ export type Database = {
           direction?: string;
           duration_seconds?: number;
           id?: string;
+          intake_answers?: Json;
           lead_id?: string | null;
           mood?: string | null;
           next_step?: string | null;
@@ -237,6 +242,7 @@ export type Database = {
           phone?: string | null;
           recording_url?: string | null;
           score?: number | null;
+          service_line_id?: string | null;
           source?: string;
           synced_at?: string;
           talk_ratio?: number | null;
@@ -256,6 +262,13 @@ export type Database = {
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "amocrm_calls_service_line_id_fkey";
+            columns: ["service_line_id"];
+            isOneToOne: false;
+            referencedRelation: "service_lines";
             referencedColumns: ["id"];
           },
         ];
@@ -832,9 +845,11 @@ export type Database = {
       daily_report_settings: {
         Row: {
           created_at: string;
+          crm_activity_enabled: boolean;
           id: string;
           intake_question_ids: string[] | null;
           intake_questions_enabled: boolean;
+          call_quality_enabled: boolean;
           lead_quality_enabled: boolean;
           lead_quality_stage_ids: string[] | null;
           leads_movement_enabled: boolean;
@@ -842,13 +857,20 @@ export type Database = {
           managers_activity_enabled: boolean;
           managers_activity_manager_ids: string[] | null;
           organization_id: string;
+          recommendations_enabled: boolean;
+          report_sample_override: string | null;
+          service_lines_enabled: boolean;
+          summary_enabled: boolean;
+          tasks_plan_enabled: boolean;
           updated_at: string;
         };
         Insert: {
           created_at?: string;
+          crm_activity_enabled?: boolean;
           id?: string;
           intake_question_ids?: string[] | null;
           intake_questions_enabled?: boolean;
+          call_quality_enabled?: boolean;
           lead_quality_enabled?: boolean;
           lead_quality_stage_ids?: string[] | null;
           leads_movement_enabled?: boolean;
@@ -856,13 +878,20 @@ export type Database = {
           managers_activity_enabled?: boolean;
           managers_activity_manager_ids?: string[] | null;
           organization_id: string;
+          recommendations_enabled?: boolean;
+          report_sample_override?: string | null;
+          service_lines_enabled?: boolean;
+          summary_enabled?: boolean;
+          tasks_plan_enabled?: boolean;
           updated_at?: string;
         };
         Update: {
           created_at?: string;
+          crm_activity_enabled?: boolean;
           id?: string;
           intake_question_ids?: string[] | null;
           intake_questions_enabled?: boolean;
+          call_quality_enabled?: boolean;
           lead_quality_enabled?: boolean;
           lead_quality_stage_ids?: string[] | null;
           leads_movement_enabled?: boolean;
@@ -870,6 +899,11 @@ export type Database = {
           managers_activity_enabled?: boolean;
           managers_activity_manager_ids?: string[] | null;
           organization_id?: string;
+          recommendations_enabled?: boolean;
+          report_sample_override?: string | null;
+          service_lines_enabled?: boolean;
+          summary_enabled?: boolean;
+          tasks_plan_enabled?: boolean;
           updated_at?: string;
         };
         Relationships: [
@@ -1507,6 +1541,7 @@ export type Database = {
           funnel: string | null;
           id: string;
           last_contact_at: string | null;
+          lead_quality_stage_id: string | null;
           loss_reason: string | null;
           manager_id: string | null;
           name: string;
@@ -1538,6 +1573,7 @@ export type Database = {
           funnel?: string | null;
           id?: string;
           last_contact_at?: string | null;
+          lead_quality_stage_id?: string | null;
           loss_reason?: string | null;
           manager_id?: string | null;
           name: string;
@@ -1569,6 +1605,7 @@ export type Database = {
           funnel?: string | null;
           id?: string;
           last_contact_at?: string | null;
+          lead_quality_stage_id?: string | null;
           loss_reason?: string | null;
           manager_id?: string | null;
           name?: string;
@@ -1605,6 +1642,13 @@ export type Database = {
             columns: ["manager_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_lead_quality_stage_id_fkey";
+            columns: ["lead_quality_stage_id"];
+            isOneToOne: false;
+            referencedRelation: "lead_quality_stages";
             referencedColumns: ["id"];
           },
           {
