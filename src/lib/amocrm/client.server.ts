@@ -779,7 +779,13 @@ type AmoCallNote = {
 // defense. Recent call history is what Audio Analytics actually needs;
 // cap the window and the page count so this can never be the thing that
 // pushes a sync over the memory limit.
-const CALL_NOTES_LOOKBACK_DAYS = 30;
+// A 30-day window meant an account whose real call history predates that
+// (the common case -- AmoCRM was already in use before this integration
+// existed) synced almost nothing, even though the leads backfill pulls
+// full history. CALL_NOTES_MAX_PAGES already bounds the cost per run
+// regardless of how wide this window is, so widen it instead of silently
+// dropping everything older than a month.
+const CALL_NOTES_LOOKBACK_DAYS = 365;
 const CALL_NOTES_MAX_PAGES = 20; // ~5k notes at limit=250
 
 async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
