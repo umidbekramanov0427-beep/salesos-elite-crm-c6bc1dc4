@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireSuperAdmin } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 type AiAgentInsert = Database["public"]["Tables"]["ai_agents"]["Insert"];
 
@@ -29,6 +29,7 @@ export const Route = createFileRoute("/admin/ai-agents/update")({
             system_prompt?: string;
             channels?: string[];
             active?: boolean;
+            call_instructions?: Record<string, unknown>;
           };
           if (body.kind !== "chat" && body.kind !== "call") {
             return Response.json({ error: "Invalid kind." }, { status: 400 });
@@ -43,6 +44,8 @@ export const Route = createFileRoute("/admin/ai-agents/update")({
           if (body.system_prompt !== undefined) row.system_prompt = body.system_prompt;
           if (body.channels !== undefined) row.channels = body.channels;
           if (body.active !== undefined) row.active = body.active;
+          if (body.call_instructions !== undefined)
+            row.call_instructions = body.call_instructions as Json;
 
           const { error } = await supabaseAdmin
             .from("ai_agents")

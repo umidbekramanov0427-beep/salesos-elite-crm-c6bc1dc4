@@ -109,10 +109,17 @@ async function transcribeAudio(recordingUrl: string): Promise<string> {
 
 type RubricStep = {
   n: number;
+  stageId: string;
+  stageWeight: number;
   stage: string;
   step: string;
+  code: string | null;
   skill: string | null;
   points: number;
+  level0: string;
+  level1: string;
+  level2: string;
+  level3: string;
 };
 
 // A fixed baseline set of conduct rules every call is checked against,
@@ -130,14 +137,16 @@ const SERVICE_STANDARDS = [
 async function loadRubric(organizationId: string): Promise<RubricStep[]> {
   const { data: stages } = await supabaseAdmin
     .from("call_stages")
-    .select("id, name, position")
+    .select("id, name, position, weight_percent")
     .eq("organization_id", organizationId)
     .order("position", { ascending: true });
   if (!stages || stages.length === 0) return [];
 
   const { data: steps } = await supabaseAdmin
     .from("call_stage_steps")
-    .select("stage_id, name, skill_id, points, position")
+    .select(
+      "stage_id, name, code, skill_id, points, position, level_0_desc, level_1_desc, level_2_desc, level_3_desc",
+    )
     .eq("organization_id", organizationId)
     .order("position", { ascending: true });
 
@@ -154,14 +163,142 @@ async function loadRubric(organizationId: string): Promise<RubricStep[]> {
     for (const step of stageSteps) {
       rubric.push({
         n: n++,
+        stageId: stage.id,
+        stageWeight: Number(stage.weight_percent) || 0,
         stage: stage.name,
         step: step.name,
+        code: step.code,
         skill: step.skill_id ? (skillNameById.get(step.skill_id) ?? null) : null,
         points: Number(step.points) || 0,
+        level0: step.level_0_desc,
+        level1: step.level_1_desc,
+        level2: step.level_2_desc,
+        level3: step.level_3_desc,
       });
     }
   }
   return rubric;
+}
+
+// A configured weighted rubric (call_stages.weight_percent) always beats the
+// simple flat point ratio -- each stage's met/unmet ratio is scaled by that
+// stage's own weight, then normalized by however the weights actually sum
+// (so an org that hasn't finished balancing them to exactly 100 still gets a
+// sane score instead of a silently wrong one). Returns null when no stage
+// has a weight configured yet, so the caller can fall back to the old flat
+// points formula for orgs that haven't set weights up.
+function computeWeightedScore(rubric: RubricStep[], metByN: Map<number, boolean>): number | null {
+  const stageWeight = new Map<string, number>();
+  const stageTotalPoints = new Map<string, number>();
+  const stageEarnedPoints = new Map<string, number>();
+  for (const r of rubric) {
+    stageWeight.set(r.stageId, r.stageWeight);
+    stageTotalPoints.set(r.stageId, (stageTotalPoints.get(r.stageId) ?? 0) + r.points);
+    if (metByN.get(r.n)) {
+      stageEarnedPoints.set(r.stageId, (stageEarnedPoints.get(r.stageId) ?? 0) + r.points);
+    }
+  }
+  const totalWeight = [...stageWeight.values()].reduce((s, w) => s + w, 0);
+  if (totalWeight <= 0) return null;
+
+  let weightedScore = 0;
+  for (const [stageId, weight] of stageWeight) {
+    const total = stageTotalPoints.get(stageId) ?? 0;
+    const earned = stageEarnedPoints.get(stageId) ?? 0;
+    const ratio = total > 0 ? earned / total : 0;
+    weightedScore += ratio * weight;
+  }
+  return Math.round((weightedScore / totalWeight) * 100);
+}
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+function asStringArrayLoose(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+// Structured "AI ko'rsatmalari" + "Lid analitikasi" fields configured on
+// Baholash mezoni -- rendered into plain instruction text and appended to
+// the agent's freeform system_prompt, same idea as the fixed rubric/service
+// standards below, just admin-configurable instead of hardcoded.
+function buildCallInstructionsBlock(callInstructions: unknown): string {
+  const root = asRecord(callInstructions);
+  const instructions = asRecord(root["instructions"]);
+  const leadAnalytics = asRecord(root["leadAnalytics"]);
+
+  const mainGoal = typeof instructions["mainGoal"] === "string" ? instructions["mainGoal"] : "";
+  const keyBehaviors = asStringArrayLoose(instructions["keyBehaviors"]);
+  const redFlags = asStringArrayLoose(instructions["redFlags"]);
+  const extraNotes =
+    typeof instructions["extraNotes"] === "string" ? instructions["extraNotes"] : "";
+  const questions = asStringArrayLoose(leadAnalytics["questions"]);
+  const qualificationHints = asStringArrayLoose(leadAnalytics["qualificationHints"]);
+
+  const parts: string[] = [];
+  if (mainGoal.trim()) parts.push(`Asosiy vazifa: ${mainGoal.trim()}`);
+  if (keyBehaviors.length > 0) {
+    parts.push(
+      "E'tibor berilishi kerak bo'lgan xatti-harakatlar:\n" +
+        keyBehaviors.map((b) => `- ${b}`).join("\n"),
+    );
+  }
+  if (redFlags.length > 0) {
+    parts.push("Qizil chiziqlar / xavf belgilari:\n" + redFlags.map((b) => `- ${b}`).join("\n"));
+  }
+  if (extraNotes.trim()) parts.push(`Qo'shimcha eslatma: ${extraNotes.trim()}`);
+  if (questions.length > 0) {
+    parts.push(
+      "Tahlil xulosasida quyidagi savollarga imkon qadar javob toping:\n" +
+        questions.map((q) => `- ${q}`).join("\n"),
+    );
+  }
+  if (qualificationHints.length > 0) {
+    parts.push(
+      "Lid sifatini aniqlashda quyidagi belgilarga e'tibor bering:\n" +
+        qualificationHints.map((h) => `- ${h}`).join("\n"),
+    );
+  }
+  return parts.length > 0 ? "\n\n" + parts.join("\n\n") : "";
+}
+
+// "Xizmat yo'nalishlari" (service_lines) + "Lid sifati bosqichlari"
+// (lead_quality_stages) configured on Baholash mezoni -- gives the model the
+// business's own product lines and qualification ladder so its summary/
+// next-step naturally reasons in those terms instead of generic categories.
+async function buildPlaybookBlock(organizationId: string): Promise<string> {
+  const [{ data: lines }, { data: stages }] = await Promise.all([
+    supabaseAdmin
+      .from("service_lines")
+      .select("name, description")
+      .eq("organization_id", organizationId)
+      .order("position", { ascending: true }),
+    supabaseAdmin
+      .from("lead_quality_stages")
+      .select("title, conditions, qualified")
+      .eq("organization_id", organizationId)
+      .order("position", { ascending: true }),
+  ]);
+
+  const parts: string[] = [];
+  if (lines && lines.length > 0) {
+    parts.push(
+      "Kompaniyaning xizmat yo'nalishlari (mijoz qaysi biri haqida gapirayotganini aniqlang):\n" +
+        lines.map((l) => `- ${l.name}${l.description ? `: ${l.description}` : ""}`).join("\n"),
+    );
+  }
+  if (stages && stages.length > 0) {
+    parts.push(
+      "Lid sifati bosqichlari (mos kelganini aniqlashga harakat qiling):\n" +
+        stages
+          .map(
+            (s) =>
+              `- ${s.title} (${s.qualified ? "sifatli" : "sifatsiz"})${s.conditions.length > 0 ? `: ${s.conditions.join("; ")}` : ""}`,
+          )
+          .join("\n"),
+    );
+  }
+  return parts.length > 0 ? "\n\n" + parts.join("\n\n") : "";
 }
 
 function buildJsonInstruction(rubric: RubricStep[]): string {
@@ -195,7 +332,14 @@ function buildJsonInstruction(rubric: RubricStep[]): string {
   }
 
   const checklistLines = rubric
-    .map((r) => `${r.n}. [${r.stage}] ${r.step}${r.skill ? ` (ko'nikma: ${r.skill})` : ""}`)
+    .map((r) => {
+      const label = `${r.n}. [${r.stage}]${r.code ? ` (${r.code})` : ""} ${r.step}${r.skill ? ` (ko'nikma: ${r.skill})` : ""}`;
+      const rubricHints = [
+        r.level3 && `to'liq bajarilgan: ${r.level3}`,
+        r.level0 && `bajarilmagan: ${r.level0}`,
+      ].filter(Boolean);
+      return rubricHints.length > 0 ? `${label} — ${rubricHints.join("; ")}` : label;
+    })
     .join("\n");
 
   return (
@@ -374,7 +518,7 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
 
         const { data: agent } = await supabaseAdmin
           .from("ai_agents")
-          .select("system_prompt, active")
+          .select("system_prompt, active, call_instructions")
           .eq("organization_id", organizationId)
           .eq("kind", "call")
           .maybeSingle();
@@ -384,7 +528,7 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
             { status: 400 },
           );
         }
-        const systemPrompt =
+        const baseSystemPrompt =
           agent?.system_prompt?.trim() ||
           "Siz qo'ng'iroq yozuvini tahlil qiluvchi tajribali sotuv nazoratchisisiz. Asosiy mavzuni, mijoz kayfiyatini, menejerning kuchli va zaif tomonlarini xolisona baholang.";
 
@@ -397,20 +541,34 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
             );
           }
 
-          const rubric = await loadRubric(organizationId);
+          const [rubric, playbookBlock] = await Promise.all([
+            loadRubric(organizationId),
+            buildPlaybookBlock(organizationId),
+          ]);
+          const systemPrompt =
+            baseSystemPrompt + buildCallInstructionsBlock(agent?.call_instructions) + playbookBlock;
           const result = await analyzeTranscript(transcript, systemPrompt, rubric);
 
           // A configured rubric always wins over the AI's own holistic
-          // guess — it's a fixed, auditable formula (matched point-weight /
-          // total point-weight) instead of a number the model invented, so
-          // the score stays consistent across calls and can't silently
-          // drift as the underlying model changes.
+          // guess — it's a fixed, auditable formula instead of a number the
+          // model invented, so the score stays consistent across calls and
+          // can't silently drift as the underlying model changes. A stage
+          // weight (Baholash mezonlari) takes priority when configured;
+          // otherwise fall back to the flat matched-points ratio.
           let score = result.score;
           const totalPoints = rubric.reduce((s, r) => s + r.points, 0);
           if (rubric.length > 0 && totalPoints > 0) {
             const metByN = new Map(result.checklist.map((c) => [c.n, c.met]));
-            const matchedPoints = rubric.reduce((s, r) => s + (metByN.get(r.n) ? r.points : 0), 0);
-            score = Math.round((matchedPoints / totalPoints) * 100);
+            const weighted = computeWeightedScore(rubric, metByN);
+            if (weighted !== null) {
+              score = weighted;
+            } else {
+              const matchedPoints = rubric.reduce(
+                (s, r) => s + (metByN.get(r.n) ? r.points : 0),
+                0,
+              );
+              score = Math.round((matchedPoints / totalPoints) * 100);
+            }
           }
 
           const noteByN = new Map(result.checklist.map((c) => [c.n, c.note ?? ""]));

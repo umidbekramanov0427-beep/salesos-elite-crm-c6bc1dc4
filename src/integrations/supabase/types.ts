@@ -11,6 +11,7 @@ export type Database = {
       ai_agents: {
         Row: {
           active: boolean;
+          call_instructions: Json;
           channels: string[];
           id: string;
           kind: string;
@@ -22,6 +23,7 @@ export type Database = {
         };
         Insert: {
           active?: boolean;
+          call_instructions?: Json;
           channels?: string[];
           id?: string;
           kind: string;
@@ -33,6 +35,7 @@ export type Database = {
         };
         Update: {
           active?: boolean;
+          call_instructions?: Json;
           channels?: string[];
           id?: string;
           kind?: string;
@@ -498,25 +501,43 @@ export type Database = {
       };
       call_categories: {
         Row: {
+          conversation_domain: string | null;
           created_at: string;
+          exclusion_reason: string | null;
           id: string;
           name: string;
           organization_id: string;
           position: number;
+          scored: boolean;
+          system_family: boolean;
+          temporary: boolean;
+          workflow_family: string | null;
         };
         Insert: {
+          conversation_domain?: string | null;
           created_at?: string;
+          exclusion_reason?: string | null;
           id?: string;
           name: string;
           organization_id: string;
           position?: number;
+          scored?: boolean;
+          system_family?: boolean;
+          temporary?: boolean;
+          workflow_family?: string | null;
         };
         Update: {
+          conversation_domain?: string | null;
           created_at?: string;
+          exclusion_reason?: string | null;
           id?: string;
           name?: string;
           organization_id?: string;
           position?: number;
+          scored?: boolean;
+          system_family?: boolean;
+          temporary?: boolean;
+          workflow_family?: string | null;
         };
         Relationships: [
           {
@@ -571,6 +592,7 @@ export type Database = {
           name: string;
           organization_id: string;
           position: number;
+          weight_percent: number;
         };
         Insert: {
           category_id?: string | null;
@@ -579,6 +601,7 @@ export type Database = {
           name: string;
           organization_id: string;
           position?: number;
+          weight_percent?: number;
         };
         Update: {
           category_id?: string | null;
@@ -587,6 +610,7 @@ export type Database = {
           name?: string;
           organization_id?: string;
           position?: number;
+          weight_percent?: number;
         };
         Relationships: [
           {
@@ -607,8 +631,13 @@ export type Database = {
       };
       call_stage_steps: {
         Row: {
+          code: string | null;
           created_at: string;
           id: string;
+          level_0_desc: string;
+          level_1_desc: string;
+          level_2_desc: string;
+          level_3_desc: string;
           name: string;
           organization_id: string;
           points: number;
@@ -617,8 +646,13 @@ export type Database = {
           stage_id: string;
         };
         Insert: {
+          code?: string | null;
           created_at?: string;
           id?: string;
+          level_0_desc?: string;
+          level_1_desc?: string;
+          level_2_desc?: string;
+          level_3_desc?: string;
           name: string;
           organization_id: string;
           points?: number;
@@ -627,8 +661,13 @@ export type Database = {
           stage_id: string;
         };
         Update: {
+          code?: string | null;
           created_at?: string;
           id?: string;
+          level_0_desc?: string;
+          level_1_desc?: string;
+          level_2_desc?: string;
+          level_3_desc?: string;
           name?: string;
           organization_id?: string;
           points?: number;
@@ -656,6 +695,130 @@ export type Database = {
             columns: ["stage_id"];
             isOneToOne: false;
             referencedRelation: "call_stages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      service_lines: {
+        Row: {
+          aliases: string[];
+          created_at: string;
+          description: string;
+          id: string;
+          name: string;
+          organization_id: string;
+          position: number;
+          sample_phrases: string[];
+        };
+        Insert: {
+          aliases?: string[];
+          created_at?: string;
+          description?: string;
+          id?: string;
+          name: string;
+          organization_id: string;
+          position?: number;
+          sample_phrases?: string[];
+        };
+        Update: {
+          aliases?: string[];
+          created_at?: string;
+          description?: string;
+          id?: string;
+          name?: string;
+          organization_id?: string;
+          position?: number;
+          sample_phrases?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_lines_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      intake_questions: {
+        Row: {
+          created_at: string;
+          id: string;
+          label: string;
+          organization_id: string;
+          position: number;
+          service_line_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          label: string;
+          organization_id: string;
+          position?: number;
+          service_line_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          label?: string;
+          organization_id?: string;
+          position?: number;
+          service_line_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "intake_questions_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "intake_questions_service_line_id_fkey";
+            columns: ["service_line_id"];
+            isOneToOne: false;
+            referencedRelation: "service_lines";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lead_quality_stages: {
+        Row: {
+          conditions: string[];
+          created_at: string;
+          id: string;
+          organization_id: string;
+          position: number;
+          qualified: boolean;
+          system_locked: boolean;
+          title: string;
+        };
+        Insert: {
+          conditions?: string[];
+          created_at?: string;
+          id?: string;
+          organization_id: string;
+          position?: number;
+          qualified?: boolean;
+          system_locked?: boolean;
+          title: string;
+        };
+        Update: {
+          conditions?: string[];
+          created_at?: string;
+          id?: string;
+          organization_id?: string;
+          position?: number;
+          qualified?: boolean;
+          system_locked?: boolean;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lead_quality_stages_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
             referencedColumns: ["id"];
           },
         ];
