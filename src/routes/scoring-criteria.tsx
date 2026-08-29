@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  ChevronDown,
   FileText,
   Loader2,
   Lock,
@@ -18,6 +17,13 @@ import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -34,7 +40,6 @@ import {
   useCreateCallStageStep,
   useUpdateCallStageStep,
   useDeleteCallStageStep,
-  useCallSkills,
   useServiceLines,
   useCreateServiceLine,
   useUpdateServiceLine,
@@ -122,53 +127,158 @@ function useCanManage() {
 /* (code + 4-level rubric), optionally tagged to a category.              */
 /* ===================================================================== */
 
+type CriterionFormValues = {
+  name: string;
+  description: string;
+  level0: string;
+  level1: string;
+  level2: string;
+  level3: string;
+};
+
+function CriterionDialog({
+  open,
+  onOpenChange,
+  title,
+  initial,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  initial: CriterionFormValues;
+  onSave: (values: CriterionFormValues) => Promise<void>;
+}) {
+  const [values, setValues] = useState(initial);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) setValues(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  function set<K extends keyof CriterionFormValues>(key: K, v: string) {
+    setValues((cur) => ({ ...cur, [key]: v }));
+  }
+
+  async function handleSave() {
+    if (!values.name.trim()) return;
+    setSaving(true);
+    try {
+      await onSave(values);
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <p className="mb-1.5 text-sm text-muted-foreground">Nom</p>
+            <input
+              autoFocus
+              value={values.name}
+              onChange={(e) => set("name", e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <p className="mb-1.5 text-sm text-muted-foreground">Tavsif</p>
+            <textarea
+              value={values.description}
+              onChange={(e) => set("description", e.target.value)}
+              rows={2}
+              placeholder="Bu mezon bo'yicha yaxshi xatti-harakat qanday ko'rinishini yozing."
+              className={textareaCls}
+            />
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-semibold text-foreground">Ball mezoni</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ["level0", "Ball 0", "Qachon umuman bajarilmagan hisoblanadi?"],
+                  ["level1", "Ball 1", "Qachon zaif bajarilgan hisoblanadi?"],
+                  ["level2", "Ball 2", "Qachon qoniqarli bajarilgan hisoblanadi?"],
+                  ["level3", "Ball 3", "Qachon a'lo bajarilgan hisoblanadi?"],
+                ] as const
+              ).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <p className="mb-1.5 text-sm text-muted-foreground">{label}</p>
+                  <textarea
+                    value={values[key]}
+                    onChange={(e) => set(key, e.target.value)}
+                    rows={3}
+                    placeholder={placeholder}
+                    className={textareaCls}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="inline-flex h-10 items-center rounded-xl border border-border px-4 text-sm font-medium text-subtle hover:bg-accent"
+          >
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving || !values.name.trim()}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Saqlash
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RubricStepRow({
   step,
-  skills,
+  index,
+  lastIndex,
+  onMove,
   canManage,
 }: {
   step: CallStageStepRow;
-  skills: ReturnType<typeof useCallSkills>["data"];
+  index: number;
+  lastIndex: number;
+  onMove: (index: number, dir: -1 | 1) => void;
   canManage: boolean;
 }) {
   const updateStep = useUpdateCallStageStep();
   const deleteStep = useDeleteCallStageStep();
-  const [expanded, setExpanded] = useState(false);
-  const [code, setCode] = useState(step.code ?? "");
-  const [name, setName] = useState(step.name);
-  const [points, setPoints] = useState(String(step.points));
-  const [skillId, setSkillId] = useState(step.skill_id ?? "");
-  const [l0, setL0] = useState(step.level_0_desc);
-  const [l1, setL1] = useState(step.level_1_desc);
-  const [l2, setL2] = useState(step.level_2_desc);
-  const [l3, setL3] = useState(step.level_3_desc);
+  const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  const skill = (skills ?? []).find((s) => s.id === step.skill_id);
-
-  async function save() {
-    setSaving(true);
+  async function save(values: CriterionFormValues) {
     try {
       await updateStep.mutateAsync({
         id: step.id,
         patch: {
-          code: code.trim() || null,
-          name: name.trim() || step.name,
-          points: Number(points) || 0,
-          skill_id: skillId || null,
-          level_0_desc: l0,
-          level_1_desc: l1,
-          level_2_desc: l2,
-          level_3_desc: l3,
+          name: values.name.trim() || step.name,
+          description: values.description,
+          level_0_desc: values.level0,
+          level_1_desc: values.level1,
+          level_2_desc: values.level2,
+          level_3_desc: values.level3,
         },
       });
       toast.success("Saqlandi");
-      setExpanded(false);
     } catch (err) {
       toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
-    } finally {
-      setSaving(false);
+      throw err;
     }
   }
 
@@ -184,37 +294,41 @@ function RubricStepRow({
   }
 
   return (
-    <li className="rounded-lg border border-border bg-background px-3 py-2 text-xs">
-      <div className="flex items-center justify-between gap-2">
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 text-subtle transition-transform",
-              expanded && "rotate-180",
-            )}
-          />
+    <li className="rounded-lg border border-border bg-background px-3 py-2.5 text-xs">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-foreground">{step.name}</span>
           {step.code && (
             <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-subtle">
               {step.code}
             </span>
           )}
-          <span className="font-medium text-foreground">{step.name}</span>
-          {skill && (
-            <span className="flex items-center gap-1 text-subtle">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: skill.color }}
-              />
-              {skill.name}
-            </span>
-          )}
-          <span className="text-subtle">· {step.points} ball</span>
-        </button>
+        </div>
         {canManage && (
-          <span className="flex shrink-0 items-center gap-1">
+          <span className="flex shrink-0 items-center gap-0.5">
+            <button
+              onClick={() => onMove(index, -1)}
+              disabled={index === 0}
+              className="rounded-md p-1.5 text-subtle hover:bg-accent hover:text-foreground disabled:opacity-30"
+              aria-label="Yuqoriga"
+            >
+              <ArrowUp className="h-3 w-3" />
+            </button>
+            <button
+              onClick={() => onMove(index, 1)}
+              disabled={index === lastIndex}
+              className="rounded-md p-1.5 text-subtle hover:bg-accent hover:text-foreground disabled:opacity-30"
+              aria-label="Pastga"
+            >
+              <ArrowDown className="h-3 w-3" />
+            </button>
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-md p-1.5 text-subtle hover:bg-accent hover:text-foreground"
+              aria-label="Tahrirlash"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
             <button
               onClick={() => setConfirmDelete(true)}
               className="rounded-md p-1.5 text-subtle hover:bg-destructive/10 hover:text-destructive"
@@ -225,79 +339,38 @@ function RubricStepRow({
           </span>
         )}
       </div>
-      {expanded && (
-        <div className="mt-2.5 space-y-2 border-t border-border pt-2.5">
-          <div className="flex flex-wrap gap-2">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Kod (masalan A1)"
-              disabled={!canManage}
-              className="h-8 w-28 rounded-md border border-border bg-surface px-2 text-xs outline-none focus:border-primary/40"
-            />
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Mezon nomi"
-              disabled={!canManage}
-              className="h-8 min-w-[160px] flex-1 rounded-md border border-border bg-surface px-2 text-xs outline-none focus:border-primary/40"
-            />
-            <select
-              value={skillId}
-              onChange={(e) => setSkillId(e.target.value)}
-              disabled={!canManage}
-              className="h-8 rounded-md border border-border bg-surface px-2 text-xs outline-none focus:border-primary/40"
-            >
-              <option value="">Skill yo'q</option>
-              {(skills ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={points}
-              onChange={(e) => setPoints(e.target.value)}
-              disabled={!canManage}
-              className="h-8 w-16 rounded-md border border-border bg-surface px-2 text-xs outline-none focus:border-primary/40"
-            />
+      {step.description && <p className="mt-1 text-subtle">{step.description}</p>}
+      <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+        {(
+          [
+            ["0", step.level_0_desc],
+            ["1", step.level_1_desc],
+            ["2", step.level_2_desc],
+            ["3", step.level_3_desc],
+          ] as const
+        ).map(([n, text]) => (
+          <div key={n} className="flex items-start gap-2">
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
+              {n}
+            </span>
+            <span className="text-subtle">{text}</span>
           </div>
-          {(
-            [
-              ["0 ball — bajarilmagan", l0, setL0],
-              ["1 ball — qisman", l1, setL1],
-              ["2 ball — yaxshi", l2, setL2],
-              ["3 ball — a'lo", l3, setL3],
-            ] as const
-          ).map(([label, val, setter]) => (
-            <div key={label}>
-              <p className="mb-1 text-[11px] font-medium text-subtle">{label}</p>
-              <textarea
-                value={val}
-                onChange={(e) => setter(e.target.value)}
-                disabled={!canManage}
-                rows={2}
-                className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs outline-none focus:border-primary/40"
-              />
-            </div>
-          ))}
-          {canManage && (
-            <button
-              onClick={() => void save()}
-              disabled={saving}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              Saqlash
-            </button>
-          )}
-        </div>
-      )}
+        ))}
+      </div>
+      <CriterionDialog
+        open={editing}
+        onOpenChange={setEditing}
+        title="Mezonni tahrirlash"
+        initial={{
+          name: step.name,
+          description: step.description,
+          level0: step.level_0_desc,
+          level1: step.level_1_desc,
+          level2: step.level_2_desc,
+          level3: step.level_3_desc,
+        }}
+        onSave={save}
+      />
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
@@ -312,13 +385,11 @@ function RubricStepRow({
 function RubricStageCard({
   stage,
   categories,
-  skills,
   steps,
   canManage,
 }: {
   stage: CallStageRow;
   categories: CallCategoryRow[];
-  skills: ReturnType<typeof useCallSkills>["data"];
   steps: CallStageStepRow[];
   canManage: boolean;
 }) {
@@ -326,13 +397,16 @@ function RubricStageCard({
   const updateStage = useUpdateCallStage();
   const deleteStage = useDeleteCallStage();
   const createStep = useCreateCallStageStep();
+  const updateStep = useUpdateCallStageStep();
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(stage.name);
   const [weight, setWeight] = useState(String(stage.weight_percent));
-  const [newStepName, setNewStepName] = useState("");
+  const [addingStep, setAddingStep] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const stageSteps = steps.filter((s) => s.stage_id === stage.id);
+  const stageSteps = [...steps.filter((s) => s.stage_id === stage.id)].sort(
+    (a, b) => a.position - b.position,
+  );
 
   async function saveName() {
     try {
@@ -362,20 +436,40 @@ function RubricStageCard({
     }
   }
 
-  async function addStep(e: FormEvent) {
-    e.preventDefault();
-    if (!newStepName.trim()) return;
+  async function moveStep(index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= stageSteps.length) return;
+    const a = stageSteps[index]!;
+    const b = stageSteps[target]!;
+    try {
+      await Promise.all([
+        updateStep.mutateAsync({ id: a.id, patch: { position: b.position } }),
+        updateStep.mutateAsync({ id: b.id, patch: { position: a.position } }),
+      ]);
+    } catch (err) {
+      toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
+    }
+  }
+
+  async function addStep(values: CriterionFormValues) {
+    const letter = String.fromCharCode(65 + (stage.position % 26));
     try {
       await createStep.mutateAsync({
         organization_id: user!.organizationId!,
         stage_id: stage.id,
-        name: newStepName.trim(),
-        points: 1,
+        name: values.name.trim(),
+        description: values.description,
+        code: `${letter}${stageSteps.length + 1}`,
+        points: 5,
         position: stageSteps.length,
+        level_0_desc: values.level0,
+        level_1_desc: values.level1,
+        level_2_desc: values.level2,
+        level_3_desc: values.level3,
       });
-      setNewStepName("");
     } catch (err) {
       toast.error(errorMessage(err, "Amalni bajarib bo'lmadi"));
+      throw err;
     }
   }
 
@@ -440,7 +534,8 @@ function RubricStageCard({
             </>
           ) : (
             <>
-              <Pill tone="info">{stage.weight_percent}%</Pill>
+              <Pill tone="info">Vazn: {stage.weight_percent}%</Pill>
+              <Pill tone="neutral">{stageSteps.length} mezon</Pill>
               {(() => {
                 const category = categories.find((c) => c.id === stage.category_id);
                 return category ? <Pill tone="neutral">{category.name}</Pill> : null;
@@ -466,30 +561,35 @@ function RubricStageCard({
         </div>
       </div>
       <ul className="space-y-1.5">
-        {stageSteps.map((step) => (
-          <RubricStepRow key={step.id} step={step} skills={skills} canManage={canManage} />
+        {stageSteps.map((step, index) => (
+          <RubricStepRow
+            key={step.id}
+            step={step}
+            index={index}
+            lastIndex={stageSteps.length - 1}
+            onMove={(i, dir) => void moveStep(i, dir)}
+            canManage={canManage}
+          />
         ))}
       </ul>
       {stageSteps.length === 0 && (
         <p className="py-2 text-center text-xs text-subtle">Mezon qo'shilmagan</p>
       )}
       {canManage && (
-        <form onSubmit={(e) => void addStep(e)} className="mt-2 flex items-center gap-2">
-          <input
-            value={newStepName}
-            onChange={(e) => setNewStepName(e.target.value)}
-            placeholder="Yangi mezon qo'shish"
-            className="h-9 flex-1 rounded-lg border border-dashed border-border bg-background px-2.5 text-xs outline-none focus:border-primary/40"
-          />
-          <button
-            type="submit"
-            disabled={createStep.isPending || !newStepName.trim()}
-            className="inline-flex h-9 items-center gap-1 rounded-lg border border-dashed border-border px-3 text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-primary"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </form>
+        <button
+          onClick={() => setAddingStep(true)}
+          className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <Plus className="h-3.5 w-3.5" /> Mezon qo'shish
+        </button>
       )}
+      <CriterionDialog
+        open={addingStep}
+        onOpenChange={setAddingStep}
+        title="Mezon qo'shish"
+        initial={{ name: "", description: "", level0: "", level1: "", level2: "", level3: "" }}
+        onSave={addStep}
+      />
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
@@ -507,7 +607,6 @@ function RubricTab() {
   const { data: stages = [], isLoading } = useCallStagesRaw();
   const { data: steps = [] } = useCallStageStepsRaw();
   const { data: categories = [] } = useCallCategories();
-  const { data: skills = [] } = useCallSkills();
   const createStage = useCreateCallStage();
   const [newStageName, setNewStageName] = useState("");
 
@@ -532,7 +631,7 @@ function RubricTab() {
   return (
     <SectionCard
       title="Baholash mezonlari"
-      description="Har bir bosqich o'ziga xos og'irlik (%) va 0–3 balli mezonlarga ega."
+      description="Asosiy mezonlar barcha qo'ng'iroqlar uchun ishlaydi."
       actions={
         <Pill tone={totalWeight === 100 ? "success" : "warning"}>
           Jami og'irlik: {totalWeight}%
@@ -575,7 +674,6 @@ function RubricTab() {
             key={stage.id}
             stage={stage}
             categories={categories}
-            skills={skills}
             steps={steps}
             canManage={canManage}
           />
