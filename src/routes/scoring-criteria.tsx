@@ -101,9 +101,9 @@ export const Route = createFileRoute("/scoring-criteria")({
 });
 
 const inputCls =
-  "h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40";
+  "h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40";
 const textareaCls =
-  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary/40";
+  "w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40";
 
 const TABS = [
   "rubric",
@@ -199,7 +199,7 @@ function CriterionDialog({
             />
           </div>
           <div>
-            <p className="mb-2 text-sm font-semibold text-foreground">Ball mezoni</p>
+            <p className="mb-2 text-base font-semibold text-foreground">Ball mezoni</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
@@ -485,7 +485,7 @@ function RubricStageCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-xl border border-border bg-accent p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         {editingName ? (
           <div className="flex flex-1 items-center gap-2">
@@ -504,7 +504,7 @@ function RubricStageCard({
             </button>
           </div>
         ) : (
-          <span className="text-sm font-semibold text-foreground">{stage.name}</span>
+          <span className="text-base font-semibold text-foreground">{stage.name}</span>
         )}
         <div className="flex items-center gap-2">
           {canManage ? (
@@ -517,7 +517,7 @@ function RubricStageCard({
                   onBlur={() => void saveWeight()}
                   className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
                 />
-                <span className="text-xs text-subtle">%</span>
+                <span className="text-sm text-subtle">%</span>
               </div>
               <select
                 value={stage.category_id ?? ""}
@@ -573,7 +573,7 @@ function RubricStageCard({
         ))}
       </ul>
       {stageSteps.length === 0 && (
-        <p className="py-2 text-center text-xs text-subtle">Mezon qo'shilmagan</p>
+        <p className="py-2 text-center text-sm text-subtle">Mezon qo'shilmagan</p>
       )}
       {canManage && (
         <button
@@ -730,7 +730,7 @@ function IntakeQuestionCard({
 
   if (editing) {
     return (
-      <div className="space-y-2 rounded-xl border border-primary/30 bg-surface p-4">
+      <div className="space-y-2 rounded-xl border border-primary/30 bg-accent p-4">
         <input
           autoFocus
           value={editLabel}
@@ -768,7 +768,7 @@ function IntakeQuestionCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-xl border border-border bg-accent p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-subtle">
@@ -779,7 +779,7 @@ function IntakeQuestionCard({
               <Pill tone="neutral">Matn</Pill>
               <Pill tone="info">{groupLabel}</Pill>
             </div>
-            <p className="text-sm font-semibold text-foreground">{item.label}</p>
+            <p className="text-base font-semibold text-foreground">{item.label}</p>
           </div>
         </div>
         {canManage && (
@@ -858,7 +858,7 @@ function IntakeQuestionsTab() {
           <select
             value={filterLineId}
             onChange={(e) => setFilterLineId(e.target.value)}
-            className="h-10 w-64 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+            className="h-10 w-64 rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
           >
             <option value="">Hammasi</option>
             {lines.map((l) => (
@@ -874,12 +874,12 @@ function IntakeQuestionsTab() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Savol matni"
-              className="h-10 min-w-[200px] rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              className="h-10 min-w-[200px] rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             />
             <select
               value={lineId}
               onChange={(e) => setLineId(e.target.value)}
-              className="h-10 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              className="h-10 rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             >
               <option value="">Umumiy</option>
               {lines.map((l) => (
@@ -984,11 +984,11 @@ function ServiceLineCard({ line, canManage }: { line: ServiceLineRow; canManage:
 
   if (!editing) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="rounded-xl border border-border bg-accent p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-sm font-semibold text-foreground">{line.name}</p>
-            {line.description && <p className="mt-1 text-xs text-subtle">{line.description}</p>}
+            <p className="text-base font-semibold text-foreground">{line.name}</p>
+            {line.description && <p className="mt-1 text-sm text-subtle">{line.description}</p>}
             {line.aliases.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {line.aliases.map((a) => (
@@ -1028,7 +1028,7 @@ function ServiceLineCard({ line, canManage }: { line: ServiceLineRow; canManage:
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-primary/30 bg-surface p-4">
+    <div className="space-y-2 rounded-xl border border-primary/30 bg-accent p-4">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -1218,11 +1218,11 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
   ].filter(([, v]) => !!v) as [string, string][];
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-xl border border-border bg-accent p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-semibold text-foreground">{category.name}</span>
+            <span className="text-base font-semibold text-foreground">{category.name}</span>
             <Pill tone={category.scored ? "success" : "info"}>
               {category.scored
                 ? "Baholash mezoni bo'yicha baholanadi"
@@ -1238,7 +1238,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
             </p>
           )}
           {category.description && !editing && (
-            <p className="mt-1.5 text-xs text-subtle">{category.description}</p>
+            <p className="mt-1.5 text-sm text-subtle">{category.description}</p>
           )}
         </div>
         {canManage && (
@@ -1292,7 +1292,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
             placeholder="Tavsif"
           />
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-xs text-subtle">
+            <label className="flex items-center gap-2 text-sm text-subtle">
               <input
                 type="checkbox"
                 checked={scored}
@@ -1300,7 +1300,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
               />
               Baholanadi (og'irlikli mezonga kiradi)
             </label>
-            <label className="flex items-center gap-2 text-xs text-subtle">
+            <label className="flex items-center gap-2 text-sm text-subtle">
               <input
                 type="checkbox"
                 checked={systemFamily}
@@ -1308,7 +1308,7 @@ function CallFamilyRow({ category, canManage }: { category: CallCategoryRow; can
               />
               Tizim oilasi
             </label>
-            <label className="flex items-center gap-2 text-xs text-subtle">
+            <label className="flex items-center gap-2 text-sm text-subtle">
               <input
                 type="checkbox"
                 checked={temporary}
@@ -1396,7 +1396,7 @@ function CallFamiliesTab() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Yangi oila nomi"
-              className="h-10 w-56 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary/40"
+              className="h-10 w-56 rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             />
             <button
               type="submit"
@@ -1420,7 +1420,7 @@ function CallFamiliesTab() {
         </div>
       )}
       {!isLoading && (
-        <p className="mb-4 border-b border-border pb-4 text-xs text-subtle">
+        <p className="mb-4 border-b border-border pb-4 text-sm text-subtle">
           {items.length} ta qo'ng'iroq oilasi sozlangan
         </p>
       )}
@@ -1435,7 +1435,7 @@ function CallFamiliesTab() {
             </p>
             <Pill tone="success">{scoredItems.length} ta oila</Pill>
           </div>
-          <p className="mb-2 text-xs text-subtle">
+          <p className="mb-2 text-sm text-subtle">
             Baholash mezonlari bilan baholanadigan qo'ng'iroq oilalari shu yerda ko'rinadi.
           </p>
           <div className="space-y-3">
@@ -1453,7 +1453,7 @@ function CallFamiliesTab() {
             </p>
             <Pill tone="neutral">{unscoredItems.length} ta oila</Pill>
           </div>
-          <p className="mb-2 text-xs text-subtle">
+          <p className="mb-2 text-sm text-subtle">
             Baholash mezonidan chiqarilgan operatsion yoki boshqa oqimlarga tegishli oilalar shu
             yerda ko'rinadi.
           </p>
@@ -1551,7 +1551,7 @@ function LeadQualityTab() {
   function renderRow(stage: LeadQualityStageRow, index: number | null) {
     const isEditing = editingId === stage.id;
     return (
-      <li key={stage.id} className="rounded-xl border border-border bg-surface px-4 py-3">
+      <li key={stage.id} className="rounded-xl border border-border bg-accent px-4 py-3">
         {isEditing ? (
           <div className="space-y-2">
             <input
@@ -1567,7 +1567,7 @@ function LeadQualityTab() {
               placeholder="Shartlar (har birini yangi qatorga)"
               className={textareaCls}
             />
-            <label className="flex items-center gap-2 text-xs text-subtle">
+            <label className="flex items-center gap-2 text-sm text-subtle">
               <input
                 type="checkbox"
                 checked={editQualified}
@@ -1597,9 +1597,9 @@ function LeadQualityTab() {
                 {index !== null ? index + 1 : movable.length + 1}
               </span>
               <div>
-                <p className="text-sm font-semibold text-foreground">{stage.title}</p>
+                <p className="text-base font-semibold text-foreground">{stage.title}</p>
                 {stage.conditions.length > 0 && (
-                  <ul className="mt-1 space-y-0.5 text-xs text-subtle">
+                  <ul className="mt-1 space-y-0.5 text-sm text-subtle">
                     {stage.conditions.map((c) => (
                       <li key={c}>{c}</li>
                     ))}
@@ -1891,8 +1891,8 @@ function AiInstructionsTab() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">
+          <div className="rounded-xl border border-border bg-accent p-4">
+            <p className="mb-3 text-base font-semibold text-foreground">
               1-bosqich: Transkripsiya sifati
             </p>
             <div className="space-y-3">
@@ -1916,8 +1916,8 @@ function AiInstructionsTab() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">
+          <div className="rounded-xl border border-border bg-accent p-4">
+            <p className="mb-3 text-base font-semibold text-foreground">
               2-bosqich: Anketa va ma'lumot ajratish
             </p>
             <div className="space-y-3">
@@ -1942,8 +1942,8 @@ function AiInstructionsTab() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">
+          <div className="rounded-xl border border-border bg-accent p-4">
+            <p className="mb-3 text-base font-semibold text-foreground">
               3-bosqich: Baholash va coaching
             </p>
             <div className="space-y-3">
@@ -2118,16 +2118,16 @@ function OutcomeOverrideGroup({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-xl border border-border bg-accent p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">{title}</p>
+            <p className="text-base font-semibold text-foreground">{title}</p>
             <Pill tone={tone}>
               {countLabel}: {count}
             </Pill>
           </div>
-          <p className="mt-1 text-xs text-subtle">{description}</p>
+          <p className="mt-1 text-sm text-subtle">{description}</p>
         </div>
         <Switch
           checked={expanded}
@@ -2139,7 +2139,7 @@ function OutcomeOverrideGroup({
       {expanded && (
         <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
           {stages.length === 0 && (
-            <p className="text-xs text-subtle">Faol (yopilmagan) bosqichlar yo'q.</p>
+            <p className="text-sm text-subtle">Faol (yopilmagan) bosqichlar yo'q.</p>
           )}
           {stages.map((stage) => (
             <li
@@ -2253,7 +2253,7 @@ function ScoringCriteriaPage() {
         title="Baholash mezoni"
         description="AI qo'ng'iroq tahlili qanday ishlashini shu yerdan sozlang: mezonlar, savollar, yo'riqnomalar."
       />
-      <div className="mb-6 flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface p-1.5">
+      <div className="mb-6 flex flex-wrap gap-1.5 rounded-xl border border-border bg-accent p-1.5">
         {TABS.map((key) => (
           <button
             key={key}
