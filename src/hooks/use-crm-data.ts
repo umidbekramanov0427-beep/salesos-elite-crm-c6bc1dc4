@@ -23,6 +23,9 @@ export type CallCategoryRow = Tables["call_categories"]["Row"];
 export type CallSkillRow = Tables["call_skills"]["Row"];
 export type CallStageRow = Tables["call_stages"]["Row"];
 export type CallStageStepRow = Tables["call_stage_steps"]["Row"];
+export type ServiceLineRow = Tables["service_lines"]["Row"];
+export type IntakeQuestionRow = Tables["intake_questions"]["Row"];
+export type LeadQualityStageRow = Tables["lead_quality_stages"]["Row"];
 
 /* ------------------------------------------------------------------ */
 /* Generic CRUD resource factory — one query key per table, list reads */
@@ -170,6 +173,9 @@ const callCategoriesResource = makeResource("call_categories", ["call_categories
 const callSkillsResource = makeResource("call_skills", ["call_skills"]);
 const callStagesResource = makeResource("call_stages", ["call_stages"]);
 const callStageStepsResource = makeResource("call_stage_steps", ["call_stage_steps"]);
+const serviceLinesResource = makeResource("service_lines", ["service_lines"]);
+const intakeQuestionsResource = makeResource("intake_questions", ["intake_questions"]);
+const leadQualityStagesResource = makeResource("lead_quality_stages", ["lead_quality_stages"]);
 
 export const useCompaniesRaw = (opts?: Parameters<typeof companiesResource.useList>[0]) =>
   companiesResource.useList({ orderBy: "created_at", ascending: false, ...opts });
@@ -408,6 +414,31 @@ export const useCallStageStepsRaw = (opts?: Parameters<typeof callStageStepsReso
 export const useCreateCallStageStep = callStageStepsResource.useCreate;
 export const useUpdateCallStageStep = callStageStepsResource.useUpdate;
 export const useDeleteCallStageStep = callStageStepsResource.useRemove;
+
+/* ------------------------------------------------------------------ */
+/* "Baholash mezoni": service lines (business's own products), intake  */
+/* questions per line, and ordered lead-quality stages (qualified vs   */
+/* not) -- config-only tables the AI-prompt builder reads from.        */
+/* ------------------------------------------------------------------ */
+
+export const useServiceLines = (opts?: Parameters<typeof serviceLinesResource.useList>[0]) =>
+  serviceLinesResource.useList({ orderBy: "position", ...opts });
+export const useCreateServiceLine = serviceLinesResource.useCreate;
+export const useUpdateServiceLine = serviceLinesResource.useUpdate;
+export const useDeleteServiceLine = serviceLinesResource.useRemove;
+
+export const useIntakeQuestions = (opts?: Parameters<typeof intakeQuestionsResource.useList>[0]) =>
+  intakeQuestionsResource.useList({ orderBy: "position", ...opts });
+export const useCreateIntakeQuestion = intakeQuestionsResource.useCreate;
+export const useUpdateIntakeQuestion = intakeQuestionsResource.useUpdate;
+export const useDeleteIntakeQuestion = intakeQuestionsResource.useRemove;
+
+export const useLeadQualityStages = (
+  opts?: Parameters<typeof leadQualityStagesResource.useList>[0],
+) => leadQualityStagesResource.useList({ orderBy: "position", ...opts });
+export const useCreateLeadQualityStage = leadQualityStagesResource.useCreate;
+export const useUpdateLeadQualityStage = leadQualityStagesResource.useUpdate;
+export const useDeleteLeadQualityStage = leadQualityStagesResource.useRemove;
 
 export const useRolePermissions = (opts?: Parameters<typeof rolePermissionsResource.useList>[0]) =>
   rolePermissionsResource.useList(opts);
@@ -4688,6 +4719,7 @@ export function useUpdateAiAgent() {
       system_prompt?: string | undefined;
       channels?: string[] | undefined;
       active?: boolean | undefined;
+      call_instructions?: Record<string, unknown> | undefined;
     }) => {
       // Goes through a server route (service-role write) instead of a
       // direct client upsert -- ai_agents_write kept rejecting a confirmed
