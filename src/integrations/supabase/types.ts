@@ -1251,6 +1251,41 @@ export type Database = {
           },
         ];
       };
+      hr_candidate_deletions: {
+        Row: {
+          id: string;
+          organization_id: string;
+          candidate_snapshot: Json;
+          reason: string;
+          deleted_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          candidate_snapshot: Json;
+          reason: string;
+          deleted_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          candidate_snapshot?: Json;
+          reason?: string;
+          deleted_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_deletions_deleted_by_fkey";
+            columns: ["deleted_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       hr_candidate_messages: {
         Row: {
           id: string;
