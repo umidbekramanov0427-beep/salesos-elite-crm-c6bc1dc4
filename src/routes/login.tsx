@@ -9,6 +9,17 @@ import { Logo } from "@/components/Logo";
 import { BrandMark } from "@/components/BrandMark";
 
 export const Route = createFileRoute("/login")({
+  // Where AuthGate sends a logged-out (or not-yet-resolved) visitor back to
+  // once they're authenticated -- only ever a same-app path, never "/login"
+  // itself (which would loop).
+  validateSearch: (search: Record<string, unknown>): { redirect?: string | undefined } => ({
+    redirect:
+      typeof search["redirect"] === "string" &&
+      search["redirect"].startsWith("/") &&
+      search["redirect"] !== "/login"
+        ? search["redirect"]
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — SalesOS Elite CRM" },
@@ -40,6 +51,16 @@ function LoginPage() {
   const { user, ready, recoveryMode, signIn, resetPassword, updatePassword } = useAuth();
   const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
+
+  // Sends an already-authenticated visit (or a fresh sign-in) back to
+  // whatever page originally sent them to /login, instead of always "/" --
+  // a plain browser navigation since the target is an arbitrary runtime
+  // path the router's typed `to` can't express.
+  function goAfterAuth() {
+    if (redirect) window.location.assign(redirect);
+    else void navigate({ to: "/", replace: true });
+  }
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,8 +84,9 @@ function LoginPage() {
   const [linkExpiredNotice, setLinkExpiredNotice] = useState(false);
 
   useEffect(() => {
-    if (ready && user && !recoveryMode) void navigate({ to: "/", replace: true });
-  }, [ready, user, recoveryMode, navigate]);
+    if (ready && user && !recoveryMode) goAfterAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, user, recoveryMode]);
 
   // Supabase redirects an expired/already-used recovery link back here with
   // the error encoded in the URL hash rather than delivering a session —
@@ -115,7 +137,7 @@ function LoginPage() {
       return;
     }
     toast.success(t("login.passwordUpdated"));
-    void navigate({ to: "/", replace: true });
+    goAfterAuth();
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -136,7 +158,7 @@ function LoginPage() {
     }
 
     toast.success(t("login.success"));
-    void navigate({ to: "/", replace: true });
+    goAfterAuth();
   }
 
   return (
