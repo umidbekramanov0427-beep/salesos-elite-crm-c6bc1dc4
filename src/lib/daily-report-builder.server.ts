@@ -150,13 +150,23 @@ async function generateNarrative(input: {
 }
 
 /**
- * The full, company-wide "Kunlik hisobot" -- every section from
- * daily_report_settings, computed from today's real data (or the saved
- * report_sample_override text, returned as-is). Shared by the "Hisobot
- * namunasi" preview and the real daily Telegram send.
+ * The full "Kunlik hisobot" -- every section from daily_report_settings,
+ * computed from today's real data (or the saved report_sample_override
+ * text, returned as-is). Shared by the "Hisobot namunasi" preview, the
+ * real daily Telegram send to Super Admin, and (via `ownerScope`) the
+ * team-scoped send to each ROP.
+ *
+ * `ownerScope`, when given, restricts every section to leads/calls/tasks
+ * owned by those profile ids -- a ROP's report passes [rop.id, ...their
+ * reports] so they see only their own team's numbers, never the whole
+ * company's. Left null (the Super Admin case) it's the original
+ * company-wide report. `includeMarketingSection` adds a per-source
+ * qualified/unqualified breakdown for the marketing team -- Super Admin
+ * only, since it needs the company-wide picture to be useful.
  */
 export async function buildFullDailyReport(
   organizationId: string,
+  opts?: { ownerScope?: string[] | null; includeMarketingSection?: boolean },
 ): Promise<{ text: string; override: boolean }> {
   const { data: settings } = await supabaseAdmin
     .from("daily_report_settings")
@@ -197,7 +207,7 @@ export async function buildFullDailyReport(
       .lt("occurred_at", today.end),
     supabaseAdmin
       .from("amocrm_calls")
-      .select("id, connected")
+      .select("id, lead_id, connected")
       .eq("organization_id", organizationId)
       .gte("occurred_at", yesterday.start)
       .lt("occurred_at", yesterday.end),
@@ -208,7 +218,7 @@ export async function buildFullDailyReport(
     supabaseAdmin
       .from("leads")
       .select(
-        "id, owner_id, funnel, stage_id, expected_revenue, created_at, updated_at, lead_quality_stage_id",
+        "id, owner_id, funnel, stage_id, expected_revenue, created_at, updated_at, lead_quality_stage_id, source",
       )
       .eq("organization_id", organizationId),
     supabaseAdmin
@@ -238,18 +248,32 @@ export async function buildFullDailyReport(
   ]);
 
   const profiles = profilesRes.data ?? [];
-  const callsToday = callsTodayRes.data ?? [];
-  const callsYesterday = callsYesterdayRes.data ?? [];
-  const tasks = tasksRes.data ?? [];
-  const allLeads = leadsTodayRes.data ?? [];
   const stages = stagesRes.data ?? [];
   const leadQualityStages = leadQualityStagesRes.data ?? [];
   const serviceLines = serviceLinesRes.data ?? [];
   const intakeQuestions = intakeQuestionsRes.data ?? [];
   const transitionRules = transitionRulesRes.data ?? [];
 
-  const managers = profiles.filter((p) => p.role === "sotuv_menejeri");
-  const leadOwnerById = new Map(allLeads.map((l) => [l.id, l.owner_id]));
+  const ownerScope = opts?.ownerScope ?? null;
+  const scopeSet = ownerScope ? new Set(ownerScope) : null;
+  const inScope = (id: string | null | undefined): boolean =>
+    !scopeSet || (!!id && scopeSet.has(id));
+
+  // A ROP-scoped report only ever sees their own team's calls/tasks/leads --
+  // filtering once here (rather than threading ownerScope through every
+  // section below) means every section further down runs exactly as
+  // written for the company-wide (ownerScope == null) case.
+  const allLeadsRaw = leadsTodayRes.data ?? [];
+  const leadOwnerById = new Map(allLeadsRaw.map((l) => [l.id, l.owner_id]));
+  const callsToday = (callsTodayRes.data ?? []).filter((c) =>
+    inScope(leadOwnerById.get(c.lead_id ?? "")),
+  );
+  const callsYesterday = (callsYesterdayRes.data ?? []).filter((c) =>
+    inScope(leadOwnerById.get(c.lead_id ?? "")),
+  );
+  const tasks = (tasksRes.data ?? []).filter((t) => inScope(t.assignee_id));
+  const allLeads = allLeadsRaw.filter((l) => inScope(l.owner_id));
+  const managers = profiles.filter((p) => p.role === "sotuv_menejeri" && inScope(p.id));
   const leadsCreatedToday = allLeads.filter((l) => l.created_at >= today.start);
   const wonStageIds = new Set(stages.filter((s) => s.is_won).map((s) => s.id));
   const lostStageIds = new Set(stages.filter((s) => s.is_lost).map((s) => s.id));
@@ -486,6 +510,44 @@ export async function buildFullDailyReport(
         `- Sifatsiz: ${unqualified.length}`,
         `- Bog'lana olinmagan: ${unreachable.length}`,
         ...(groupLines.length > 0 ? ["Guruhlar:", ...groupLines] : []),
+      ].join("\n"),
+    );
+  }
+
+  // --- Marketing uchun lid tahlili (Super Admin only -- see includeMarketingSection) ---
+  // Same qualified/unqualified split as "Lid sifati" above, broken down by
+  // leads.source so marketing can see which channel brings leads that
+  // actually pass the AI's call-audio qualification, not just volume.
+  if (opts?.includeMarketingSection) {
+    const bySource = new Map<
+      string,
+      { total: number; qualified: number; unqualified: number; unscored: number }
+    >();
+    for (const l of leadsCreatedToday) {
+      const bucket = bySource.get(l.source || "—") ?? {
+        total: 0,
+        qualified: 0,
+        unqualified: 0,
+        unscored: 0,
+      };
+      bucket.total++;
+      const stage = leadQualityStages.find((q) => q.id === l.lead_quality_stage_id);
+      if (stage?.qualified === true) bucket.qualified++;
+      else if (stage != null && stage.qualified === false) bucket.unqualified++;
+      else bucket.unscored++;
+      bySource.set(l.source || "—", bucket);
+    }
+    const sourceLines = Array.from(bySource.entries())
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(
+        ([src, b]) =>
+          `- ${src}: jami ${b.total}, sifatli ${b.qualified}, sifatsiz ${b.unqualified}, hali baholanmagan ${b.unscored}`,
+      );
+    sections.push(
+      [
+        "Marketing uchun lid tahlili",
+        "Sun'iy intellekt menejer-mijoz suhbatini tinglab baholagan holat bo'yicha, manba kesimida:",
+        ...(sourceLines.length > 0 ? sourceLines : ["Bugun manbasi ko'rsatilgan lid kelmadi."]),
       ].join("\n"),
     );
   }
