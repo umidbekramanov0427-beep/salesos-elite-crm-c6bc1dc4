@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, FileText, Loader2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Loader2,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -26,6 +36,10 @@ import {
   useLeadQualityStages,
   useIntakeQuestions,
   usePipelineStagesRaw,
+  useCallStageStepsRaw,
+  useMiniAppAudioRules,
+  useCreateMiniAppAudioRule,
+  useDeleteMiniAppAudioRule,
   type DailyReportSettingsRow,
 } from "@/hooks/use-crm-data";
 import { useQueryClient } from "@tanstack/react-query";
@@ -715,6 +729,311 @@ function StageTransitionCard() {
   );
 }
 
+function AdvancedToggleRow({
+  title,
+  description,
+  enabled,
+  onToggle,
+  disabled,
+  children,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: (v: boolean) => void;
+  disabled?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-base font-semibold text-foreground">{title}</span>
+        <div className="flex items-center gap-2.5">
+          <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggle} />
+          <span className="text-sm text-muted-foreground">
+            {enabled ? "Yoqilgan" : "O'chirilgan"}
+          </span>
+        </div>
+      </div>
+      <p className="mt-1.5 text-sm text-subtle">{description}</p>
+      {children}
+    </div>
+  );
+}
+
+function ManagerConversionCriteria({
+  criterionIds,
+  onChange,
+  disabled,
+}: {
+  criterionIds: string[] | null;
+  onChange: (ids: string[] | null) => void;
+  disabled?: boolean;
+}) {
+  const { data: steps } = useCallStageStepsRaw();
+  const all = steps ?? [];
+  const selectedSet = criterionIds === null ? null : new Set(criterionIds);
+
+  function toggle(id: string, checked: boolean) {
+    const base = criterionIds === null ? all.map((s) => s.id) : criterionIds;
+    const next = checked ? Array.from(new Set([...base, id])) : base.filter((x) => x !== id);
+    onChange(next.length === all.length ? null : next);
+  }
+
+  if (all.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-background p-4">
+      <p className="text-base font-semibold text-foreground">
+        Hisobot tavsiyasida ishlatiladigan mezonlar
+      </p>
+      <p className="mt-1 text-sm text-subtle">
+        Belgini olib tashlagan mezon faqat shu konversiya tavsiyasi blokida ko'rsatilmaydi.
+      </p>
+      <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+        {all.map((s) => {
+          const checked = selectedSet === null ? true : selectedSet.has(s.id);
+          return (
+            <label
+              key={s.id}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-accent"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={disabled}
+                onChange={(e) => toggle(s.id, e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              <span className="text-base text-foreground">
+                {s.code ? `${s.code} — ` : ""}
+                {s.name}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-sm text-subtle">
+        Bu tanlov Playbook va qo'ng'iroq analizlariga ta'sir qilmaydi. Barcha mezonlar
+        qo'ng'iroqlarni baholashda faol qoladi.
+      </p>
+    </div>
+  );
+}
+
+function MiniAppAudioRules() {
+  const { user } = useAuth();
+  const { data: rules } = useMiniAppAudioRules();
+  const createRule = useCreateMiniAppAudioRule();
+  const deleteRule = useDeleteMiniAppAudioRule();
+  const { names: funnelNames } = useFunnelNames();
+  const { data: stages } = usePipelineStagesRaw();
+
+  const [funnel, setFunnel] = useState("");
+  const [stageIds, setStageIds] = useState<string[]>([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const stageById = new Map((stages ?? []).map((s) => [s.id, s.name]));
+
+  function toggleStage(id: string, checked: boolean) {
+    setStageIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  }
+
+  async function addRule() {
+    if (!funnel || stageIds.length === 0) return;
+    try {
+      await createRule.mutateAsync({
+        organization_id: user!.organizationId!,
+        funnel,
+        stage_ids: stageIds,
+        position: rules?.length ?? 0,
+      });
+      setFunnel("");
+      setStageIds([]);
+    } catch (err) {
+      toast.error(errorMessage(err, "Qoida qo'shishda xatolik yuz berdi."));
+    }
+  }
+
+  async function removeRule(id: string) {
+    try {
+      await deleteRule.mutateAsync(id);
+    } catch (err) {
+      toast.error(errorMessage(err, "Qoidani o'chirishda xatolik yuz berdi."));
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-4 rounded-xl border border-border bg-background p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-sm font-medium text-muted-foreground">Voronka tanlang</span>
+          <select
+            value={funnel}
+            onChange={(e) => setFunnel(e.target.value)}
+            className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+          >
+            <option value="">Voronkani tanlang</option>
+            {funnelNames.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div>
+          <span className="text-sm font-medium text-muted-foreground">Bosqichlarni tanlang</span>
+          <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-border bg-accent p-2">
+            {(stages ?? []).length === 0 && (
+              <p className="px-2 py-1 text-sm text-subtle">Bosqichlarni tanlang</p>
+            )}
+            {(stages ?? []).map((s) => (
+              <label
+                key={s.id}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 hover:bg-accent"
+              >
+                <input
+                  type="checkbox"
+                  checked={stageIds.includes(s.id)}
+                  onChange={(e) => toggleStage(s.id, e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                <span className="text-base text-foreground">{s.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => void addRule()}
+        disabled={createRule.isPending || !funnel || stageIds.length === 0}
+        className="inline-flex h-10 items-center gap-2 rounded-xl border border-dashed border-border px-4 text-sm font-semibold text-subtle transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {createRule.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Plus className="h-4 w-4" />
+        )}
+        Qo'shish
+      </button>
+
+      {(rules ?? []).map((rule) => (
+        <div
+          key={rule.id}
+          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-accent px-4 py-3"
+        >
+          <div>
+            <p className="text-base font-semibold text-foreground">{rule.funnel}</p>
+            <p className="text-sm text-subtle">
+              {rule.stage_ids.map((id) => stageById.get(id) ?? "?").join(" | ")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteId(rule.id)}
+            className="shrink-0 rounded-lg p-2 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+            aria-label="O'chirish"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Qoidani o'chirish"
+        description="Ushbu voronka/bosqich qoidasi Mini App audio ko'rib chiqishdan olib tashlanadi."
+        onConfirm={() => confirmDeleteId && void removeRule(confirmDeleteId)}
+      />
+    </div>
+  );
+}
+
+function AdvancedSettingsCard() {
+  const { data: settings } = useDailyReportSettings();
+  const updateSettings = useUpdateDailyReportSettings();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  async function patch(next: Partial<DailyReportSettingsRow>) {
+    try {
+      await updateSettings.mutateAsync(next);
+    } catch (err) {
+      toast.error(errorMessage(err, "Saqlashda xatolik yuz berdi."));
+    }
+  }
+
+  return (
+    <SectionCard
+      actions={
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+        >
+          {advancedOpen ? "Kengaytirilgan sozlamalarni yopish" : "Kengaytirilgan sozlamalar"}
+          {advancedOpen ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+      }
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+          <FileText className="h-4 w-4" />
+        </span>
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Kengaytirilgan sozlamalar</h3>
+          <p className="text-sm text-subtle">
+            Kunlik hisobotni yanada batafsil boshqarish uchun qo'shimcha sozlamalar.
+          </p>
+        </div>
+      </div>
+
+      {advancedOpen && (
+        <div className="mt-4 space-y-4">
+          <div className="border-t border-border pt-4">
+            <AdvancedToggleRow
+              title="Menejer konversiyasini oshirish bo'yicha tavsiyalar"
+              description="Yoqilganda, rahbarning kunlik hisobotiga har bir menejerning barcha sotuvlari bo'yicha lid konversiyasi, barcha tahlil qilingan qo'ng'iroqlaridan aniqlangan haqiqiy muammolar va menejerlarning jami umumiy konversiyasi qo'shiladi. Odatiy holatda o'chirilgan. Sozlama faqat joriy biznesga qo'llanadi."
+              enabled={settings?.manager_conversion_recommendations_enabled ?? false}
+              disabled={updateSettings.isPending}
+              onToggle={(v) => void patch({ manager_conversion_recommendations_enabled: v })}
+            >
+              {(settings?.manager_conversion_recommendations_enabled ?? false) && (
+                <ManagerConversionCriteria
+                  criterionIds={settings?.manager_conversion_recommendation_criterion_ids ?? null}
+                  onChange={(ids) =>
+                    void patch({ manager_conversion_recommendation_criterion_ids: ids })
+                  }
+                  disabled={updateSettings.isPending}
+                />
+              )}
+            </AdvancedToggleRow>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <AdvancedToggleRow
+              title="Qo'ng'iroq audiolarini Telegram Mini App'da ko'rib chiqish"
+              description="Tanlangan CRM voronka va bosqichlariga mos qo'ng'iroqlar uchun rahbarning kunlik Telegram hisobotida har bir menejerga alohida ko'k Mini App havolasi chiqadi. Har bir havolada shu hisobot kunidagi eng so'nggi 5 tagacha yaroqli audio Mini App ichida tinglanadi. Odatiy holatda o'chirilgan."
+              enabled={settings?.call_audio_mini_app_enabled ?? false}
+              disabled={updateSettings.isPending}
+              onToggle={(v) => void patch({ call_audio_mini_app_enabled: v })}
+            >
+              {(settings?.call_audio_mini_app_enabled ?? false) && <MiniAppAudioRules />}
+            </AdvancedToggleRow>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 function ReportSampleEditDialog({
   open,
   onOpenChange,
@@ -880,6 +1199,7 @@ function DailyReportSectionsPage() {
         <div className="grid gap-6">
           <ReportSectionsCard />
           <StageTransitionCard />
+          <AdvancedSettingsCard />
         </div>
         <ReportSamplePreview />
       </div>
