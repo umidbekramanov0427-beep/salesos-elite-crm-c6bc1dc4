@@ -5952,10 +5952,19 @@ export function useHrCandidateMessages(candidateId: string | null) {
   });
 }
 
+export type HrChatAttachmentType = "image" | "document" | "audio" | "location";
+
 export function useSendHrCandidateMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { candidateId: string; text: string }) => {
+    mutationFn: async (input: {
+      candidateId: string;
+      text?: string;
+      attachmentUrl?: string;
+      attachmentType?: HrChatAttachmentType;
+      locationLat?: number;
+      locationLng?: number;
+    }) => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       const res = await fetch("/hr/send-message", {
@@ -5972,5 +5981,21 @@ export function useSendHrCandidateMessage() {
     },
     onSuccess: (_data, vars) =>
       void qc.invalidateQueries({ queryKey: ["hr_candidate_messages", vars.candidateId] }),
+  });
+}
+
+/** Uploads a file the super_admin is about to send to a candidate; the resulting public URL is what Telegram fetches the attachment from. */
+export function useUploadHrChatAttachment() {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      const path = `${user!.id}/${crypto.randomUUID()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("hr-chat-attachments")
+        .upload(path, file, file.type ? { contentType: file.type } : {});
+      if (error) throw new Error(error.message);
+      const { data } = supabase.storage.from("hr-chat-attachments").getPublicUrl(path);
+      return data.publicUrl;
+    },
   });
 }

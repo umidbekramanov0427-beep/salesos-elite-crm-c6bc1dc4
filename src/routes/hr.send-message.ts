@@ -1,14 +1,27 @@
-// Server-only. Sends a message to a candidate through the Kadrlar bo'limi
-// Telegram bot and only then logs it, so hr_candidate_messages never shows
-// an "outbound" row that Telegram actually rejected.
+// Server-only. Sends a message (plain text, or an attachment/location) to
+// a candidate through the Kadrlar bo'limi Telegram bot and only then logs
+// it, so hr_candidate_messages never shows an "outbound" row that Telegram
+// actually rejected.
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestUserId } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { sendHrTelegramMessage } from "@/lib/telegram-report.server";
+import {
+  sendHrTelegramMessage,
+  sendHrTelegramPhoto,
+  sendHrTelegramDocument,
+  sendHrTelegramAudio,
+  sendHrTelegramLocation,
+} from "@/lib/telegram-report.server";
+
+type AttachmentType = "image" | "document" | "audio" | "location";
 
 type Body = {
   candidateId?: string;
   text?: string;
+  attachmentUrl?: string;
+  attachmentType?: AttachmentType;
+  locationLat?: number;
+  locationLng?: number;
 };
 
 export const Route = createFileRoute("/hr/send-message")({
@@ -29,9 +42,26 @@ export const Route = createFileRoute("/hr/send-message")({
 
         const body = (await request.json().catch(() => ({}))) as Body;
         const candidateId = body.candidateId?.trim();
-        const text = body.text?.trim();
-        if (!candidateId || !text) {
-          return Response.json({ error: "candidateId va text talab qilinadi." }, { status: 400 });
+        const text = body.text?.trim() || undefined;
+        const attachmentType = body.attachmentType;
+        const attachmentUrl = body.attachmentUrl?.trim();
+
+        if (!candidateId) {
+          return Response.json({ error: "candidateId talab qilinadi." }, { status: 400 });
+        }
+        if (attachmentType === "location") {
+          if (typeof body.locationLat !== "number" || typeof body.locationLng !== "number") {
+            return Response.json(
+              { error: "Lokatsiya koordinatalari talab qilinadi." },
+              { status: 400 },
+            );
+          }
+        } else if (attachmentType) {
+          if (!attachmentUrl) {
+            return Response.json({ error: "attachmentUrl talab qilinadi." }, { status: 400 });
+          }
+        } else if (!text) {
+          return Response.json({ error: "Xabar matni talab qilinadi." }, { status: 400 });
         }
 
         const { data: candidate } = await supabaseAdmin
@@ -48,7 +78,22 @@ export const Route = createFileRoute("/hr/send-message")({
         }
 
         try {
-          await sendHrTelegramMessage(candidate.telegram_chat_id, text);
+          if (attachmentType === "image") {
+            await sendHrTelegramPhoto(candidate.telegram_chat_id, attachmentUrl!, text);
+          } else if (attachmentType === "document") {
+            await sendHrTelegramDocument(candidate.telegram_chat_id, attachmentUrl!, text);
+          } else if (attachmentType === "audio") {
+            await sendHrTelegramAudio(candidate.telegram_chat_id, attachmentUrl!, text);
+          } else if (attachmentType === "location") {
+            await sendHrTelegramLocation(
+              candidate.telegram_chat_id,
+              body.locationLat!,
+              body.locationLng!,
+            );
+            if (text) await sendHrTelegramMessage(candidate.telegram_chat_id, text);
+          } else {
+            await sendHrTelegramMessage(candidate.telegram_chat_id, text!);
+          }
         } catch (err) {
           return Response.json(
             { error: err instanceof Error ? err.message : "Telegramga yuborib bo'lmadi." },
@@ -62,7 +107,12 @@ export const Route = createFileRoute("/hr/send-message")({
             organization_id: candidate.organization_id,
             candidate_id: candidate.id,
             direction: "outbound",
-            body: text,
+            body: text ?? null,
+            attachment_url:
+              attachmentType && attachmentType !== "location" ? (attachmentUrl ?? null) : null,
+            attachment_type: attachmentType ?? null,
+            location_lat: attachmentType === "location" ? (body.locationLat ?? null) : null,
+            location_lng: attachmentType === "location" ? (body.locationLng ?? null) : null,
             sent_by: userId,
           })
           .select()

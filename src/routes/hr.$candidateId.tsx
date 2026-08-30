@@ -8,6 +8,13 @@ import {
   Phone,
   Send,
   MessageSquare,
+  Paperclip,
+  Music,
+  MapPin,
+  X,
+  FileText,
+  Download,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
@@ -19,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -35,8 +43,10 @@ import {
   useUpdateHrCandidateStatus,
   useHrCandidateMessages,
   useSendHrCandidateMessage,
+  useUploadHrChatAttachment,
   HR_CANDIDATE_STATUSES,
   type HrCandidateStatus,
+  type HrCandidateMessageRow,
   type HrCandidateAnswerWithQuestion,
 } from "@/hooks/use-crm-data";
 
@@ -168,6 +178,170 @@ function findPhone(answers: HrCandidateAnswerWithQuestion[]): string | null {
   return match?.answer_text.trim() || null;
 }
 
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
+}
+
+function filenameFromUrl(url: string): string {
+  try {
+    const last = new URL(url).pathname.split("/").pop() ?? "fayl";
+    return decodeURIComponent(last.replace(/^[0-9a-f-]{36}-/i, ""));
+  } catch {
+    return "fayl";
+  }
+}
+
+function MessageBubble({ message }: { message: HrCandidateMessageRow }) {
+  const outbound = message.direction === "outbound";
+  return (
+    <div className={cn("flex flex-col", outbound ? "items-end" : "items-start")}>
+      <div
+        className={cn(
+          "max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm",
+          outbound
+            ? "rounded-br-md bg-primary text-primary-foreground"
+            : "rounded-bl-md border border-border bg-background text-foreground",
+        )}
+      >
+        {message.attachment_type === "image" && message.attachment_url && (
+          <img
+            src={message.attachment_url}
+            alt="Rasm"
+            className="mb-1.5 max-h-64 w-full rounded-lg object-cover"
+          />
+        )}
+        {message.attachment_type === "document" && message.attachment_url && (
+          <a
+            href={message.attachment_url}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              "mb-1.5 flex items-center gap-2.5 rounded-xl px-3 py-2.5",
+              outbound ? "bg-primary-foreground/10" : "bg-accent",
+            )}
+          >
+            <FileText className="h-8 w-8 shrink-0 opacity-80" />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {filenameFromUrl(message.attachment_url)}
+            </span>
+            <Download className="h-4 w-4 shrink-0 opacity-70" />
+          </a>
+        )}
+        {message.attachment_type === "audio" && message.attachment_url && (
+          <audio controls src={message.attachment_url} className="mb-1.5 h-9 w-64 max-w-full" />
+        )}
+        {message.attachment_type === "location" &&
+          message.location_lat != null &&
+          message.location_lng != null && (
+            <a
+              href={`https://www.google.com/maps?q=${message.location_lat},${message.location_lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mb-1.5 block overflow-hidden rounded-xl border border-border/60"
+            >
+              <iframe
+                title="location"
+                className="h-32 w-64 max-w-full"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${message.location_lng - 0.01}%2C${message.location_lat - 0.01}%2C${message.location_lng + 0.01}%2C${message.location_lat + 0.01}&layer=mapnik&marker=${message.location_lat}%2C${message.location_lng}`}
+              />
+            </a>
+          )}
+        {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
+      </div>
+      <span className="mt-1 px-1 text-[11px] text-subtle">{fmtTime(message.created_at)}</span>
+    </div>
+  );
+}
+
+type NominatimResult = { display_name: string; lat: string; lon: string };
+
+function LocationPickerButton({
+  onPick,
+}: {
+  onPick: (loc: { lat: number; lng: number; label: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    if (!open || query.trim().length < 3) {
+      setResults([]);
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearching(true);
+      fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`,
+      )
+        .then((res) => res.json())
+        .then((json: NominatimResult[]) => setResults(Array.isArray(json) ? json : []))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 500);
+    return () => clearTimeout(debounceRef.current);
+  }, [query, open]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title="Lokatsiya yuborish"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-subtle transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <MapPin className="h-[18px] w-[18px]" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 space-y-2.5 p-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Manzil qidirish..."
+            className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-2 text-sm outline-none focus:border-primary/40"
+          />
+        </div>
+        {searching && (
+          <div className="flex items-center gap-2 text-xs text-subtle">
+            <Loader2 className="h-3 w-3 animate-spin" /> Qidirilmoqda...
+          </div>
+        )}
+        {results.length > 0 && (
+          <ul className="max-h-48 space-y-1 overflow-y-auto">
+            {results.map((r) => (
+              <li key={`${r.lat}-${r.lon}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPick({ lat: Number(r.lat), lng: Number(r.lon), label: r.display_name });
+                    setOpen(false);
+                    setQuery("");
+                    setResults([]);
+                  }}
+                  className="flex w-full items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
+                >
+                  <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                  <span className="truncate">{r.display_name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+type PendingAttachment =
+  | { kind: "file"; type: "image" | "document" | "audio"; url: string; name: string }
+  | { kind: "location"; lat: number; lng: number; label: string };
+
 function TelegramChatDialog({
   candidateId,
   candidateLabel,
@@ -178,23 +352,57 @@ function TelegramChatDialog({
   const [open, setOpen] = useState(false);
   const { data: messages } = useHrCandidateMessages(open ? candidateId : null);
   const sendMessage = useSendHrCandidateMessage();
+  const uploadAttachment = useUploadHrChatAttachment();
   const [text, setText] = useState("");
+  const [pending, setPending] = useState<PendingAttachment | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
 
+  async function handleFileSelect(file: File, type: "image" | "document" | "audio") {
+    try {
+      const url = await uploadAttachment.mutateAsync(file);
+      setPending({ kind: "file", type, url, name: file.name });
+    } catch (err) {
+      toast.error(errorMessage(err, "Faylni yuklab bo'lmadi."));
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() && !pending) return;
     try {
-      await sendMessage.mutateAsync({ candidateId, text: text.trim() });
+      const trimmed = text.trim();
+      if (pending?.kind === "location") {
+        await sendMessage.mutateAsync({
+          candidateId,
+          ...(trimmed ? { text: trimmed } : {}),
+          attachmentType: "location",
+          locationLat: pending.lat,
+          locationLng: pending.lng,
+        });
+      } else if (pending?.kind === "file") {
+        await sendMessage.mutateAsync({
+          candidateId,
+          ...(trimmed ? { text: trimmed } : {}),
+          attachmentType: pending.type,
+          attachmentUrl: pending.url,
+        });
+      } else {
+        await sendMessage.mutateAsync({ candidateId, text: text.trim() });
+      }
       setText("");
+      setPending(null);
     } catch (err) {
       toast.error(errorMessage(err, "Xabar yuborib bo'lmadi."));
     }
   }
+
+  const busy = sendMessage.isPending || uploadAttachment.isPending;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -206,49 +414,112 @@ function TelegramChatDialog({
           <Send className="h-4 w-4" /> Telegram
         </button>
       </DialogTrigger>
-      <DialogContent className="flex h-[70vh] max-w-lg flex-col">
-        <DialogHeader>
-          <DialogTitle>{candidateLabel} bilan chat</DialogTitle>
+      <DialogContent className="flex h-[75vh] max-w-xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="flex items-center gap-2.5 text-base">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Send className="h-4 w-4" />
+            </span>
+            {candidateLabel}
+          </DialogTitle>
         </DialogHeader>
-        <div
-          ref={scrollRef}
-          className="flex-1 space-y-2.5 overflow-y-auto rounded-xl bg-accent p-3"
-        >
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-accent/40 px-5 py-4">
           {(messages ?? []).length === 0 && (
-            <p className="py-6 text-center text-sm text-subtle">Hali xabar yo'q.</p>
+            <p className="py-10 text-center text-sm text-subtle">Hali xabar yo'q.</p>
           )}
           {(messages ?? []).map((m) => (
-            <div
-              key={m.id}
-              className={cn(
-                "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
-                m.direction === "outbound"
-                  ? "ml-auto bg-primary text-primary-foreground"
-                  : "bg-background text-foreground",
-              )}
-            >
-              {m.body}
-            </div>
+            <MessageBubble key={m.id} message={m} />
           ))}
         </div>
-        <form onSubmit={submit} className="flex gap-2 pt-3">
+
+        {pending && (
+          <div className="flex items-center gap-2.5 border-t border-border bg-background px-5 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm">
+              {pending.kind === "location" ? (
+                <>
+                  <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">{pending.label}</span>
+                </>
+              ) : (
+                <>
+                  {pending.type === "image" && (
+                    <Paperclip className="h-4 w-4 shrink-0 text-primary" />
+                  )}
+                  {pending.type === "document" && (
+                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  )}
+                  {pending.type === "audio" && <Music className="h-4 w-4 shrink-0 text-primary" />}
+                  <span className="truncate">{pending.name}</span>
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPending(null)}
+              className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        <form
+          onSubmit={submit}
+          className="flex items-center gap-1.5 border-t border-border bg-background px-3 py-3"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file)
+                void handleFileSelect(file, file.type.startsWith("image/") ? "image" : "document");
+            }}
+          />
+          <input
+            ref={audioInputRef}
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void handleFileSelect(file, "audio");
+            }}
+          />
+          <button
+            type="button"
+            title="Fayl yoki rasm biriktirish"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-subtle transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Paperclip className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
+            title="Audio biriktirish"
+            onClick={() => audioInputRef.current?.click()}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-subtle transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Music className="h-[18px] w-[18px]" />
+          </button>
+          <LocationPickerButton onPick={(loc) => setPending({ kind: "location", ...loc })} />
           <input
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Xabar yozing..."
-            className="h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/40"
+            className="h-10 flex-1 rounded-full border border-border bg-accent px-4 text-sm outline-none focus:border-primary/40"
           />
           <button
             type="submit"
-            disabled={sendMessage.isPending || !text.trim()}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            disabled={busy || (!text.trim() && !pending)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
-            {sendMessage.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
       </DialogContent>

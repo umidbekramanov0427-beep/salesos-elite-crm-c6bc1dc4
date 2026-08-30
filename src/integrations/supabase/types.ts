@@ -1222,7 +1222,11 @@ export type Database = {
           organization_id: string;
           candidate_id: string;
           direction: string;
-          body: string;
+          body: string | null;
+          attachment_url: string | null;
+          attachment_type: string | null;
+          location_lat: number | null;
+          location_lng: number | null;
           sent_by: string | null;
           created_at: string;
         };
@@ -1231,7 +1235,11 @@ export type Database = {
           organization_id: string;
           candidate_id: string;
           direction: string;
-          body: string;
+          body?: string | null;
+          attachment_url?: string | null;
+          attachment_type?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
           sent_by?: string | null;
           created_at?: string;
         };
@@ -1240,7 +1248,11 @@ export type Database = {
           organization_id?: string;
           candidate_id?: string;
           direction?: string;
-          body?: string;
+          body?: string | null;
+          attachment_url?: string | null;
+          attachment_type?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
           sent_by?: string | null;
           created_at?: string;
         };
