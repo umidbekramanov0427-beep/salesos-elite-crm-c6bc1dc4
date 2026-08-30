@@ -52,6 +52,7 @@ import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analyt
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
+import { Route as DailyReportSettingsGenerateNowRouteImport } from './routes/daily-report-settings.generate-now'
 import { Route as DailyReportSettingsHistoryRouteImport } from './routes/daily-report-settings.history'
 import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-report-settings.preview'
 import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-report-settings.sections'
@@ -312,6 +313,12 @@ const CrmDealsRoute = CrmDealsRouteImport.update({
   path: '/crm/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DailyReportSettingsGenerateNowRoute =
+  DailyReportSettingsGenerateNowRouteImport.update({
+    id: '/generate-now',
+    path: '/generate-now',
+    getParentRoute: () => DailyReportSettingsRoute,
+  } as any)
 const DailyReportSettingsHistoryRoute =
   DailyReportSettingsHistoryRouteImport.update({
     id: '/history',
@@ -570,6 +577,7 @@ export interface FileRoutesByFullPath {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/generate-now': typeof DailyReportSettingsGenerateNowRoute
   '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
@@ -655,6 +663,7 @@ export interface FileRoutesByTo {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/generate-now': typeof DailyReportSettingsGenerateNowRoute
   '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
@@ -741,6 +750,7 @@ export interface FileRoutesById {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/generate-now': typeof DailyReportSettingsGenerateNowRoute
   '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
@@ -828,6 +838,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/generate-now'
     | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
@@ -913,6 +924,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/generate-now'
     | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
@@ -998,6 +1010,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/generate-now'
     | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
@@ -1399,6 +1412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmDealsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/daily-report-settings/generate-now': {
+      id: '/daily-report-settings/generate-now'
+      path: '/generate-now'
+      fullPath: '/daily-report-settings/generate-now'
+      preLoaderRoute: typeof DailyReportSettingsGenerateNowRouteImport
+      parentRoute: typeof DailyReportSettingsRoute
+    }
     '/daily-report-settings/history': {
       id: '/daily-report-settings/history'
       path: '/history'
@@ -1755,12 +1775,14 @@ const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
 )
 
 interface DailyReportSettingsRouteChildren {
+  DailyReportSettingsGenerateNowRoute: typeof DailyReportSettingsGenerateNowRoute
   DailyReportSettingsHistoryRoute: typeof DailyReportSettingsHistoryRoute
   DailyReportSettingsPreviewRoute: typeof DailyReportSettingsPreviewRoute
   DailyReportSettingsSectionsRoute: typeof DailyReportSettingsSectionsRoute
 }
 
 const DailyReportSettingsRouteChildren: DailyReportSettingsRouteChildren = {
+  DailyReportSettingsGenerateNowRoute: DailyReportSettingsGenerateNowRoute,
   DailyReportSettingsHistoryRoute: DailyReportSettingsHistoryRoute,
   DailyReportSettingsPreviewRoute: DailyReportSettingsPreviewRoute,
   DailyReportSettingsSectionsRoute: DailyReportSettingsSectionsRoute,
