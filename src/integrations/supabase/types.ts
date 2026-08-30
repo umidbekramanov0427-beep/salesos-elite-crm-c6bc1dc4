@@ -1220,16 +1220,19 @@ export type Database = {
         Row: {
           organization_id: string;
           academy_channel_invite_link: string | null;
+          telegram_bot_username: string | null;
           updated_at: string;
         };
         Insert: {
           organization_id: string;
           academy_channel_invite_link?: string | null;
+          telegram_bot_username?: string | null;
           updated_at?: string;
         };
         Update: {
           organization_id?: string;
           academy_channel_invite_link?: string | null;
+          telegram_bot_username?: string | null;
           updated_at?: string;
         };
         Relationships: [

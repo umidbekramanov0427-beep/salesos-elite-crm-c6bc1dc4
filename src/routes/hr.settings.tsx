@@ -25,7 +25,6 @@ import {
   useDeleteHrQuestion,
   useHrSettings,
   useUpdateHrSettings,
-  useIntegrationSetting,
   type HrQuestionRow,
 } from "@/hooks/use-crm-data";
 
@@ -47,10 +46,63 @@ function copyValue(value: string) {
   void navigator.clipboard.writeText(value).then(() => toast.success("Havola nusxalandi."));
 }
 
+function BotUsernameEditor() {
+  const { data: settings } = useHrSettings();
+  const updateSettings = useUpdateHrSettings();
+  const [username, setUsername] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (settings === undefined || hydrated) return;
+    setUsername(settings?.telegram_bot_username ?? "");
+    setHydrated(true);
+  }, [settings, hydrated]);
+
+  async function save() {
+    try {
+      await updateSettings.mutateAsync({
+        telegram_bot_username: username.trim().replace(/^@/, "") || null,
+      });
+      toast.success("Saqlandi.");
+    } catch (err) {
+      toast.error(errorMessage(err, "Saqlashda xatolik yuz berdi."));
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-xl bg-accent p-3">
+      <label className="text-xs font-semibold uppercase tracking-wide text-subtle">
+        Kadrlar bo'limi boti (username, @ belgisiz)
+      </label>
+      <div className="mt-1.5 flex gap-2">
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="kadrlar_uchun_bot"
+          className="h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/40"
+        />
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={updateSettings.isPending}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {updateSettings.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Saqlash
+        </button>
+      </div>
+      <p className="mt-1.5 text-xs text-subtle">
+        Bu — kunlik hisobot yuboradigan botdan alohida, faqat kadrlar bo'limi uchun yaratilgan bot.
+      </p>
+    </div>
+  );
+}
+
 function VacanciesCard() {
   const { data: vacancies } = useHrVacancies();
-  const { data: botSetting } = useIntegrationSetting("telegram_bot");
-  const botUsername = (botSetting?.config as { username?: string } | null)?.username;
+  const { data: settings } = useHrSettings();
+  const botUsername = settings?.telegram_bot_username ?? undefined;
   const createVacancy = useCreateHrVacancy();
   const updateVacancy = useUpdateHrVacancy();
   const deleteVacancy = useDeleteHrVacancy();
@@ -74,12 +126,7 @@ function VacanciesCard() {
       title="Vakansiyalar"
       description="Har birining o'ziga xos bot havolasi bor — shu havolani vakansiya e'loniga qo'ying."
     >
-      {!botUsername && (
-        <p className="mb-4 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
-          Havolalar ishlashi uchun avval Sozlamalar → Integratsiyalar bo'limida Telegram bot
-          username'ini kiriting.
-        </p>
-      )}
+      <BotUsernameEditor />
 
       <form onSubmit={submit} className="mb-4 flex gap-2">
         <input
