@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireSuperAdmin } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { syncOrgAdminCredentials } from "@/lib/organization-admin-credentials.server";
 
 type Body = {
   id?: string;
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/admin/set-employee-password")({
 
         const { data: target } = await supabaseAdmin
           .from("profiles")
-          .select("organization_id, role")
+          .select("organization_id, role, email")
           .eq("id", id)
           .maybeSingle();
         if (!target || target.organization_id !== admin.organizationId) {
@@ -42,6 +43,10 @@ export const Route = createFileRoute("/admin/set-employee-password")({
 
         const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password });
         if (error) return Response.json({ error: error.message }, { status: 400 });
+
+        if (target.role === "super_admin") {
+          await syncOrgAdminCredentials(target.organization_id, id, target.email, password);
+        }
 
         return Response.json({ ok: true }, { status: 200 });
       },

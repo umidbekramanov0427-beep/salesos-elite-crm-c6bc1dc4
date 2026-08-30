@@ -3554,6 +3554,40 @@ export function useSetEmployeePassword() {
   });
 }
 
+export type CompanyDirectoryEntry = {
+  id: string;
+  name: string;
+  active: boolean;
+  plan: string;
+  createdAt: string;
+  employeeCount: number;
+  superAdminId: string | null;
+  login: string | null;
+  password: string | null;
+};
+
+export type CompanyDirectory = {
+  owner: { id: string; name: string; email: string };
+  companies: CompanyDirectoryEntry[];
+};
+
+/** Platform owner's company switcher: own profile + every organization's employee count and Super Admin login/password (password is null until one has been set through a route that mirrors it). */
+export function useCompanyDirectory() {
+  return useQuery({
+    queryKey: ["company_directory"],
+    queryFn: async (): Promise<CompanyDirectory> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/platform/company-directory", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Kompaniyalar ro'yxatini yuklab bo'lmadi");
+      return json;
+    },
+  });
+}
+
 export type OrganizationRow = Tables["organizations"]["Row"];
 
 export function useOrganizations() {

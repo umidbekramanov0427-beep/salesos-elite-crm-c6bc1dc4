@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePlatformOwner } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { syncOrgAdminCredentials } from "@/lib/organization-admin-credentials.server";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
 const ALLOWED_ROLES = new Set(["super_admin", "rop", "sotuv_menejeri"]);
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/platform/update-user")({
 
         const { data: target } = await supabaseAdmin
           .from("profiles")
-          .select("role")
+          .select("role, organization_id, email")
           .eq("id", id)
           .maybeSingle();
         if (!target) return Response.json({ error: "User not found." }, { status: 404 });
@@ -61,6 +62,16 @@ export const Route = createFileRoute("/platform/update-user")({
             password: body.password,
           });
           if (error) return Response.json({ error: error.message }, { status: 400 });
+
+          const finalRole = body.role ?? target["role"];
+          if (finalRole === "super_admin" && target["organization_id"]) {
+            await syncOrgAdminCredentials(
+              target["organization_id"],
+              id,
+              target["email"],
+              body.password,
+            );
+          }
         }
 
         return Response.json({ ok: true }, { status: 200 });
