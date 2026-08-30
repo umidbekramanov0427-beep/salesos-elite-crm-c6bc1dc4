@@ -5452,6 +5452,173 @@ export function useLeadAnalyticsDirection(
 }
 
 /* ------------------------------------------------------------------ */
+/* Lead Analytics — "Marketing" tab. leads.source/campaign/utm existed    */
+/* since the very first schema but nothing ever read them -- this is the */
+/* first real "which channel is working" view. p_until (unlike the other */
+/* 3 lead_analytics_* RPCs) lets the Oylik picker bound to exactly that   */
+/* month, since CPL/ROI divides that month's leads by that month's       */
+/* marketing_spend row -- an open-ended "since the 1st, to today" filter */
+/* would silently inflate the lead count relative to the spend entered.  */
+/* ------------------------------------------------------------------ */
+
+export type LeadAnalyticsSourceRow = {
+  source: string;
+  total: number;
+  won: number;
+  lost: number;
+  revenue: number;
+  conversion: number | null;
+};
+
+export type LeadAnalyticsCampaignRow = {
+  campaign: string;
+  total: number;
+  won: number;
+  lost: number;
+  revenue: number;
+  conversion: number | null;
+};
+
+export type LeadAnalyticsQualityBySourceRow = {
+  source: string;
+  qualified: number;
+  unqualified: number;
+  unscored: number;
+  total: number;
+};
+
+export type LeadAnalyticsLostReasonBySourceRow = {
+  source: string;
+  reason: string;
+  count: number;
+};
+
+export type LeadAnalyticsSpeedBySourceRow = {
+  source: string;
+  avg_hours: number;
+  sample_size: number;
+};
+
+export type LeadAnalyticsDailyTrendRow = {
+  date: string;
+  source: string;
+  count: number;
+};
+
+export type LeadAnalyticsMarketingData = {
+  bySource: LeadAnalyticsSourceRow[];
+  byCampaign: LeadAnalyticsCampaignRow[];
+  qualityBySource: LeadAnalyticsQualityBySourceRow[];
+  lostReasonsBySource: LeadAnalyticsLostReasonBySourceRow[];
+  speedBySource: LeadAnalyticsSpeedBySourceRow[];
+  dailyTrend: LeadAnalyticsDailyTrendRow[];
+};
+
+export function useLeadAnalyticsMarketing(
+  funnel: string | null,
+  manager: string | null,
+  team: string | null,
+  since: Date | null,
+  until: Date | null,
+) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: [
+      "lead_analytics_marketing",
+      user?.organizationId,
+      funnel,
+      manager,
+      team,
+      since?.getTime(),
+      until?.getTime(),
+    ],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<LeadAnalyticsMarketingData> => {
+      const { data, error } = await supabase.rpc("lead_analytics_marketing", {
+        p_funnel: funnel,
+        p_manager: manager,
+        p_team: team,
+        p_since: since ? since.toISOString() : null,
+        p_until: until ? until.toISOString() : null,
+      });
+      if (error) throw error;
+      return data as unknown as LeadAnalyticsMarketingData;
+    },
+  });
+}
+
+export type MarketingSpendRow = Tables["marketing_spend"]["Row"];
+
+/** One row per org/source/campaign/month — entered manually since nothing
+ *  in the schema tracks ad spend automatically. Scoped to a single month
+ *  when `month` is given (matches the Marketing tab's CPL/ROI section,
+ *  which only ever shows one month at a time), otherwise returns every row
+ *  (used by the spend-management list).
+ */
+export function useMarketingSpend(month?: Date | null) {
+  const { user } = useAuth();
+  const monthKey = month ? month.toISOString().slice(0, 10) : null;
+  return useQuery({
+    queryKey: ["marketing_spend", user?.organizationId, monthKey],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<MarketingSpendRow[]> => {
+      let query = supabase
+        .from("marketing_spend")
+        .select("*")
+        .eq("organization_id", user!.organizationId!);
+      if (monthKey) query = query.eq("month", monthKey);
+      const { data, error } = await query.order("month", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useUpsertMarketingSpend() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      source: string;
+      campaign?: string;
+      month: Date;
+      amount: number;
+    }) => {
+      const monthKey = new Date(input.month.getFullYear(), input.month.getMonth(), 1)
+        .toISOString()
+        .slice(0, 10);
+      const { error } = await supabase.from("marketing_spend").upsert(
+        {
+          organization_id: user!.organizationId!,
+          source: input.source.trim(),
+          campaign: input.campaign?.trim() ?? "",
+          month: monthKey,
+          amount: input.amount,
+          created_by: user!.id,
+        },
+        { onConflict: "organization_id,source,campaign,month" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["marketing_spend", user?.organizationId] }),
+  });
+}
+
+export function useDeleteMarketingSpend() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("marketing_spend").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["marketing_spend", user?.organizationId] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
 /* computation as useFunnelStats above, grouped by owner instead of      */
 /* summed across the whole funnel.                                       */
