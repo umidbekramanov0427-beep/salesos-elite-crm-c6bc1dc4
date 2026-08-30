@@ -842,6 +842,57 @@ export type Database = {
           },
         ];
       };
+      marketing_spend: {
+        Row: {
+          id: string;
+          organization_id: string;
+          source: string;
+          campaign: string;
+          month: string;
+          amount: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          source: string;
+          campaign?: string;
+          month: string;
+          amount?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          source?: string;
+          campaign?: string;
+          month?: string;
+          amount?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketing_spend_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketing_spend_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       daily_report_settings: {
         Row: {
           call_audio_mini_app_enabled: boolean;
@@ -2817,6 +2868,16 @@ export type Database = {
       };
       lead_analytics_direction: {
         Args: { p_funnel: string | null; p_manager: string | null; p_team: string | null };
+        Returns: Json;
+      };
+      lead_analytics_marketing: {
+        Args: {
+          p_funnel: string | null;
+          p_manager: string | null;
+          p_team: string | null;
+          p_since: string | null;
+          p_until: string | null;
+        };
         Returns: Json;
       };
     };

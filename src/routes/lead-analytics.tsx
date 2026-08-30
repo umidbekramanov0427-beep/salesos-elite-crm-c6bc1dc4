@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -24,7 +26,12 @@ import {
   Users,
   ChevronRight,
   ChevronLeft,
+  Megaphone,
+  DollarSign,
+  Trash2,
+  Plus,
 } from "lucide-react";
+import { toast } from "sonner";
 import { FilterTile, TileOption } from "@/components/filters/FilterTile";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import {
@@ -35,6 +42,10 @@ import {
   useLeadAnalyticsQuality,
   useLeadAnalyticsCurrent,
   useLeadAnalyticsDirection,
+  useLeadAnalyticsMarketing,
+  useMarketingSpend,
+  useUpsertMarketingSpend,
+  useDeleteMarketingSpend,
   type LeadAnalyticsRecoverableRow,
   type LeadAnalyticsHotRow,
   type LeadAnalyticsTagResultRow,
@@ -44,6 +55,13 @@ import {
   type LeadAnalyticsManagerLoadRow,
   type LeadAnalyticsLostReasonRow,
   type LeadAnalyticsChurnRow,
+  type LeadAnalyticsSourceRow,
+  type LeadAnalyticsCampaignRow,
+  type LeadAnalyticsQualityBySourceRow,
+  type LeadAnalyticsLostReasonBySourceRow,
+  type LeadAnalyticsSpeedBySourceRow,
+  type LeadAnalyticsDailyTrendRow,
+  type MarketingSpendRow,
 } from "@/hooks/use-crm-data";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
@@ -72,7 +90,7 @@ function LeadAnalyticsGated() {
   );
 }
 
-type Tab = "action" | "quality" | "current" | "direction";
+type Tab = "action" | "quality" | "current" | "direction" | "marketing";
 type Period = "daily" | "weekly" | "monthly" | "all";
 
 function periodSince(period: Period, monthYear: number, monthIndex: number): Date | null {
@@ -1075,6 +1093,612 @@ function DirectionTab({
   );
 }
 
+type ChannelRow = {
+  total: number;
+  won: number;
+  lost: number;
+  revenue: number;
+  conversion: number | null;
+};
+
+function ChannelBreakdownTable<T extends ChannelRow>({
+  rows,
+  getLabel,
+  format,
+  t,
+  emptyMessage,
+}: {
+  rows: T[];
+  getLabel: (row: T) => string;
+  format: (n: number) => string;
+  t: (k: string) => string;
+  emptyMessage: string;
+}) {
+  if (rows.length === 0) {
+    return <p className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px] text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+            <th className="py-2 pr-3">{t("leadAnalytics.colChannel")}</th>
+            <th className="py-2 pr-3 text-right">{t("leadAnalytics.colTotal")}</th>
+            <th className="py-2 pr-3 text-right">{t("leadAnalytics.colWon")}</th>
+            <th className="py-2 pr-3 text-right">{t("leadAnalytics.colLost")}</th>
+            <th className="py-2 pr-3 text-right">{t("leadAnalytics.colConversion")}</th>
+            <th className="py-2 pl-3 text-right">{t("leadAnalytics.colRevenue")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={getLabel(r)} className="border-b border-border/60 last:border-0">
+              <td className="max-w-[160px] truncate py-2 pr-3 font-semibold text-foreground">
+                {getLabel(r)}
+              </td>
+              <td className="py-2 pr-3 text-right tabular-nums text-foreground">{r.total}</td>
+              <td className="py-2 pr-3 text-right tabular-nums text-success">{r.won}</td>
+              <td className="py-2 pr-3 text-right tabular-nums text-destructive">{r.lost}</td>
+              <td className="py-2 pr-3 text-right tabular-nums text-foreground">
+                {r.conversion != null ? `${r.conversion}%` : "—"}
+              </td>
+              <td className="py-2 pl-3 text-right font-semibold tabular-nums text-foreground">
+                {format(r.revenue)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function QualityBySourceChart({
+  rows,
+  t,
+}: {
+  rows: LeadAnalyticsQualityBySourceRow[];
+  t: (k: string) => string;
+}) {
+  const qualifiedLabel = t("leadAnalytics.qualified");
+  const unqualifiedLabel = t("leadAnalytics.unqualified");
+  const unscoredLabel = t("leadAnalytics.unscored");
+  const data = rows.map((r) => ({
+    source: r.source,
+    [qualifiedLabel]: r.qualified,
+    [unqualifiedLabel]: r.unqualified,
+    [unscoredLabel]: r.unscored,
+  }));
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noSourceData")}
+      </p>
+    );
+  }
+  return (
+    <div className="h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ left: -14, right: 8, top: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="source"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            stroke="var(--color-subtle)"
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={50}
+          />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-accent)" }} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Bar dataKey={qualifiedLabel} stackId="a" fill="var(--color-success)" />
+          <Bar dataKey={unqualifiedLabel} stackId="a" fill="var(--color-destructive)" />
+          <Bar dataKey={unscoredLabel} stackId="a" fill="var(--color-subtle)" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function LostReasonsBySourceTable({
+  rows,
+  t,
+}: {
+  rows: LeadAnalyticsLostReasonBySourceRow[];
+  t: (k: string) => string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noLostReasonsBySource")}
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[420px] text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+            <th className="py-2 pr-3">{t("leadAnalytics.colChannel")}</th>
+            <th className="py-2 pr-3">{t("leadAnalytics.colLostReason")}</th>
+            <th className="py-2 pl-3 text-right">{t("leadAnalytics.colCount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr
+              key={`${r.source}-${r.reason}-${i}`}
+              className="border-b border-border/60 last:border-0"
+            >
+              <td className="max-w-[140px] truncate py-2 pr-3 font-semibold text-foreground">
+                {r.source}
+              </td>
+              <td className="max-w-[220px] truncate py-2 pr-3 text-muted-foreground">{r.reason}</td>
+              <td className="py-2 pl-3 text-right font-bold tabular-nums text-destructive">
+                {r.count}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SpeedBySourceChart({
+  rows,
+  t,
+}: {
+  rows: LeadAnalyticsSpeedBySourceRow[];
+  t: (k: string) => string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noSpeedBySource")}
+      </p>
+    );
+  }
+  return (
+    <div className="h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={{ left: -14, right: 8, top: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="source"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            stroke="var(--color-subtle)"
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={50}
+          />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" />
+          <Tooltip
+            contentStyle={tooltipStyle}
+            cursor={{ fill: "var(--color-accent)" }}
+            formatter={(value: number) => [
+              `${value}${t("leadAnalytics.hoursSuffix")}`,
+              t("leadAnalytics.colSpeed"),
+            ]}
+          />
+          <Bar dataKey="avg_hours" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function pivotDailyTrend(rows: LeadAnalyticsDailyTrendRow[], otherLabel: string) {
+  const totals = new Map<string, number>();
+  for (const r of rows) totals.set(r.source, (totals.get(r.source) ?? 0) + r.count);
+  const topSources = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([source]) => source);
+  const topSet = new Set(topSources);
+  const hasOther = totals.size > topSources.length;
+  const byDate = new Map<string, Record<string, number>>();
+  for (const r of rows) {
+    const key = topSet.has(r.source) ? r.source : otherLabel;
+    const bucket = byDate.get(r.date) ?? {};
+    bucket[key] = (bucket[key] ?? 0) + r.count;
+    byDate.set(r.date, bucket);
+  }
+  const dates = [...byDate.keys()].sort();
+  const series = hasOther ? [...topSources, otherLabel] : topSources;
+  const data = dates.map((date) => ({ date, ...byDate.get(date) }));
+  return { data, series };
+}
+
+function DailyTrendChart({
+  rows,
+  t,
+}: {
+  rows: LeadAnalyticsDailyTrendRow[];
+  t: (k: string) => string;
+}) {
+  const { data, series } = useMemo(
+    () => pivotDailyTrend(rows, t("leadAnalytics.otherSource")),
+    [rows, t],
+  );
+  if (rows.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {t("leadAnalytics.noDailyTrend")}
+      </p>
+    );
+  }
+  return (
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ left: -14, right: 8, top: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            stroke="var(--color-subtle)"
+          />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--color-subtle)" />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          {series.map((s, i) => (
+            <Line
+              key={s}
+              type="monotone"
+              dataKey={s}
+              stroke={LOST_REASON_COLORS[i % LOST_REASON_COLORS.length]}
+              strokeWidth={2}
+              dot={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function MarketingSpendSection({
+  monthDate,
+  bySource,
+  format,
+  t,
+}: {
+  monthDate: Date;
+  bySource: LeadAnalyticsSourceRow[];
+  format: (n: number) => string;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+}) {
+  const { data: spendRows, isLoading } = useMarketingSpend(monthDate);
+  const upsertSpend = useUpsertMarketingSpend();
+  const deleteSpend = useDeleteMarketingSpend();
+  const [source, setSource] = useState("");
+  const [campaign, setCampaign] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const spendBySource = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of spendRows ?? []) {
+      map.set(s.source, (map.get(s.source) ?? 0) + Number(s.amount));
+    }
+    return map;
+  }, [spendRows]);
+
+  const totalSpend = useMemo(
+    () => [...spendBySource.values()].reduce((sum, v) => sum + v, 0),
+    [spendBySource],
+  );
+
+  async function addSpend(e: FormEvent) {
+    e.preventDefault();
+    const amountNum = Number(amount);
+    if (!source.trim() || !Number.isFinite(amountNum) || amountNum < 0) return;
+    try {
+      await upsertSpend.mutateAsync({ source, campaign, month: monthDate, amount: amountNum });
+      toast.success(t("leadAnalytics.spendSaved"));
+      setSource("");
+      setCampaign("");
+      setAmount("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("leadAnalytics.spendSaveFailed"));
+    }
+  }
+
+  async function removeSpend(id: string) {
+    try {
+      await deleteSpend.mutateAsync(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("leadAnalytics.spendSaveFailed"));
+    }
+  }
+
+  return (
+    <>
+      <div className="overflow-x-auto">
+        {isLoading ? (
+          <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+        ) : bySource.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t("leadAnalytics.noSourceData")}
+          </p>
+        ) : (
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wide text-subtle">
+                <th className="py-2 pr-3">{t("leadAnalytics.colChannel")}</th>
+                <th className="py-2 pr-3 text-right">{t("leadAnalytics.colLeads")}</th>
+                <th className="py-2 pr-3 text-right">{t("leadAnalytics.colSpend")}</th>
+                <th className="py-2 pr-3 text-right">{t("leadAnalytics.colCpl")}</th>
+                <th className="py-2 pl-3 text-right">{t("leadAnalytics.colRoi")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bySource.map((r) => {
+                const spend = spendBySource.get(r.source) ?? 0;
+                const cpl = spend > 0 && r.total > 0 ? spend / r.total : null;
+                const roi = spend > 0 ? ((r.revenue - spend) / spend) * 100 : null;
+                return (
+                  <tr key={r.source} className="border-b border-border/60 last:border-0">
+                    <td className="max-w-[160px] truncate py-2 pr-3 font-semibold text-foreground">
+                      {r.source}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-foreground">{r.total}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-foreground">
+                      {spend > 0 ? format(spend) : "—"}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-foreground">
+                      {cpl != null ? format(cpl) : "—"}
+                    </td>
+                    <td
+                      className={cn(
+                        "py-2 pl-3 text-right font-bold tabular-nums",
+                        roi == null
+                          ? "text-subtle"
+                          : roi >= 0
+                            ? "text-success"
+                            : "text-destructive",
+                      )}
+                    >
+                      {roi != null ? `${roi.toFixed(0)}%` : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-surface p-4">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wide text-subtle">
+          {t("leadAnalytics.spendListTitle", { total: format(totalSpend) })}
+        </p>
+        {(spendRows ?? []).length > 0 && (
+          <ul className="mb-3 space-y-1.5">
+            {(spendRows ?? []).map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center justify-between gap-2 rounded-lg bg-background px-3 py-2 text-sm"
+              >
+                <span className="truncate text-foreground">
+                  {s.source}
+                  {s.campaign ? ` · ${s.campaign}` : ""}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {format(Number(s.amount))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void removeSpend(s.id)}
+                    className="rounded-lg p-1.5 text-subtle hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={t("settings.list.delete")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={(e) => void addSpend(e)} className="flex flex-wrap items-center gap-2">
+          <input
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder={t("leadAnalytics.spendSourcePlaceholder")}
+            className="h-9 min-w-[140px] flex-1 rounded-lg border border-dashed border-border bg-background px-2.5 text-xs outline-none focus:border-primary/40"
+          />
+          <input
+            value={campaign}
+            onChange={(e) => setCampaign(e.target.value)}
+            placeholder={t("leadAnalytics.spendCampaignPlaceholder")}
+            className="h-9 min-w-[140px] flex-1 rounded-lg border border-dashed border-border bg-background px-2.5 text-xs outline-none focus:border-primary/40"
+          />
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={t("leadAnalytics.spendAmountPlaceholder")}
+            className="h-9 w-32 rounded-lg border border-dashed border-border bg-background px-2.5 text-xs outline-none focus:border-primary/40"
+          />
+          <button
+            type="submit"
+            disabled={upsertSpend.isPending || !source.trim() || !amount}
+            className="inline-flex h-9 items-center gap-1 rounded-lg border border-dashed border-border px-3 text-xs font-medium text-subtle transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("leadAnalytics.spendAdd")}
+          </button>
+        </form>
+        <p className="mt-2 text-[11px] leading-relaxed text-subtle">
+          {t("leadAnalytics.spendHint")}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function MarketingTab({
+  funnel,
+  managerId,
+  teamId,
+  since,
+  until,
+  monthDate,
+  period,
+  format,
+  t,
+}: {
+  funnel: string;
+  managerId: string;
+  teamId: string;
+  since: Date | null;
+  until: Date | null;
+  monthDate: Date;
+  period: Period;
+  format: (n: number) => string;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+}) {
+  const { data, isLoading } = useLeadAnalyticsMarketing(
+    funnel || null,
+    managerId || null,
+    teamId || null,
+    since,
+    until,
+  );
+
+  return (
+    <>
+      <div className="mt-8">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+          05 &nbsp;{t("leadAnalytics.marketingSectionLabel")}
+        </p>
+        <h2 className="mt-1 text-xl font-bold text-foreground">
+          {t("leadAnalytics.marketingTitle")}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("leadAnalytics.marketingDesc")}</p>
+      </div>
+
+      <div className="mt-4 grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title={t("leadAnalytics.bySourceTitle")}
+          description={t("leadAnalytics.bySourceDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <ChannelBreakdownTable
+              rows={data?.bySource ?? []}
+              getLabel={(r) => r.source}
+              format={format}
+              t={t}
+              emptyMessage={t("leadAnalytics.noSourceData")}
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={t("leadAnalytics.byCampaignTitle")}
+          description={t("leadAnalytics.byCampaignDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <ChannelBreakdownTable
+              rows={data?.byCampaign ?? []}
+              getLabel={(r) => r.campaign}
+              format={format}
+              t={t}
+              emptyMessage={t("leadAnalytics.noCampaignData")}
+            />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title={t("leadAnalytics.qualityBySourceTitle")}
+          description={t("leadAnalytics.qualityBySourceDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <QualityBySourceChart rows={data?.qualityBySource ?? []} t={t} />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={t("leadAnalytics.speedBySourceTitle")}
+          description={t("leadAnalytics.speedBySourceDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <SpeedBySourceChart rows={data?.speedBySource ?? []} t={t} />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <SectionCard
+          title={t("leadAnalytics.lostReasonsBySourceTitle")}
+          description={t("leadAnalytics.lostReasonsBySourceDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <LostReasonsBySourceTable rows={data?.lostReasonsBySource ?? []} t={t} />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <SectionCard
+          title={t("leadAnalytics.dailyTrendTitle")}
+          description={t("leadAnalytics.dailyTrendDesc")}
+        >
+          {isLoading ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+          ) : (
+            <DailyTrendChart rows={data?.dailyTrend ?? []} t={t} />
+          )}
+        </SectionCard>
+      </div>
+
+      {period === "monthly" && (
+        <div className="mt-6">
+          <SectionCard
+            title={
+              <span className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-success" />
+                {t("leadAnalytics.cplRoiTitle")}
+              </span>
+            }
+            description={t("leadAnalytics.cplRoiDesc")}
+          >
+            <MarketingSpendSection
+              monthDate={monthDate}
+              bySource={data?.bySource ?? []}
+              format={format}
+              t={t}
+            />
+          </SectionCard>
+        </div>
+      )}
+    </>
+  );
+}
+
 const TABS: { key: Tab; icon: typeof Zap; labelKey: string; iconColor: string }[] = [
   { key: "action", icon: Zap, labelKey: "leadAnalytics.tabAction", iconColor: "text-amber-500" },
   {
@@ -1094,6 +1718,12 @@ const TABS: { key: Tab; icon: typeof Zap; labelKey: string; iconColor: string }[
     icon: Shuffle,
     labelKey: "leadAnalytics.tabDirection",
     iconColor: "text-rose-500",
+  },
+  {
+    key: "marketing",
+    icon: Megaphone,
+    labelKey: "leadAnalytics.tabMarketing",
+    iconColor: "text-emerald-500",
   },
 ];
 
@@ -1209,6 +1839,13 @@ function LeadAnalytics() {
     () => periodSince(period, monthYear, monthIndex),
     [period, monthYear, monthIndex],
   );
+  // Only the Marketing tab's CPL/ROI section needs an exact month window --
+  // the other tabs' RPCs are since-only ("from p_since through today").
+  const until = useMemo(
+    () => (period === "monthly" ? new Date(monthYear, monthIndex + 1, 1) : null),
+    [period, monthYear, monthIndex],
+  );
+  const monthDate = useMemo(() => new Date(monthYear, monthIndex, 1), [monthYear, monthIndex]);
   const { data, isLoading } = useLeadAnalyticsAction(
     funnel || null,
     managerId || null,
@@ -1421,8 +2058,20 @@ function LeadAnalytics() {
         <QualityTab funnel={funnel} managerId={managerId} teamId={teamId} since={since} t={t} />
       ) : tab === "current" ? (
         <CurrentTab funnel={funnel} managerId={managerId} teamId={teamId} since={since} t={t} />
-      ) : (
+      ) : tab === "direction" ? (
         <DirectionTab funnel={funnel} managerId={managerId} teamId={teamId} since={since} t={t} />
+      ) : (
+        <MarketingTab
+          funnel={funnel}
+          managerId={managerId}
+          teamId={teamId}
+          since={since}
+          until={until}
+          monthDate={monthDate}
+          period={period}
+          format={format}
+          t={t}
+        />
       )}
     </>
   );
