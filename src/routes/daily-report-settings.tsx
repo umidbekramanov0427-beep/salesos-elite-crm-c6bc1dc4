@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Bell,
@@ -278,6 +278,7 @@ function MiniAppAudioRules() {
 }
 
 function DailyReportSettingsPage() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: settings, isLoading } = useDailyReportSettings();
   const updateSettings = useUpdateDailyReportSettings();
 
@@ -308,6 +309,17 @@ function DailyReportSettingsPage() {
     setCallAudioMiniAppEnabled(settings.call_audio_mini_app_enabled);
     setHydrated(true);
   }, [settings, hydrated]);
+
+  // "/daily-report-settings/sections" is a child route (daily-report-
+  // settings.sections.tsx) -- this file is its layout, so it has to yield
+  // via Outlet on that path instead of always rendering its own landing-
+  // page content, or the child route's page silently never appears no
+  // matter what the URL says (see admin.tsx for the same pattern). This
+  // check has to come after every hook above so hook order stays fixed
+  // across renders regardless of which path we're on.
+  if (pathname !== "/daily-report-settings") {
+    return <Outlet />;
+  }
 
   async function save() {
     const minutes = Math.min(5, Math.max(2, Number(taskDueReminderMinutes) || 5));
