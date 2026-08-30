@@ -61,8 +61,11 @@ import {
   useDeleteStage,
   useDeleteTag,
   useNotificationPreferences,
+  useIntegrationSetting,
+  useLinkTelegram,
   usePipelineStagesRaw,
   useRenameTag,
+  useSetTelegramBotUsername,
   useSettingList,
   useTagsSummary,
   useUpdateBusinessProfile,
@@ -315,6 +318,156 @@ function PersonalizationSection() {
               )}
             </span>
           </button>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+// The reports/task-reminder Telegram bot -- a separate bot from the
+// Kadrlar bo'limi one -- has no way to know who's messaging it besides
+// this one-time code exchange: super_admin sets which @bot the org uses
+// once, then anyone here generates their own short-lived code and sends it
+// to that bot as a plain text message (see telegram.webhook.ts) to link
+// their own chat_id. Without this card there was no way to ever populate
+// profiles.telegram_chat_id at all, silently breaking every Telegram
+// delivery in the app (daily reports, task reminders) for every user.
+function TelegramLinkCard() {
+  const { user, refreshProfile } = useAuth();
+  const { data: botSetting } = useIntegrationSetting("telegram_bot");
+  const setBotUsername = useSetTelegramBotUsername();
+  const linkTelegram = useLinkTelegram();
+  const [usernameInput, setUsernameInput] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+  const [linkInfo, setLinkInfo] = useState<{ code: string; botUsername: string | null } | null>(
+    null,
+  );
+
+  const config = (botSetting?.config ?? null) as { username?: string } | null;
+  const botUsername = config?.username?.trim() || null;
+  const isAdmin = user?.role === "super_admin" || user?.role === "platform_owner";
+
+  useEffect(() => {
+    if (botSetting === undefined || hydrated) return;
+    setUsernameInput(config?.username ?? "");
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botSetting, hydrated]);
+
+  async function saveBotUsername() {
+    try {
+      await setBotUsername.mutateAsync(usernameInput.trim().replace(/^@/, ""));
+      toast.success("Saqlandi.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Saqlashda xatolik yuz berdi.");
+    }
+  }
+
+  async function generateCode() {
+    try {
+      const result = await linkTelegram.mutateAsync();
+      setLinkInfo(result);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Kodni olishda xatolik yuz berdi.");
+    }
+  }
+
+  return (
+    <SectionCard
+      title="Telegram bot"
+      description="Kunlik hisobot va vazifa eslatmalarini shaxsiy Telegram orqali olish uchun ulang."
+    >
+      <div className="space-y-5">
+        {isAdmin && (
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-[13px] font-semibold text-foreground">
+              Hisobot boti (@foydalanuvchi nomi)
+            </p>
+            <p className="mt-0.5 text-xs text-subtle">
+              Kunlik hisobot va vazifa eslatmalarini yuboradigan bot — Kadrlar bo'limi boti bilan
+              bir xil emas.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="hisobotchi_bot"
+                className="h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/40"
+              />
+              <button
+                type="button"
+                onClick={() => void saveBotUsername()}
+                disabled={setBotUsername.isPending}
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {setBotUsername.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Saqlash
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-border bg-surface p-4">
+          {user?.telegramLinked ? (
+            <div className="flex items-center gap-2 text-sm font-semibold text-success">
+              <Check className="h-4 w-4" /> Telegram ulangan
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[13px] font-semibold text-foreground">Telegram ulanmagan</p>
+                  <p className="mt-0.5 text-xs text-subtle">
+                    Ulash uchun bir martalik kod oling va uni botga yuboring.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void generateCode()}
+                  disabled={linkTelegram.isPending}
+                  className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+                >
+                  {linkTelegram.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <MessageCircle className="h-4 w-4" /> Kodni olish
+                </button>
+              </div>
+
+              {linkInfo && (
+                <div className="mt-4 space-y-2 rounded-lg bg-accent p-3.5 text-sm">
+                  <p>
+                    1.{" "}
+                    {(linkInfo.botUsername ?? botUsername) ? (
+                      <a
+                        href={`https://t.me/${linkInfo.botUsername ?? botUsername}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        @{linkInfo.botUsername ?? botUsername}
+                      </a>
+                    ) : (
+                      "Botni"
+                    )}{" "}
+                    Telegram'da oching
+                  </p>
+                  <p>
+                    2. Shu kodni yuboring:{" "}
+                    <span className="rounded-md bg-background px-2 py-0.5 font-mono font-bold">
+                      {linkInfo.code}
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void refreshProfile()}
+                    className="mt-1 text-xs font-semibold text-primary hover:underline"
+                  >
+                    Yuborgach, shu yerni bosing — holatni tekshiramiz
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </SectionCard>
@@ -2382,7 +2535,12 @@ function SettingsPage() {
         <div>
           {section === "profile" && <ProfileSection />}
           {section === "personalization" && <PersonalizationSection />}
-          {section === "notifications" && <NotificationsSection />}
+          {section === "notifications" && (
+            <div className="space-y-6">
+              <NotificationsSection />
+              <TelegramLinkCard />
+            </div>
+          )}
           {section === "business" && <BusinessProfileSection />}
           {section === "stages" && <StagesSection />}
           {section === "tags" && <TagsSection />}
