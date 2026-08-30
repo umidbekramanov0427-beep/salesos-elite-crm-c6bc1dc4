@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Check,
   Clock,
   Loader2,
   MessageSquareText,
@@ -264,7 +265,16 @@ function LocationPickerButton({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState<NominatimResult | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setResults([]);
+      setPicked(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open || query.trim().length < 3) {
@@ -285,6 +295,9 @@ function LocationPickerButton({
     return () => clearTimeout(debounceRef.current);
   }, [query, open]);
 
+  const previewLat = picked ? Number(picked.lat) : undefined;
+  const previewLon = picked ? Number(picked.lon) : undefined;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -302,7 +315,10 @@ function LocationPickerButton({
           <input
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPicked(null);
+            }}
             placeholder="Manzil qidirish..."
             className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-2 text-sm outline-none focus:border-primary/40"
           />
@@ -313,18 +329,16 @@ function LocationPickerButton({
           </div>
         )}
         {results.length > 0 && (
-          <ul className="max-h-48 space-y-1 overflow-y-auto">
+          <ul className="max-h-40 space-y-1 overflow-y-auto">
             {results.map((r) => (
               <li key={`${r.lat}-${r.lon}`}>
                 <button
                   type="button"
-                  onClick={() => {
-                    onPick({ lat: Number(r.lat), lng: Number(r.lon), label: r.display_name });
-                    setOpen(false);
-                    setQuery("");
-                    setResults([]);
-                  }}
-                  className="flex w-full items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
+                  onClick={() => setPicked(r)}
+                  className={cn(
+                    "flex w-full items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent",
+                    picked?.display_name === r.display_name && "bg-primary/10 text-primary",
+                  )}
                 >
                   <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
                   <span className="truncate">{r.display_name}</span>
@@ -333,6 +347,30 @@ function LocationPickerButton({
             ))}
           </ul>
         )}
+        {picked && previewLat !== undefined && previewLon !== undefined && (
+          <iframe
+            title="location-preview"
+            className="h-32 w-full rounded-lg border border-border"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${previewLon - 0.01}%2C${previewLat - 0.01}%2C${previewLon + 0.01}%2C${previewLat + 0.01}&layer=mapnik&marker=${previewLat}%2C${previewLon}`}
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (!picked) return;
+            onPick({
+              lat: Number(picked.lat),
+              lng: Number(picked.lon),
+              label: picked.display_name,
+            });
+            setOpen(false);
+          }}
+          disabled={!picked}
+          className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Check className="h-3.5 w-3.5" />
+          Shu manzilni yuborish
+        </button>
       </PopoverContent>
     </Popover>
   );
