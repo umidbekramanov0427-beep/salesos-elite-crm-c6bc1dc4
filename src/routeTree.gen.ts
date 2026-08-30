@@ -58,6 +58,7 @@ import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as HrCandidateIdRouteImport } from './routes/hr.$candidateId'
+import { Route as HrDeleteCandidateRouteImport } from './routes/hr.delete-candidate'
 import { Route as HrSendMessageRouteImport } from './routes/hr.send-message'
 import { Route as HrSettingsRouteImport } from './routes/hr.settings'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
@@ -344,6 +345,11 @@ const HrCandidateIdRoute = HrCandidateIdRouteImport.update({
   path: '/$candidateId',
   getParentRoute: () => HrRoute,
 } as any)
+const HrDeleteCandidateRoute = HrDeleteCandidateRouteImport.update({
+  id: '/delete-candidate',
+  path: '/delete-candidate',
+  getParentRoute: () => HrRoute,
+} as any)
 const HrSendMessageRoute = HrSendMessageRouteImport.update({
   id: '/send-message',
   path: '/send-message',
@@ -570,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/delete-candidate': typeof HrDeleteCandidateRoute
   '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -654,6 +661,7 @@ export interface FileRoutesByTo {
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/delete-candidate': typeof HrDeleteCandidateRoute
   '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -739,6 +747,7 @@ export interface FileRoutesById {
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/delete-candidate': typeof HrDeleteCandidateRoute
   '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
@@ -825,6 +834,7 @@ export interface FileRouteTypes {
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/delete-candidate'
     | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
@@ -909,6 +919,7 @@ export interface FileRouteTypes {
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/delete-candidate'
     | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
@@ -993,6 +1004,7 @@ export interface FileRouteTypes {
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/delete-candidate'
     | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
@@ -1429,6 +1441,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HrCandidateIdRouteImport
       parentRoute: typeof HrRoute
     }
+    '/hr/delete-candidate': {
+      id: '/hr/delete-candidate'
+      path: '/delete-candidate'
+      fullPath: '/hr/delete-candidate'
+      preLoaderRoute: typeof HrDeleteCandidateRouteImport
+      parentRoute: typeof HrRoute
+    }
     '/hr/send-message': {
       id: '/hr/send-message'
       path: '/send-message'
@@ -1764,12 +1783,14 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 interface HrRouteChildren {
   HrCandidateIdRoute: typeof HrCandidateIdRoute
+  HrDeleteCandidateRoute: typeof HrDeleteCandidateRoute
   HrSendMessageRoute: typeof HrSendMessageRoute
   HrSettingsRoute: typeof HrSettingsRoute
 }
 
 const HrRouteChildren: HrRouteChildren = {
   HrCandidateIdRoute: HrCandidateIdRoute,
+  HrDeleteCandidateRoute: HrDeleteCandidateRoute,
   HrSendMessageRoute: HrSendMessageRoute,
   HrSettingsRoute: HrSettingsRoute,
 }

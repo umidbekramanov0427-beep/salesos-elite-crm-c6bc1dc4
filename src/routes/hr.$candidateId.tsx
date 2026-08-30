@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Check,
@@ -16,6 +16,7 @@ import {
   FileText,
   Download,
   Search,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
@@ -45,6 +46,7 @@ import {
   useHrCandidateMessages,
   useSendHrCandidateMessage,
   useUploadHrChatAttachment,
+  useDeleteHrCandidate,
   HR_CANDIDATE_STATUSES,
   type HrCandidateStatus,
   type HrCandidateMessageRow,
@@ -163,6 +165,116 @@ function ChangeStatusDialog({
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               Saqlash
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const DELETE_REASONS = [
+  "Xato yoki dublikat kiritilgan",
+  "Nomzod o'zi so'radi",
+  "Spam yoki noto'g'ri ariza",
+  "Sinov/test uchun yaratilgan edi",
+  "Boshqa sabab",
+] as const;
+
+function DeleteCandidateDialog({
+  candidateId,
+  candidateLabel,
+}: {
+  candidateId: string;
+  candidateLabel: string;
+}) {
+  const navigate = useNavigate();
+  const deleteCandidate = useDeleteHrCandidate();
+  const [open, setOpen] = useState(false);
+  const [reasonPreset, setReasonPreset] = useState<string>(DELETE_REASONS[0]);
+  const [customReason, setCustomReason] = useState("");
+
+  const finalReason = reasonPreset === "Boshqa sabab" ? customReason.trim() : reasonPreset;
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!finalReason) return;
+    try {
+      await deleteCandidate.mutateAsync({ candidateId, reason: finalReason });
+      toast.success("Nomzod o'chirildi.");
+      setOpen(false);
+      void navigate({ to: "/hr" });
+    } catch (err) {
+      toast.error(errorMessage(err, "Nomzodni o'chirib bo'lmadi."));
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) {
+          setReasonPreset(DELETE_REASONS[0]);
+          setCustomReason("");
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          title="Nomzodni o'chirish"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{candidateLabel}ni o'chirish</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Bu amalni ortga qaytarib bo'lmaydi — nomzodning barcha javoblari, holat tarixi va
+            yozishmalari butunlay o'chiriladi.
+          </p>
+          <div>
+            <Label>Nima sababdan o'chirmoqchisiz?</Label>
+            <Select value={reasonPreset} onValueChange={setReasonPreset}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DELETE_REASONS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {reasonPreset === "Boshqa sabab" && (
+            <div>
+              <Label htmlFor="hr-delete-custom-reason">Sababni yozing</Label>
+              <Textarea
+                id="hr-delete-custom-reason"
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Nima uchun o'chirilyapti, aniq yozing..."
+                className="mt-1.5"
+                rows={3}
+                required
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <button
+              type="submit"
+              disabled={deleteCandidate.isPending || !finalReason}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {deleteCandidate.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              O'chirish
             </button>
           </DialogFooter>
         </form>
@@ -646,6 +758,14 @@ function HrCandidateDetailPage() {
                 <ChangeStatusDialog
                   candidateId={data.candidate.id}
                   currentStatus={data.candidate.status}
+                />
+                <DeleteCandidateDialog
+                  candidateId={data.candidate.id}
+                  candidateLabel={
+                    data.candidate.telegram_username
+                      ? `@${data.candidate.telegram_username}`
+                      : `Chat #${data.candidate.telegram_chat_id}`
+                  }
                 />
               </div>
             }

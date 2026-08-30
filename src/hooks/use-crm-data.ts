@@ -6058,6 +6058,28 @@ export function useSendHrCandidateMessage() {
   });
 }
 
+export function useDeleteHrCandidate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { candidateId: string; reason: string }) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/hr/delete-candidate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Nomzodni o'chirib bo'lmadi.");
+      return json;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["hr_candidates"] }),
+  });
+}
+
 /** Uploads a file the super_admin is about to send to a candidate; the resulting public URL is what Telegram fetches the attachment from. */
 export function useUploadHrChatAttachment() {
   const { user } = useAuth();
