@@ -11,6 +11,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { logClientError } from "@/lib/error-log";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -75,14 +76,14 @@ function toSessionUser(profile: Profile): SessionUser {
   };
 }
 
-async function fetchProfile(userId: string): Promise<Profile | null> {
+async function fetchProfile(userId: string): Promise<{ profile: Profile | null; error: unknown }> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
     .maybeSingle();
-  if (error || !data) return null;
-  return data;
+  if (error || !data) return { profile: null, error: error ?? "no row returned" };
+  return { profile: data, error: null };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -94,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // for the *same* user (see the onAuthStateChange comment below) can be
   // told apart from an actual sign-in by a different one.
   const lastUserIdRef = useRef<string | null>(null);
+  // Which hydrate() call is currently in flight, if any -- see hydrateOnce.
+  const inFlightHydrateRef = useRef<{ userId: string; promise: Promise<void> } | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -106,22 +109,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // A DB trigger creates the profile row on signup; it can lag by a beat on
   // the very first sign-in, so retry briefly instead of failing outright.
   const hydrate = useCallback(async (userId: string) => {
+    let lastError: unknown = null;
     for (let attempt = 0; attempt < 6; attempt++) {
-      const profile = await fetchProfile(userId);
+      const { profile, error } = await fetchProfile(userId);
       if (profile) {
         if (mounted.current) setUser(toSessionUser(profile));
         return;
       }
+      lastError = error;
       await new Promise((r) => setTimeout(r, 350));
     }
+    // Reported as "refresh logs me out" -- this is the exact moment that
+    // happens: every retry above failed to return a profile row for an
+    // already-signed-in user, so we're about to force them back to /login.
+    // Logging *why* fetchProfile kept failing (network error vs. RLS
+    // returning zero rows vs. something else) here, rather than silently
+    // swallowing it, is what actually lets that bug get root-caused instead
+    // of guessed at again.
+    logClientError(`Auth hydrate gave up after 6 retries for user ${userId}`, {
+      mechanism: "auth_hydrate_exhausted",
+      lastError:
+        lastError && typeof lastError === "object"
+          ? JSON.parse(JSON.stringify(lastError))
+          : String(lastError),
+    });
     if (mounted.current) setUser(null);
   }, []);
+
+  // Both the initial supabase.auth.getSession() read AND
+  // onAuthStateChange's own immediate first fire ("INITIAL_SESSION")
+  // resolve for the exact same already-existing session on mount --
+  // calling hydrate() independently from both used to race: whichever
+  // happened to finish last could overwrite an already-correctly-hydrated
+  // user with null (this is the "refresh sometimes logs me out" bug). A
+  // second call for an identity that's already hydrated, or already being
+  // hydrated, now joins the existing attempt instead of starting a
+  // redundant, independently-racing one.
+  const hydrateOnce = useCallback(
+    (userId: string): Promise<void> => {
+      if (inFlightHydrateRef.current?.userId === userId) {
+        return inFlightHydrateRef.current.promise;
+      }
+      if (lastUserIdRef.current === userId && !inFlightHydrateRef.current) {
+        return Promise.resolve();
+      }
+      lastUserIdRef.current = userId;
+      const promise = hydrate(userId).finally(() => {
+        if (inFlightHydrateRef.current?.userId === userId) inFlightHydrateRef.current = null;
+      });
+      inFlightHydrateRef.current = { userId, promise };
+      return promise;
+    },
+    [hydrate],
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session?.user) {
-        lastUserIdRef.current = data.session.user.id;
-        await hydrate(data.session.user.id);
+        await hydrateOnce(data.session.user.id);
       }
       if (mounted.current) setReady(true);
     });
@@ -152,14 +197,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (session?.user) {
-        if (isNewIdentity) {
-          lastUserIdRef.current = session.user.id;
-          void hydrate(session.user.id).finally(() => {
-            if (mounted.current) setReady(true);
-          });
-        } else if (mounted.current) {
-          setReady(true);
-        }
+        void hydrateOnce(session.user.id).finally(() => {
+          if (mounted.current) setReady(true);
+        });
       } else {
         lastUserIdRef.current = null;
         setUser(null);
@@ -168,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, [hydrate, queryClient]);
+  }, [hydrateOnce, queryClient]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
