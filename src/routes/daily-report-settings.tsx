@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Bell, FileText, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Bell, Calendar, FileText, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { Switch } from "@/components/ui/switch";
@@ -271,6 +271,28 @@ function DailyReportSettingsPage() {
             Yuborish sozlamalarini band qilmasdan, hisobot qismlari, kiritiladigan menejerlar, CRM
             voronkalari, lid sifati guruhlari, anketa javoblari, bosqich o'tishlari va
             kengaytirilgan sozlamalarni alohida ekranda tanlang.
+          </p>
+        </SectionCard>
+
+        <SectionCard
+          actions={
+            <Link
+              to="/daily-report-settings/history"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            >
+              Hisobot tarixini ko'rish →
+            </Link>
+          }
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+              <Calendar className="h-4 w-4" />
+            </span>
+            <h3 className="text-base font-semibold text-foreground">Hisobot tarixi</h3>
+          </div>
+          <p className="mt-3 text-sm text-subtle">
+            Har kuni yuborilgan to'liq hisobot avtomatik saqlanadi — sana bo'yicha istalgan vaqtda
+            qayta ko'rib chiqing.
           </p>
         </SectionCard>
 

@@ -847,6 +847,7 @@ export type Database = {
           call_audio_mini_app_enabled: boolean;
           created_at: string;
           crm_activity_enabled: boolean;
+          google_sheets_url: string | null;
           id: string;
           intake_question_ids: string[] | null;
           intake_questions_enabled: boolean;
@@ -877,6 +878,7 @@ export type Database = {
           call_audio_mini_app_enabled?: boolean;
           created_at?: string;
           crm_activity_enabled?: boolean;
+          google_sheets_url?: string | null;
           id?: string;
           intake_question_ids?: string[] | null;
           intake_questions_enabled?: boolean;
@@ -907,6 +909,7 @@ export type Database = {
           call_audio_mini_app_enabled?: boolean;
           created_at?: string;
           crm_activity_enabled?: boolean;
+          google_sheets_url?: string | null;
           id?: string;
           intake_question_ids?: string[] | null;
           intake_questions_enabled?: boolean;
@@ -938,6 +941,38 @@ export type Database = {
             foreignKeyName: "daily_report_settings_organization_id_fkey";
             columns: ["organization_id"];
             isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      daily_report_history: {
+        Row: {
+          created_at: string;
+          id: string;
+          organization_id: string;
+          report_date: string;
+          report_text: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          organization_id: string;
+          report_date: string;
+          report_text: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          organization_id?: string;
+          report_date?: string;
+          report_text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_history_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
             referencedRelation: "organizations";
             referencedColumns: ["id"];
           },
@@ -1210,6 +1245,63 @@ export type Database = {
           {
             foreignKeyName: "hr_candidate_status_history_changed_by_fkey";
             columns: ["changed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      hr_candidate_messages: {
+        Row: {
+          id: string;
+          organization_id: string;
+          candidate_id: string;
+          direction: string;
+          body: string | null;
+          attachment_url: string | null;
+          attachment_type: string | null;
+          location_lat: number | null;
+          location_lng: number | null;
+          sent_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          candidate_id: string;
+          direction: string;
+          body?: string | null;
+          attachment_url?: string | null;
+          attachment_type?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
+          sent_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          candidate_id?: string;
+          direction?: string;
+          body?: string | null;
+          attachment_url?: string | null;
+          attachment_type?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
+          sent_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_messages_candidate_id_fkey";
+            columns: ["candidate_id"];
+            isOneToOne: false;
+            referencedRelation: "hr_candidates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hr_candidate_messages_sent_by_fkey";
+            columns: ["sent_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];

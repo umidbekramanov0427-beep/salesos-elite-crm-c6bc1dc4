@@ -4,22 +4,43 @@
 // which bot an update came through when two bots share one webhook.
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { sendHrTelegramMessage } from "@/lib/telegram-report.server";
+import { sendHrTelegramMessage, rehostHrTelegramFile } from "@/lib/telegram-report.server";
 
 type TelegramUpdate = {
   message?: {
     text?: string;
     chat?: { id?: number; username?: string };
+    photo?: { file_id: string }[];
+    document?: { file_id: string; file_name?: string };
+    voice?: { file_id: string };
+    audio?: { file_id: string; file_name?: string };
+    location?: { latitude: number; longitude: number };
   };
 };
 
 // A job-posting link is `t.me/<hr-bot>?start=<token>`, which Telegram
 // delivers to the webhook as the literal message text "/start <token>".
+// A chat that has ever applied before (to this or any other vacancy) is
+// refused a second application -- see hr_candidates_telegram_chat_id_key.
 async function startHrApplication(
   chatId: number,
   token: string,
   username: string | undefined,
 ): Promise<void> {
+  const { data: existing } = await supabaseAdmin
+    .from("hr_candidates")
+    .select("id")
+    .eq("telegram_chat_id", chatId)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    await sendHrTelegramMessage(
+      chatId,
+      "Siz allaqachon ariza topshirgansiz. Har bir nomzod faqat bir marta ariza topshira oladi.",
+    ).catch(() => undefined);
+    return;
+  }
+
   const { data: vacancy } = await supabaseAdmin
     .from("hr_vacancies")
     .select("id, organization_id, title, active")
@@ -47,13 +68,23 @@ async function startHrApplication(
     return;
   }
 
-  await supabaseAdmin.from("hr_candidates").insert({
+  const { error: insertError } = await supabaseAdmin.from("hr_candidates").insert({
     organization_id: vacancy.organization_id,
     vacancy_id: vacancy.id,
     telegram_chat_id: chatId,
     telegram_username: username ?? null,
     current_question_position: 0,
   });
+  // 23505 = unique_violation -- a second /start slipped in before the
+  // pre-check above completed; treat it the same as the normal duplicate case.
+  if (insertError) {
+    const message =
+      insertError.code === "23505"
+        ? "Siz allaqachon ariza topshirgansiz. Har bir nomzod faqat bir marta ariza topshira oladi."
+        : "Arizangizni saqlab bo'lmadi. Iltimos, keyinroq qayta urinib ko'ring.";
+    await sendHrTelegramMessage(chatId, message).catch(() => undefined);
+    return;
+  }
 
   await sendHrTelegramMessage(
     chatId,
@@ -121,6 +152,73 @@ async function continueHrApplication(chatId: number, answerText: string): Promis
   return true;
 }
 
+// Once a candidate has finished the question flow, continueHrApplication no
+// longer matches their chat (its query only looks at open applications) --
+// any further message from them (text, photo, document, voice/audio, or a
+// shared location) is a chat reply, not an answer, and gets appended to
+// hr_candidate_messages so it shows up in the CRM's chat panel instead of
+// triggering the generic "this is the HR bot" reply below.
+async function logInboundMessage(
+  chatId: number,
+  message: NonNullable<TelegramUpdate["message"]>,
+): Promise<boolean> {
+  const { data: candidate } = await supabaseAdmin
+    .from("hr_candidates")
+    .select("id, organization_id")
+    .eq("telegram_chat_id", chatId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!candidate) return false;
+
+  const row: {
+    organization_id: string;
+    candidate_id: string;
+    direction: string;
+    body: string | null;
+    attachment_url?: string;
+    attachment_type?: "image" | "document" | "audio" | "location";
+    location_lat?: number;
+    location_lng?: number;
+  } = {
+    organization_id: candidate.organization_id,
+    candidate_id: candidate.id,
+    direction: "inbound",
+    body: message.text?.trim() || null,
+  };
+
+  try {
+    if (message.photo?.length) {
+      const largest = message.photo[message.photo.length - 1]!;
+      row.attachment_url = await rehostHrTelegramFile(largest.file_id, "jpg");
+      row.attachment_type = "image";
+    } else if (message.document) {
+      const ext = message.document.file_name?.split(".").pop() || "bin";
+      row.attachment_url = await rehostHrTelegramFile(message.document.file_id, ext);
+      row.attachment_type = "document";
+    } else if (message.voice) {
+      row.attachment_url = await rehostHrTelegramFile(message.voice.file_id, "ogg");
+      row.attachment_type = "audio";
+    } else if (message.audio) {
+      const ext = message.audio.file_name?.split(".").pop() || "mp3";
+      row.attachment_url = await rehostHrTelegramFile(message.audio.file_id, ext);
+      row.attachment_type = "audio";
+    } else if (message.location) {
+      row.attachment_type = "location";
+      row.location_lat = message.location.latitude;
+      row.location_lng = message.location.longitude;
+    }
+  } catch {
+    // Re-hosting failed -- still log whatever text came with it (if any)
+    // rather than silently dropping the whole message.
+  }
+
+  if (!row.body && !row.attachment_type) return true;
+
+  await supabaseAdmin.from("hr_candidate_messages").insert(row);
+  return true;
+}
+
 export const Route = createFileRoute("/telegram/hr-webhook")({
   server: {
     handlers: {
@@ -134,15 +232,19 @@ export const Route = createFileRoute("/telegram/hr-webhook")({
         const update = (await request.json().catch(() => ({}))) as TelegramUpdate;
         const chatId = update.message?.chat?.id;
         const rawText = update.message?.text ?? "";
-        if (!chatId) return Response.json({ ok: true });
+        if (!chatId || !update.message) return Response.json({ ok: true });
 
         const startMatch = rawText.match(/^\/start\s+(\S+)/);
         if (startMatch) {
-          await startHrApplication(chatId, startMatch[1]!, update.message?.chat?.username);
+          await startHrApplication(chatId, startMatch[1]!, update.message.chat?.username);
           return Response.json({ ok: true });
         }
 
         if (await continueHrApplication(chatId, rawText)) {
+          return Response.json({ ok: true });
+        }
+
+        if (await logInboundMessage(chatId, update.message)) {
           return Response.json({ ok: true });
         }
 

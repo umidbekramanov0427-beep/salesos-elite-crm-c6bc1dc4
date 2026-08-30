@@ -503,6 +503,7 @@ export function useUpdateDailyReportSettings() {
           | "manager_conversion_recommendations_enabled"
           | "manager_conversion_recommendation_criterion_ids"
           | "call_audio_mini_app_enabled"
+          | "google_sheets_url"
         >
       >,
     ) => {
@@ -537,6 +538,29 @@ export function useDailyReportPreview() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Hisobot namunasini yuklab bo'lmadi");
       return json;
+    },
+  });
+}
+
+export type DailyReportHistoryRow = Tables["daily_report_history"]["Row"];
+
+// The permanent, dated record of every day's full report the scheduled send
+// job saves -- lets the platform show "hisobotni sana bilan ko'rish" even
+// without opening Telegram.
+export function useDailyReportHistory() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["daily_report_history", user?.organizationId],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<DailyReportHistoryRow[]> => {
+      const { data, error } = await supabase
+        .from("daily_report_history")
+        .select("*")
+        .eq("organization_id", user!.organizationId!)
+        .order("report_date", { ascending: false })
+        .limit(90);
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }
@@ -5857,6 +5881,56 @@ export function useHrCandidates() {
   });
 }
 
+const HR_STATUS_LABELS: Record<HrCandidateStatus, string> = {
+  yangi: "Yangi",
+  korib_chiqilmoqda: "Ko'rib chiqilmoqda",
+  band_qilindi: "Band qilindi",
+  rad_etildi: "Rad etildi",
+};
+
+// Flattens every candidate's full application (base fields + each answer
+// under its own question-text column) into one row per candidate, for the
+// HR list's export button -- a separate query from useHrCandidates so the
+// list view itself doesn't pay for pulling every answer on every render.
+export function useHrCandidatesExportRows() {
+  return useQuery({
+    queryKey: ["hr_candidates_export"],
+    queryFn: async (): Promise<Record<string, unknown>[]> => {
+      const { data, error } = await supabase
+        .from("hr_candidates")
+        .select(
+          "*, hr_vacancies(title), hr_candidate_answers(answer_text, hr_questions(question, position))",
+        )
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      type Row = HrCandidateRow & {
+        hr_vacancies: { title: string } | null;
+        hr_candidate_answers: {
+          answer_text: string;
+          hr_questions: { question: string; position: number } | null;
+        }[];
+      };
+      return ((data ?? []) as unknown as Row[]).map((c) => {
+        const answers = [...c.hr_candidate_answers].sort(
+          (a, b) => (a.hr_questions?.position ?? 0) - (b.hr_questions?.position ?? 0),
+        );
+        const row: Record<string, unknown> = {
+          "Telegram username": c.telegram_username ? `@${c.telegram_username}` : "",
+          "Telegram chat ID": c.telegram_chat_id,
+          Vakansiya: c.hr_vacancies?.title ?? "",
+          Holat: HR_STATUS_LABELS[c.status as HrCandidateStatus] ?? c.status,
+          "Murojaat sanasi": c.created_at,
+          "Yakunlangan sanasi": c.completed_at ?? "",
+        };
+        for (const a of answers) {
+          if (a.hr_questions) row[a.hr_questions.question] = a.answer_text;
+        }
+        return row;
+      });
+    },
+  });
+}
+
 export type HrCandidateAnswerWithQuestion = HrCandidateAnswerRow & {
   hr_questions: { question: string; position: number } | null;
 };
@@ -5928,6 +6002,74 @@ export function useUpdateHrCandidateStatus() {
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ["hr_candidates"] });
       void qc.invalidateQueries({ queryKey: ["hr_candidate_detail", vars.candidateId] });
+    },
+  });
+}
+
+export type HrCandidateMessageRow = Tables["hr_candidate_messages"]["Row"];
+
+/** Polls while the chat panel is open so replies that arrive via the bot show up without a manual refresh. */
+export function useHrCandidateMessages(candidateId: string | null) {
+  return useQuery({
+    queryKey: ["hr_candidate_messages", candidateId],
+    enabled: !!candidateId,
+    refetchInterval: 4000,
+    queryFn: async (): Promise<HrCandidateMessageRow[]> => {
+      const { data, error } = await supabase
+        .from("hr_candidate_messages")
+        .select("*")
+        .eq("candidate_id", candidateId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export type HrChatAttachmentType = "image" | "document" | "audio" | "location";
+
+export function useSendHrCandidateMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      candidateId: string;
+      text?: string;
+      attachmentUrl?: string;
+      attachmentType?: HrChatAttachmentType;
+      locationLat?: number;
+      locationLng?: number;
+    }) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/hr/send-message", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Xabar yuborib bo'lmadi.");
+      return json;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["hr_candidate_messages", vars.candidateId] }),
+  });
+}
+
+/** Uploads a file the super_admin is about to send to a candidate; the resulting public URL is what Telegram fetches the attachment from. */
+export function useUploadHrChatAttachment() {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      const path = `${user!.id}/${crypto.randomUUID()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("hr-chat-attachments")
+        .upload(path, file, file.type ? { contentType: file.type } : {});
+      if (error) throw new Error(error.message);
+      const { data } = supabase.storage.from("hr-chat-attachments").getPublicUrl(path);
+      return data.publicUrl;
     },
   });
 }

@@ -52,11 +52,13 @@ import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analyt
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
+import { Route as DailyReportSettingsHistoryRouteImport } from './routes/daily-report-settings.history'
 import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-report-settings.preview'
 import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-report-settings.sections'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as HrCandidateIdRouteImport } from './routes/hr.$candidateId'
+import { Route as HrSendMessageRouteImport } from './routes/hr.send-message'
 import { Route as HrSettingsRouteImport } from './routes/hr.settings'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
@@ -309,6 +311,12 @@ const CrmDealsRoute = CrmDealsRouteImport.update({
   path: '/crm/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DailyReportSettingsHistoryRoute =
+  DailyReportSettingsHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => DailyReportSettingsRoute,
+  } as any)
 const DailyReportSettingsPreviewRoute =
   DailyReportSettingsPreviewRouteImport.update({
     id: '/preview',
@@ -334,6 +342,11 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
 const HrCandidateIdRoute = HrCandidateIdRouteImport.update({
   id: '/$candidateId',
   path: '/$candidateId',
+  getParentRoute: () => HrRoute,
+} as any)
+const HrSendMessageRoute = HrSendMessageRouteImport.update({
+  id: '/send-message',
+  path: '/send-message',
   getParentRoute: () => HrRoute,
 } as any)
 const HrSettingsRoute = HrSettingsRouteImport.update({
@@ -551,11 +564,13 @@ export interface FileRoutesByFullPath {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
@@ -633,11 +648,13 @@ export interface FileRoutesByTo {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
@@ -716,11 +733,13 @@ export interface FileRoutesById {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
@@ -800,11 +819,13 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
@@ -882,11 +903,13 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
@@ -964,11 +987,13 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
@@ -1362,6 +1387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmDealsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/daily-report-settings/history': {
+      id: '/daily-report-settings/history'
+      path: '/history'
+      fullPath: '/daily-report-settings/history'
+      preLoaderRoute: typeof DailyReportSettingsHistoryRouteImport
+      parentRoute: typeof DailyReportSettingsRoute
+    }
     '/daily-report-settings/preview': {
       id: '/daily-report-settings/preview'
       path: '/preview'
@@ -1395,6 +1427,13 @@ declare module '@tanstack/react-router' {
       path: '/$candidateId'
       fullPath: '/hr/$candidateId'
       preLoaderRoute: typeof HrCandidateIdRouteImport
+      parentRoute: typeof HrRoute
+    }
+    '/hr/send-message': {
+      id: '/hr/send-message'
+      path: '/send-message'
+      fullPath: '/hr/send-message'
+      preLoaderRoute: typeof HrSendMessageRouteImport
       parentRoute: typeof HrRoute
     }
     '/hr/settings': {
@@ -1697,11 +1736,13 @@ const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
 )
 
 interface DailyReportSettingsRouteChildren {
+  DailyReportSettingsHistoryRoute: typeof DailyReportSettingsHistoryRoute
   DailyReportSettingsPreviewRoute: typeof DailyReportSettingsPreviewRoute
   DailyReportSettingsSectionsRoute: typeof DailyReportSettingsSectionsRoute
 }
 
 const DailyReportSettingsRouteChildren: DailyReportSettingsRouteChildren = {
+  DailyReportSettingsHistoryRoute: DailyReportSettingsHistoryRoute,
   DailyReportSettingsPreviewRoute: DailyReportSettingsPreviewRoute,
   DailyReportSettingsSectionsRoute: DailyReportSettingsSectionsRoute,
 }
@@ -1723,11 +1764,13 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 interface HrRouteChildren {
   HrCandidateIdRoute: typeof HrCandidateIdRoute
+  HrSendMessageRoute: typeof HrSendMessageRoute
   HrSettingsRoute: typeof HrSettingsRoute
 }
 
 const HrRouteChildren: HrRouteChildren = {
   HrCandidateIdRoute: HrCandidateIdRoute,
+  HrSendMessageRoute: HrSendMessageRoute,
   HrSettingsRoute: HrSettingsRoute,
 }
 

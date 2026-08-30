@@ -953,6 +953,60 @@ function MiniAppAudioRules() {
   );
 }
 
+function GoogleSheetsUrlField() {
+  const { data: settings } = useDailyReportSettings();
+  const updateSettings = useUpdateDailyReportSettings();
+  const [url, setUrl] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (settings === undefined || hydrated) return;
+    setUrl(settings?.google_sheets_url ?? "");
+    setHydrated(true);
+  }, [settings, hydrated]);
+
+  async function save() {
+    try {
+      await updateSettings.mutateAsync({ google_sheets_url: url.trim() || null });
+      toast.success("Saqlandi.");
+    } catch (err) {
+      toast.error(errorMessage(err, "Saqlashda xatolik yuz berdi."));
+    }
+  }
+
+  return (
+    <div>
+      <span className="text-base font-semibold text-foreground">
+        Google Sheets bilan avtomatik sinxronlash
+      </span>
+      <p className="mt-1.5 text-sm text-subtle">
+        Har kuni yuboriladigan to'liq hisobot shu havoladagi jadvalga sana va matn ustunlari bilan
+        avtomatik qo'shiladi. Jadvalni "Muharrir" huquqi bilan platforma xizmat hisobiga ulashish
+        kerak — bu bir martalik texnik sozlash bo'lib, uni administratsiya bilan birga amalga
+        oshiramiz.
+      </p>
+      <div className="mt-3 flex gap-2">
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://docs.google.com/spreadsheets/d/..."
+          className="h-11 flex-1 rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+        />
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={updateSettings.isPending}
+          className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {updateSettings.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Saqlash
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AdvancedSettingsCard() {
   const { data: settings } = useDailyReportSettings();
   const updateSettings = useUpdateDailyReportSettings();
@@ -1027,6 +1081,10 @@ function AdvancedSettingsCard() {
             >
               {(settings?.call_audio_mini_app_enabled ?? false) && <MiniAppAudioRules />}
             </AdvancedToggleRow>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <GoogleSheetsUrlField />
           </div>
         </div>
       )}

@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { ChevronRight, Loader2, Settings2, ShieldAlert, Users } from "lucide-react";
-import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { PageHeader, SectionCard, Pill, ExportButton } from "@/components/layout/Primitives";
 import { useAuth } from "@/lib/auth";
 import { HR_STATUS_META } from "@/lib/hr-status";
 import {
   useHrCandidates,
+  useHrCandidatesExportRows,
   HR_CANDIDATE_STATUSES,
   type HrCandidateStatus,
 } from "@/hooks/use-crm-data";
@@ -34,6 +35,7 @@ function HrPage() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user } = useAuth();
   const { data: candidates, isLoading, error } = useHrCandidates();
+  const { data: exportRows } = useHrCandidatesExportRows();
   const [statusFilter, setStatusFilter] = useState<HrCandidateStatus | "all">("all");
   const rows = candidates ?? [];
   const counts = useMemo(() => {
@@ -70,12 +72,15 @@ function HrPage() {
         title="Kadrlar bo'limi"
         description="Telegram bot orqali vakansiyalarga tushgan nomzodlar va ularning javoblari."
         actions={
-          <Link
-            to="/hr/settings"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-          >
-            <Settings2 className="h-4 w-4" /> Vakansiyalar va savollar
-          </Link>
+          <div className="flex items-center gap-2">
+            <ExportButton filename="kadrlar-arizalari" rows={exportRows ?? []} />
+            <Link
+              to="/hr/settings"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            >
+              <Settings2 className="h-4 w-4" /> Vakansiyalar va savollar
+            </Link>
+          </div>
         }
       />
 
