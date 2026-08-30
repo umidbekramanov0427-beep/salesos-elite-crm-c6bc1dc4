@@ -57,6 +57,7 @@ import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
 import { Route as HrCandidateIdRouteImport } from './routes/hr.$candidateId'
+import { Route as HrSendMessageRouteImport } from './routes/hr.send-message'
 import { Route as HrSettingsRouteImport } from './routes/hr.settings'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
@@ -336,6 +337,11 @@ const HrCandidateIdRoute = HrCandidateIdRouteImport.update({
   path: '/$candidateId',
   getParentRoute: () => HrRoute,
 } as any)
+const HrSendMessageRoute = HrSendMessageRouteImport.update({
+  id: '/send-message',
+  path: '/send-message',
+  getParentRoute: () => HrRoute,
+} as any)
 const HrSettingsRoute = HrSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -556,6 +562,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
@@ -638,6 +645,7 @@ export interface FileRoutesByTo {
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
@@ -721,6 +729,7 @@ export interface FileRoutesById {
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/send-message': typeof HrSendMessageRoute
   '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
@@ -805,6 +814,7 @@ export interface FileRouteTypes {
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
@@ -887,6 +897,7 @@ export interface FileRouteTypes {
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
@@ -969,6 +980,7 @@ export interface FileRouteTypes {
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
     | '/hr/$candidateId'
+    | '/hr/send-message'
     | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
@@ -1397,6 +1409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HrCandidateIdRouteImport
       parentRoute: typeof HrRoute
     }
+    '/hr/send-message': {
+      id: '/hr/send-message'
+      path: '/send-message'
+      fullPath: '/hr/send-message'
+      preLoaderRoute: typeof HrSendMessageRouteImport
+      parentRoute: typeof HrRoute
+    }
     '/hr/settings': {
       id: '/hr/settings'
       path: '/settings'
@@ -1723,11 +1742,13 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 interface HrRouteChildren {
   HrCandidateIdRoute: typeof HrCandidateIdRoute
+  HrSendMessageRoute: typeof HrSendMessageRoute
   HrSettingsRoute: typeof HrSettingsRoute
 }
 
 const HrRouteChildren: HrRouteChildren = {
   HrCandidateIdRoute: HrCandidateIdRoute,
+  HrSendMessageRoute: HrSendMessageRoute,
   HrSettingsRoute: HrSettingsRoute,
 }
 

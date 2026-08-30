@@ -1,6 +1,14 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Clock, Loader2, MessageSquareText } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock,
+  Loader2,
+  MessageSquareText,
+  Phone,
+  Send,
+  MessageSquare,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import {
@@ -20,12 +28,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { HR_STATUS_META } from "@/lib/hr-status";
 import {
   useHrCandidateDetail,
   useUpdateHrCandidateStatus,
+  useHrCandidateMessages,
+  useSendHrCandidateMessage,
   HR_CANDIDATE_STATUSES,
   type HrCandidateStatus,
+  type HrCandidateAnswerWithQuestion,
 } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/hr/$candidateId")({
@@ -148,6 +160,102 @@ function ChangeStatusDialog({
   );
 }
 
+// No structured phone field is collected -- if the org asked a screening
+// question with "telefon" in its text, that answer is the closest thing to
+// one, so Call/SMS use it. No such question means no number to call/text.
+function findPhone(answers: HrCandidateAnswerWithQuestion[]): string | null {
+  const match = answers.find((a) => a.hr_questions?.question.toLowerCase().includes("telefon"));
+  return match?.answer_text.trim() || null;
+}
+
+function TelegramChatDialog({
+  candidateId,
+  candidateLabel,
+}: {
+  candidateId: string;
+  candidateLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: messages } = useHrCandidateMessages(open ? candidateId : null);
+  const sendMessage = useSendHrCandidateMessage();
+  const [text, setText] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [messages]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    try {
+      await sendMessage.mutateAsync({ candidateId, text: text.trim() });
+      setText("");
+    } catch (err) {
+      toast.error(errorMessage(err, "Xabar yuborib bo'lmadi."));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+        >
+          <Send className="h-4 w-4" /> Telegram
+        </button>
+      </DialogTrigger>
+      <DialogContent className="flex h-[70vh] max-w-lg flex-col">
+        <DialogHeader>
+          <DialogTitle>{candidateLabel} bilan chat</DialogTitle>
+        </DialogHeader>
+        <div
+          ref={scrollRef}
+          className="flex-1 space-y-2.5 overflow-y-auto rounded-xl bg-accent p-3"
+        >
+          {(messages ?? []).length === 0 && (
+            <p className="py-6 text-center text-sm text-subtle">Hali xabar yo'q.</p>
+          )}
+          {(messages ?? []).map((m) => (
+            <div
+              key={m.id}
+              className={cn(
+                "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
+                m.direction === "outbound"
+                  ? "ml-auto bg-primary text-primary-foreground"
+                  : "bg-background text-foreground",
+              )}
+            >
+              {m.body}
+            </div>
+          ))}
+        </div>
+        <form onSubmit={submit} className="flex gap-2 pt-3">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Xabar yozing..."
+            className="h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/40"
+          />
+          <button
+            type="submit"
+            disabled={sendMessage.isPending || !text.trim()}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {sendMessage.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function HrCandidateDetailPage() {
   const { candidateId } = Route.useParams();
   const { data, isLoading, error } = useHrCandidateDetail(candidateId);
@@ -182,7 +290,7 @@ function HrCandidateDetailPage() {
             }
             description={`Vakansiya: ${data.candidate.hr_vacancies?.title ?? "—"} · Murojaat: ${fmtDate(data.candidate.created_at)}`}
             actions={
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Pill
                   tone={
                     HR_STATUS_META[data.candidate.status as HrCandidateStatus]?.tone ?? "neutral"
@@ -191,6 +299,41 @@ function HrCandidateDetailPage() {
                   {HR_STATUS_META[data.candidate.status as HrCandidateStatus]?.label ??
                     data.candidate.status}
                 </Pill>
+                {(() => {
+                  const phone = findPhone(data.answers);
+                  return (
+                    <>
+                      <a
+                        href={phone ? `tel:${phone}` : undefined}
+                        title={phone ? `Qo'ng'iroq: ${phone}` : "Telefon raqami topilmadi"}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border border-border px-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent",
+                          !phone && "pointer-events-none opacity-40",
+                        )}
+                      >
+                        <Phone className="h-4 w-4" /> Qo'ng'iroq
+                      </a>
+                      <a
+                        href={phone ? `sms:${phone}` : undefined}
+                        title={phone ? `SMS: ${phone}` : "Telefon raqami topilmadi"}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border border-border px-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent",
+                          !phone && "pointer-events-none opacity-40",
+                        )}
+                      >
+                        <MessageSquare className="h-4 w-4" /> SMS
+                      </a>
+                    </>
+                  );
+                })()}
+                <TelegramChatDialog
+                  candidateId={data.candidate.id}
+                  candidateLabel={
+                    data.candidate.telegram_username
+                      ? `@${data.candidate.telegram_username}`
+                      : `Chat #${data.candidate.telegram_chat_id}`
+                  }
+                />
                 <ChangeStatusDialog
                   candidateId={data.candidate.id}
                   currentStatus={data.candidate.status}

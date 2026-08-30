@@ -121,6 +121,30 @@ async function continueHrApplication(chatId: number, answerText: string): Promis
   return true;
 }
 
+// Once a candidate has finished the question flow, continueHrApplication no
+// longer matches their chat (its query only looks at open applications) --
+// any further text from them is a chat reply, not an answer, and gets
+// appended to hr_candidate_messages so it shows up in the CRM's chat panel
+// instead of triggering the generic "this is the HR bot" reply below.
+async function logInboundMessage(chatId: number, text: string): Promise<boolean> {
+  const { data: candidate } = await supabaseAdmin
+    .from("hr_candidates")
+    .select("id, organization_id")
+    .eq("telegram_chat_id", chatId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!candidate) return false;
+
+  await supabaseAdmin.from("hr_candidate_messages").insert({
+    organization_id: candidate.organization_id,
+    candidate_id: candidate.id,
+    direction: "inbound",
+    body: text,
+  });
+  return true;
+}
+
 export const Route = createFileRoute("/telegram/hr-webhook")({
   server: {
     handlers: {
@@ -143,6 +167,10 @@ export const Route = createFileRoute("/telegram/hr-webhook")({
         }
 
         if (await continueHrApplication(chatId, rawText)) {
+          return Response.json({ ok: true });
+        }
+
+        if (await logInboundMessage(chatId, rawText)) {
           return Response.json({ ok: true });
         }
 

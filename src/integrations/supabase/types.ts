@@ -1216,6 +1216,51 @@ export type Database = {
           },
         ];
       };
+      hr_candidate_messages: {
+        Row: {
+          id: string;
+          organization_id: string;
+          candidate_id: string;
+          direction: string;
+          body: string;
+          sent_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          candidate_id: string;
+          direction: string;
+          body: string;
+          sent_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          candidate_id?: string;
+          direction?: string;
+          body?: string;
+          sent_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_messages_candidate_id_fkey";
+            columns: ["candidate_id"];
+            isOneToOne: false;
+            referencedRelation: "hr_candidates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hr_candidate_messages_sent_by_fkey";
+            columns: ["sent_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       hr_settings: {
         Row: {
           organization_id: string;

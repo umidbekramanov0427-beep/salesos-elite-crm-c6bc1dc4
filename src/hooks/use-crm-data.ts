@@ -5931,3 +5931,46 @@ export function useUpdateHrCandidateStatus() {
     },
   });
 }
+
+export type HrCandidateMessageRow = Tables["hr_candidate_messages"]["Row"];
+
+/** Polls while the chat panel is open so replies that arrive via the bot show up without a manual refresh. */
+export function useHrCandidateMessages(candidateId: string | null) {
+  return useQuery({
+    queryKey: ["hr_candidate_messages", candidateId],
+    enabled: !!candidateId,
+    refetchInterval: 4000,
+    queryFn: async (): Promise<HrCandidateMessageRow[]> => {
+      const { data, error } = await supabase
+        .from("hr_candidate_messages")
+        .select("*")
+        .eq("candidate_id", candidateId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useSendHrCandidateMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { candidateId: string; text: string }) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/hr/send-message", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Xabar yuborib bo'lmadi.");
+      return json;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["hr_candidate_messages", vars.candidateId] }),
+  });
+}
