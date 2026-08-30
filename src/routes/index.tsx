@@ -282,7 +282,8 @@ function Leaderboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.role === "platform_owner") void navigate({ to: "/platform", replace: true });
+    if (user?.role === "platform_owner")
+      void navigate({ to: "/platform/companies", replace: true });
   }, [user, navigate]);
 
   const routeSearch = Route.useSearch();

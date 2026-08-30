@@ -17,6 +17,7 @@ import {
   History,
   Bell,
   Target,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 
@@ -110,6 +111,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShieldCheck,
     adminOnly: true,
     iconColor: "text-red-500",
+  },
+  {
+    label: "Kompaniyalar",
+    to: "/platform/companies",
+    icon: LayoutGrid,
+    platformOwnerOnly: true,
+    iconColor: "text-emerald-500",
   },
   {
     label: "Platform",

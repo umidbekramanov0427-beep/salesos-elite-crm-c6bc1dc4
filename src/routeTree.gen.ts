@@ -60,6 +60,8 @@ import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
 import { Route as PlatformAddEmployeeRouteImport } from './routes/platform.add-employee'
 import { Route as PlatformAiRouteImport } from './routes/platform.ai'
+import { Route as PlatformCompaniesRouteImport } from './routes/platform.companies'
+import { Route as PlatformCompanyDirectoryRouteImport } from './routes/platform.company-directory'
 import { Route as PlatformCreateOrganizationRouteImport } from './routes/platform.create-organization'
 import { Route as PlatformDeactivateExpiredTrialsRouteImport } from './routes/platform.deactivate-expired-trials'
 import { Route as PlatformDeleteOrganizationRouteImport } from './routes/platform.delete-organization'
@@ -345,6 +347,17 @@ const PlatformAiRoute = PlatformAiRouteImport.update({
   path: '/platform/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformCompaniesRoute = PlatformCompaniesRouteImport.update({
+  id: '/platform/companies',
+  path: '/platform/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformCompanyDirectoryRoute =
+  PlatformCompanyDirectoryRouteImport.update({
+    id: '/platform/company-directory',
+    path: '/platform/company-directory',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const PlatformCreateOrganizationRoute =
   PlatformCreateOrganizationRouteImport.update({
     id: '/platform/create-organization',
@@ -521,6 +534,8 @@ export interface FileRoutesByFullPath {
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
+  '/platform/companies': typeof PlatformCompaniesRoute
+  '/platform/company-directory': typeof PlatformCompanyDirectoryRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
   '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
@@ -597,6 +612,8 @@ export interface FileRoutesByTo {
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
+  '/platform/companies': typeof PlatformCompaniesRoute
+  '/platform/company-directory': typeof PlatformCompanyDirectoryRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
   '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
@@ -674,6 +691,8 @@ export interface FileRoutesById {
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
   '/platform/ai': typeof PlatformAiRoute
+  '/platform/companies': typeof PlatformCompaniesRoute
+  '/platform/company-directory': typeof PlatformCompanyDirectoryRoute
   '/platform/create-organization': typeof PlatformCreateOrganizationRoute
   '/platform/deactivate-expired-trials': typeof PlatformDeactivateExpiredTrialsRoute
   '/platform/delete-organization': typeof PlatformDeleteOrganizationRoute
@@ -752,6 +771,8 @@ export interface FileRouteTypes {
     | '/platform/activity'
     | '/platform/add-employee'
     | '/platform/ai'
+    | '/platform/companies'
+    | '/platform/company-directory'
     | '/platform/create-organization'
     | '/platform/deactivate-expired-trials'
     | '/platform/delete-organization'
@@ -828,6 +849,8 @@ export interface FileRouteTypes {
     | '/platform/activity'
     | '/platform/add-employee'
     | '/platform/ai'
+    | '/platform/companies'
+    | '/platform/company-directory'
     | '/platform/create-organization'
     | '/platform/deactivate-expired-trials'
     | '/platform/delete-organization'
@@ -904,6 +927,8 @@ export interface FileRouteTypes {
     | '/platform/activity'
     | '/platform/add-employee'
     | '/platform/ai'
+    | '/platform/companies'
+    | '/platform/company-directory'
     | '/platform/create-organization'
     | '/platform/deactivate-expired-trials'
     | '/platform/delete-organization'
@@ -962,6 +987,8 @@ export interface RootRouteChildren {
   PlatformActivityRoute: typeof PlatformActivityRoute
   PlatformAddEmployeeRoute: typeof PlatformAddEmployeeRoute
   PlatformAiRoute: typeof PlatformAiRoute
+  PlatformCompaniesRoute: typeof PlatformCompaniesRoute
+  PlatformCompanyDirectoryRoute: typeof PlatformCompanyDirectoryRoute
   PlatformCreateOrganizationRoute: typeof PlatformCreateOrganizationRoute
   PlatformDeactivateExpiredTrialsRoute: typeof PlatformDeactivateExpiredTrialsRoute
   PlatformDeleteOrganizationRoute: typeof PlatformDeleteOrganizationRoute
@@ -1341,6 +1368,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/companies': {
+      id: '/platform/companies'
+      path: '/platform/companies'
+      fullPath: '/platform/companies'
+      preLoaderRoute: typeof PlatformCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/company-directory': {
+      id: '/platform/company-directory'
+      path: '/platform/company-directory'
+      fullPath: '/platform/company-directory'
+      preLoaderRoute: typeof PlatformCompanyDirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/platform/create-organization': {
       id: '/platform/create-organization'
       path: '/platform/create-organization'
@@ -1655,6 +1696,8 @@ const rootRouteChildren: RootRouteChildren = {
   PlatformActivityRoute: PlatformActivityRoute,
   PlatformAddEmployeeRoute: PlatformAddEmployeeRoute,
   PlatformAiRoute: PlatformAiRoute,
+  PlatformCompaniesRoute: PlatformCompaniesRoute,
+  PlatformCompanyDirectoryRoute: PlatformCompanyDirectoryRoute,
   PlatformCreateOrganizationRoute: PlatformCreateOrganizationRoute,
   PlatformDeactivateExpiredTrialsRoute: PlatformDeactivateExpiredTrialsRoute,
   PlatformDeleteOrganizationRoute: PlatformDeleteOrganizationRoute,
