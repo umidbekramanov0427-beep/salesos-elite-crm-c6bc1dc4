@@ -5823,7 +5823,9 @@ export function useUpdateHrSettings() {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<HrSettingsRow, "academy_channel_invite_link">>) => {
+    mutationFn: async (
+      patch: Partial<Pick<HrSettingsRow, "academy_channel_invite_link" | "telegram_bot_username">>,
+    ) => {
       const { data, error } = await supabase
         .from("hr_settings")
         .upsert(

@@ -9,8 +9,13 @@ function requireBotToken(): string {
   return token;
 }
 
-export async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
-  const token = requireBotToken();
+function requireHrBotToken(): string {
+  const token = process.env["TELEGRAM_HR_BOT_TOKEN"];
+  if (!token) throw new Error("Missing environment variable: TELEGRAM_HR_BOT_TOKEN");
+  return token;
+}
+
+async function sendViaBotToken(token: string, chatId: number, text: string): Promise<void> {
   // No default timeout on fetch() -- a stalled connection to Telegram used
   // to hang this call indefinitely, which is worse than it looks here since
   // this runs in a loop over every recipient in the scheduled daily-report
@@ -30,6 +35,18 @@ export async function sendTelegramMessage(chatId: number, text: string): Promise
     clearTimeout(timer);
   }
   if (!res.ok) throw new Error(`Telegram sendMessage failed (${res.status}): ${await res.text()}`);
+}
+
+export async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
+  await sendViaBotToken(requireBotToken(), chatId, text);
+}
+
+// Kadrlar bo'limi runs on its own, separate Telegram bot (a dedicated
+// @kadrlar_uchun_bot-style bot, not the reports/onboarding bot above) --
+// Telegram gives a webhook no way to tell which bot an update came through,
+// so two unrelated bots can never safely share one webhook route or token.
+export async function sendHrTelegramMessage(chatId: number, text: string): Promise<void> {
+  await sendViaBotToken(requireHrBotToken(), chatId, text);
 }
 
 export async function buildDailyReportText(organizationId: string): Promise<string> {

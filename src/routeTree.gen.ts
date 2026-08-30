@@ -74,6 +74,7 @@ import { Route as PlatformIntegrationsRouteImport } from './routes/platform.inte
 import { Route as PlatformNotificationsRouteImport } from './routes/platform.notifications'
 import { Route as PlatformUpdateUserRouteImport } from './routes/platform.update-user'
 import { Route as PlatformUsersRouteImport } from './routes/platform.users'
+import { Route as TelegramHrWebhookRouteImport } from './routes/telegram.hr-webhook'
 import { Route as TelegramLinkRouteImport } from './routes/telegram.link'
 import { Route as TelegramSendDailyReportRouteImport } from './routes/telegram.send-daily-report'
 import { Route as TelegramSendTestRouteImport } from './routes/telegram.send-test'
@@ -424,6 +425,11 @@ const PlatformUsersRoute = PlatformUsersRouteImport.update({
   path: '/platform/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TelegramHrWebhookRoute = TelegramHrWebhookRouteImport.update({
+  id: '/telegram/hr-webhook',
+  path: '/telegram/hr-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TelegramLinkRoute = TelegramLinkRouteImport.update({
   id: '/telegram/link',
   path: '/telegram/link',
@@ -566,6 +572,7 @@ export interface FileRoutesByFullPath {
   '/platform/notifications': typeof PlatformNotificationsRoute
   '/platform/update-user': typeof PlatformUpdateUserRoute
   '/platform/users': typeof PlatformUsersRoute
+  '/telegram/hr-webhook': typeof TelegramHrWebhookRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -647,6 +654,7 @@ export interface FileRoutesByTo {
   '/platform/notifications': typeof PlatformNotificationsRoute
   '/platform/update-user': typeof PlatformUpdateUserRoute
   '/platform/users': typeof PlatformUsersRoute
+  '/telegram/hr-webhook': typeof TelegramHrWebhookRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -729,6 +737,7 @@ export interface FileRoutesById {
   '/platform/notifications': typeof PlatformNotificationsRoute
   '/platform/update-user': typeof PlatformUpdateUserRoute
   '/platform/users': typeof PlatformUsersRoute
+  '/telegram/hr-webhook': typeof TelegramHrWebhookRoute
   '/telegram/link': typeof TelegramLinkRoute
   '/telegram/send-daily-report': typeof TelegramSendDailyReportRoute
   '/telegram/send-test': typeof TelegramSendTestRoute
@@ -812,6 +821,7 @@ export interface FileRouteTypes {
     | '/platform/notifications'
     | '/platform/update-user'
     | '/platform/users'
+    | '/telegram/hr-webhook'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -893,6 +903,7 @@ export interface FileRouteTypes {
     | '/platform/notifications'
     | '/platform/update-user'
     | '/platform/users'
+    | '/telegram/hr-webhook'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -974,6 +985,7 @@ export interface FileRouteTypes {
     | '/platform/notifications'
     | '/platform/update-user'
     | '/platform/users'
+    | '/telegram/hr-webhook'
     | '/telegram/link'
     | '/telegram/send-daily-report'
     | '/telegram/send-test'
@@ -1035,6 +1047,7 @@ export interface RootRouteChildren {
   PlatformNotificationsRoute: typeof PlatformNotificationsRoute
   PlatformUpdateUserRoute: typeof PlatformUpdateUserRoute
   PlatformUsersRoute: typeof PlatformUsersRoute
+  TelegramHrWebhookRoute: typeof TelegramHrWebhookRoute
   TelegramLinkRoute: typeof TelegramLinkRoute
   TelegramSendDailyReportRoute: typeof TelegramSendDailyReportRoute
   TelegramSendTestRoute: typeof TelegramSendTestRoute
@@ -1503,6 +1516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/telegram/hr-webhook': {
+      id: '/telegram/hr-webhook'
+      path: '/telegram/hr-webhook'
+      fullPath: '/telegram/hr-webhook'
+      preLoaderRoute: typeof TelegramHrWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/telegram/link': {
       id: '/telegram/link'
       path: '/telegram/link'
@@ -1778,6 +1798,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlatformNotificationsRoute: PlatformNotificationsRoute,
   PlatformUpdateUserRoute: PlatformUpdateUserRoute,
   PlatformUsersRoute: PlatformUsersRoute,
+  TelegramHrWebhookRoute: TelegramHrWebhookRoute,
   TelegramLinkRoute: TelegramLinkRoute,
   TelegramSendDailyReportRoute: TelegramSendDailyReportRoute,
   TelegramSendTestRoute: TelegramSendTestRoute,
