@@ -4783,6 +4783,23 @@ export function useSendTestReport() {
   });
 }
 
+export function useGenerateDailyReportNow() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (): Promise<{ sent: number; failed: number }> => {
+      const res = await authedFetch("/daily-report-settings/generate-now", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Hisobotni yaratib bo'lmadi.");
+      return json;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["daily_report_history", user?.organizationId] });
+      void qc.invalidateQueries({ queryKey: ["daily_report_preview", user?.organizationId] });
+    },
+  });
+}
+
 export function useSetTelegramBotUsername() {
   const qc = useQueryClient();
   const { user } = useAuth();

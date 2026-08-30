@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Bell, Calendar, FileText, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Bell, Calendar, FileText, Loader2, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { Switch } from "@/components/ui/switch";
-import { useDailyReportSettings, useUpdateDailyReportSettings } from "@/hooks/use-crm-data";
+import {
+  useDailyReportSettings,
+  useUpdateDailyReportSettings,
+  useGenerateDailyReportNow,
+} from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/daily-report-settings")({
   head: () => ({
@@ -61,6 +65,57 @@ function ToggleRow({
       <p className="mt-1.5 text-sm text-subtle">{description}</p>
       {children}
     </div>
+  );
+}
+
+// Deliberately gold/amber, not the platform's usual blue/violet accents --
+// this is a real, immediate action (sends real Telegram messages right
+// now), not a passive settings toggle, so it needs to read as important at
+// a glance rather than blend in with the cards around it.
+function GenerateNowCard() {
+  const generateNow = useGenerateDailyReportNow();
+
+  async function run() {
+    try {
+      const result = await generateNow.mutateAsync();
+      toast.success(
+        `Hisobot yaratildi va yuborildi. Yuborildi: ${result.sent}${result.failed ? `, xatolik: ${result.failed}` : ""}.`,
+      );
+    } catch (err) {
+      toast.error(errorMessage(err, "Hisobotni yaratib bo'lmadi."));
+    }
+  }
+
+  return (
+    <SectionCard className="border-amber-400/40 bg-amber-400/[0.06]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-500">
+            <Zap className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="text-base font-bold text-foreground">Hisobotni hoziroq yaratish</h3>
+            <p className="text-sm text-subtle">
+              Belgilangan yuborish vaqtini kutmasdan, bugungi to'liq hisobotni darhol yarating va
+              Super Admin, ROP hamda sotuv menejerlariga Telegram orqali yuboring.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={generateNow.isPending}
+          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-amber-500 px-5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {generateNow.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Zap className="h-4 w-4" />
+          )}
+          Hoziroq yaratish
+        </button>
+      </div>
+    </SectionCard>
   );
 }
 
@@ -136,6 +191,8 @@ function DailyReportSettingsPage() {
       )}
 
       <div className="grid gap-6">
+        <GenerateNowCard />
+
         <SectionCard>
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">

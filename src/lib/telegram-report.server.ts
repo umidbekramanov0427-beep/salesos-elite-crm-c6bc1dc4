@@ -164,15 +164,75 @@ function isWithinSendWindow(sendTime: string, windowMinutes: number): boolean {
 }
 
 /**
+ * Builds and delivers one org's full daily report unconditionally --
+ * ignores send_enabled/send_time/"already sent today" entirely (those
+ * gates live in the scheduled caller below). Saves it into
+ * daily_report_history (overwriting today's row if one exists), pushes it
+ * to the org's Google Sheet if configured, and sends it to every linked
+ * Super Admin/ROP (full report) and Sotuv menejeri (personal report).
+ * Shared by the scheduled sender and the "Hisobotni hoziroq yaratish"
+ * manual-trigger route, so the two can never drift apart.
+ */
+export async function sendDailyReportForOrg(
+  organizationId: string,
+): Promise<{ sent: number; failed: number }> {
+  const { text: fullText } = await buildFullDailyReport(organizationId);
+  const reportDate = tashkentDateString();
+
+  await supabaseAdmin
+    .from("daily_report_history")
+    .upsert(
+      { organization_id: organizationId, report_date: reportDate, report_text: fullText },
+      { onConflict: "organization_id,report_date" },
+    );
+
+  // Auto-push the same full report into the org's own Google Sheet, if its
+  // super_admin has entered one -- appendRowToGoogleSheet silently no-ops
+  // until a Google service account is configured on the server, so this
+  // is safe to always attempt.
+  const { data: reportSettings } = await supabaseAdmin
+    .from("daily_report_settings")
+    .select("google_sheets_url")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (reportSettings?.google_sheets_url) {
+    try {
+      await appendRowToGoogleSheet(reportSettings.google_sheets_url, [reportDate, fullText]);
+    } catch {
+      // Sheets push failing must never block the Telegram sends below.
+    }
+  }
+
+  const { data: recipients } = await supabaseAdmin
+    .from("profiles")
+    .select("id, telegram_chat_id, role")
+    .eq("organization_id", organizationId)
+    .not("telegram_chat_id", "is", null)
+    .in("role", ["super_admin", "rop", "sotuv_menejeri"]);
+
+  let sent = 0;
+  let failed = 0;
+  for (const r of recipients ?? []) {
+    if (!r.telegram_chat_id) continue;
+    try {
+      const text =
+        r.role === "sotuv_menejeri"
+          ? await buildPersonalDailyReport(organizationId, r.id)
+          : fullText;
+      await sendTelegramMessage(r.telegram_chat_id, text);
+      sent++;
+    } catch {
+      failed++;
+    }
+  }
+  return { sent, failed };
+}
+
+/**
  * Polled every few minutes (see the pg_cron migration); actually sends for
  * an org only once its own configured send_time comes around, and at most
  * once per org per day (daily_report_history doubles as the "already sent
- * today" guard). Super Admin and ROP get the full, fully-configured "Kunlik
- * hisobot" (identical to the "Hisobot namunasi" preview); each Sotuv
- * menejeri gets their own personal, self-scoped report instead of the full
- * company report. The full report is also saved into daily_report_history
- * and pushed to the org's Google Sheet (if configured) independent of
- * whether any Telegram send below succeeds.
+ * today" guard).
  */
 export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number; failed: number }> {
   const { data: orgs } = await supabaseAdmin.from("organizations").select("id").eq("active", true);
@@ -183,7 +243,7 @@ export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number;
   for (const org of orgs ?? []) {
     const { data: reportSettings } = await supabaseAdmin
       .from("daily_report_settings")
-      .select("send_enabled, send_time, google_sheets_url")
+      .select("send_enabled, send_time")
       .eq("organization_id", org.id)
       .maybeSingle();
     if (!(reportSettings?.send_enabled ?? true)) continue;
@@ -198,45 +258,9 @@ export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number;
 
     if (!isWithinSendWindow(reportSettings?.send_time ?? "23:50:00", 5)) continue;
 
-    const { text: fullText } = await buildFullDailyReport(org.id);
-
-    await supabaseAdmin
-      .from("daily_report_history")
-      .upsert(
-        { organization_id: org.id, report_date: reportDate, report_text: fullText },
-        { onConflict: "organization_id,report_date" },
-      );
-
-    // Auto-push the same full report into the org's own Google Sheet, if its
-    // super_admin has entered one -- appendRowToGoogleSheet silently no-ops
-    // until a Google service account is configured on the server, so this
-    // is safe to always attempt.
-    if (reportSettings?.google_sheets_url) {
-      try {
-        await appendRowToGoogleSheet(reportSettings.google_sheets_url, [reportDate, fullText]);
-      } catch {
-        // Sheets push failing must never block the Telegram sends below.
-      }
-    }
-
-    const { data: recipients } = await supabaseAdmin
-      .from("profiles")
-      .select("id, telegram_chat_id, role")
-      .eq("organization_id", org.id)
-      .not("telegram_chat_id", "is", null)
-      .in("role", ["super_admin", "rop", "sotuv_menejeri"]);
-
-    for (const r of recipients ?? []) {
-      if (!r.telegram_chat_id) continue;
-      try {
-        const text =
-          r.role === "sotuv_menejeri" ? await buildPersonalDailyReport(org.id, r.id) : fullText;
-        await sendTelegramMessage(r.telegram_chat_id, text);
-        sent++;
-      } catch {
-        failed++;
-      }
-    }
+    const result = await sendDailyReportForOrg(org.id);
+    sent += result.sent;
+    failed += result.failed;
   }
   return { sent, failed };
 }
