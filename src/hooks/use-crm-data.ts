@@ -5745,3 +5745,187 @@ export function useRecordStateAt() {
     },
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Kadrlar bo'limi -- HR recruiting. Vacancies each get their own       */
+/* Telegram bot deep-link token; a shared, ordered set of screening     */
+/* questions; candidates who came through the bot with their answers;   */
+/* and a status with a mandatory-reason history (see                    */
+/* telegram.webhook.ts for the bot side of this).                       */
+/* ------------------------------------------------------------------ */
+
+export type HrVacancyRow = Tables["hr_vacancies"]["Row"];
+export type HrQuestionRow = Tables["hr_questions"]["Row"];
+export type HrCandidateRow = Tables["hr_candidates"]["Row"];
+export type HrCandidateAnswerRow = Tables["hr_candidate_answers"]["Row"];
+export type HrCandidateStatusHistoryRow = Tables["hr_candidate_status_history"]["Row"];
+export type HrSettingsRow = Tables["hr_settings"]["Row"];
+
+export const HR_CANDIDATE_STATUSES = [
+  "yangi",
+  "korib_chiqilmoqda",
+  "band_qilindi",
+  "rad_etildi",
+] as const;
+export type HrCandidateStatus = (typeof HR_CANDIDATE_STATUSES)[number];
+
+function generateHrToken(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+}
+
+const hrVacanciesResource = makeResource("hr_vacancies", ["hr_vacancies"]);
+export const useHrVacancies = (opts?: Parameters<typeof hrVacanciesResource.useList>[0]) =>
+  hrVacanciesResource.useList({ orderBy: "created_at", ascending: false, ...opts });
+export const useUpdateHrVacancy = hrVacanciesResource.useUpdate;
+export const useDeleteHrVacancy = hrVacanciesResource.useRemove;
+
+export function useCreateHrVacancy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { title: string }): Promise<HrVacancyRow> => {
+      const { data, error } = await supabase
+        .from("hr_vacancies")
+        .insert({ title: input.title, telegram_start_token: generateHrToken() })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["hr_vacancies"] }),
+  });
+}
+
+const hrQuestionsResource = makeResource("hr_questions", ["hr_questions"]);
+export const useHrQuestions = (opts?: Parameters<typeof hrQuestionsResource.useList>[0]) =>
+  hrQuestionsResource.useList({ orderBy: "position", ...opts });
+export const useCreateHrQuestion = hrQuestionsResource.useCreate;
+export const useUpdateHrQuestion = hrQuestionsResource.useUpdate;
+export const useDeleteHrQuestion = hrQuestionsResource.useRemove;
+
+export function useHrSettings() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["hr_settings", user?.organizationId],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<HrSettingsRow | null> => {
+      const { data, error } = await supabase
+        .from("hr_settings")
+        .select("*")
+        .eq("organization_id", user!.organizationId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUpdateHrSettings() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: Partial<Pick<HrSettingsRow, "academy_channel_invite_link">>) => {
+      const { data, error } = await supabase
+        .from("hr_settings")
+        .upsert(
+          { organization_id: user!.organizationId!, ...patch },
+          { onConflict: "organization_id" },
+        )
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["hr_settings", user?.organizationId] }),
+  });
+}
+
+export type HrCandidateListRow = HrCandidateRow & { hr_vacancies: { title: string } | null };
+
+export function useHrCandidates() {
+  return useQuery({
+    queryKey: ["hr_candidates"],
+    queryFn: async (): Promise<HrCandidateListRow[]> => {
+      const { data, error } = await supabase
+        .from("hr_candidates")
+        .select("*, hr_vacancies(title)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as HrCandidateListRow[];
+    },
+  });
+}
+
+export type HrCandidateAnswerWithQuestion = HrCandidateAnswerRow & {
+  hr_questions: { question: string; position: number } | null;
+};
+export type HrCandidateStatusHistoryWithChanger = HrCandidateStatusHistoryRow & {
+  profiles: { full_name: string; email: string } | null;
+};
+
+export function useHrCandidateDetail(candidateId: string | null) {
+  return useQuery({
+    queryKey: ["hr_candidate_detail", candidateId],
+    enabled: !!candidateId,
+    queryFn: async (): Promise<{
+      candidate: HrCandidateListRow;
+      answers: HrCandidateAnswerWithQuestion[];
+      history: HrCandidateStatusHistoryWithChanger[];
+    }> => {
+      const [candidateRes, answersRes, historyRes] = await Promise.all([
+        supabase
+          .from("hr_candidates")
+          .select("*, hr_vacancies(title)")
+          .eq("id", candidateId!)
+          .single(),
+        supabase
+          .from("hr_candidate_answers")
+          .select("*, hr_questions(question, position)")
+          .eq("candidate_id", candidateId!),
+        supabase
+          .from("hr_candidate_status_history")
+          .select("*, profiles(full_name, email)")
+          .eq("candidate_id", candidateId!)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (candidateRes.error) throw candidateRes.error;
+      if (answersRes.error) throw answersRes.error;
+      if (historyRes.error) throw historyRes.error;
+      const answers = (answersRes.data ?? []) as unknown as HrCandidateAnswerWithQuestion[];
+      answers.sort((a, b) => (a.hr_questions?.position ?? 0) - (b.hr_questions?.position ?? 0));
+      return {
+        candidate: candidateRes.data as unknown as HrCandidateListRow,
+        answers,
+        history: (historyRes.data ?? []) as unknown as HrCandidateStatusHistoryWithChanger[],
+      };
+    },
+  });
+}
+
+export function useUpdateHrCandidateStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      candidateId: string;
+      status: HrCandidateStatus;
+      reason: string;
+    }) => {
+      const { data: auth } = await supabase.auth.getUser();
+      const { error: historyError } = await supabase.from("hr_candidate_status_history").insert({
+        candidate_id: input.candidateId,
+        status: input.status,
+        reason: input.reason,
+        changed_by: auth.user?.id ?? null,
+      });
+      if (historyError) throw historyError;
+      const { error: updateError } = await supabase
+        .from("hr_candidates")
+        .update({ status: input.status })
+        .eq("id", input.candidateId);
+      if (updateError) throw updateError;
+    },
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ["hr_candidates"] });
+      void qc.invalidateQueries({ queryKey: ["hr_candidate_detail", vars.candidateId] });
+    },
+  });
+}

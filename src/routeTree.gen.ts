@@ -20,6 +20,7 @@ import { Route as DailyReportRouteImport } from './routes/daily-report'
 import { Route as DailyReportSettingsRouteImport } from './routes/daily-report-settings'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FunnelsRouteImport } from './routes/funnels'
+import { Route as HrRouteImport } from './routes/hr'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as LeadAnalyticsRouteImport } from './routes/lead-analytics'
@@ -55,6 +56,8 @@ import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-r
 import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-report-settings.sections'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+import { Route as HrCandidateIdRouteImport } from './routes/hr.$candidateId'
+import { Route as HrSettingsRouteImport } from './routes/hr.settings'
 import { Route as NotificationsSendPushRouteImport } from './routes/notifications.send-push'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformActivityRouteImport } from './routes/platform.activity'
@@ -139,6 +142,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const FunnelsRoute = FunnelsRouteImport.update({
   id: '/funnels',
   path: '/funnels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HrRoute = HrRouteImport.update({
+  id: '/hr',
+  path: '/hr',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InboxRoute = InboxRouteImport.update({
@@ -322,6 +330,16 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
   path: '/errors/log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HrCandidateIdRoute = HrCandidateIdRouteImport.update({
+  id: '/$candidateId',
+  path: '/$candidateId',
+  getParentRoute: () => HrRoute,
+} as any)
+const HrSettingsRoute = HrSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => HrRoute,
+} as any)
 const NotificationsSendPushRoute = NotificationsSendPushRouteImport.update({
   id: '/notifications/send-push',
   path: '/notifications/send-push',
@@ -495,6 +513,7 @@ export interface FileRoutesByFullPath {
   '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
+  '/hr': typeof HrRouteWithChildren
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-analytics': typeof LeadAnalyticsRoute
@@ -530,6 +549,8 @@ export interface FileRoutesByFullPath {
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
@@ -573,6 +594,7 @@ export interface FileRoutesByTo {
   '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
+  '/hr': typeof HrRouteWithChildren
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-analytics': typeof LeadAnalyticsRoute
@@ -608,6 +630,8 @@ export interface FileRoutesByTo {
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
@@ -652,6 +676,7 @@ export interface FileRoutesById {
   '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/funnels': typeof FunnelsRoute
+  '/hr': typeof HrRouteWithChildren
   '/inbox': typeof InboxRoute
   '/integrations': typeof IntegrationsRouteWithChildren
   '/lead-analytics': typeof LeadAnalyticsRoute
@@ -687,6 +712,8 @@ export interface FileRoutesById {
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/hr/$candidateId': typeof HrCandidateIdRoute
+  '/hr/settings': typeof HrSettingsRoute
   '/notifications/send-push': typeof NotificationsSendPushRoute
   '/platform/activity': typeof PlatformActivityRoute
   '/platform/add-employee': typeof PlatformAddEmployeeRoute
@@ -732,6 +759,7 @@ export interface FileRouteTypes {
     | '/daily-report-settings'
     | '/dashboard'
     | '/funnels'
+    | '/hr'
     | '/inbox'
     | '/integrations'
     | '/lead-analytics'
@@ -767,6 +795,8 @@ export interface FileRouteTypes {
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/hr/$candidateId'
+    | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
     | '/platform/add-employee'
@@ -810,6 +840,7 @@ export interface FileRouteTypes {
     | '/daily-report-settings'
     | '/dashboard'
     | '/funnels'
+    | '/hr'
     | '/inbox'
     | '/integrations'
     | '/lead-analytics'
@@ -845,6 +876,8 @@ export interface FileRouteTypes {
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/hr/$candidateId'
+    | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
     | '/platform/add-employee'
@@ -888,6 +921,7 @@ export interface FileRouteTypes {
     | '/daily-report-settings'
     | '/dashboard'
     | '/funnels'
+    | '/hr'
     | '/inbox'
     | '/integrations'
     | '/lead-analytics'
@@ -923,6 +957,8 @@ export interface FileRouteTypes {
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/hr/$candidateId'
+    | '/hr/settings'
     | '/notifications/send-push'
     | '/platform/activity'
     | '/platform/add-employee'
@@ -967,6 +1003,7 @@ export interface RootRouteChildren {
   DailyReportSettingsRoute: typeof DailyReportSettingsRouteWithChildren
   DashboardRoute: typeof DashboardRouteWithChildren
   FunnelsRoute: typeof FunnelsRoute
+  HrRoute: typeof HrRouteWithChildren
   InboxRoute: typeof InboxRoute
   IntegrationsRoute: typeof IntegrationsRouteWithChildren
   LeadAnalyticsRoute: typeof LeadAnalyticsRoute
@@ -1086,6 +1123,13 @@ declare module '@tanstack/react-router' {
       path: '/funnels'
       fullPath: '/funnels'
       preLoaderRoute: typeof FunnelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hr': {
+      id: '/hr'
+      path: '/hr'
+      fullPath: '/hr'
+      preLoaderRoute: typeof HrRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inbox': {
@@ -1332,6 +1376,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/errors/log'
       preLoaderRoute: typeof ErrorsLogRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/hr/$candidateId': {
+      id: '/hr/$candidateId'
+      path: '/$candidateId'
+      fullPath: '/hr/$candidateId'
+      preLoaderRoute: typeof HrCandidateIdRouteImport
+      parentRoute: typeof HrRoute
+    }
+    '/hr/settings': {
+      id: '/hr/settings'
+      path: '/settings'
+      fullPath: '/hr/settings'
+      preLoaderRoute: typeof HrSettingsRouteImport
+      parentRoute: typeof HrRoute
     }
     '/notifications/send-push': {
       id: '/notifications/send-push'
@@ -1643,6 +1701,18 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface HrRouteChildren {
+  HrCandidateIdRoute: typeof HrCandidateIdRoute
+  HrSettingsRoute: typeof HrSettingsRoute
+}
+
+const HrRouteChildren: HrRouteChildren = {
+  HrCandidateIdRoute: HrCandidateIdRoute,
+  HrSettingsRoute: HrSettingsRoute,
+}
+
+const HrRouteWithChildren = HrRoute._addFileChildren(HrRouteChildren)
+
 interface IntegrationsRouteChildren {
   IntegrationsAmocrmCallbackRoute: typeof IntegrationsAmocrmCallbackRoute
   IntegrationsAmocrmConnectRoute: typeof IntegrationsAmocrmConnectRoute
@@ -1675,6 +1745,7 @@ const rootRouteChildren: RootRouteChildren = {
   DailyReportSettingsRoute: DailyReportSettingsRouteWithChildren,
   DashboardRoute: DashboardRouteWithChildren,
   FunnelsRoute: FunnelsRoute,
+  HrRoute: HrRouteWithChildren,
   InboxRoute: InboxRoute,
   IntegrationsRoute: IntegrationsRouteWithChildren,
   LeadAnalyticsRoute: LeadAnalyticsRoute,

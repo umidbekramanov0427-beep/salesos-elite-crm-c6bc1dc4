@@ -18,6 +18,7 @@ import {
   Bell,
   Target,
   LayoutGrid,
+  UserSearch,
   type LucideIcon,
 } from "lucide-react";
 
@@ -111,6 +112,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShieldCheck,
     adminOnly: true,
     iconColor: "text-red-500",
+  },
+  {
+    label: "Kadrlar bo'limi",
+    to: "/hr",
+    icon: UserSearch,
+    adminOnly: true,
+    iconColor: "text-emerald-500",
   },
   {
     label: "Kompaniyalar",
