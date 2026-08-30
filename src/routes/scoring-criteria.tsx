@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Check,
   FileText,
@@ -294,12 +295,12 @@ function RubricStepRow({
   }
 
   return (
-    <li className="rounded-lg border border-border bg-background px-3 py-2.5 text-xs">
+    <li className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-foreground">{step.name}</span>
+          <span className="text-base font-semibold text-foreground">{step.name}</span>
           {step.code && (
-            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-subtle">
+            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-subtle">
               {step.code}
             </span>
           )}
@@ -339,8 +340,8 @@ function RubricStepRow({
           </span>
         )}
       </div>
-      {step.description && <p className="mt-1 text-subtle">{step.description}</p>}
-      <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+      {step.description && <p className="mt-1 text-sm text-subtle">{step.description}</p>}
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {(
           [
             ["0", step.level_0_desc],
@@ -350,10 +351,10 @@ function RubricStepRow({
           ] as const
         ).map(([n, text]) => (
           <div key={n} className="flex items-start gap-2">
-            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
               {n}
             </span>
-            <span className="text-subtle">{text}</span>
+            <span className="text-sm text-subtle">{text}</span>
           </div>
         ))}
       </div>
@@ -854,7 +855,7 @@ function IntakeQuestionsTab() {
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
         <div>
-          <p className="mb-1 text-xs font-medium text-subtle">Xizmat yo'nalishi</p>
+          <p className="mb-1 text-sm font-medium text-subtle">Xizmat yo'nalishi</p>
           <select
             value={filterLineId}
             onChange={(e) => setFilterLineId(e.target.value)}
@@ -2249,6 +2250,12 @@ function ScoringCriteriaPage() {
 
   return (
     <>
+      <Link
+        to="/settings"
+        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Sozlamalar bo'limiga qaytish
+      </Link>
       <PageHeader
         title="Baholash mezoni"
         description="AI qo'ng'iroq tahlili qanday ishlashini shu yerdan sozlang: mezonlar, savollar, yo'riqnomalar."

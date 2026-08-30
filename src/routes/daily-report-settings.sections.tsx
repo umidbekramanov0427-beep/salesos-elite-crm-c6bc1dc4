@@ -845,9 +845,9 @@ function ReportSamplePreview() {
             const [header, ...rest] = block.split("\n");
             return (
               <div key={i} className="border-l-2 border-primary/40 pl-3">
-                <p className="text-base font-semibold text-foreground">{header}</p>
+                <p className="text-lg font-semibold text-foreground">{header}</p>
                 {rest.map((line, j) => (
-                  <p key={j} className="whitespace-pre-wrap text-sm text-subtle">
+                  <p key={j} className="whitespace-pre-wrap text-base text-subtle">
                     {line}
                   </p>
                 ))}

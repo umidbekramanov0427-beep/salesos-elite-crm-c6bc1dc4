@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   Bell,
   ChevronDown,
   ChevronUp,
@@ -128,7 +129,7 @@ function ManagerConversionCriteria({
                 onChange={(e) => toggle(s.id, e.target.checked)}
                 className="h-4 w-4 rounded border-border accent-primary"
               />
-              <span className="text-sm text-foreground">
+              <span className="text-base text-foreground">
                 {s.code ? `${s.code} — ` : ""}
                 {s.name}
               </span>
@@ -191,7 +192,7 @@ function MiniAppAudioRules() {
     <div className="mt-4 space-y-4 rounded-xl border border-border bg-background p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="text-[13px] font-medium text-muted-foreground">Voronka tanlang</span>
+          <span className="text-sm font-medium text-muted-foreground">Voronka tanlang</span>
           <select
             value={funnel}
             onChange={(e) => setFunnel(e.target.value)}
@@ -206,9 +207,7 @@ function MiniAppAudioRules() {
           </select>
         </label>
         <div>
-          <span className="text-[13px] font-medium text-muted-foreground">
-            Bosqichlarni tanlang
-          </span>
+          <span className="text-sm font-medium text-muted-foreground">Bosqichlarni tanlang</span>
           <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-border bg-accent p-2">
             {(stages ?? []).length === 0 && (
               <p className="px-2 py-1 text-sm text-subtle">Bosqichlarni tanlang</p>
@@ -224,7 +223,7 @@ function MiniAppAudioRules() {
                   onChange={(e) => toggleStage(s.id, e.target.checked)}
                   className="h-4 w-4 rounded border-border accent-primary"
                 />
-                <span className="text-sm text-foreground">{s.name}</span>
+                <span className="text-base text-foreground">{s.name}</span>
               </label>
             ))}
           </div>
@@ -332,6 +331,12 @@ function DailyReportSettingsPage() {
 
   return (
     <>
+      <Link
+        to="/settings"
+        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Sozlamalar bo'limiga qaytish
+      </Link>
       <PageHeader
         title="Kunlik hisobot sozlamalari"
         description="Har kuni avtomatik hisobot yuborishni sozlang."
@@ -423,7 +428,7 @@ function DailyReportSettingsPage() {
               onToggle={setTaskDueReminderEnabled}
             >
               <div className="mt-3 max-w-xs">
-                <span className="text-[13px] font-medium text-muted-foreground">
+                <span className="text-sm font-medium text-muted-foreground">
                   Muddatdan necha daqiqa oldin
                 </span>
                 <input
