@@ -137,24 +137,69 @@ export async function rehostHrTelegramFile(fileId: string, extHint: string): Pro
   return pub.publicUrl;
 }
 
+// Every org's send time is entered and shown as a Tashkent wall-clock time
+// (the platform's one supported business timezone, same assumption the
+// original fixed 23:50 cron already made) -- these convert between that and
+// the UTC clock this server actually runs on.
+function tashkentNow(): Date {
+  return new Date(Date.now() + 5 * 60 * 60 * 1000);
+}
+
+function tashkentDateString(): string {
+  return tashkentNow().toISOString().slice(0, 10);
+}
+
+// The scheduler (see the pg_cron migration) polls this endpoint every few
+// minutes rather than once at a single fixed time, so every org's own
+// configured send_time can be honored -- this is true once `nowMinutes`
+// lands inside [target, target + windowMinutes) of that org's send_time,
+// wrapping past midnight.
+function isWithinSendWindow(sendTime: string, windowMinutes: number): boolean {
+  const [h, m] = sendTime.split(":").map(Number);
+  const targetMinutes = (h ?? 0) * 60 + (m ?? 0);
+  const now = tashkentNow();
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const diff = (nowMinutes - targetMinutes + 1440) % 1440;
+  return diff < windowMinutes;
+}
+
 /**
- * Runs once daily across every active company. Super Admin and ROP get the
- * full, fully-configured "Kunlik hisobot" (identical to the "Hisobot
- * namunasi" preview); each Sotuv menejeri gets their own personal,
- * self-scoped report instead of the full company report. The full report is
- * also saved into daily_report_history once per org per day, independent of
- * whether any Telegram send below succeeds, so it's always viewable by date
- * inside the platform itself.
+ * Polled every few minutes (see the pg_cron migration); actually sends for
+ * an org only once its own configured send_time comes around, and at most
+ * once per org per day (daily_report_history doubles as the "already sent
+ * today" guard). Super Admin and ROP get the full, fully-configured "Kunlik
+ * hisobot" (identical to the "Hisobot namunasi" preview); each Sotuv
+ * menejeri gets their own personal, self-scoped report instead of the full
+ * company report. The full report is also saved into daily_report_history
+ * and pushed to the org's Google Sheet (if configured) independent of
+ * whether any Telegram send below succeeds.
  */
 export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number; failed: number }> {
   const { data: orgs } = await supabaseAdmin.from("organizations").select("id").eq("active", true);
 
   let sent = 0;
   let failed = 0;
+  const reportDate = tashkentDateString();
   for (const org of orgs ?? []) {
+    const { data: reportSettings } = await supabaseAdmin
+      .from("daily_report_settings")
+      .select("send_enabled, send_time, google_sheets_url")
+      .eq("organization_id", org.id)
+      .maybeSingle();
+    if (!(reportSettings?.send_enabled ?? true)) continue;
+
+    const { data: alreadySent } = await supabaseAdmin
+      .from("daily_report_history")
+      .select("id")
+      .eq("organization_id", org.id)
+      .eq("report_date", reportDate)
+      .maybeSingle();
+    if (alreadySent) continue;
+
+    if (!isWithinSendWindow(reportSettings?.send_time ?? "23:50:00", 5)) continue;
+
     const { text: fullText } = await buildFullDailyReport(org.id);
 
-    const reportDate = new Date().toISOString().slice(0, 10);
     await supabaseAdmin
       .from("daily_report_history")
       .upsert(
@@ -166,11 +211,6 @@ export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number;
     // super_admin has entered one -- appendRowToGoogleSheet silently no-ops
     // until a Google service account is configured on the server, so this
     // is safe to always attempt.
-    const { data: reportSettings } = await supabaseAdmin
-      .from("daily_report_settings")
-      .select("google_sheets_url")
-      .eq("organization_id", org.id)
-      .maybeSingle();
     if (reportSettings?.google_sheets_url) {
       try {
         await appendRowToGoogleSheet(reportSettings.google_sheets_url, [reportDate, fullText]);
