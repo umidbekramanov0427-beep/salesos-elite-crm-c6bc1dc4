@@ -847,6 +847,7 @@ export type Database = {
           call_audio_mini_app_enabled: boolean;
           created_at: string;
           crm_activity_enabled: boolean;
+          google_sheets_url: string | null;
           id: string;
           intake_question_ids: string[] | null;
           intake_questions_enabled: boolean;
@@ -877,6 +878,7 @@ export type Database = {
           call_audio_mini_app_enabled?: boolean;
           created_at?: string;
           crm_activity_enabled?: boolean;
+          google_sheets_url?: string | null;
           id?: string;
           intake_question_ids?: string[] | null;
           intake_questions_enabled?: boolean;
@@ -907,6 +909,7 @@ export type Database = {
           call_audio_mini_app_enabled?: boolean;
           created_at?: string;
           crm_activity_enabled?: boolean;
+          google_sheets_url?: string | null;
           id?: string;
           intake_question_ids?: string[] | null;
           intake_questions_enabled?: boolean;
@@ -938,6 +941,38 @@ export type Database = {
             foreignKeyName: "daily_report_settings_organization_id_fkey";
             columns: ["organization_id"];
             isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      daily_report_history: {
+        Row: {
+          created_at: string;
+          id: string;
+          organization_id: string;
+          report_date: string;
+          report_text: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          organization_id: string;
+          report_date: string;
+          report_text: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          organization_id?: string;
+          report_date?: string;
+          report_text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_history_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
             referencedRelation: "organizations";
             referencedColumns: ["id"];
           },

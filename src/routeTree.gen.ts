@@ -52,6 +52,7 @@ import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analyt
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
+import { Route as DailyReportSettingsHistoryRouteImport } from './routes/daily-report-settings.history'
 import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-report-settings.preview'
 import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-report-settings.sections'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
@@ -310,6 +311,12 @@ const CrmDealsRoute = CrmDealsRouteImport.update({
   path: '/crm/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DailyReportSettingsHistoryRoute =
+  DailyReportSettingsHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => DailyReportSettingsRoute,
+  } as any)
 const DailyReportSettingsPreviewRoute =
   DailyReportSettingsPreviewRouteImport.update({
     id: '/preview',
@@ -557,6 +564,7 @@ export interface FileRoutesByFullPath {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
@@ -640,6 +648,7 @@ export interface FileRoutesByTo {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
@@ -724,6 +733,7 @@ export interface FileRoutesById {
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
+  '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
@@ -809,6 +819,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
@@ -892,6 +903,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
@@ -975,6 +987,7 @@ export interface FileRouteTypes {
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
+    | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
@@ -1374,6 +1387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmDealsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/daily-report-settings/history': {
+      id: '/daily-report-settings/history'
+      path: '/history'
+      fullPath: '/daily-report-settings/history'
+      preLoaderRoute: typeof DailyReportSettingsHistoryRouteImport
+      parentRoute: typeof DailyReportSettingsRoute
+    }
     '/daily-report-settings/preview': {
       id: '/daily-report-settings/preview'
       path: '/preview'
@@ -1716,11 +1736,13 @@ const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
 )
 
 interface DailyReportSettingsRouteChildren {
+  DailyReportSettingsHistoryRoute: typeof DailyReportSettingsHistoryRoute
   DailyReportSettingsPreviewRoute: typeof DailyReportSettingsPreviewRoute
   DailyReportSettingsSectionsRoute: typeof DailyReportSettingsSectionsRoute
 }
 
 const DailyReportSettingsRouteChildren: DailyReportSettingsRouteChildren = {
+  DailyReportSettingsHistoryRoute: DailyReportSettingsHistoryRoute,
   DailyReportSettingsPreviewRoute: DailyReportSettingsPreviewRoute,
   DailyReportSettingsSectionsRoute: DailyReportSettingsSectionsRoute,
 }

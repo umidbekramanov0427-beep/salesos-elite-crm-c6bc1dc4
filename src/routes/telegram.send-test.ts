@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestUserId } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { buildDailyReportText, sendTelegramMessage } from "@/lib/telegram-report.server";
+import { sendTelegramMessage } from "@/lib/telegram-report.server";
+import { buildFullDailyReport, buildPersonalDailyReport } from "@/lib/daily-report-builder.server";
 
 export const Route = createFileRoute("/telegram/send-test")({
   server: {
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/telegram/send-test")({
 
         const { data: profile } = await supabaseAdmin
           .from("profiles")
-          .select("telegram_chat_id, organization_id")
+          .select("telegram_chat_id, organization_id, role")
           .eq("id", userId)
           .maybeSingle();
         if (!profile?.telegram_chat_id) {
@@ -23,7 +24,10 @@ export const Route = createFileRoute("/telegram/send-test")({
         }
 
         try {
-          const text = await buildDailyReportText(profile.organization_id);
+          const text =
+            profile.role === "sotuv_menejeri"
+              ? await buildPersonalDailyReport(profile.organization_id, userId)
+              : (await buildFullDailyReport(profile.organization_id)).text;
           await sendTelegramMessage(profile.telegram_chat_id, text);
           return Response.json({ ok: true });
         } catch (err) {

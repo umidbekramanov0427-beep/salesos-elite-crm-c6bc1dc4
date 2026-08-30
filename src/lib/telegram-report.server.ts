@@ -2,6 +2,8 @@
 // Telegram Bot API. Used by both the scheduled send and the "send test"
 // button, so the two never drift apart.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { buildFullDailyReport, buildPersonalDailyReport } from "@/lib/daily-report-builder.server";
+import { appendRowToGoogleSheet } from "@/lib/google-sheets.server";
 
 function requireBotToken(): string {
   const token = process.env["TELEGRAM_BOT_TOKEN"];
@@ -135,128 +137,60 @@ export async function rehostHrTelegramFile(fileId: string, extHint: string): Pro
   return pub.publicUrl;
 }
 
-export async function buildDailyReportText(organizationId: string): Promise<string> {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-
-  const [profilesRes, leadsRes, stagesRes, sessionsRes, callsRes] = await Promise.all([
-    supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, email, role, monthly_target")
-      .eq("organization_id", organizationId),
-    // Revenue used to come from `deals` — but this AmoCRM-synced setup
-    // never populates that table (leads carry the real revenue), so the
-    // report's revenue lines were always 0. Read won leads instead, same
-    // as the rest of the app. Leads have no close_date, so updated_at is
-    // used as a "when it closed" proxy (no per-lead stage-history to read
-    // instead in this schema).
-    supabaseAdmin
-      .from("leads")
-      .select("owner_id, expected_revenue, updated_at, stage_id")
-      .eq("organization_id", organizationId),
-    supabaseAdmin
-      .from("pipeline_stages")
-      .select("id, is_won")
-      .eq("organization_id", organizationId),
-    supabaseAdmin
-      .from("work_sessions")
-      .select("profile_id, clock_in")
-      .eq("organization_id", organizationId),
-    supabaseAdmin
-      .from("call_logs")
-      .select("profile_id, created_at")
-      .eq("organization_id", organizationId),
-  ]);
-
-  const profiles = profilesRes.data ?? [];
-  const leads = leadsRes.data ?? [];
-  const wonStageIds = new Set((stagesRes.data ?? []).filter((s) => s.is_won).map((s) => s.id));
-  const sessions = sessionsRes.data ?? [];
-  const calls = callsRes.data ?? [];
-
-  const reps = profiles.filter(
-    (p) => (p.role !== "super_admin" && p.role !== "platform_owner") || profiles.length === 1,
-  );
-
-  let revenueToday = 0;
-  let revenueMonth = 0;
-  let behindCount = 0;
-  let topName = "";
-  let topRevenue = 0;
-
-  for (const p of reps) {
-    const won = leads.filter(
-      (l) => l.owner_id === p.id && l.stage_id && wonStageIds.has(l.stage_id),
-    );
-    const today = won
-      .filter((l) => new Date(l.updated_at) >= startOfToday)
-      .reduce((s, l) => s + Number(l.expected_revenue), 0);
-    const month = won
-      .filter((l) => new Date(l.updated_at) >= startOfMonth)
-      .reduce((s, l) => s + Number(l.expected_revenue), 0);
-    revenueToday += today;
-    revenueMonth += month;
-    if (today > topRevenue) {
-      topRevenue = today;
-      topName = p.full_name || p.email;
-    }
-    const monthlyTarget = p.monthly_target;
-    if (monthlyTarget && monthlyTarget > 0) {
-      const dayOfMonth = new Date().getDate();
-      const daysInMonth = new Date(
-        startOfToday.getFullYear(),
-        startOfToday.getMonth() + 1,
-        0,
-      ).getDate();
-      const expectedByNow = monthlyTarget * (dayOfMonth / daysInMonth);
-      if (month < expectedByNow * 0.6) behindCount++;
-    }
-  }
-
-  const clockedInToday = new Set(
-    sessions.filter((s) => new Date(s.clock_in) >= startOfToday).map((s) => s.profile_id),
-  ).size;
-  const callsToday = calls.filter((c) => new Date(c.created_at) >= startOfToday).length;
-
-  const dateLabel = new Date().toLocaleDateString("uz-UZ", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
-  const lines = [
-    `📊 <b>Kunlik hisobot — ${dateLabel}</b>`,
-    "",
-    `💰 Bugungi tushum: <b>${revenueToday.toLocaleString("en-US")}</b>`,
-    `📈 Shu oy tushumi: <b>${revenueMonth.toLocaleString("en-US")}</b>`,
-    `🔴 Oylik rejadan orqada: <b>${behindCount}</b> kishi`,
-    topName ? `🏆 Kun yetakchisi: <b>${topName}</b> (${topRevenue.toLocaleString("en-US")})` : "",
-    `✅ Ishga chiqqanlar: <b>${clockedInToday}</b>/${reps.length}`,
-    `📞 Jami qo‘ng‘iroqlar: <b>${callsToday}</b>`,
-  ].filter(Boolean);
-
-  return lines.join("\n");
-}
-
-/** Runs once daily across every active company, each getting its own report. */
+/**
+ * Runs once daily across every active company. Super Admin and ROP get the
+ * full, fully-configured "Kunlik hisobot" (identical to the "Hisobot
+ * namunasi" preview); each Sotuv menejeri gets their own personal,
+ * self-scoped report instead of the full company report. The full report is
+ * also saved into daily_report_history once per org per day, independent of
+ * whether any Telegram send below succeeds, so it's always viewable by date
+ * inside the platform itself.
+ */
 export async function sendDailyReportToLinkedManagers(): Promise<{ sent: number; failed: number }> {
   const { data: orgs } = await supabaseAdmin.from("organizations").select("id").eq("active", true);
 
   let sent = 0;
   let failed = 0;
   for (const org of orgs ?? []) {
-    const text = await buildDailyReportText(org.id);
+    const { text: fullText } = await buildFullDailyReport(org.id);
+
+    const reportDate = new Date().toISOString().slice(0, 10);
+    await supabaseAdmin
+      .from("daily_report_history")
+      .upsert(
+        { organization_id: org.id, report_date: reportDate, report_text: fullText },
+        { onConflict: "organization_id,report_date" },
+      );
+
+    // Auto-push the same full report into the org's own Google Sheet, if its
+    // super_admin has entered one -- appendRowToGoogleSheet silently no-ops
+    // until a Google service account is configured on the server, so this
+    // is safe to always attempt.
+    const { data: reportSettings } = await supabaseAdmin
+      .from("daily_report_settings")
+      .select("google_sheets_url")
+      .eq("organization_id", org.id)
+      .maybeSingle();
+    if (reportSettings?.google_sheets_url) {
+      try {
+        await appendRowToGoogleSheet(reportSettings.google_sheets_url, [reportDate, fullText]);
+      } catch {
+        // Sheets push failing must never block the Telegram sends below.
+      }
+    }
+
     const { data: recipients } = await supabaseAdmin
       .from("profiles")
       .select("id, telegram_chat_id, role")
       .eq("organization_id", org.id)
       .not("telegram_chat_id", "is", null)
-      .in("role", ["super_admin", "rop"]);
+      .in("role", ["super_admin", "rop", "sotuv_menejeri"]);
 
     for (const r of recipients ?? []) {
       if (!r.telegram_chat_id) continue;
       try {
+        const text =
+          r.role === "sotuv_menejeri" ? await buildPersonalDailyReport(org.id, r.id) : fullText;
         await sendTelegramMessage(r.telegram_chat_id, text);
         sent++;
       } catch {
