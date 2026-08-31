@@ -11,7 +11,6 @@ export type StageRow = Tables["pipeline_stages"]["Row"];
 export type CompanyRow = Tables["companies"]["Row"];
 export type ContactRow = Tables["contacts"]["Row"];
 export type LeadRow = Tables["leads"]["Row"];
-export type DealRow = Tables["deals"]["Row"];
 export type TaskRow = Tables["tasks"]["Row"];
 export type TaskCommentRow = Tables["task_comments"]["Row"];
 export type NotificationRow = Tables["notifications"]["Row"];
@@ -155,7 +154,6 @@ function makeResource<TableName extends keyof Tables>(table: TableName, queryKey
 const companiesResource = makeResource("companies", ["companies"]);
 const contactsResource = makeResource("contacts", ["contacts"]);
 const leadsResource = makeResource("leads", ["leads"]);
-const dealsResource = makeResource("deals", ["deals"]);
 const tasksResource = makeResource("tasks", ["tasks"]);
 const profilesResource = makeResource("profiles", ["profiles"]);
 const stagesResource = makeResource("pipeline_stages", ["pipeline_stages"]);
@@ -234,12 +232,6 @@ export function useUpdateLead() {
     },
   });
 }
-
-export const useDealsRaw = (opts?: Parameters<typeof dealsResource.useList>[0]) =>
-  dealsResource.useList({ orderBy: "created_at", ascending: false, ...opts });
-export const useCreateDeal = dealsResource.useCreate;
-export const useUpdateDeal = dealsResource.useUpdate;
-export const useDeleteDeal = dealsResource.useRemove;
 
 export const useTasksRaw = (opts?: Parameters<typeof tasksResource.useList>[0]) =>
   tasksResource.useList({ orderBy: "due_date", ascending: true, ...opts });
@@ -676,7 +668,6 @@ export function useCrmBase(options?: { enabled?: boolean }) {
   const companies = useCompaniesRaw({ enabled });
   const contacts = useContactsRaw({ enabled });
   const leads = useLeadsRaw({ enabled });
-  const deals = useDealsRaw({ enabled });
   const stages = usePipelineStagesRaw({ enabled });
   const profiles = useProfilesRaw({ enabled });
   const visibleOwnerIds = useVisibleOwnerIds();
@@ -685,16 +676,10 @@ export function useCrmBase(options?: { enabled?: boolean }) {
     companies.isLoading ||
     contacts.isLoading ||
     leads.isLoading ||
-    deals.isLoading ||
     stages.isLoading ||
     profiles.isLoading;
   const isError =
-    companies.isError ||
-    contacts.isError ||
-    leads.isError ||
-    deals.isError ||
-    stages.isError ||
-    profiles.isError;
+    companies.isError || contacts.isError || leads.isError || stages.isError || profiles.isError;
 
   // sotuv_menejeri only works their own pipeline; rop works their team's.
   // Managers/reps are gone as roles, but the same scoping now applies to
@@ -706,19 +691,11 @@ export function useCrmBase(options?: { enabled?: boolean }) {
         : (leads.data ?? []),
     [leads.data, visibleOwnerIds],
   );
-  const scopedDeals = useMemo(
-    () =>
-      visibleOwnerIds
-        ? (deals.data ?? []).filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
-        : (deals.data ?? []),
-    [deals.data, visibleOwnerIds],
-  );
 
   return {
     companies: companies.data ?? [],
     contacts: contacts.data ?? [],
     leads: scopedLeads,
-    deals: scopedDeals,
     stages: stages.data ?? [],
     profiles: profiles.data ?? [],
     isLoading,
@@ -2004,8 +1981,6 @@ export type CompanyView = {
   city: string;
   owner: string;
   contacts: number;
-  deals: number;
-  openValue: number;
   createdAtRaw: string;
 };
 
@@ -2016,10 +1991,6 @@ export function useCompaniesView() {
     const profilesById = byId(base.profiles);
     return base.companies.map((c): CompanyView => {
       const contactCount = base.contacts.filter((ct) => ct.company_id === c.id).length;
-      const companyDeals = base.deals.filter((d) => d.company_id === c.id);
-      const openValue = companyDeals
-        .filter((d) => d.status === "open")
-        .reduce((sum, d) => sum + Number(d.value), 0);
       const owner = c.owner_id ? profilesById.get(c.owner_id) : undefined;
       return {
         id: c.id,
@@ -2032,12 +2003,10 @@ export function useCompaniesView() {
         city: c.city ?? "",
         owner: owner ? profileName(owner) : "Unassigned",
         contacts: contactCount,
-        deals: companyDeals.length,
-        openValue,
         createdAtRaw: c.created_at,
       };
     });
-  }, [base.companies, base.contacts, base.deals, base.profiles]);
+  }, [base.companies, base.contacts, base.profiles]);
 
   return { rows, ...base };
 }
@@ -2058,7 +2027,6 @@ export type ContactView = {
   telegram: string;
   whatsapp: string;
   birthday: string;
-  deals: number;
   tasks: number;
   createdAtRaw: string;
 };
@@ -2070,7 +2038,6 @@ export function useContactsView() {
     const companiesById = byId(base.companies);
     return base.contacts.map((ct): ContactView => {
       const company = ct.company_id ? companiesById.get(ct.company_id) : undefined;
-      const dealsCount = base.deals.filter((d) => d.contact_id === ct.id).length;
       const leadIds = new Set(base.leads.filter((l) => l.contact_id === ct.id).map((l) => l.id));
       return {
         id: ct.id,
@@ -2084,76 +2051,11 @@ export function useContactsView() {
         telegram: ct.telegram ?? "",
         whatsapp: ct.whatsapp ?? "",
         birthday: ct.birthday ? formatDate(ct.birthday) : "—",
-        deals: dealsCount,
         tasks: leadIds.size,
         createdAtRaw: ct.created_at,
       };
     });
-  }, [base.contacts, base.companies, base.deals, base.leads]);
-
-  return { rows, ...base };
-}
-
-/* ------------------------------------------------------------------ */
-/* View: Deals                                                         */
-/* ------------------------------------------------------------------ */
-
-export type DealView = {
-  id: string;
-  name: string;
-  company: string;
-  companyId: string;
-  value: number;
-  currency: string;
-  probability: number;
-  closeDate: string;
-  owner: string;
-  ownerId: string;
-  stage: string;
-  stageId: string;
-  pipeline: string;
-  status: DealRow["status"];
-  products: number;
-  discount: number;
-  tax: number;
-  closeDateRaw: string | null;
-  createdAtRaw: string;
-};
-
-export function useDealsView() {
-  const base = useCrmBase();
-
-  const rows = useMemo<DealView[]>(() => {
-    const companiesById = byId(base.companies);
-    const profilesById = byId(base.profiles);
-    const stagesById = byId(base.stages);
-    return base.deals.map((d): DealView => {
-      const company = d.company_id ? companiesById.get(d.company_id) : undefined;
-      const owner = d.owner_id ? profilesById.get(d.owner_id) : undefined;
-      const stage = d.stage_id ? stagesById.get(d.stage_id) : undefined;
-      return {
-        id: d.id,
-        name: d.name,
-        company: company?.name ?? "",
-        companyId: d.company_id ?? "",
-        value: Number(d.value),
-        currency: d.currency,
-        probability: d.probability,
-        closeDate: formatDate(d.close_date),
-        owner: owner ? profileName(owner) : "Unassigned",
-        ownerId: d.owner_id ?? "",
-        stage: stage?.name ?? "",
-        stageId: d.stage_id ?? "",
-        pipeline: d.pipeline ?? "",
-        status: d.status,
-        products: d.products_count,
-        discount: Number(d.discount),
-        tax: Number(d.tax),
-        closeDateRaw: d.close_date,
-        createdAtRaw: d.created_at,
-      };
-    });
-  }, [base.deals, base.companies, base.profiles, base.stages]);
+  }, [base.contacts, base.companies, base.leads]);
 
   return { rows, ...base };
 }
@@ -3057,230 +2959,6 @@ export function useFunnelFlow(funnel: string | null) {
       return { stage: s.name, count, conversion: Math.round((count / base) * 1000) / 10 };
     });
   }, [funnel, board.stages, board.rows]);
-}
-
-export type DashboardKpi = {
-  id: string;
-  label: string;
-  value: string;
-  comparison: string;
-  tooltip: string;
-};
-
-// Assumed baseline win rate used to project pipeline revenue when nothing
-// unusual is known about a lead — matches the "normal conversion" the user
-// asked this KPI to reason in terms of, rather than a raw sum of deal value.
-const NORMAL_CONVERSION_RATE = 0.15;
-
-export type DashboardFilters = {
-  from: string | null;
-  to: string | null;
-  funnel: string | null;
-  minAmount?: number | null;
-  maxAmount?: number | null;
-};
-
-type DashboardKpiValues = {
-  revenueToday: number;
-  revenueMonth: number;
-  pipelineValue: number;
-  openDealsCount: number;
-  newLeadsToday: number;
-  wonThisWeek: number;
-  lostThisWeek: number;
-  conversion: number;
-};
-
-const EMPTY_DASHBOARD_KPIS: DashboardKpiValues = {
-  revenueToday: 0,
-  revenueMonth: 0,
-  pipelineValue: 0,
-  openDealsCount: 0,
-  newLeadsToday: 0,
-  wonThisWeek: 0,
-  lostThisWeek: 0,
-  conversion: 0,
-};
-
-// Live path (the default -- no overrides passed) used to pull the whole
-// org's leads + deals + stages client-side just to reduce them into these
-// eight numbers. dashboard_kpis computes the same numbers in Postgres.
-// The as-of-date override path still reduces client-side below, since that
-// snapshot only exists in memory (reconstructed from the audit trail) and
-// is small by nature -- there's nothing in the database to query it from.
-function useDashboardKpisLive(
-  filters: DashboardFilters | undefined,
-  enabled: boolean,
-): DashboardKpiValues {
-  const { user } = useAuth();
-  const from = filters?.from ?? null;
-  const to = filters?.to ?? null;
-  const funnel = filters?.funnel ?? null;
-  const minAmount = filters?.minAmount ?? null;
-  const maxAmount = filters?.maxAmount ?? null;
-
-  const query = useQuery({
-    queryKey: ["dashboard_kpis", user?.organizationId, from, to, funnel, minAmount, maxAmount],
-    enabled: enabled && !!user?.organizationId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .rpc("dashboard_kpis", {
-          p_from: from,
-          p_to: to,
-          p_funnel: funnel,
-          p_min_amount: minAmount,
-          p_max_amount: maxAmount,
-        })
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const d = query.data;
-  if (!d) return EMPTY_DASHBOARD_KPIS;
-  return {
-    revenueToday: Number(d.revenue_today ?? 0),
-    revenueMonth: Number(d.revenue_month ?? 0),
-    pipelineValue: Number(d.pipeline_value ?? 0),
-    openDealsCount: Number(d.open_deals_count ?? 0),
-    newLeadsToday: Number(d.new_leads_today ?? 0),
-    wonThisWeek: Number(d.won_this_week ?? 0),
-    lostThisWeek: Number(d.lost_this_week ?? 0),
-    conversion: Number(d.conversion ?? 0),
-  };
-}
-
-function useDashboardKpisFromOverride(
-  filters: DashboardFilters | undefined,
-  overrides: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
-): DashboardKpiValues {
-  const { data: stages } = usePipelineStagesRaw();
-  const visibleOwnerIds = useVisibleOwnerIds();
-  const deals = useMemo(() => {
-    const rows = overrides.deals ?? [];
-    return visibleOwnerIds
-      ? rows.filter((d) => !!d.owner_id && visibleOwnerIds.has(d.owner_id))
-      : rows;
-  }, [overrides.deals, visibleOwnerIds]);
-  const leads = useMemo(() => {
-    const rows = overrides.leads ?? [];
-    return visibleOwnerIds
-      ? rows.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
-      : rows;
-  }, [overrides.leads, visibleOwnerIds]);
-
-  return useMemo(() => {
-    const from = filters?.from ?? null;
-    const to = filters?.to ?? null;
-    const funnel = filters?.funnel ?? null;
-    const minAmount = filters?.minAmount ?? null;
-    const maxAmount = filters?.maxAmount ?? null;
-
-    // The funnel filter narrows every card to that funnel's data; the date
-    // range narrows which leads count toward lead-driven metrics (new
-    // leads, pipeline projection, conversion). Revenue/won/lost cards keep
-    // their own literal today/week/month windows regardless of the date
-    // filter — "today's revenue" always means today, not an arbitrary range.
-    const leadRows = (leads ?? []).filter((l) => {
-      if (from && l.created_at < from) return false;
-      if (to && l.created_at > to) return false;
-      if (funnel && (l.funnel || "Direct Sales") !== funnel) return false;
-      if (minAmount != null && l.expected_revenue < minAmount) return false;
-      if (maxAmount != null && l.expected_revenue > maxAmount) return false;
-      return true;
-    });
-    const leadsById = byId(leads);
-    const dealRows = (deals ?? []).filter((d) => {
-      if (funnel) {
-        const lead = d.lead_id ? leadsById.get(d.lead_id) : undefined;
-        if ((lead?.funnel || "Direct Sales") !== funnel) return false;
-      }
-      if (minAmount != null && Number(d.value) < minAmount) return false;
-      if (maxAmount != null && Number(d.value) > maxAmount) return false;
-      return true;
-    });
-    const stagesById = byId(stages);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-    const weekAgo = Date.now() - 7 * 86400000;
-
-    const wonToday = dealRows.filter(
-      (d) => d.status === "won" && d.close_date && new Date(d.close_date) >= startOfToday,
-    );
-    const wonThisMonth = dealRows.filter(
-      (d) => d.status === "won" && d.close_date && new Date(d.close_date) >= startOfMonth,
-    );
-    const openDeals = dealRows.filter((d) => d.status === "open");
-    const wonThisWeek = dealRows.filter(
-      (d) => d.status === "won" && d.close_date && new Date(d.close_date).getTime() >= weekAgo,
-    );
-    const lostThisWeek = dealRows.filter(
-      (d) => d.status === "lost" && new Date(d.updated_at).getTime() >= weekAgo,
-    );
-    const newLeadsToday = leadRows.filter((l) => new Date(l.created_at) >= startOfToday);
-    const wonLeadsTotal = dealRows.filter((d) => d.status === "won").length;
-    const conversion = leadRows.length ? (wonLeadsTotal / leadRows.length) * 100 : 0;
-
-    const revenueToday = wonToday.reduce((s, d) => s + Number(d.value), 0);
-    const revenueMonth = wonThisMonth.reduce((s, d) => s + Number(d.value), 0);
-
-    // Pipeline value = expected revenue if the leads currently sitting in
-    // the pipeline close at a normal 15% conversion rate, i.e.
-    // openLeads * 0.15 * average revenue per real sale — not a raw sum of
-    // every open lead's optimistic expected_revenue.
-    const openLeads = leadRows.filter((l) => {
-      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-      return !stage?.is_won && !stage?.is_lost;
-    });
-    const wonLeads = leadRows.filter((l) => {
-      const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
-      return stage?.is_won;
-    });
-    const avgDealValue = wonLeads.length
-      ? wonLeads.reduce((s, l) => s + l.expected_revenue, 0) / wonLeads.length
-      : openLeads.length
-        ? openLeads.reduce((s, l) => s + l.expected_revenue, 0) / openLeads.length
-        : 0;
-    const pipelineValue = Math.round(openLeads.length * NORMAL_CONVERSION_RATE * avgDealValue);
-
-    return {
-      revenueToday,
-      revenueMonth,
-      pipelineValue,
-      openDealsCount: openLeads.length,
-      newLeadsToday: newLeadsToday.length,
-      wonThisWeek: wonThisWeek.length,
-      lostThisWeek: lostThisWeek.length,
-      conversion,
-    };
-  }, [
-    deals,
-    leads,
-    stages,
-    filters?.from,
-    filters?.to,
-    filters?.funnel,
-    filters?.minAmount,
-    filters?.maxAmount,
-  ]);
-}
-
-export function useDashboardKpis(
-  filters?: DashboardFilters,
-  overrides?: { leads?: LeadRow[] | undefined; deals?: DealRow[] | undefined },
-): DashboardKpiValues {
-  const useOverride = !!(overrides?.leads || overrides?.deals);
-  // Both branches are hooks, so both always run (React's rules of hooks) --
-  // only the relevant one's result is used, same pattern as useCrmLeads'
-  // as-of-date handling.
-  const live = useDashboardKpisLive(filters, !useOverride);
-  const overridden = useDashboardKpisFromOverride(filters, {
-    leads: useOverride ? overrides?.leads : [],
-    deals: useOverride ? overrides?.deals : [],
-  });
-  return useOverride ? overridden : live;
 }
 
 export type ActivityItem = {

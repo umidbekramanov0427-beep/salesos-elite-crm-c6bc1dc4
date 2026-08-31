@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
-import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
 import { Route as ContentLibraryRouteImport } from './routes/content-library'
@@ -53,7 +52,6 @@ import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analyt
 import { Route as AudioAnalyticsAnalyzePendingRouteImport } from './routes/audio-analytics.analyze-pending'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
-import { Route as CrmDealsRouteImport } from './routes/crm.deals'
 import { Route as DailyReportSettingsGenerateNowRouteImport } from './routes/daily-report-settings.generate-now'
 import { Route as DailyReportSettingsHistoryRouteImport } from './routes/daily-report-settings.history'
 import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-report-settings.preview'
@@ -109,11 +107,6 @@ const AdminRoute = AdminRouteImport.update({
 const AiAssistantRoute = AiAssistantRouteImport.update({
   id: '/ai-assistant',
   path: '/ai-assistant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AlertsRoute = AlertsRouteImport.update({
-  id: '/alerts',
-  path: '/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AttendanceRoute = AttendanceRouteImport.update({
@@ -319,11 +312,6 @@ const CrmCompaniesRoute = CrmCompaniesRouteImport.update({
 const CrmContactsRoute = CrmContactsRouteImport.update({
   id: '/crm/contacts',
   path: '/crm/contacts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CrmDealsRoute = CrmDealsRouteImport.update({
-  id: '/crm/deals',
-  path: '/crm/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DailyReportSettingsGenerateNowRoute =
@@ -550,7 +538,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
-  '/alerts': typeof AlertsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/content-library': typeof ContentLibraryRoute
@@ -591,7 +578,6 @@ export interface FileRoutesByFullPath {
   '/audio-analytics/analyze-pending': typeof AudioAnalyticsAnalyzePendingRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
-  '/crm/deals': typeof CrmDealsRoute
   '/daily-report-settings/generate-now': typeof DailyReportSettingsGenerateNowRoute
   '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
@@ -638,7 +624,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
-  '/alerts': typeof AlertsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/content-library': typeof ContentLibraryRoute
@@ -679,7 +664,6 @@ export interface FileRoutesByTo {
   '/audio-analytics/analyze-pending': typeof AudioAnalyticsAnalyzePendingRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
-  '/crm/deals': typeof CrmDealsRoute
   '/daily-report-settings/generate-now': typeof DailyReportSettingsGenerateNowRoute
   '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
@@ -727,7 +711,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/ai-assistant': typeof AiAssistantRouteWithChildren
-  '/alerts': typeof AlertsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
   '/content-library': typeof ContentLibraryRoute
@@ -768,7 +751,6 @@ export interface FileRoutesById {
   '/audio-analytics/analyze-pending': typeof AudioAnalyticsAnalyzePendingRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
-  '/crm/deals': typeof CrmDealsRoute
   '/daily-report-settings/generate-now': typeof DailyReportSettingsGenerateNowRoute
   '/daily-report-settings/history': typeof DailyReportSettingsHistoryRoute
   '/daily-report-settings/preview': typeof DailyReportSettingsPreviewRoute
@@ -817,7 +799,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-assistant'
-    | '/alerts'
     | '/attendance'
     | '/audio-analytics'
     | '/content-library'
@@ -858,7 +839,6 @@ export interface FileRouteTypes {
     | '/audio-analytics/analyze-pending'
     | '/crm/companies'
     | '/crm/contacts'
-    | '/crm/deals'
     | '/daily-report-settings/generate-now'
     | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
@@ -905,7 +885,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-assistant'
-    | '/alerts'
     | '/attendance'
     | '/audio-analytics'
     | '/content-library'
@@ -946,7 +925,6 @@ export interface FileRouteTypes {
     | '/audio-analytics/analyze-pending'
     | '/crm/companies'
     | '/crm/contacts'
-    | '/crm/deals'
     | '/daily-report-settings/generate-now'
     | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
@@ -993,7 +971,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-assistant'
-    | '/alerts'
     | '/attendance'
     | '/audio-analytics'
     | '/content-library'
@@ -1034,7 +1011,6 @@ export interface FileRouteTypes {
     | '/audio-analytics/analyze-pending'
     | '/crm/companies'
     | '/crm/contacts'
-    | '/crm/deals'
     | '/daily-report-settings/generate-now'
     | '/daily-report-settings/history'
     | '/daily-report-settings/preview'
@@ -1082,7 +1058,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AiAssistantRoute: typeof AiAssistantRouteWithChildren
-  AlertsRoute: typeof AlertsRoute
   AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
   ContentLibraryRoute: typeof ContentLibraryRoute
@@ -1106,7 +1081,6 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   CrmCompaniesRoute: typeof CrmCompaniesRoute
   CrmContactsRoute: typeof CrmContactsRoute
-  CrmDealsRoute: typeof CrmDealsRoute
   ErrorsLogRoute: typeof ErrorsLogRoute
   NotificationsSendPushRoute: typeof NotificationsSendPushRoute
   PlatformActivityRoute: typeof PlatformActivityRoute
@@ -1156,13 +1130,6 @@ declare module '@tanstack/react-router' {
       path: '/ai-assistant'
       fullPath: '/ai-assistant'
       preLoaderRoute: typeof AiAssistantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/alerts': {
-      id: '/alerts'
-      path: '/alerts'
-      fullPath: '/alerts'
-      preLoaderRoute: typeof AlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/attendance': {
@@ -1443,13 +1410,6 @@ declare module '@tanstack/react-router' {
       path: '/crm/contacts'
       fullPath: '/crm/contacts'
       preLoaderRoute: typeof CrmContactsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm/deals': {
-      id: '/crm/deals'
-      path: '/crm/deals'
-      fullPath: '/crm/deals'
-      preLoaderRoute: typeof CrmDealsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/daily-report-settings/generate-now': {
@@ -1885,7 +1845,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AiAssistantRoute: AiAssistantRouteWithChildren,
-  AlertsRoute: AlertsRoute,
   AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
   ContentLibraryRoute: ContentLibraryRoute,
@@ -1910,7 +1869,6 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   CrmCompaniesRoute: CrmCompaniesRoute,
   CrmContactsRoute: CrmContactsRoute,
-  CrmDealsRoute: CrmDealsRoute,
   ErrorsLogRoute: ErrorsLogRoute,
   NotificationsSendPushRoute: NotificationsSendPushRoute,
   PlatformActivityRoute: PlatformActivityRoute,

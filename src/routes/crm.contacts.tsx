@@ -84,18 +84,13 @@ function ContactsPage() {
         }
       />
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label={t("contacts.totalContacts")}
           value={String(contacts.length)}
           hint={t("contacts.acrossCompanies", { count: companiesCount })}
           info={t("contacts.totalContactsInfo")}
           tone="mint"
-        />
-        <StatCard
-          label={t("contacts.withDeals")}
-          value={String(contacts.filter((c) => c.deals > 0).length)}
-          info={t("contacts.withDealsInfo")}
         />
         <StatCard
           label={t("contacts.withEmail")}
@@ -162,10 +157,8 @@ function ContactsPage() {
                     <dd className="font-medium">{c.birthday}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-subtle">{t("contacts.dealsTasks")}</dt>
-                    <dd className="font-medium">
-                      {c.deals} · {c.tasks}
-                    </dd>
+                    <dt className="text-subtle">{t("contacts.tasksCount")}</dt>
+                    <dd className="font-medium">{c.tasks}</dd>
                   </div>
                 </dl>
                 <div className="mt-4 flex items-center gap-2">

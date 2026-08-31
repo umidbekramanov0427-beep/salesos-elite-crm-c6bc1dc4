@@ -102,10 +102,10 @@ function NotificationBell() {
           </div>
         )}
         <Link
-          to="/alerts"
+          to="/inbox"
           className="mt-1 block rounded-xl px-3 py-2 text-center text-xs font-semibold text-primary hover:bg-accent"
         >
-          {t("alerts.viewAll")}
+          {t("inbox.viewAll")}
         </Link>
       </PopoverContent>
     </Popover>

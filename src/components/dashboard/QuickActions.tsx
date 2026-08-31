@@ -9,7 +9,6 @@ import {
   UserPlus,
   Users,
   X,
-  ClipboardPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -18,7 +17,6 @@ import { useI18n } from "@/lib/i18n";
 const ACTIONS = [
   { key: "qa.createLead", icon: UserPlus },
   { key: "qa.createCompany", icon: Building2 },
-  { key: "qa.createDeal", icon: ClipboardPlus },
   { key: "qa.createTask", icon: CalendarPlus },
   { key: "qa.createEmployee", icon: Users },
   { key: "qa.scheduleCall", icon: Phone },
