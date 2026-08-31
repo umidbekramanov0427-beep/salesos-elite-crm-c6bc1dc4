@@ -657,7 +657,16 @@ async function syncPipelineStages(
   return { stageByStatusId, pipelineNameById };
 }
 
-/** Matches AmoCRM users to existing profiles by email, returns amoUserId -> our profile id. */
+/**
+ * Matches AmoCRM users to existing profiles by email, returns amoUserId ->
+ * our profile id. Deliberately lets a failure here propagate (the caller
+ * already wraps this call in its own .catch to add context and abort the
+ * sync) rather than swallowing it and returning a partial/empty map --
+ * every lead's owner_id falls back to null when its amoUserId isn't in
+ * this map, so an empty map from a transient error used to silently null
+ * out every rep's lead ownership org-wide on that sync run instead of
+ * failing loudly and leaving the previous (correct) data alone.
+ */
 // Shared login password for every auto-provisioned sales rep account. Reps
 // log in with their AmoCRM email as username; nobody picks this password
 // individually, so it's a fixed, known value by design (per product spec).
@@ -668,7 +677,7 @@ async function syncUserMapping(
   conn: AmoConnection,
 ): Promise<Map<number, string>> {
   const map = new Map<number, string>();
-  try {
+  {
     const [users, { data: profiles, error }] = await Promise.all([
       fetchAllUsers(conn),
       supabaseAdmin
@@ -740,9 +749,6 @@ async function syncUserMapping(
         }),
       );
     }
-  } catch {
-    // Owner matching is best-effort — a failure here shouldn't block the
-    // lead/company/contact sync, which is the primary purpose of a sync run.
   }
   return map;
 }
@@ -792,8 +798,13 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
   const sinceUnix = Math.floor(Date.now() / 1000) - CALL_NOTES_LOOKBACK_DAYS * 86400;
   const notes = await fetchAllPaged(
     conn,
+    // order[created_at]=desc so the capped page budget below is always
+    // spent on the MOST RECENT calls first -- without it, an account with
+    // more calls in the lookback window than the page cap can fetch
+    // (CALL_NOTES_MAX_PAGES * 250) silently never reaches its newest calls
+    // at all, which is exactly what Audio Analytics needs most.
     (page) =>
-      `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&filter[created_at][from]=${sinceUnix}&limit=250&page=${page}`,
+      `/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&filter[created_at][from]=${sinceUnix}&order[created_at]=desc&limit=250&page=${page}`,
     (data) => (data as { _embedded?: { notes?: AmoCallNote[] } } | null)?._embedded?.notes ?? [],
     CALL_NOTES_MAX_PAGES,
   );
@@ -1131,6 +1142,17 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
           company_id: companyAmoId ? (companyIdMap.get(companyAmoId) ?? null) : null,
           contact_id: contactAmoId ? (contactIdMap.get(contactAmoId) ?? null) : null,
           source: "AmoCRM",
+          // Was never set here before, so every leads.created_at defaulted
+          // to whenever this row was first synced (the column default is
+          // now()), not when the lead actually appeared in AmoCRM -- every
+          // date-scoped metric across the platform (Reyting, Dashboard,
+          // Kunlik hisobot, Lid tahlili's p_since filters) was measuring
+          // sync time instead of reality, and a historical backfill made
+          // thousands of old leads look like they were all created today.
+          // Every sync re-touches every lead already, so writing the real
+          // value here on every run self-heals existing rows too, no
+          // separate backfill migration needed.
+          created_at: new Date(l.created_at * 1000).toISOString(),
           expected_revenue: l.price ?? 0,
           budget: l.price ?? 0,
           // Was never set here before, so every AmoCRM-synced lead sat at
