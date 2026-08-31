@@ -15,6 +15,7 @@ import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AudioAnalyticsRouteImport } from './routes/audio-analytics'
+import { Route as ContentLibraryRouteImport } from './routes/content-library'
 import { Route as CrmStagesRouteImport } from './routes/crm-stages'
 import { Route as DailyReportRouteImport } from './routes/daily-report'
 import { Route as DailyReportSettingsRouteImport } from './routes/daily-report-settings'
@@ -123,6 +124,11 @@ const AttendanceRoute = AttendanceRouteImport.update({
 const AudioAnalyticsRoute = AudioAnalyticsRouteImport.update({
   id: '/audio-analytics',
   path: '/audio-analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContentLibraryRoute = ContentLibraryRouteImport.update({
+  id: '/content-library',
+  path: '/content-library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CrmStagesRoute = CrmStagesRouteImport.update({
@@ -547,6 +553,7 @@ export interface FileRoutesByFullPath {
   '/alerts': typeof AlertsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
+  '/content-library': typeof ContentLibraryRoute
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
   '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
@@ -634,6 +641,7 @@ export interface FileRoutesByTo {
   '/alerts': typeof AlertsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
+  '/content-library': typeof ContentLibraryRoute
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
   '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
@@ -722,6 +730,7 @@ export interface FileRoutesById {
   '/alerts': typeof AlertsRoute
   '/attendance': typeof AttendanceRoute
   '/audio-analytics': typeof AudioAnalyticsRouteWithChildren
+  '/content-library': typeof ContentLibraryRoute
   '/crm-stages': typeof CrmStagesRoute
   '/daily-report': typeof DailyReportRoute
   '/daily-report-settings': typeof DailyReportSettingsRouteWithChildren
@@ -811,6 +820,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/attendance'
     | '/audio-analytics'
+    | '/content-library'
     | '/crm-stages'
     | '/daily-report'
     | '/daily-report-settings'
@@ -898,6 +908,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/attendance'
     | '/audio-analytics'
+    | '/content-library'
     | '/crm-stages'
     | '/daily-report'
     | '/daily-report-settings'
@@ -985,6 +996,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/attendance'
     | '/audio-analytics'
+    | '/content-library'
     | '/crm-stages'
     | '/daily-report'
     | '/daily-report-settings'
@@ -1073,6 +1085,7 @@ export interface RootRouteChildren {
   AlertsRoute: typeof AlertsRoute
   AttendanceRoute: typeof AttendanceRoute
   AudioAnalyticsRoute: typeof AudioAnalyticsRouteWithChildren
+  ContentLibraryRoute: typeof ContentLibraryRoute
   CrmStagesRoute: typeof CrmStagesRoute
   DailyReportRoute: typeof DailyReportRoute
   DailyReportSettingsRoute: typeof DailyReportSettingsRouteWithChildren
@@ -1164,6 +1177,13 @@ declare module '@tanstack/react-router' {
       path: '/audio-analytics'
       fullPath: '/audio-analytics'
       preLoaderRoute: typeof AudioAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content-library': {
+      id: '/content-library'
+      path: '/content-library'
+      fullPath: '/content-library'
+      preLoaderRoute: typeof ContentLibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crm-stages': {
@@ -1868,6 +1888,7 @@ const rootRouteChildren: RootRouteChildren = {
   AlertsRoute: AlertsRoute,
   AttendanceRoute: AttendanceRoute,
   AudioAnalyticsRoute: AudioAnalyticsRouteWithChildren,
+  ContentLibraryRoute: ContentLibraryRoute,
   CrmStagesRoute: CrmStagesRoute,
   DailyReportRoute: DailyReportRoute,
   DailyReportSettingsRoute: DailyReportSettingsRouteWithChildren,

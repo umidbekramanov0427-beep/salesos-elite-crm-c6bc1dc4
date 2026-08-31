@@ -6377,3 +6377,142 @@ export function useUploadHrChatAttachment() {
     },
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* "Hujjat va Darsliklar" -- a shared content library everyone can view */
+/* but only super_admin can add to: company info/docs/links (with their */
+/* own org-structure and regulations shelves) plus a video/file training */
+/* library. Same public-bucket + org-scoped-RLS shape as call-recordings/ */
+/* hr-chat-attachments, just gated by role instead of by uploader.       */
+/* ------------------------------------------------------------------ */
+
+export type ContentLibrarySection =
+  "about_general" | "about_org_structure" | "about_regulation" | "training";
+
+export type ContentLibraryItemType = "link" | "file" | "image" | "video" | "audio" | "document";
+
+export type ContentLibraryItemRow = Tables["content_library_items"]["Row"];
+
+export function useContentLibraryItems(section: ContentLibrarySection) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["content_library_items", user?.organizationId, section],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<ContentLibraryItemRow[]> => {
+      const { data, error } = await supabase
+        .from("content_library_items")
+        .select("*")
+        .eq("section", section)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateContentLibraryItem() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      section: ContentLibrarySection;
+      title: string;
+      description?: string;
+      itemType: ContentLibraryItemType;
+      url: string;
+      filePath?: string | null;
+    }) => {
+      const { error } = await supabase.from("content_library_items").insert({
+        organization_id: user!.organizationId!,
+        section: input.section,
+        title: input.title.trim(),
+        description: input.description?.trim() ?? "",
+        item_type: input.itemType,
+        url: input.url,
+        file_path: input.filePath ?? null,
+        created_by: user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({
+        queryKey: ["content_library_items", user?.organizationId, vars.section],
+      }),
+  });
+}
+
+export function useDeleteContentLibraryItem() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("content_library_items").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["content_library_items", user?.organizationId] }),
+  });
+}
+
+/** Uploads a file for the content library; caller creates the item row with the returned url/path afterward. */
+export function useUploadContentLibraryFile() {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (file: File): Promise<{ url: string; path: string }> => {
+      const path = `${user!.organizationId}/${crypto.randomUUID()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("content-library")
+        .upload(path, file, file.type ? { contentType: file.type } : {});
+      if (error) throw new Error(error.message);
+      const { data } = supabase.storage.from("content-library").getPublicUrl(path);
+      return { url: data.publicUrl, path };
+    },
+  });
+}
+
+export type ContentLibrarySettingsRow = Tables["content_library_settings"]["Row"];
+
+export function useContentLibrarySettings() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["content_library_settings", user?.organizationId],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<ContentLibrarySettingsRow | null> => {
+      const { data, error } = await supabase
+        .from("content_library_settings")
+        .select("*")
+        .eq("organization_id", user!.organizationId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUpdateContentLibrarySettings() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      aboutGoogleSheetsUrl?: string;
+      trainingGoogleSheetsUrl?: string;
+    }) => {
+      const { error } = await supabase.from("content_library_settings").upsert(
+        {
+          organization_id: user!.organizationId!,
+          ...(input.aboutGoogleSheetsUrl !== undefined
+            ? { about_google_sheets_url: input.aboutGoogleSheetsUrl }
+            : {}),
+          ...(input.trainingGoogleSheetsUrl !== undefined
+            ? { training_google_sheets_url: input.trainingGoogleSheetsUrl }
+            : {}),
+          updated_by: user!.id,
+        },
+        { onConflict: "organization_id" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["content_library_settings", user?.organizationId] }),
+  });
+}

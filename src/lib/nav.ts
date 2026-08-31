@@ -19,6 +19,7 @@ import {
   Target,
   LayoutGrid,
   UserSearch,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -97,6 +98,12 @@ export const NAV_ITEMS: NavItem[] = [
     iconColor: "text-teal-500",
   },
   { label: "AI Assistant", to: "/ai-assistant", icon: Sparkles, iconColor: "text-violet-500" },
+  {
+    label: "Hujjat va Darsliklar",
+    to: "/content-library",
+    icon: BookOpen,
+    iconColor: "text-cyan-500",
+  },
   { label: "Settings", to: "/settings", icon: Settings },
   {
     label: "Admin Panel",
