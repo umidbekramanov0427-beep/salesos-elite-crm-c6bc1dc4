@@ -13,7 +13,7 @@ import {
 } from "@/components/dashboard/Widgets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/lib/i18n";
-import { useFunnelNames, useProfilesRaw } from "@/hooks/use-crm-data";
+import { useFunnelNames, useProfilesRaw, useVisibleOwnerIds } from "@/hooks/use-crm-data";
 import type { DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import type { AmountRangeValue } from "@/components/filters/AmountRangeFilter";
 
@@ -106,19 +106,27 @@ function Dashboard() {
 
   const { names: funnelNames } = useFunnelNames();
   const { data: profiles } = useProfilesRaw();
+  // Unscoped, these dropdowns handed a rep the full company roster to pick
+  // through -- the same "sees everyone" leak as the charts below, just in
+  // filter-picker form instead of a chart. A rep's own visibleOwnerIds is
+  // just themself, so both lists collapse to "only me" for that role.
+  const visibleOwnerIds = useVisibleOwnerIds();
   const rops = useMemo(
     () =>
       (profiles ?? [])
-        .filter((p) => p.role === "rop")
+        .filter((p) => p.role === "rop" && (!visibleOwnerIds || visibleOwnerIds.has(p.id)))
         .slice()
         .sort((a, b) => a.full_name.localeCompare(b.full_name)),
-    [profiles],
+    [profiles, visibleOwnerIds],
   );
   const operators = useMemo(() => {
-    const all = (profiles ?? []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+    const all = (profiles ?? [])
+      .filter((p) => !visibleOwnerIds || visibleOwnerIds.has(p.id))
+      .slice()
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
     if (!teamId) return all;
     return all.filter((p) => p.id === teamId || p.manager_id === teamId);
-  }, [profiles, teamId]);
+  }, [profiles, teamId, visibleOwnerIds]);
 
   const dateRange = { from: dateFilter.from, to: dateFilter.to };
 
