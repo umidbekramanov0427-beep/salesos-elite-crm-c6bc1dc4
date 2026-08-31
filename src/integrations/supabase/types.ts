@@ -2659,6 +2659,7 @@ export type Database = {
       };
       tasks: {
         Row: {
+          amocrm_task_id: number | null;
           assignee_id: string | null;
           created_at: string;
           created_by: string | null;
@@ -2674,6 +2675,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          amocrm_task_id?: number | null;
           assignee_id?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -2689,6 +2691,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          amocrm_task_id?: number | null;
           assignee_id?: string | null;
           created_at?: string;
           created_by?: string | null;

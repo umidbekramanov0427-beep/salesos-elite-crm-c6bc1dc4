@@ -819,6 +819,7 @@ async function fetchCallNotes(conn: AmoConnection): Promise<AmoCallNote[]> {
 export type SyncResult = {
   synced: number;
   callsSynced?: number;
+  tasksSynced?: number;
   error?: string;
   // A previous sync for this org was still running (or crashed without
   // clearing its lock, within the staleness window) -- this run did
@@ -1333,11 +1334,22 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       callsSyncWarning = `Calls: ${describeError(err)}`;
     }
 
+    // Same best-effort reasoning as calls above -- Lid zadachalari/Important
+    // Tasks being stale for a run shouldn't fail the whole sync.
+    let tasksSynced = 0;
+    let tasksSyncWarning: string | null = null;
+    try {
+      tasksSynced = await syncTasksFromAmo(conn, ownerByAmoUserId);
+    } catch (err) {
+      tasksSyncWarning = `Tasks: ${describeError(err)}`;
+    }
+    const syncWarning = [callsSyncWarning, tasksSyncWarning].filter(Boolean).join("; ") || null;
+
     await supabaseAdmin
       .from("amocrm_connection")
       .update({
         last_synced_at: new Date().toISOString(),
-        last_sync_error: callsSyncWarning,
+        last_sync_error: syncWarning,
         initial_sync_page: null,
       })
       .eq("organization_id", organizationId);
@@ -1353,7 +1365,7 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
       .eq("organization_id", organizationId)
       .eq("key", "amocrm");
 
-    return { synced: totalSynced, callsSynced };
+    return { synced: totalSynced, callsSynced, tasksSynced };
   } catch (err) {
     const message = describeError(err);
     await supabaseAdmin
@@ -1512,6 +1524,8 @@ type AmoTask = {
   entity_type: string;
   complete_till: number;
   is_completed: boolean;
+  text: string | null;
+  responsible_user_id: number | null;
 };
 
 export type AmoTaskStats = { dueToday: number; overdue: number };
@@ -1580,6 +1594,66 @@ export async function fetchOpenTaskStats(
     else if (t.complete_till <= endOfTodayUnix) dueToday += 1;
   }
   return { dueToday, overdue };
+}
+
+/**
+ * Pulls every AmoCRM task tied to a lead (open and completed) and upserts
+ * them into public.tasks -- "Lid zadachalari" and Important Tasks previously
+ * only ever showed locally-created tasks (see quick-create.tsx), since
+ * AmoCRM's own tasks were never synced anywhere, so the platform's task
+ * lists never matched AmoCRM at all. Returns count synced.
+ */
+async function syncTasksFromAmo(
+  conn: AmoConnection,
+  ownerByAmoUserId: Map<number, string>,
+): Promise<number> {
+  const allTasks = await fetchAllPaged<AmoTask>(
+    conn,
+    (page) => `/api/v4/tasks?limit=250&page=${page}`,
+    (data) => (data as { _embedded?: { tasks?: AmoTask[] } } | null)?._embedded?.tasks ?? [],
+    TASKS_MAX_PAGES,
+  );
+  // Only lead-tied tasks have anywhere in this app to attach to -- a task on
+  // a contact/company (entity_type !== "leads") has no local counterpart.
+  const leadTasks = allTasks.filter((t) => t.entity_type === "leads");
+  if (leadTasks.length === 0) return 0;
+
+  const amoLeadIds = Array.from(new Set(leadTasks.map((t) => t.entity_id)));
+  const { data: leadRows, error: leadsError } = await supabaseAdmin
+    .from("leads")
+    .select("id, amocrm_id")
+    .eq("organization_id", conn.organization_id)
+    .in("amocrm_id", amoLeadIds);
+  if (leadsError) throw leadsError;
+  const leadIdByAmoId = new Map((leadRows ?? []).map((l) => [l.amocrm_id, l.id]));
+
+  const rows = leadTasks.map((t) => ({
+    organization_id: conn.organization_id,
+    amocrm_task_id: t.id,
+    // Kept even when the lead hasn't synced yet (null) -- same reasoning as
+    // amocrm_lead_entity_id on calls -- rather than dropping the task.
+    lead_id: leadIdByAmoId.get(t.entity_id) ?? null,
+    title: t.text?.trim() || `AmoCRM task #${t.id}`,
+    // AmoCRM only has is_completed (no richer status) -- can't distinguish
+    // "In progress"/"Review" from "Todo", so every open task lands there.
+    status: t.is_completed ? ("Done" as const) : ("Todo" as const),
+    assignee_id: t.responsible_user_id
+      ? (ownerByAmoUserId.get(t.responsible_user_id) ?? null)
+      : null,
+    due_date: t.complete_till ? new Date(t.complete_till * 1000).toISOString() : null,
+  }));
+  const dedupedTaskRows = dedupeByKey(rows, (r) => String(r.amocrm_task_id));
+
+  const TASKS_UPSERT_CHUNK = 200;
+  for (let i = 0; i < dedupedTaskRows.length; i += TASKS_UPSERT_CHUNK) {
+    const chunk = dedupedTaskRows.slice(i, i + TASKS_UPSERT_CHUNK);
+    const { error } = await supabaseAdmin
+      .from("tasks")
+      .upsert(chunk, { onConflict: "organization_id,amocrm_task_id" });
+    if (error) throw new Error(`[tasks ${i}-${i + chunk.length}] ${describeError(error)}`);
+  }
+
+  return dedupedTaskRows.length;
 }
 
 /**
