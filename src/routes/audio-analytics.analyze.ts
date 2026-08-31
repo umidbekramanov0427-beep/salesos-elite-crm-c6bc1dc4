@@ -596,6 +596,215 @@ function temperatureFromScore(score: number): "Cold" | "Warm" | "Hot" | "VeryHot
   return "Cold";
 }
 
+export type AnalyzeCallResult = {
+  transcript: string;
+  summary: string;
+  nextStep: string | null;
+  score: number | null;
+  mood: string | null;
+  talkRatio: number | null;
+  analysis: Record<string, unknown>;
+  taskWarning: string | null;
+};
+
+/**
+ * The actual "listen to the call and score it" work, extracted out of the
+ * route handler so both the manual "Tahlil qilish" button (below) and the
+ * automatic /audio-analytics/analyze-pending cron job can call the exact
+ * same logic instead of drifting apart. Throws on any failure -- callers
+ * decide how to surface that (a 500 response for the manual button, a
+ * per-call failure count for the batch job).
+ */
+export async function analyzeCallById(
+  organizationId: string,
+  callId: string,
+): Promise<AnalyzeCallResult> {
+  const { data: call } = await supabaseAdmin
+    .from("amocrm_calls")
+    .select(
+      "id, lead_id, recording_url, source, amocrm_task_id, leads:lead_id(amocrm_id, owner_id)",
+    )
+    .eq("id", callId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (!call) throw new Error("Call not found.");
+  if (!call.recording_url) {
+    throw new Error("Bu qo'ng'iroqda ovoz yozuvi yo'q.");
+  }
+
+  const { data: agent } = await supabaseAdmin
+    .from("ai_agents")
+    .select("system_prompt, active, call_instructions")
+    .eq("organization_id", organizationId)
+    .eq("kind", "call")
+    .maybeSingle();
+  if (agent && agent.active === false) {
+    throw new Error("Qo'ng'iroq tahlili AI agenti o'chirilgan. Admin panelidan yoqing.");
+  }
+  const baseSystemPrompt =
+    agent?.system_prompt?.trim() ||
+    "Siz qo'ng'iroq yozuvini tahlil qiluvchi tajribali sotuv nazoratchisisiz. Asosiy mavzuni, mijoz kayfiyatini, menejerning kuchli va zaif tomonlarini xolisona baholang.";
+
+  const transcript = await transcribeAudio(call.recording_url);
+  if (!transcript) {
+    throw new Error("Ovozdan matn chiqmadi (bo'sh yozuv).");
+  }
+
+  const [rubric, playbook] = await Promise.all([
+    loadRubric(organizationId),
+    buildPlaybookBlock(organizationId),
+  ]);
+  const systemPrompt =
+    baseSystemPrompt + buildCallInstructionsBlock(agent?.call_instructions) + playbook.text;
+  const result = await analyzeTranscript(
+    transcript,
+    systemPrompt,
+    rubric,
+    playbook.serviceLines,
+    playbook.leadQualityStages,
+    playbook.intakeQuestions,
+  );
+
+  // A configured rubric always wins over the AI's own holistic
+  // guess — it's a fixed, auditable formula instead of a number the
+  // model invented, so the score stays consistent across calls and
+  // can't silently drift as the underlying model changes. A stage
+  // weight (Baholash mezonlari) takes priority when configured;
+  // otherwise fall back to the flat matched-points ratio.
+  let score = result.score;
+  const totalPoints = rubric.reduce((s, r) => s + r.points, 0);
+  if (rubric.length > 0 && totalPoints > 0) {
+    const metByN = new Map(result.checklist.map((c) => [c.n, c.met]));
+    const weighted = computeWeightedScore(rubric, metByN);
+    if (weighted !== null) {
+      score = weighted;
+    } else {
+      const matchedPoints = rubric.reduce((s, r) => s + (metByN.get(r.n) ? r.points : 0), 0);
+      score = Math.round((matchedPoints / totalPoints) * 100);
+    }
+  }
+
+  const noteByN = new Map(result.checklist.map((c) => [c.n, c.note ?? ""]));
+  const metByN = new Map(result.checklist.map((c) => [c.n, c.met]));
+  const standardByN = new Map(
+    result.serviceStandards.map((s) => [s.n, { violated: s.violated, evidence: s.evidence ?? "" }]),
+  );
+  const analysis = {
+    checklist: rubric.map((r) => ({
+      stage: r.stage,
+      step: r.step,
+      skill: r.skill,
+      points: r.points,
+      met: metByN.get(r.n) ?? false,
+      note: noteByN.get(r.n) ?? "",
+    })),
+    strengths: result.strengths,
+    improvements: result.improvements,
+    warnings: result.warnings,
+    risks: result.risks,
+    agreements: result.agreements,
+    keyQuotes: result.keyQuotes,
+    topObjections: result.topObjections,
+    serviceStandards: SERVICE_STANDARDS.map((name, i) => ({
+      name,
+      violated: standardByN.get(i + 1)?.violated ?? false,
+      evidence: standardByN.get(i + 1)?.evidence ?? "",
+    })),
+  };
+
+  // "n" is a 1-based index into the same lists buildPlaybookBlock put
+  // in the prompt -- resolve back to a real row id here rather than
+  // trusting the model with a UUID (see buildJsonInstruction).
+  const serviceLineId =
+    result.serviceLineN != null
+      ? (playbook.serviceLines[result.serviceLineN - 1]?.id ?? null)
+      : null;
+  const leadQualityStageId =
+    result.leadQualityStageN != null
+      ? (playbook.leadQualityStages[result.leadQualityStageN - 1]?.id ?? null)
+      : null;
+  const intakeAnswers: Record<string, string> = {};
+  for (const a of result.intakeAnswers) {
+    const question = playbook.intakeQuestions[a.n - 1];
+    if (question && a.answer) intakeAnswers[question.id] = a.answer;
+  }
+
+  await supabaseAdmin
+    .from("amocrm_calls")
+    .update({
+      transcript,
+      ai_summary: result.summary,
+      next_step: result.nextStep,
+      score,
+      mood: result.mood,
+      talk_ratio: result.talkRatio,
+      analysis,
+      analyzed_at: new Date().toISOString(),
+      service_line_id: serviceLineId,
+      intake_answers: intakeAnswers,
+    })
+    .eq("id", call.id);
+
+  if (call.lead_id && (score != null || leadQualityStageId)) {
+    await supabaseAdmin
+      .from("leads")
+      .update({
+        ...(score != null ? { score, temperature: temperatureFromScore(score) } : {}),
+        ...(leadQualityStageId ? { lead_quality_stage_id: leadQualityStageId } : {}),
+      })
+      .eq("id", call.lead_id);
+  }
+
+  // Hand the AI-suggested next step to the responsible manager as a
+  // reminder inside AmoCRM — best-effort: a failure here shouldn't
+  // undo the analysis that's already saved. Skipped for manually
+  // uploaded calls (no AmoCRM lead to attach a task to) and never
+  // duplicated on re-analysis.
+  let taskWarning: string | null = null;
+  const leadAmoId = call.leads?.amocrm_id ?? null;
+  if (result.nextStep && call.source === "amocrm" && leadAmoId && !call.amocrm_task_id) {
+    try {
+      let responsibleAmoUserId: number | null = null;
+      if (call.leads?.owner_id) {
+        const { data: owner } = await supabaseAdmin
+          .from("profiles")
+          .select("amocrm_user_id")
+          .eq("id", call.leads.owner_id)
+          .maybeSingle();
+        responsibleAmoUserId = owner?.amocrm_user_id ?? null;
+      }
+      const completeTill = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+      const taskId = await createAmoTask(
+        organizationId,
+        leadAmoId,
+        result.nextStep,
+        completeTill,
+        responsibleAmoUserId,
+      );
+      if (taskId) {
+        await supabaseAdmin
+          .from("amocrm_calls")
+          .update({ amocrm_task_id: taskId, task_created_at: new Date().toISOString() })
+          .eq("id", call.id);
+      }
+    } catch (taskErr) {
+      taskWarning =
+        taskErr instanceof Error ? taskErr.message : "AmoCRM'da vazifa yaratib bo'lmadi.";
+    }
+  }
+
+  return {
+    transcript,
+    summary: result.summary,
+    nextStep: result.nextStep,
+    score,
+    mood: result.mood,
+    talkRatio: result.talkRatio,
+    analysis,
+    taskWarning,
+  };
+}
+
 export const Route = createFileRoute("/audio-analytics/analyze")({
   server: {
     handlers: {
@@ -610,208 +819,13 @@ export const Route = createFileRoute("/audio-analytics/analyze")({
           .maybeSingle();
         if (!caller?.organization_id)
           return Response.json({ error: "Unauthorized" }, { status: 401 });
-        const organizationId = caller.organization_id;
 
         const body = (await request.json().catch(() => ({}))) as { callId?: string };
         if (!body.callId) return Response.json({ error: "callId is required." }, { status: 400 });
 
-        const { data: call } = await supabaseAdmin
-          .from("amocrm_calls")
-          .select(
-            "id, lead_id, recording_url, source, amocrm_task_id, leads:lead_id(amocrm_id, owner_id)",
-          )
-          .eq("id", body.callId)
-          .eq("organization_id", organizationId)
-          .maybeSingle();
-        if (!call) return Response.json({ error: "Call not found." }, { status: 404 });
-        if (!call.recording_url) {
-          return Response.json({ error: "Bu qo'ng'iroqda ovoz yozuvi yo'q." }, { status: 400 });
-        }
-
-        const { data: agent } = await supabaseAdmin
-          .from("ai_agents")
-          .select("system_prompt, active, call_instructions")
-          .eq("organization_id", organizationId)
-          .eq("kind", "call")
-          .maybeSingle();
-        if (agent && agent.active === false) {
-          return Response.json(
-            { error: "Qo'ng'iroq tahlili AI agenti o'chirilgan. Admin panelidan yoqing." },
-            { status: 400 },
-          );
-        }
-        const baseSystemPrompt =
-          agent?.system_prompt?.trim() ||
-          "Siz qo'ng'iroq yozuvini tahlil qiluvchi tajribali sotuv nazoratchisisiz. Asosiy mavzuni, mijoz kayfiyatini, menejerning kuchli va zaif tomonlarini xolisona baholang.";
-
         try {
-          const transcript = await transcribeAudio(call.recording_url);
-          if (!transcript) {
-            return Response.json(
-              { error: "Ovozdan matn chiqmadi (bo'sh yozuv)." },
-              { status: 422 },
-            );
-          }
-
-          const [rubric, playbook] = await Promise.all([
-            loadRubric(organizationId),
-            buildPlaybookBlock(organizationId),
-          ]);
-          const systemPrompt =
-            baseSystemPrompt + buildCallInstructionsBlock(agent?.call_instructions) + playbook.text;
-          const result = await analyzeTranscript(
-            transcript,
-            systemPrompt,
-            rubric,
-            playbook.serviceLines,
-            playbook.leadQualityStages,
-            playbook.intakeQuestions,
-          );
-
-          // A configured rubric always wins over the AI's own holistic
-          // guess — it's a fixed, auditable formula instead of a number the
-          // model invented, so the score stays consistent across calls and
-          // can't silently drift as the underlying model changes. A stage
-          // weight (Baholash mezonlari) takes priority when configured;
-          // otherwise fall back to the flat matched-points ratio.
-          let score = result.score;
-          const totalPoints = rubric.reduce((s, r) => s + r.points, 0);
-          if (rubric.length > 0 && totalPoints > 0) {
-            const metByN = new Map(result.checklist.map((c) => [c.n, c.met]));
-            const weighted = computeWeightedScore(rubric, metByN);
-            if (weighted !== null) {
-              score = weighted;
-            } else {
-              const matchedPoints = rubric.reduce(
-                (s, r) => s + (metByN.get(r.n) ? r.points : 0),
-                0,
-              );
-              score = Math.round((matchedPoints / totalPoints) * 100);
-            }
-          }
-
-          const noteByN = new Map(result.checklist.map((c) => [c.n, c.note ?? ""]));
-          const metByN = new Map(result.checklist.map((c) => [c.n, c.met]));
-          const standardByN = new Map(
-            result.serviceStandards.map((s) => [
-              s.n,
-              { violated: s.violated, evidence: s.evidence ?? "" },
-            ]),
-          );
-          const analysis = {
-            checklist: rubric.map((r) => ({
-              stage: r.stage,
-              step: r.step,
-              skill: r.skill,
-              points: r.points,
-              met: metByN.get(r.n) ?? false,
-              note: noteByN.get(r.n) ?? "",
-            })),
-            strengths: result.strengths,
-            improvements: result.improvements,
-            warnings: result.warnings,
-            risks: result.risks,
-            agreements: result.agreements,
-            keyQuotes: result.keyQuotes,
-            topObjections: result.topObjections,
-            serviceStandards: SERVICE_STANDARDS.map((name, i) => ({
-              name,
-              violated: standardByN.get(i + 1)?.violated ?? false,
-              evidence: standardByN.get(i + 1)?.evidence ?? "",
-            })),
-          };
-
-          // "n" is a 1-based index into the same lists buildPlaybookBlock put
-          // in the prompt -- resolve back to a real row id here rather than
-          // trusting the model with a UUID (see buildJsonInstruction).
-          const serviceLineId =
-            result.serviceLineN != null
-              ? (playbook.serviceLines[result.serviceLineN - 1]?.id ?? null)
-              : null;
-          const leadQualityStageId =
-            result.leadQualityStageN != null
-              ? (playbook.leadQualityStages[result.leadQualityStageN - 1]?.id ?? null)
-              : null;
-          const intakeAnswers: Record<string, string> = {};
-          for (const a of result.intakeAnswers) {
-            const question = playbook.intakeQuestions[a.n - 1];
-            if (question && a.answer) intakeAnswers[question.id] = a.answer;
-          }
-
-          await supabaseAdmin
-            .from("amocrm_calls")
-            .update({
-              transcript,
-              ai_summary: result.summary,
-              next_step: result.nextStep,
-              score,
-              mood: result.mood,
-              talk_ratio: result.talkRatio,
-              analysis,
-              analyzed_at: new Date().toISOString(),
-              service_line_id: serviceLineId,
-              intake_answers: intakeAnswers,
-            })
-            .eq("id", call.id);
-
-          if (call.lead_id && (score != null || leadQualityStageId)) {
-            await supabaseAdmin
-              .from("leads")
-              .update({
-                ...(score != null ? { score, temperature: temperatureFromScore(score) } : {}),
-                ...(leadQualityStageId ? { lead_quality_stage_id: leadQualityStageId } : {}),
-              })
-              .eq("id", call.lead_id);
-          }
-
-          // Hand the AI-suggested next step to the responsible manager as a
-          // reminder inside AmoCRM — best-effort: a failure here shouldn't
-          // undo the analysis that's already saved. Skipped for manually
-          // uploaded calls (no AmoCRM lead to attach a task to) and never
-          // duplicated on re-analysis.
-          let taskWarning: string | null = null;
-          const leadAmoId = call.leads?.amocrm_id ?? null;
-          if (result.nextStep && call.source === "amocrm" && leadAmoId && !call.amocrm_task_id) {
-            try {
-              let responsibleAmoUserId: number | null = null;
-              if (call.leads?.owner_id) {
-                const { data: owner } = await supabaseAdmin
-                  .from("profiles")
-                  .select("amocrm_user_id")
-                  .eq("id", call.leads.owner_id)
-                  .maybeSingle();
-                responsibleAmoUserId = owner?.amocrm_user_id ?? null;
-              }
-              const completeTill = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-              const taskId = await createAmoTask(
-                organizationId,
-                leadAmoId,
-                result.nextStep,
-                completeTill,
-                responsibleAmoUserId,
-              );
-              if (taskId) {
-                await supabaseAdmin
-                  .from("amocrm_calls")
-                  .update({ amocrm_task_id: taskId, task_created_at: new Date().toISOString() })
-                  .eq("id", call.id);
-              }
-            } catch (taskErr) {
-              taskWarning =
-                taskErr instanceof Error ? taskErr.message : "AmoCRM'da vazifa yaratib bo'lmadi.";
-            }
-          }
-
-          return Response.json({
-            transcript,
-            summary: result.summary,
-            nextStep: result.nextStep,
-            score,
-            mood: result.mood,
-            talkRatio: result.talkRatio,
-            analysis,
-            taskWarning,
-          });
+          const result = await analyzeCallById(caller.organization_id, body.callId);
+          return Response.json(result);
         } catch (err) {
           return Response.json(
             { error: err instanceof Error ? err.message : "Tahlil qilishda xatolik yuz berdi." },
