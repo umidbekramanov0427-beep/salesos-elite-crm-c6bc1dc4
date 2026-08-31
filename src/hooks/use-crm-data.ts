@@ -1195,9 +1195,22 @@ function useFunnelScopedLeads(
 } {
   const scoped = usePipelineBoardLeadsRaw(enabled ? funnel : null);
   const all = useLeadsRaw({ enabled: enabled && !funnel });
-  return funnel
-    ? { data: scoped.data, isLoading: scoped.isLoading }
-    : { data: all.data, isLoading: all.isLoading };
+  // Every Dashboard chart built on this hook (Sotuv tahlili's per-owner
+  // revenue bars, monthly trend, loss reasons, deal flow, conversion
+  // quality) was reading org-wide/whole-funnel leads with no owner
+  // filter -- unlike usePipelineBoardLeads (the Funnels/AmoCRM board's own
+  // version of this exact fetch), which already applies this. A rep
+  // opening Dashboard saw every colleague's name and revenue on the
+  // "Sotuv tahlili" chart specifically.
+  const visibleOwnerIds = useVisibleOwnerIds();
+  const rawData = funnel ? scoped.data : all.data;
+  const data = useMemo(() => {
+    if (!rawData) return rawData;
+    return visibleOwnerIds
+      ? rawData.filter((l) => !!l.owner_id && visibleOwnerIds.has(l.owner_id))
+      : rawData;
+  }, [rawData, visibleOwnerIds]);
+  return funnel ? { data, isLoading: scoped.isLoading } : { data, isLoading: all.isLoading };
 }
 
 /* ------------------------------------------------------------------ */
@@ -3346,6 +3359,7 @@ export function useTopPerformers(
 ) {
   const { user } = useAuth();
   const { data: profiles } = useProfilesRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
   const from = dateRange?.from ? dateRange.from.toISOString() : null;
   const to = dateRange?.to ? dateRange.to.toISOString() : null;
   const statsQuery = useQuery({
@@ -3366,7 +3380,12 @@ export function useTopPerformers(
 
   return useMemo(() => {
     const statsByOwner = new Map((statsQuery.data ?? []).map((r) => [r.owner_id, r]));
-    const people = profiles ?? [];
+    // Unscoped, this named every colleague + their revenue to a rep on the
+    // Dashboard's "AI Insights" widget -- the same full-team reveal Reyting
+    // is deliberately for, but this one isn't Reyting.
+    const people = visibleOwnerIds
+      ? (profiles ?? []).filter((p) => visibleOwnerIds.has(p.id))
+      : (profiles ?? []);
     return people
       .map((p) => {
         const stats = statsByOwner.get(p.id);
@@ -3385,7 +3404,7 @@ export function useTopPerformers(
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit);
-  }, [statsQuery.data, profiles, limit]);
+  }, [statsQuery.data, profiles, visibleOwnerIds, limit]);
 }
 
 /* ------------------------------------------------------------------ */
