@@ -49,6 +49,7 @@ import { Route as AdminSecurityUsersRouteImport } from './routes/admin.security-
 import { Route as AdminSetEmployeePasswordRouteImport } from './routes/admin.set-employee-password'
 import { Route as AiAssistantChatRouteImport } from './routes/ai-assistant.chat'
 import { Route as AudioAnalyticsAnalyzeRouteImport } from './routes/audio-analytics.analyze'
+import { Route as AudioAnalyticsAnalyzePendingRouteImport } from './routes/audio-analytics.analyze-pending'
 import { Route as CrmCompaniesRouteImport } from './routes/crm.companies'
 import { Route as CrmContactsRouteImport } from './routes/crm.contacts'
 import { Route as CrmDealsRouteImport } from './routes/crm.deals'
@@ -298,6 +299,12 @@ const AudioAnalyticsAnalyzeRoute = AudioAnalyticsAnalyzeRouteImport.update({
   path: '/analyze',
   getParentRoute: () => AudioAnalyticsRoute,
 } as any)
+const AudioAnalyticsAnalyzePendingRoute =
+  AudioAnalyticsAnalyzePendingRouteImport.update({
+    id: '/analyze-pending',
+    path: '/analyze-pending',
+    getParentRoute: () => AudioAnalyticsRoute,
+  } as any)
 const CrmCompaniesRoute = CrmCompaniesRouteImport.update({
   id: '/crm/companies',
   path: '/crm/companies',
@@ -574,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/admin/set-employee-password': typeof AdminSetEmployeePasswordRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
+  '/audio-analytics/analyze-pending': typeof AudioAnalyticsAnalyzePendingRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -660,6 +668,7 @@ export interface FileRoutesByTo {
   '/admin/set-employee-password': typeof AdminSetEmployeePasswordRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
+  '/audio-analytics/analyze-pending': typeof AudioAnalyticsAnalyzePendingRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -747,6 +756,7 @@ export interface FileRoutesById {
   '/admin/set-employee-password': typeof AdminSetEmployeePasswordRoute
   '/ai-assistant/chat': typeof AiAssistantChatRoute
   '/audio-analytics/analyze': typeof AudioAnalyticsAnalyzeRoute
+  '/audio-analytics/analyze-pending': typeof AudioAnalyticsAnalyzePendingRoute
   '/crm/companies': typeof CrmCompaniesRoute
   '/crm/contacts': typeof CrmContactsRoute
   '/crm/deals': typeof CrmDealsRoute
@@ -835,6 +845,7 @@ export interface FileRouteTypes {
     | '/admin/set-employee-password'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
+    | '/audio-analytics/analyze-pending'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -921,6 +932,7 @@ export interface FileRouteTypes {
     | '/admin/set-employee-password'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
+    | '/audio-analytics/analyze-pending'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -1007,6 +1019,7 @@ export interface FileRouteTypes {
     | '/admin/set-employee-password'
     | '/ai-assistant/chat'
     | '/audio-analytics/analyze'
+    | '/audio-analytics/analyze-pending'
     | '/crm/companies'
     | '/crm/contacts'
     | '/crm/deals'
@@ -1391,6 +1404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AudioAnalyticsAnalyzeRouteImport
       parentRoute: typeof AudioAnalyticsRoute
     }
+    '/audio-analytics/analyze-pending': {
+      id: '/audio-analytics/analyze-pending'
+      path: '/analyze-pending'
+      fullPath: '/audio-analytics/analyze-pending'
+      preLoaderRoute: typeof AudioAnalyticsAnalyzePendingRouteImport
+      parentRoute: typeof AudioAnalyticsRoute
+    }
     '/crm/companies': {
       id: '/crm/companies'
       path: '/crm/companies'
@@ -1764,10 +1784,12 @@ const AiAssistantRouteWithChildren = AiAssistantRoute._addFileChildren(
 
 interface AudioAnalyticsRouteChildren {
   AudioAnalyticsAnalyzeRoute: typeof AudioAnalyticsAnalyzeRoute
+  AudioAnalyticsAnalyzePendingRoute: typeof AudioAnalyticsAnalyzePendingRoute
 }
 
 const AudioAnalyticsRouteChildren: AudioAnalyticsRouteChildren = {
   AudioAnalyticsAnalyzeRoute: AudioAnalyticsAnalyzeRoute,
+  AudioAnalyticsAnalyzePendingRoute: AudioAnalyticsAnalyzePendingRoute,
 }
 
 const AudioAnalyticsRouteWithChildren = AudioAnalyticsRoute._addFileChildren(
