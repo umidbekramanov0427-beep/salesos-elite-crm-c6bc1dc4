@@ -1698,6 +1698,102 @@ export type Database = {
           },
         ];
       };
+      content_library_items: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          file_path: string | null;
+          id: string;
+          item_type: string;
+          organization_id: string;
+          section: string;
+          title: string;
+          updated_at: string;
+          url: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          file_path?: string | null;
+          id?: string;
+          item_type: string;
+          organization_id: string;
+          section: string;
+          title: string;
+          updated_at?: string;
+          url: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          file_path?: string | null;
+          id?: string;
+          item_type?: string;
+          organization_id?: string;
+          section?: string;
+          title?: string;
+          updated_at?: string;
+          url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_library_items_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_library_items_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      content_library_settings: {
+        Row: {
+          about_google_sheets_url: string | null;
+          organization_id: string;
+          training_google_sheets_url: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          about_google_sheets_url?: string | null;
+          organization_id: string;
+          training_google_sheets_url?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          about_google_sheets_url?: string | null;
+          organization_id?: string;
+          training_google_sheets_url?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_library_settings_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_library_settings_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contacts: {
         Row: {
           alt_phone: string | null;
