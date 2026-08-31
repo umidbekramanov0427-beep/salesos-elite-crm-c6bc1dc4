@@ -5618,6 +5618,85 @@ export function useDeleteMarketingSpend() {
   });
 }
 
+/**
+ * "Hisobotni olish" -- an on-demand, full-page snapshot of Lid tahlili for
+ * whatever funnel/team/operator/period is selected in the top filter bar,
+ * as one combined report the caller can read or copy. Fetches all 5
+ * lead_analytics_* RPCs in parallel with the *client's own session* (not a
+ * server route on the service-role key) so each RPC's built-in
+ * super_admin/rop/self scoping applies exactly as it already does for the
+ * 5 tabs themselves -- a rep clicking this button gets a report of their
+ * own leads only, a ROP gets their team's, matching the page they're
+ * looking at.
+ */
+export type LeadAnalyticsFullReportData = {
+  action: LeadAnalyticsActionData;
+  quality: LeadAnalyticsQualityData;
+  current: LeadAnalyticsCurrentData;
+  direction: LeadAnalyticsDirectionData;
+  marketing: LeadAnalyticsMarketingData;
+};
+
+export function useGenerateLeadAnalyticsReport() {
+  return useMutation({
+    mutationFn: async (input: {
+      funnel: string | null;
+      manager: string | null;
+      team: string | null;
+      since: Date | null;
+      until: Date | null;
+    }): Promise<LeadAnalyticsFullReportData> => {
+      const sinceIso = input.since ? input.since.toISOString() : null;
+      const untilIso = input.until ? input.until.toISOString() : null;
+      const [actionRes, qualityRes, currentRes, directionRes, marketingRes] = await Promise.all([
+        supabase.rpc("lead_analytics_action", {
+          p_funnel: input.funnel,
+          p_manager: input.manager,
+          p_since: sinceIso,
+          p_team: input.team,
+        }),
+        supabase.rpc("lead_analytics_quality", {
+          p_funnel: input.funnel,
+          p_manager: input.manager,
+          p_team: input.team,
+          p_since: sinceIso,
+        }),
+        supabase.rpc("lead_analytics_current", {
+          p_funnel: input.funnel,
+          p_manager: input.manager,
+          p_team: input.team,
+          p_since: sinceIso,
+        }),
+        supabase.rpc("lead_analytics_direction", {
+          p_funnel: input.funnel,
+          p_manager: input.manager,
+          p_team: input.team,
+          p_since: sinceIso,
+        }),
+        supabase.rpc("lead_analytics_marketing", {
+          p_funnel: input.funnel,
+          p_manager: input.manager,
+          p_team: input.team,
+          p_since: sinceIso,
+          p_until: untilIso,
+        }),
+      ]);
+      if (actionRes.error) throw actionRes.error;
+      if (qualityRes.error) throw qualityRes.error;
+      if (currentRes.error) throw currentRes.error;
+      if (directionRes.error) throw directionRes.error;
+      if (marketingRes.error) throw marketingRes.error;
+      return {
+        action: actionRes.data as unknown as LeadAnalyticsActionData,
+        quality: qualityRes.data as unknown as LeadAnalyticsQualityData,
+        current: currentRes.data as unknown as LeadAnalyticsCurrentData,
+        direction: directionRes.data as unknown as LeadAnalyticsDirectionData,
+        marketing: marketingRes.data as unknown as LeadAnalyticsMarketingData,
+      };
+    },
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Per-manager funnel stats (Reyting live-ranking table) — same raw-lead */
 /* computation as useFunnelStats above, grouped by owner instead of      */

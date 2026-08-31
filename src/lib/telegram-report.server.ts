@@ -168,15 +168,21 @@ function isWithinSendWindow(sendTime: string, windowMinutes: number): boolean {
  * ignores send_enabled/send_time/"already sent today" entirely (those
  * gates live in the scheduled caller below). Saves it into
  * daily_report_history (overwriting today's row if one exists), pushes it
- * to the org's Google Sheet if configured, and sends it to every linked
- * Super Admin/ROP (full report) and Sotuv menejeri (personal report).
- * Shared by the scheduled sender and the "Hisobotni hoziroq yaratish"
- * manual-trigger route, so the two can never drift apart.
+ * to the org's Google Sheet if configured, and sends each linked recipient
+ * a report scoped to their own role: Super Admin gets the full,
+ * company-wide report plus the marketing/lead-quality section; ROP gets
+ * the same report shape but scoped to just themself and their direct
+ * reports (never the whole company); Sotuv menejeri gets their own
+ * personal report with nothing else mixed in. Shared by the scheduled
+ * sender and the "Hisobotni hoziroq yaratish" manual-trigger route, so the
+ * two can never drift apart.
  */
 export async function sendDailyReportForOrg(
   organizationId: string,
 ): Promise<{ sent: number; failed: number }> {
-  const { text: fullText } = await buildFullDailyReport(organizationId);
+  const { text: fullText } = await buildFullDailyReport(organizationId, {
+    includeMarketingSection: true,
+  });
   const reportDate = tashkentDateString();
 
   await supabaseAdmin
@@ -210,6 +216,25 @@ export async function sendDailyReportForOrg(
     .not("telegram_chat_id", "is", null)
     .in("role", ["super_admin", "rop", "sotuv_menejeri"]);
 
+  // Only needed to build each ROP's team scope -- skip the extra query
+  // entirely when nobody in this org is actually going to use it.
+  let reportsByManagerId: Map<string, string[]> | null = null;
+  if ((recipients ?? []).some((r) => r.role === "rop")) {
+    const { data: reps } = await supabaseAdmin
+      .from("profiles")
+      .select("id, manager_id")
+      .eq("organization_id", organizationId)
+      .eq("role", "sotuv_menejeri");
+    reportsByManagerId = new Map();
+    for (const rep of reps ?? []) {
+      if (!rep.manager_id) continue;
+      reportsByManagerId.set(rep.manager_id, [
+        ...(reportsByManagerId.get(rep.manager_id) ?? []),
+        rep.id,
+      ]);
+    }
+  }
+
   let sent = 0;
   let failed = 0;
   for (const r of recipients ?? []) {
@@ -218,7 +243,13 @@ export async function sendDailyReportForOrg(
       const text =
         r.role === "sotuv_menejeri"
           ? await buildPersonalDailyReport(organizationId, r.id)
-          : fullText;
+          : r.role === "rop"
+            ? (
+                await buildFullDailyReport(organizationId, {
+                  ownerScope: [r.id, ...(reportsByManagerId?.get(r.id) ?? [])],
+                })
+              ).text
+            : fullText;
       await sendTelegramMessage(r.telegram_chat_id, text);
       sent++;
     } catch {

@@ -1373,6 +1373,10 @@ const en: Dict = {
   "leadAnalytics.spendSaveFailed": "Couldn't save spend.",
   "leadAnalytics.spendHint":
     "Spend is entered manually per source/campaign per month — there's no automatic ad-spend source yet.",
+  "leadAnalytics.getReport": "Get report",
+  "leadAnalytics.reportFailed": "Couldn't generate the report.",
+  "leadAnalytics.reportCopy": "Copy",
+  "leadAnalytics.reportCopied": "Report copied.",
   "analytics.forecast": "Forecast (Sep)",
   "analytics.weightedPipeline": "weighted pipeline",
   "analytics.ytdRevenue": "YTD revenue",
@@ -3369,6 +3373,10 @@ const ru: Dict = {
   "leadAnalytics.spendSaveFailed": "Не удалось сохранить расход.",
   "leadAnalytics.spendHint":
     "Расходы вводятся вручную по каждому источнику/кампании за месяц — автоматического источника рекламных расходов пока нет.",
+  "leadAnalytics.getReport": "Получить отчёт",
+  "leadAnalytics.reportFailed": "Не удалось сформировать отчёт.",
+  "leadAnalytics.reportCopy": "Копировать",
+  "leadAnalytics.reportCopied": "Отчёт скопирован.",
   "analytics.forecast": "Прогноз (сент.)",
   "analytics.weightedPipeline": "взвешенная воронка",
   "analytics.ytdRevenue": "Выручка с начала года",
@@ -5397,6 +5405,10 @@ const uz: Dict = {
   "leadAnalytics.spendSaveFailed": "Xarajatni saqlab bo'lmadi.",
   "leadAnalytics.spendHint":
     "Xarajat har bir manba/kampaniya uchun oyma-oy qo'lda kiritiladi — hozircha reklama xarajatining avtomatik manbasi yo'q.",
+  "leadAnalytics.getReport": "Hisobotni olish",
+  "leadAnalytics.reportFailed": "Hisobotni tayyorlab bo'lmadi.",
+  "leadAnalytics.reportCopy": "Nusxalash",
+  "leadAnalytics.reportCopied": "Hisobot nusxalandi.",
   "analytics.forecast": "Prognoz (sent.)",
   "analytics.weightedPipeline": "vaznlangan voronka",
   "analytics.ytdRevenue": "Yil boshidan tushum",

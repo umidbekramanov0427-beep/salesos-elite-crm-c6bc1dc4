@@ -30,10 +30,13 @@ import {
   DollarSign,
   Trash2,
   Plus,
+  FileText,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FilterTile, TileOption } from "@/components/filters/FilterTile";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   useFunnelNames,
   useProfilesRaw,
@@ -46,6 +49,7 @@ import {
   useMarketingSpend,
   useUpsertMarketingSpend,
   useDeleteMarketingSpend,
+  useGenerateLeadAnalyticsReport,
   type LeadAnalyticsRecoverableRow,
   type LeadAnalyticsHotRow,
   type LeadAnalyticsTagResultRow,
@@ -62,6 +66,7 @@ import {
   type LeadAnalyticsSpeedBySourceRow,
   type LeadAnalyticsDailyTrendRow,
   type MarketingSpendRow,
+  type LeadAnalyticsFullReportData,
 } from "@/hooks/use-crm-data";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
@@ -1820,6 +1825,131 @@ function MonthStrip({
   );
 }
 
+// The on-demand "Hisobotni olish" report is a plain-text business document,
+// not UI chrome -- same reasoning as the daily Telegram report in
+// daily-report-builder.server.ts, which is also hard-coded Uzbek regardless
+// of the viewer's language setting.
+function formatFullReportText(input: {
+  data: LeadAnalyticsFullReportData;
+  format: (n: number) => string;
+  funnelLabel: string;
+  teamLabel: string;
+  managerLabel: string;
+  periodLabel: string;
+}): string {
+  const { data, format, funnelLabel, teamLabel, managerLabel, periodLabel } = input;
+  const dateLabel = new Date().toLocaleDateString("uz-UZ", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const lines: string[] = [
+    "LID TAHLILI HISOBOTI",
+    `Sana: ${dateLabel}`,
+    `Davr: ${periodLabel}`,
+    `Voronka: ${funnelLabel}`,
+    `Jamoa: ${teamLabel}`,
+    `Operator: ${managerLabel}`,
+    "",
+    "UMUMIY KO'RSATKICHLAR",
+    `- Jami lidlar: ${data.action.totalLeads}`,
+    `- O'rtacha konversiya: ${data.action.avgConversion}%`,
+    `- Issiq lidlar: ${data.action.hotLeads}`,
+    `- Churn xavfidagi lidlar: ${data.action.churnRisk}`,
+    "",
+    "HARAKAT KERAK",
+    `- Qaytarish mumkin bo'lgan lidlar: ${data.action.recoverable.length}`,
+    `- Bugun yopilishi mumkin bo'lgan issiq lidlar: ${data.action.hotPipeline.length}`,
+    `- Faolligi kuzatilgan operatorlar: ${data.action.operatorActivity.length}`,
+    "",
+  ];
+
+  if (data.quality.tagResults.length > 0) {
+    lines.push("LID SIFATI (TEG BO'YICHA)");
+    for (const r of data.quality.tagResults.slice(0, 10)) {
+      lines.push(
+        `- ${r.tag}: sotilgan ${r.sold}, yo'qotilgan ${r.lost}, ochiq ${r.open}, jami ${r.total}`,
+      );
+    }
+    lines.push("");
+  }
+
+  lines.push("HOZIRGI HOLAT");
+  const temp = data.current.temperature;
+  lines.push(
+    `- Sovuq: ${temp.cold}, Iliq: ${temp.warm}, Issiq: ${temp.hot}, Juda issiq: ${temp.veryHot}`,
+  );
+  if (data.current.stages.length > 0) {
+    lines.push("Bosqichlar bo'yicha:");
+    for (const s of data.current.stages.slice(0, 12)) {
+      lines.push(
+        `- ${s.stage}: ${s.lead_count} ta${s.avg_days != null ? `, o'rtacha ${s.avg_days} kun` : ""}`,
+      );
+    }
+  }
+  if (data.current.managerLoad.length > 0) {
+    lines.push("Menejerlar yuklamasi:");
+    for (const m of data.current.managerLoad.slice(0, 15)) {
+      lines.push(`- ${m.manager}: jami ${m.total}`);
+    }
+  }
+  lines.push("");
+
+  lines.push("YO'NALISH");
+  const dir = data.direction.direction;
+  lines.push(
+    `- Yaqin orada yopiladi: ${dir.closingSoon}, Neytral: ${dir.neutral}, Yaqin orada yo'qotiladi: ${dir.losingSoon}`,
+  );
+  if (data.direction.lostReasons.length > 0) {
+    lines.push("Yo'qotish sabablari (top):");
+    for (const r of data.direction.lostReasons.slice(0, 8)) {
+      lines.push(`- ${r.reason}: ${r.count}`);
+    }
+  }
+  lines.push(`- Churn xavfidagi lidlar: ${data.direction.churnRisk.length}`);
+  lines.push("");
+
+  lines.push("MARKETING");
+  if (data.marketing.bySource.length > 0) {
+    lines.push("Manba bo'yicha:");
+    for (const r of data.marketing.bySource.slice(0, 10)) {
+      lines.push(
+        `- ${r.source}: jami ${r.total}, yutilgan ${r.won}, konversiya ${r.conversion != null ? `${r.conversion}%` : "—"}, daromad ${format(r.revenue)}`,
+      );
+    }
+  }
+  if (data.marketing.byCampaign.length > 0) {
+    lines.push("Kampaniya bo'yicha:");
+    for (const r of data.marketing.byCampaign.slice(0, 10)) {
+      lines.push(
+        `- ${r.campaign}: jami ${r.total}, yutilgan ${r.won}, konversiya ${r.conversion != null ? `${r.conversion}%` : "—"}, daromad ${format(r.revenue)}`,
+      );
+    }
+  }
+  if (data.marketing.qualityBySource.length > 0) {
+    lines.push("Manba bo'yicha sifat (audio tahlil orqali baholangan):");
+    for (const r of data.marketing.qualityBySource.slice(0, 10)) {
+      lines.push(
+        `- ${r.source}: sifatli ${r.qualified}, sifatsiz ${r.unqualified}, baholanmagan ${r.unscored}, jami ${r.total}`,
+      );
+    }
+  }
+  if (data.marketing.speedBySource.length > 0) {
+    lines.push("Manba bo'yicha tezlik (birinchi qo'ng'iroqqacha o'rtacha soat):");
+    for (const r of data.marketing.speedBySource.slice(0, 10)) {
+      lines.push(`- ${r.source}: ${r.avg_hours} soat (${r.sample_size} ta lid)`);
+    }
+  }
+  if (data.marketing.lostReasonsBySource.length > 0) {
+    lines.push("Manba bo'yicha yo'qotish sabablari (top):");
+    for (const r of data.marketing.lostReasonsBySource.slice(0, 10)) {
+      lines.push(`- ${r.source} — ${r.reason}: ${r.count}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 function LeadAnalytics() {
   const { t } = useI18n();
   const { format } = useCurrency();
@@ -1834,6 +1964,9 @@ function LeadAnalytics() {
   const [teamId, setTeamId] = useState("");
   const { names: funnelNames } = useFunnelNames();
   const { data: profiles } = useProfilesRaw();
+  const generateReport = useGenerateLeadAnalyticsReport();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
 
   const since = useMemo(
     () => periodSince(period, monthYear, monthIndex),
@@ -1894,9 +2027,56 @@ function LeadAnalytics() {
     { key: "monthly", labelKey: "leadAnalytics.periodMonthly" },
   ];
 
+  async function handleGenerateReport() {
+    try {
+      const periodLabel =
+        period === "monthly"
+          ? `${MONTH_TILE_LABELS[monthIndex]} ${monthYear}`
+          : t(PERIODS.find((p) => p.key === period)?.labelKey ?? "leadAnalytics.periodMonthly");
+      const result = await generateReport.mutateAsync({
+        funnel: funnel || null,
+        manager: managerId || null,
+        team: teamId || null,
+        since,
+        until: period === "monthly" ? until : null,
+      });
+      setReportText(
+        formatFullReportText({
+          data: result,
+          format,
+          funnelLabel: selectedFunnelName,
+          teamLabel: selectedTeamName,
+          managerLabel: selectedManagerName,
+          periodLabel,
+        }),
+      );
+      setReportOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("leadAnalytics.reportFailed"));
+    }
+  }
+
   return (
     <>
-      <PageHeader title={t("leadAnalytics.title")} description={t("leadAnalytics.desc")} />
+      <PageHeader
+        title={t("leadAnalytics.title")}
+        description={t("leadAnalytics.desc")}
+        actions={
+          <button
+            type="button"
+            onClick={() => void handleGenerateReport()}
+            disabled={generateReport.isPending}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {generateReport.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            {t("leadAnalytics.getReport")}
+          </button>
+        }
+      />
 
       <div className="mb-6 inline-flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
         {TABS.map((tb) => (
@@ -2073,6 +2253,30 @@ function LeadAnalytics() {
           t={t}
         />
       )}
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-3">
+              {t("leadAnalytics.getReport")}
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(reportText);
+                  toast.success(t("leadAnalytics.reportCopied"));
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {t("leadAnalytics.reportCopy")}
+              </button>
+            </DialogTitle>
+          </DialogHeader>
+          <pre className="whitespace-pre-wrap break-words text-sm text-foreground">
+            {reportText}
+          </pre>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
