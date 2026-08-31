@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bell, Globe, Menu, Moon, Search, Sparkles, Sun, X } from "lucide-react";
+import { Globe, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { LocationPicker } from "./LocationPicker";
 import { NAV_ITEMS } from "@/lib/nav";
@@ -155,23 +155,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Search className="h-[18px] w-[18px]" />
             </button>
-
-            <Link
-              to="/ai-assistant"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-mint px-2.5 py-2 text-xs font-semibold text-mint-foreground transition-colors hover:bg-mint-border"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">AI</span>
-            </Link>
-
-            <Link
-              to={isPlatformOwner ? "/platform/notifications" : "/inbox"}
-              aria-label={t("shell.notifications")}
-              className="relative rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Bell className="h-[18px] w-[18px]" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
-            </Link>
 
             <button
               aria-label={t("shell.theme")}

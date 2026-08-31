@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import {
-  AlertTriangle,
   Bell,
   CheckCircle2,
   Clock,
@@ -25,7 +24,6 @@ import {
   useClockIn,
   useClockOut,
   useCreateNotification,
-  useCrmLeads,
   useLogCall,
   useMyOpenSession,
   useNormativesView,
@@ -408,35 +406,6 @@ function NotifyButton({ row }: { row: NormativeRow }) {
   );
 }
 
-function BottleneckCard() {
-  const { t } = useI18n();
-  const { rows: leads, stages } = useCrmLeads();
-
-  const nonTerminal = stages.filter((s) => !s.is_won && !s.is_lost);
-  const counted = nonTerminal
-    .map((s) => ({ stage: s, count: leads.filter((l) => l.stageId === s.id).length }))
-    .sort((a, b) => b.count - a.count);
-  const bottleneck = counted[0];
-
-  return (
-    <SectionCard title={t("normatives.bottleneck")} description={t("normatives.bottleneckDesc")}>
-      {bottleneck && bottleneck.count > 0 ? (
-        <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">{bottleneck.stage.name}</p>
-            <p className="text-xs text-subtle">
-              {t("normatives.bottleneckHint", { count: bottleneck.count })}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm text-subtle">{t("normatives.noBottleneck")}</p>
-      )}
-    </SectionCard>
-  );
-}
-
 function NormativesSection() {
   const { t } = useI18n();
   const { format } = useCurrency();
@@ -483,10 +452,6 @@ function NormativesSection() {
           value={String(behind)}
           info={t("normatives.behindInfo")}
         />
-      </div>
-
-      <div className="mt-6">
-        <BottleneckCard />
       </div>
 
       <div className="mt-6">

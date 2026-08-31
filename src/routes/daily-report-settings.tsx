@@ -1,13 +1,24 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Bell, Calendar, FileText, Loader2, Sparkles, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bell,
+  Calendar,
+  FileText,
+  Loader2,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { Switch } from "@/components/ui/switch";
+import { useI18n } from "@/lib/i18n";
 import {
   useDailyReportSettings,
   useUpdateDailyReportSettings,
   useGenerateDailyReportNow,
+  useCrmLeads,
 } from "@/hooks/use-crm-data";
 
 export const Route = createFileRoute("/daily-report-settings")({
@@ -119,6 +130,38 @@ function GenerateNowCard() {
   );
 }
 
+// Moved here from Normativlar (attendance.tsx) -- a stuck-pipeline warning
+// belongs with the daily reporting the team already reads, not buried in a
+// separate performance-tracking page.
+function BottleneckCard() {
+  const { t } = useI18n();
+  const { rows: leads, stages } = useCrmLeads();
+
+  const nonTerminal = stages.filter((s) => !s.is_won && !s.is_lost);
+  const counted = nonTerminal
+    .map((s) => ({ stage: s, count: leads.filter((l) => l.stageId === s.id).length }))
+    .sort((a, b) => b.count - a.count);
+  const bottleneck = counted[0];
+
+  return (
+    <SectionCard title={t("normatives.bottleneck")} description={t("normatives.bottleneckDesc")}>
+      {bottleneck && bottleneck.count > 0 ? (
+        <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">{bottleneck.stage.name}</p>
+            <p className="text-xs text-subtle">
+              {t("normatives.bottleneckHint", { count: bottleneck.count })}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-subtle">{t("normatives.noBottleneck")}</p>
+      )}
+    </SectionCard>
+  );
+}
+
 function DailyReportSettingsPage() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: settings, isLoading } = useDailyReportSettings();
@@ -192,6 +235,8 @@ function DailyReportSettingsPage() {
 
       <div className="grid gap-6">
         <GenerateNowCard />
+
+        <BottleneckCard />
 
         <SectionCard>
           <div className="flex items-center gap-2.5">
