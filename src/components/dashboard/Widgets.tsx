@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, CircleAlert, Inbox as InboxIcon, Mic, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { CircleAlert, Inbox as InboxIcon, Mic, Sparkles } from "lucide-react";
 import { SectionCard, Pill } from "@/components/layout/Primitives";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
@@ -14,7 +13,6 @@ import {
   useRecentAnalyzedCalls,
   useTasksView,
   useTopPerformers,
-  useUpdateTask,
   type TaskView,
 } from "@/hooks/use-crm-data";
 
@@ -27,95 +25,6 @@ function EmptyState({ title, body }: { title: string; body: string }) {
       <p className="mt-3 text-sm font-semibold text-foreground">{title}</p>
       <p className="mt-1 max-w-xs text-xs text-muted-foreground">{body}</p>
     </div>
-  );
-}
-
-const priorityTone = (p: TaskView["priority"]) =>
-  p === "Urgent" ? "danger" : p === "High" ? "warning" : p === "Low" ? "neutral" : "info";
-
-function bucketOf(task: TaskView): "Overdue" | "Today" | "Upcoming" | null {
-  if (!task.dueRaw) return "Upcoming";
-  const due = new Date(task.dueRaw);
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 86400000);
-  if (due < startOfDay) return "Overdue";
-  if (due < endOfDay) return "Today";
-  return "Upcoming";
-}
-
-export function ImportantTasksWidget() {
-  const { t } = useI18n();
-  const { rows: tasks } = useTasksView();
-  const updateTask = useUpdateTask();
-  const buckets: Array<"Overdue" | "Today" | "Upcoming"> = ["Overdue", "Today", "Upcoming"];
-  const bucketLabel: Record<(typeof buckets)[number], string> = {
-    Overdue: t("widget.bucketOverdue"),
-    Today: t("widget.bucketToday"),
-    Upcoming: t("widget.bucketUpcoming"),
-  };
-
-  const openTasks = useMemo(
-    () => tasks.filter((task) => !task.leadId && task.status !== "Done"),
-    [tasks],
-  );
-
-  return (
-    <SectionCard
-      title={t("widget.importantTasksTitle")}
-      description={t("widget.importantTasksDesc")}
-      info={t("widget.importantTasksInfo")}
-    >
-      <div className="space-y-5">
-        {buckets.map((bucket) => {
-          const items = openTasks.filter((task) => bucketOf(task) === bucket);
-          return (
-            <div key={bucket}>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">
-                {bucketLabel[bucket]}
-              </p>
-              {items.length === 0 ? (
-                <p className="rounded-xl bg-mint px-3 py-2 text-xs text-mint-foreground">
-                  {t("widget.allClearIn", { bucket: bucketLabel[bucket].toLowerCase() })}
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {items.map((task) => (
-                    <li
-                      key={task.id}
-                      className="flex items-start gap-3 rounded-xl border border-border p-3 transition-colors duration-150 hover:bg-accent"
-                    >
-                      <button
-                        aria-label={t("widget.completeAria", { title: task.title })}
-                        onClick={() => {
-                          updateTask.mutate({
-                            id: task.id,
-                            patch: { status: "Done", progress: 100 },
-                          });
-                          toast.success(t("widget.taskCompletedToast"), {
-                            description: task.title,
-                          });
-                        }}
-                        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-border text-transparent transition-colors hover:border-success hover:text-success focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{task.title}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-subtle">
-                          {task.assignee} · {task.due}
-                        </p>
-                      </div>
-                      <Pill tone={priorityTone(task.priority)}>{task.priority}</Pill>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </SectionCard>
   );
 }
 

@@ -95,7 +95,7 @@ export function CommandPalette({
 
         <CommandGroup heading={t("cmd.tasks")}>
           {TASKS.map((tk) => (
-            <CommandItem key={tk.id} value={`task ${tk.title}`} onSelect={() => go("/tasks")}>
+            <CommandItem key={tk.id} value={`task ${tk.title}`} onSelect={() => go("/lead-tasks")}>
               {tk.title}
               <CommandShortcut>{tk.due}</CommandShortcut>
             </CommandItem>

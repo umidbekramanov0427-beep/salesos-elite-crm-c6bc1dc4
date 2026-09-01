@@ -6195,3 +6195,148 @@ export function useUpdateContentLibrarySettings() {
       void qc.invalidateQueries({ queryKey: ["content_library_settings", user?.organizationId] }),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* "Amalga oshirish rejasi" -- a super_admin-only, per-organization     */
+/* phased implementation checklist replacing the old company-wide       */
+/* "Important Tasks" board: named plans, each a sequence of day-numbered*/
+/* tasks (phase/weight/status/note) plus a planned-vs-actual progress   */
+/* chart driven by completed_at (set the moment a task is checked off). */
+/* ------------------------------------------------------------------ */
+
+export type RolloutPlanRow = Tables["rollout_plans"]["Row"];
+export type RolloutPlanTaskRow = Tables["rollout_plan_tasks"]["Row"];
+export type RolloutPlanTaskWeight = "light" | "medium" | "heavy";
+export type RolloutPlanTaskStatus = "done" | "in_progress" | "not_done";
+
+const rolloutPlansResource = makeResource("rollout_plans", ["rollout_plans"]);
+export const useRolloutPlans = () =>
+  rolloutPlansResource.useList({ orderBy: "created_at", ascending: false });
+export const useDeleteRolloutPlan = rolloutPlansResource.useRemove;
+
+export function useCreateRolloutPlan() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { name: string; startDate: string }): Promise<RolloutPlanRow> => {
+      const { data, error } = await supabase
+        .from("rollout_plans")
+        .insert({
+          organization_id: user!.organizationId!,
+          name: input.name.trim(),
+          start_date: input.startDate,
+          created_by: user!.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["rollout_plans"] }),
+  });
+}
+
+export function useRolloutPlanTasks(planId: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["rollout_plan_tasks", planId],
+    enabled: !!planId && !!user?.organizationId,
+    queryFn: async (): Promise<RolloutPlanTaskRow[]> => {
+      const { data, error } = await supabase
+        .from("rollout_plan_tasks")
+        .select("*")
+        .eq("plan_id", planId!)
+        .order("day_number", { ascending: true })
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateRolloutPlanTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      planId: string;
+      dayNumber: number;
+      phase: string;
+      task: string;
+      weight: RolloutPlanTaskWeight;
+      note?: string;
+      position?: number;
+    }): Promise<RolloutPlanTaskRow> => {
+      const { data, error } = await supabase
+        .from("rollout_plan_tasks")
+        .insert({
+          plan_id: input.planId,
+          day_number: input.dayNumber,
+          phase: input.phase.trim(),
+          task: input.task.trim(),
+          weight: input.weight,
+          note: input.note?.trim() ?? "",
+          position: input.position ?? 0,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["rollout_plan_tasks", vars.planId] }),
+  });
+}
+
+export function useUpdateRolloutPlanTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      planId,
+      patch,
+    }: {
+      id: string;
+      planId: string;
+      patch: Database["public"]["Tables"]["rollout_plan_tasks"]["Update"];
+    }) => {
+      const { error } = await supabase.from("rollout_plan_tasks").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["rollout_plan_tasks", vars.planId] }),
+  });
+}
+
+// The checklist's primary interaction -- checking a task off sets status to
+// 'done' and stamps completed_at with the real moment it happened (so the
+// progress chart can plot actual completion against calendar dates, not
+// just a point-in-time percentage); unchecking clears both.
+export function useSetRolloutPlanTaskDone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, planId, done }: { id: string; planId: string; done: boolean }) => {
+      const { error } = await supabase
+        .from("rollout_plan_tasks")
+        .update({
+          status: done ? "done" : "not_done",
+          completed_at: done ? new Date().toISOString() : null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["rollout_plan_tasks", vars.planId] }),
+  });
+}
+
+export function useDeleteRolloutPlanTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; planId: string }) => {
+      const { error } = await supabase.from("rollout_plan_tasks").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["rollout_plan_tasks", vars.planId] }),
+  });
+}

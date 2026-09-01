@@ -2586,6 +2586,114 @@ export type Database = {
           },
         ];
       };
+      rollout_plans: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          name: string;
+          organization_id: string;
+          start_date: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name: string;
+          organization_id?: string;
+          start_date: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name?: string;
+          organization_id?: string;
+          start_date?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rollout_plans_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rollout_plans_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rollout_plan_tasks: {
+        Row: {
+          completed_at: string | null;
+          created_at: string;
+          day_number: number;
+          id: string;
+          note: string;
+          organization_id: string;
+          phase: string;
+          plan_id: string;
+          position: number;
+          status: string;
+          task: string;
+          updated_at: string;
+          weight: string;
+        };
+        Insert: {
+          completed_at?: string | null;
+          created_at?: string;
+          day_number: number;
+          id?: string;
+          note?: string;
+          organization_id?: string;
+          phase: string;
+          plan_id: string;
+          position?: number;
+          status?: string;
+          task: string;
+          updated_at?: string;
+          weight?: string;
+        };
+        Update: {
+          completed_at?: string | null;
+          created_at?: string;
+          day_number?: number;
+          id?: string;
+          note?: string;
+          organization_id?: string;
+          phase?: string;
+          plan_id?: string;
+          position?: number;
+          status?: string;
+          task?: string;
+          updated_at?: string;
+          weight?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rollout_plan_tasks_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rollout_plan_tasks_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "rollout_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       role_permissions: {
         Row: {
           action: string;
