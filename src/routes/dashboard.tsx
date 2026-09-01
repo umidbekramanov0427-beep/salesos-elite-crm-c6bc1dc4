@@ -4,7 +4,6 @@ import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { DashboardFilterRow, DashboardKpiCards } from "@/components/dashboard/DailyReport";
 import {
-  ImportantTasksWidget,
   LeadTasksWidget,
   InboxWidget,
   ActivityWidget,
@@ -195,7 +194,6 @@ function Dashboard() {
       </div>
 
       <div className="mt-6 space-y-6">
-        <ImportantTasksWidget />
         <LeadTasksWidget funnel={funnel} />
       </div>
 

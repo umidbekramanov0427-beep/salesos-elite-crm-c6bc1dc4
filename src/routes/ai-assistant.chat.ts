@@ -592,7 +592,7 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 - /crm/companies — Companies
 - /crm-stages — Permissions matrix: which roles can do what
 - /funnels — Funnels: stage conversion analysis per funnel, plus (inside a funnel) a Kanban/list/gallery lead board synced from AmoCRM
-- /tasks — Important Tasks: company-wide task board
+- /rollout-plan — Amalga oshirish rejasi (super_admin only): a phased implementation checklist — day/week, phase, weight, status, note — with a planned-vs-actual completion chart
 - /lead-tasks — Lead Tasks: every open task grouped by its lead
 - /audio-analytics — Audio Analytics: call volume, connection rate, AI call summaries
 - /attendance — Attendance & Quotas: clock in/out, call logs, daily/monthly pacing

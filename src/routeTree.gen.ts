@@ -27,10 +27,10 @@ import { Route as LeadAnalyticsRouteImport } from './routes/lead-analytics'
 import { Route as LeadTasksRouteImport } from './routes/lead-tasks'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as RolloutPlanRouteImport } from './routes/rollout-plan'
 import { Route as ScoringCriteriaRouteImport } from './routes/scoring-criteria'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminAiAgentsRouteImport } from './routes/admin.ai-agents'
@@ -184,6 +184,11 @@ const McpRoute = McpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RolloutPlanRoute = RolloutPlanRouteImport.update({
+  id: '/rollout-plan',
+  path: '/rollout-plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScoringCriteriaRoute = ScoringCriteriaRouteImport.update({
   id: '/scoring-criteria',
   path: '/scoring-criteria',
@@ -197,11 +202,6 @@ const SettingsRoute = SettingsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93ListToolsRoute =
@@ -553,10 +553,10 @@ export interface FileRoutesByFullPath {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/rollout-plan': typeof RolloutPlanRoute
   '/scoring-criteria': typeof ScoringCriteriaRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRouteWithChildren
@@ -639,10 +639,10 @@ export interface FileRoutesByTo {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/rollout-plan': typeof RolloutPlanRoute
   '/scoring-criteria': typeof ScoringCriteriaRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRouteWithChildren
@@ -726,10 +726,10 @@ export interface FileRoutesById {
   '/lead-tasks': typeof LeadTasksRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/rollout-plan': typeof RolloutPlanRoute
   '/scoring-criteria': typeof ScoringCriteriaRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/tasks': typeof TasksRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-agents': typeof AdminAiAgentsRouteWithChildren
@@ -814,10 +814,10 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/rollout-plan'
     | '/scoring-criteria'
     | '/settings'
     | '/sitemap.xml'
-    | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
@@ -900,10 +900,10 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/rollout-plan'
     | '/scoring-criteria'
     | '/settings'
     | '/sitemap.xml'
-    | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
@@ -986,10 +986,10 @@ export interface FileRouteTypes {
     | '/lead-tasks'
     | '/login'
     | '/mcp'
+    | '/rollout-plan'
     | '/scoring-criteria'
     | '/settings'
     | '/sitemap.xml'
-    | '/tasks'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-agents'
@@ -1073,10 +1073,10 @@ export interface RootRouteChildren {
   LeadTasksRoute: typeof LeadTasksRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
+  RolloutPlanRoute: typeof RolloutPlanRoute
   ScoringCriteriaRoute: typeof ScoringCriteriaRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  TasksRoute: typeof TasksRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   CrmCompaniesRoute: typeof CrmCompaniesRoute
@@ -1237,6 +1237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rollout-plan': {
+      id: '/rollout-plan'
+      path: '/rollout-plan'
+      fullPath: '/rollout-plan'
+      preLoaderRoute: typeof RolloutPlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scoring-criteria': {
       id: '/scoring-criteria'
       path: '/scoring-criteria'
@@ -1256,13 +1263,6 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -1860,10 +1860,10 @@ const rootRouteChildren: RootRouteChildren = {
   LeadTasksRoute: LeadTasksRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
+  RolloutPlanRoute: RolloutPlanRoute,
   ScoringCriteriaRoute: ScoringCriteriaRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  TasksRoute: TasksRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,

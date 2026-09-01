@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   FileBarChart,
   Workflow,
-  ClipboardList,
+  ListChecks,
   AudioLines,
   Settings,
   ShieldCheck,
@@ -81,12 +81,14 @@ export const NAV_ITEMS: NavItem[] = [
     iconColor: "text-rose-500",
   },
   {
-    label: "Important Tasks",
-    to: "/tasks",
-    icon: ClipboardList,
-    // No static count here — AppSidebar computes the real open-task badge
-    // itself (see importantTasksCount) from the same data ImportantTasksWidget
-    // shows, instead of a fixed placeholder number.
+    label: "Amalga oshirish rejasi",
+    to: "/rollout-plan",
+    icon: ListChecks,
+    // Replaces the old company-wide "Important Tasks" board — a phased
+    // implementation checklist (day/week, phase, weight, status) the
+    // company's own super_admin runs after logging into their own org,
+    // not a platform_owner cross-company tool.
+    adminOnly: true,
     group: "control",
     iconColor: "text-orange-500",
   },

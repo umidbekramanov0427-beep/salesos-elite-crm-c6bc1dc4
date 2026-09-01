@@ -1,0 +1,694 @@
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import {
+  useCreateRolloutPlan,
+  useCreateRolloutPlanTask,
+  useDeleteRolloutPlan,
+  useDeleteRolloutPlanTask,
+  useRolloutPlanTasks,
+  useRolloutPlans,
+  useSetRolloutPlanTaskDone,
+  useUpdateRolloutPlanTask,
+  type RolloutPlanRow,
+  type RolloutPlanTaskRow,
+  type RolloutPlanTaskStatus,
+  type RolloutPlanTaskWeight,
+} from "@/hooks/use-crm-data";
+
+export const Route = createFileRoute("/rollout-plan")({
+  head: () => ({
+    meta: [
+      { title: "Amalga oshirish rejasi — SalesOS Elite" },
+      {
+        name: "description",
+        content: "Phased implementation checklist with a planned-vs-actual progress chart.",
+      },
+    ],
+  }),
+  component: RolloutPlanPage,
+});
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err && typeof err.message === "string") {
+    return err.message || fallback;
+  }
+  return fallback;
+}
+
+const WEIGHT_ORDER: RolloutPlanTaskWeight[] = ["light", "medium", "heavy"];
+const STATUS_ORDER: RolloutPlanTaskStatus[] = ["not_done", "in_progress", "done"];
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function startOfDay(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function dayOffset(from: Date, to: Date): number {
+  return Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86400000);
+}
+
+function RolloutPlanPage() {
+  const { user } = useAuth();
+  const { t } = useI18n();
+
+  if (user && user.role !== "super_admin") {
+    return (
+      <SectionCard title={t("admin.restrictedTitle")} description={t("admin.restrictedDesc")}>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <ShieldAlert className="h-4 w-4" /> {t("admin.restrictedHint")}
+        </div>
+      </SectionCard>
+    );
+  }
+
+  return <RolloutPlanContent />;
+}
+
+function CreatePlanDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  const createPlan = useCreateRolloutPlan();
+  const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState(todayIso());
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const plan = await createPlan.mutateAsync({ name, startDate });
+      toast.success(t("rolloutPlan.planCreated"));
+      onCreated(plan.id);
+      onOpenChange(false);
+      setName("");
+      setStartDate(todayIso());
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.createPlanFailed")));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("rolloutPlan.newPlan")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>{t("rolloutPlan.planName")}</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("rolloutPlan.planNamePlaceholder")}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("rolloutPlan.startDate")}</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+          <DialogFooter>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("rolloutPlan.create")}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddTaskForm({ planId, nextDay }: { planId: string; nextDay: number }) {
+  const { t } = useI18n();
+  const createTask = useCreateRolloutPlanTask();
+  const [dayNumber, setDayNumber] = useState(nextDay);
+  const [phase, setPhase] = useState("");
+  const [task, setTask] = useState("");
+  const [weight, setWeight] = useState<RolloutPlanTaskWeight>("medium");
+
+  useEffect(() => setDayNumber(nextDay), [nextDay]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!phase.trim() || !task.trim()) return;
+    try {
+      await createTask.mutateAsync({ planId, dayNumber, phase, task, weight });
+      toast.success(t("rolloutPlan.taskAdded"));
+      setTask("");
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.addTaskFailed")));
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => void submit(e)}
+      className="grid grid-cols-1 gap-3 sm:grid-cols-[80px_1fr_1fr_140px_auto] sm:items-end"
+    >
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t("rolloutPlan.fieldDay")}</Label>
+        <Input
+          type="number"
+          min={1}
+          value={dayNumber}
+          onChange={(e) => setDayNumber(Math.max(1, Number(e.target.value) || 1))}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t("rolloutPlan.fieldPhase")}</Label>
+        <Input
+          value={phase}
+          onChange={(e) => setPhase(e.target.value)}
+          placeholder={t("rolloutPlan.fieldPhasePlaceholder")}
+          required
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t("rolloutPlan.fieldTask")}</Label>
+        <Input value={task} onChange={(e) => setTask(e.target.value)} required />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t("rolloutPlan.fieldWeight")}</Label>
+        <select
+          value={weight}
+          onChange={(e) => setWeight(e.target.value as RolloutPlanTaskWeight)}
+          className="h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+        >
+          {WEIGHT_ORDER.map((w) => (
+            <option key={w} value={w}>
+              {t(`rolloutPlan.weight${w[0]!.toUpperCase()}${w.slice(1)}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        type="submit"
+        disabled={createTask.isPending}
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {createTask.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Plus className="h-4 w-4" />
+        )}
+        {t("rolloutPlan.addTask")}
+      </button>
+    </form>
+  );
+}
+
+function NoteCell({ task, planId }: { task: RolloutPlanTaskRow; planId: string }) {
+  const { t } = useI18n();
+  const updateTask = useUpdateRolloutPlanTask();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(task.note);
+
+  async function save() {
+    try {
+      await updateTask.mutateAsync({ id: task.id, planId, patch: { note: value.trim() } });
+      setEditing(false);
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.updateFailed")));
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void save()}
+          onBlur={() => void save()}
+          className="h-8 w-full min-w-[120px] rounded-lg border border-border bg-accent px-2 text-xs outline-none focus:border-primary/40"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setValue(task.note);
+        setEditing(true);
+      }}
+      className="block w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
+    >
+      {task.note || "—"}
+    </button>
+  );
+}
+
+const WEIGHT_TONE: Record<RolloutPlanTaskWeight, "neutral" | "warning" | "danger"> = {
+  light: "neutral",
+  medium: "warning",
+  heavy: "danger",
+};
+
+function TaskChecklistRow({ task, planId }: { task: RolloutPlanTaskRow; planId: string }) {
+  const { t } = useI18n();
+  const setDone = useSetRolloutPlanTaskDone();
+  const updateTask = useUpdateRolloutPlanTask();
+  const deleteTask = useDeleteRolloutPlanTask();
+  const isDone = task.status === "done";
+
+  async function toggleDone() {
+    try {
+      await setDone.mutateAsync({ id: task.id, planId, done: !isDone });
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.updateFailed")));
+    }
+  }
+
+  async function changeStatus(status: RolloutPlanTaskStatus) {
+    if (status === "done" || task.status === "done") {
+      await toggleDone();
+      return;
+    }
+    try {
+      await updateTask.mutateAsync({ id: task.id, planId, patch: { status } });
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.updateFailed")));
+    }
+  }
+
+  async function remove() {
+    try {
+      await deleteTask.mutateAsync({ id: task.id, planId });
+      toast.success(t("rolloutPlan.deleted"));
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.deleteFailed")));
+    }
+  }
+
+  return (
+    <tr className={cn("border-b border-border last:border-0", isDone && "bg-success/5")}>
+      <td className="px-3 py-3">
+        <button
+          type="button"
+          aria-label={t("rolloutPlan.done")}
+          onClick={() => void toggleDone()}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-lg border-2 text-transparent transition-colors",
+            isDone
+              ? "border-success bg-success text-success-foreground"
+              : "border-border hover:border-success",
+          )}
+        >
+          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
+            <path
+              d="M3 8.5l3 3 7-7"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </td>
+      <td className="px-3 py-3 text-center text-sm font-semibold text-subtle">{task.day_number}</td>
+      <td className="px-3 py-3 text-sm text-muted-foreground">{task.phase}</td>
+      <td className="min-w-[180px] px-3 py-3 text-sm text-foreground">
+        <span className={cn(isDone && "text-muted-foreground line-through")}>{task.task}</span>
+      </td>
+      <td className="px-3 py-3">
+        <Pill tone={WEIGHT_TONE[task.weight as RolloutPlanTaskWeight] ?? "neutral"}>
+          {t(
+            `rolloutPlan.weight${(task.weight as string)[0]!.toUpperCase()}${task.weight.slice(1)}`,
+          )}
+        </Pill>
+      </td>
+      <td className="px-3 py-3">
+        <select
+          value={task.status}
+          onChange={(e) => void changeStatus(e.target.value as RolloutPlanTaskStatus)}
+          className={cn(
+            "h-8 rounded-lg border border-border bg-accent px-2 text-xs font-semibold outline-none focus:border-primary/40",
+            task.status === "done" && "text-success",
+            task.status === "in_progress" && "text-warning-foreground",
+          )}
+        >
+          {STATUS_ORDER.map((s) => (
+            <option key={s} value={s}>
+              {t(
+                `rolloutPlan.status${s === "not_done" ? "NotDone" : s === "in_progress" ? "InProgress" : "Done"}`,
+              )}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="min-w-[140px] px-3 py-3">
+        <NoteCell task={task} planId={planId} />
+      </td>
+      <td className="px-3 py-3">
+        <button
+          type="button"
+          onClick={() => void remove()}
+          aria-label={t("rolloutPlan.deleteTask")}
+          className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+const CHART_SURFACE_STYLE = {
+  borderRadius: 12,
+  border: "1px solid var(--color-border)",
+  background: "var(--color-popover)",
+  boxShadow: "var(--shadow-elevated)",
+  fontSize: 12,
+};
+
+function ProgressChart({ tasks, startDate }: { tasks: RolloutPlanTaskRow[]; startDate: string }) {
+  const { t } = useI18n();
+
+  const chartData = useMemo(() => {
+    const total = tasks.length;
+    if (total === 0) return [];
+    const start = new Date(`${startDate}T00:00:00`);
+    const today = new Date();
+    const maxPlanDay = Math.max(...tasks.map((tk) => tk.day_number));
+    const elapsedDays = dayOffset(start, today) + 1;
+    const lastDay = Math.max(maxPlanDay, elapsedDays);
+
+    const plannedByDay = new Map<number, number>();
+    for (const tk of tasks)
+      plannedByDay.set(tk.day_number, (plannedByDay.get(tk.day_number) ?? 0) + 1);
+
+    const actualByOffset = new Map<number, number>();
+    for (const tk of tasks) {
+      if (!tk.completed_at) continue;
+      const offset = Math.max(0, dayOffset(start, new Date(tk.completed_at)));
+      actualByOffset.set(offset, (actualByOffset.get(offset) ?? 0) + 1);
+    }
+
+    const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+    let plannedCum = 0;
+    let actualCum = 0;
+    const rows: { day: number; date: string; planned: number; actual: number | null }[] = [];
+    for (let day = 1; day <= lastDay; day++) {
+      plannedCum += plannedByDay.get(day) ?? 0;
+      actualCum += actualByOffset.get(day - 1) ?? 0;
+      const date = new Date(start.getTime() + (day - 1) * 86400000);
+      rows.push({
+        day,
+        date: dateFmt.format(date),
+        planned: Math.round((plannedCum / total) * 100),
+        actual: day <= elapsedDays ? Math.round((actualCum / total) * 100) : null,
+      });
+    }
+    return rows;
+  }, [tasks, startDate]);
+
+  if (chartData.length === 0) {
+    return <p className="py-10 text-center text-sm text-subtle">{t("rolloutPlan.chartEmpty")}</p>;
+  }
+
+  return (
+    <div className="h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ left: -14, right: 8, top: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            stroke="var(--color-subtle)"
+            minTickGap={24}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            fontSize={11}
+            stroke="var(--color-subtle)"
+            domain={[0, 100]}
+            tickFormatter={(v: number) => `${v}%`}
+          />
+          <Tooltip contentStyle={CHART_SURFACE_STYLE} formatter={(v: number) => `${v}%`} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Line
+            type="monotone"
+            dataKey="planned"
+            name={t("rolloutPlan.chartPlanned")}
+            stroke="var(--color-subtle)"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="actual"
+            name={t("rolloutPlan.chartActual")}
+            stroke="var(--color-primary)"
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
+  const { t } = useI18n();
+  const { data: tasks, isLoading } = useRolloutPlanTasks(plan.id);
+  const rows = tasks ?? [];
+
+  const totalDays = rows.length ? Math.max(...rows.map((r) => r.day_number)) : 0;
+  const elapsedDays = Math.max(
+    0,
+    Math.min(totalDays, dayOffset(new Date(`${plan.start_date}T00:00:00`), new Date()) + 1),
+  );
+  const doneCount = rows.filter((r) => r.status === "done").length;
+  const percent = rows.length ? Math.round((doneCount / rows.length) * 100) : 0;
+  const nextDay = rows.length ? Math.max(...rows.map((r) => r.day_number)) : 1;
+
+  return (
+    <div className="space-y-6">
+      <SectionCard>
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="text-3xl font-bold text-foreground">{percent}%</p>
+            <p className="text-xs text-subtle">
+              {t("rolloutPlan.percentDone", { percent: String(percent) })}
+            </p>
+          </div>
+          <div className="h-10 w-px bg-border" />
+          <div>
+            <p className="text-lg font-semibold text-foreground">
+              {elapsedDays} / {totalDays || 0}
+            </p>
+            <p className="text-xs text-subtle">
+              {t("rolloutPlan.daysElapsed", {
+                elapsed: String(elapsedDays),
+                total: String(totalDays || 0),
+              })}
+            </p>
+          </div>
+          <div className="ml-auto h-2 w-full max-w-xs overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-success transition-all"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title={t("rolloutPlan.chartTitle")}>
+        <ProgressChart tasks={rows} startDate={plan.start_date} />
+      </SectionCard>
+
+      <SectionCard title={t("rolloutPlan.addTask")}>
+        <AddTaskForm planId={plan.id} nextDay={nextDay} />
+      </SectionCard>
+
+      <SectionCard>
+        {isLoading ? (
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="py-10 text-center text-sm text-subtle">{t("rolloutPlan.noTasks")}</p>
+        ) : (
+          <div className="-m-6 overflow-x-auto">
+            <table className="w-full min-w-[860px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
+                  <th className="px-3 py-3 font-medium">{t("rolloutPlan.done")}</th>
+                  <th className="px-3 py-3 text-center font-medium">{t("rolloutPlan.fieldDay")}</th>
+                  <th className="px-3 py-3 font-medium">{t("rolloutPlan.fieldPhase")}</th>
+                  <th className="px-3 py-3 font-medium">{t("rolloutPlan.fieldTask")}</th>
+                  <th className="px-3 py-3 font-medium">{t("rolloutPlan.fieldWeight")}</th>
+                  <th className="px-3 py-3 font-medium">{t("rolloutPlan.fieldStatus")}</th>
+                  <th className="px-3 py-3 font-medium">{t("rolloutPlan.fieldNote")}</th>
+                  <th className="px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((task) => (
+                  <TaskChecklistRow key={task.id} task={task} planId={plan.id} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+function RolloutPlanContent() {
+  const { t } = useI18n();
+  const { data: plans, isLoading } = useRolloutPlans();
+  const deletePlan = useDeleteRolloutPlan();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedId && plans && plans.length > 0) setSelectedId(plans[0]!.id);
+  }, [plans, selectedId]);
+
+  const selectedPlan = (plans ?? []).find((p) => p.id === selectedId) ?? null;
+
+  async function removePlan() {
+    if (!confirmDeleteId) return;
+    try {
+      await deletePlan.mutateAsync(confirmDeleteId);
+      toast.success(t("rolloutPlan.deleted"));
+      if (selectedId === confirmDeleteId) setSelectedId(null);
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.deleteFailed")));
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={t("rolloutPlan.title")}
+        description={t("rolloutPlan.desc")}
+        actions={
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> {t("rolloutPlan.newPlan")}
+          </button>
+        }
+      />
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        </div>
+      ) : (plans ?? []).length === 0 ? (
+        <SectionCard>
+          <p className="py-10 text-center text-sm text-subtle">{t("rolloutPlan.noPlans")}</p>
+        </SectionCard>
+      ) : (
+        <>
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            {(plans ?? []).map((p) => (
+              <div key={p.id} className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(p.id)}
+                  className={cn(
+                    "rounded-xl px-4 py-2 text-sm font-semibold transition-colors",
+                    selectedId === p.id
+                      ? "bg-foreground text-background"
+                      : "border border-border bg-background text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {p.name}
+                </button>
+                {selectedId === p.id && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(p.id)}
+                    aria-label={t("rolloutPlan.deletePlan")}
+                    className="ml-1 rounded-lg p-2 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {selectedPlan && <PlanDetail plan={selectedPlan} />}
+        </>
+      )}
+
+      <CreatePlanDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={setSelectedId} />
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(v) => !v && setConfirmDeleteId(null)}
+        title={t("rolloutPlan.deletePlanConfirmTitle")}
+        description={t("rolloutPlan.deletePlanConfirmDesc")}
+        onConfirm={() => void removePlan()}
+      />
+    </>
+  );
+}

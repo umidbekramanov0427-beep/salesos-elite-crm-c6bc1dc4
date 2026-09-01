@@ -40,7 +40,7 @@ const CATEGORIES: { id: string; labelKey: string; actions: string[] }[] = [
   {
     id: "tasks",
     labelKey: "rbac.cat.tasks",
-    actions: ["View tasks", "Create tasks", "Assign tasks", "Delete tasks", "Complete tasks"],
+    actions: ["Create tasks", "Assign tasks", "Delete tasks", "Complete tasks"],
   },
   {
     id: "reports",
@@ -80,7 +80,6 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   "View pipeline": "rbac.action.viewPipeline",
   "Move deals": "rbac.action.moveDeals",
   "View revenue": "rbac.action.viewRevenue",
-  "View tasks": "rbac.action.viewTasks",
   "Create tasks": "rbac.action.createTasks",
   "Assign tasks": "rbac.action.assignTasks",
   "Delete tasks": "rbac.action.deleteTasks",

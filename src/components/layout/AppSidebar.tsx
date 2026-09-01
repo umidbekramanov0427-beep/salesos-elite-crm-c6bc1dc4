@@ -21,7 +21,6 @@ import {
   useFunnelNames,
   useMarkNotificationRead,
   useNotificationsView,
-  useTasksView,
 } from "@/hooks/use-crm-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -343,14 +342,9 @@ export function AppSidebar({ collapsed, onToggle, isAdmin, isPlatformOwner }: Pr
   const controlItems = mainItems.filter((i) => i.group === "control");
   const settingsItem = NAV_ITEMS.find((i) => i.to === "/settings")!;
   const aiAssistantItem = NAV_ITEMS.find((i) => i.to === "/ai-assistant")!;
-  // Same "not tied to any lead" definition ImportantTasksWidget itself uses
-  // — this used to be a fixed "8" in NAV_ITEMS with no connection to real
-  // data at all.
-  const { rows: sidebarTasks } = useTasksView();
-  const importantTasksCount = sidebarTasks.filter((t) => !t.leadId && t.status !== "Done").length;
 
   function renderItem(item: (typeof NAV_ITEMS)[number]) {
-    const badge = item.to === "/tasks" ? String(importantTasksCount) : item.badge;
+    const badge = item.badge;
     // "/platform" has sibling sub-pages (/platform/users etc.) that share
     // its prefix, so it needs the same exact-match treatment as "/" —
     // otherwise both "Platform" and e.g. "Users" would show active at once.
