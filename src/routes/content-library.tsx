@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import {
   AlignLeft,
   Building2,
+  Copy,
   ExternalLink,
+  Eye,
   File as FileIcon,
   FileText,
   GraduationCap,
@@ -19,6 +21,7 @@ import {
 } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { OrgStructureChart } from "@/components/content-library/OrgStructureChart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   useContentLibraryItems,
@@ -410,6 +413,158 @@ function EditItemDialog({
   );
 }
 
+function ItemCard({
+  item,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  item: ContentLibraryItemRow;
+  canEdit: boolean;
+  onEdit: (item: ContentLibraryItemRow) => void;
+  onDelete: (item: ContentLibraryItemRow) => void;
+}) {
+  const { t } = useI18n();
+  const itemType = item.item_type as ContentLibraryItemType;
+  const Icon = ITEM_TYPE_ICON[itemType] ?? FileIcon;
+  const isImage = itemType === "image";
+  const isText = itemType === "text";
+  const isLink = itemType === "link";
+  const tone = ITEM_TYPE_TONE[itemType] ?? ITEM_TYPE_TONE.file;
+  const [showUrl, setShowUrl] = useState(false);
+
+  async function copyLink() {
+    if (!item.url) return;
+    try {
+      await navigator.clipboard.writeText(item.url);
+      toast.success(t("contentLibrary.linkCopied"));
+    } catch {
+      toast.error(t("contentLibrary.copyFailed"));
+    }
+  }
+
+  return (
+    <li
+      className={cn(
+        "group flex flex-col gap-3 rounded-2xl border p-4 shadow-soft transition-shadow hover:shadow-elevated",
+        isText
+          ? "border-amber-200/70 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/[0.04]"
+          : "border-border bg-surface",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", tone)}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+          <span
+            className={cn(
+              "mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+              tone,
+            )}
+          >
+            {t(TYPE_LABEL_KEY[itemType])}
+          </span>
+        </div>
+      </div>
+
+      {isImage && item.url && (
+        <div className="rounded-2xl border-2 border-border bg-background p-1.5 shadow-inner">
+          <img src={item.url} alt={item.title} className="h-52 w-full rounded-xl object-cover" />
+        </div>
+      )}
+
+      {item.description && (
+        <p
+          className={cn(
+            "whitespace-pre-wrap break-words text-sm leading-relaxed",
+            isText ? "font-serif text-foreground" : "text-subtle",
+          )}
+        >
+          {item.description}
+        </p>
+      )}
+
+      {isLink && showUrl && item.url && (
+        <p className="truncate rounded-lg bg-muted px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+          {item.url}
+        </p>
+      )}
+
+      <div className="mt-auto flex items-center gap-1.5 border-t border-border/70 pt-3">
+        {isLink && item.url ? (
+          <>
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t("inbox.open")}
+            </a>
+            <button
+              type="button"
+              onClick={() => setShowUrl((v) => !v)}
+              aria-label={t("contentLibrary.viewLink")}
+              className={cn(
+                "rounded-lg p-1.5 transition-colors hover:bg-accent hover:text-foreground",
+                showUrl ? "text-foreground" : "text-subtle",
+              )}
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyLink()}
+              aria-label={t("contentLibrary.copyLink")}
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ) : (
+          !isText &&
+          item.url && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t("inbox.open")}
+            </a>
+          )
+        )}
+        {canEdit && (
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              aria-label={t("contentLibrary.editItem")}
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(item)}
+              aria-label={t("contentLibrary.deleteConfirmTitle")}
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function ItemsShelf({
   section,
   title,
@@ -713,12 +868,7 @@ function ContentLibraryPage() {
             description={t("contentLibrary.generalDesc")}
             canEdit={canEdit}
           />
-          <ItemsShelf
-            section="about_org_structure"
-            title={t("contentLibrary.orgStructureTitle")}
-            description={t("contentLibrary.orgStructureDesc")}
-            canEdit={canEdit}
-          />
+          <OrgStructureChart canEdit={canEdit} />
           <ItemsShelf
             section="about_regulation"
             title={t("contentLibrary.regulationTitle")}
