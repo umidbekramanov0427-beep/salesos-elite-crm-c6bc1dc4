@@ -6120,6 +6120,28 @@ export function useCreateContentLibraryItem() {
   });
 }
 
+export function useUpdateContentLibraryItem() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      section: ContentLibrarySection;
+      patch: { title?: string; description?: string; url?: string };
+    }) => {
+      const { error } = await supabase.from("content_library_items").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({
+        queryKey: ["content_library_items", user?.organizationId, vars.section],
+      }),
+  });
+}
+
 export function useDeleteContentLibraryItem() {
   const qc = useQueryClient();
   const { user } = useAuth();
