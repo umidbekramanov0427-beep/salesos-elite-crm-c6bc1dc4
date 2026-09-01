@@ -352,7 +352,7 @@ function ItemsShelf({
             return (
               <li
                 key={item.id}
-                className="flex items-start justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
               >
                 <Wrapper
                   {...(isText
@@ -366,16 +366,29 @@ function ItemsShelf({
                 >
                   {body}
                 </Wrapper>
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => void remove(item.id)}
-                    className="shrink-0 rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={t("contentLibrary.deleted")}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  {!isText && (
+                    <a
+                      href={item.url ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {t("inbox.open")}
+                    </a>
+                  )}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => void remove(item.id)}
+                      className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={t("contentLibrary.deleted")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </li>
             );
           })}
@@ -444,6 +457,17 @@ function GoogleSheetsCard({
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("common.save")}
           </button>
+          {urlValue && (
+            <a
+              href={urlValue}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-primary transition-colors hover:bg-accent"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t("contentLibrary.openSheet")}
+            </a>
+          )}
         </div>
       ) : urlValue ? (
         <a
