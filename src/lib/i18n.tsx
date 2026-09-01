@@ -2014,8 +2014,10 @@ const en: Dict = {
   "contentLibrary.saveFailed": "Couldn't save.",
   "contentLibrary.noFileSelected": "No file selected.",
   "contentLibrary.noUrlOrFile": "A link or a file is required.",
+  "contentLibrary.noTextEntered": "Enter the text first.",
   "contentLibrary.fieldTitle": "Title",
   "contentLibrary.fieldDescription": "Description (optional)",
+  "contentLibrary.fieldText": "Text",
   "contentLibrary.fieldType": "Type",
   "contentLibrary.fieldUrl": "Link",
   "contentLibrary.fieldFile": "File",
@@ -2025,6 +2027,7 @@ const en: Dict = {
   "contentLibrary.typeVideo": "Video",
   "contentLibrary.typeAudio": "Audio",
   "contentLibrary.typeFile": "File",
+  "contentLibrary.typeText": "Written text",
 };
 
 const ru: Dict = {
@@ -4021,8 +4024,10 @@ const ru: Dict = {
   "contentLibrary.saveFailed": "Не удалось сохранить.",
   "contentLibrary.noFileSelected": "Файл не выбран.",
   "contentLibrary.noUrlOrFile": "Нужна ссылка или файл.",
+  "contentLibrary.noTextEntered": "Сначала введите текст.",
   "contentLibrary.fieldTitle": "Название",
   "contentLibrary.fieldDescription": "Описание (необязательно)",
+  "contentLibrary.fieldText": "Текст",
   "contentLibrary.fieldType": "Тип",
   "contentLibrary.fieldUrl": "Ссылка",
   "contentLibrary.fieldFile": "Файл",
@@ -4032,6 +4037,7 @@ const ru: Dict = {
   "contentLibrary.typeVideo": "Видео",
   "contentLibrary.typeAudio": "Аудио",
   "contentLibrary.typeFile": "Файл",
+  "contentLibrary.typeText": "Текст",
 };
 
 const uz: Dict = {
@@ -6064,8 +6070,10 @@ const uz: Dict = {
   "contentLibrary.saveFailed": "Saqlab bo'lmadi.",
   "contentLibrary.noFileSelected": "Fayl tanlanmagan.",
   "contentLibrary.noUrlOrFile": "Havola yoki fayl kerak.",
+  "contentLibrary.noTextEntered": "Avval matnni kiriting.",
   "contentLibrary.fieldTitle": "Nomi",
   "contentLibrary.fieldDescription": "Tavsif (ixtiyoriy)",
+  "contentLibrary.fieldText": "Matn",
   "contentLibrary.fieldType": "Turi",
   "contentLibrary.fieldUrl": "Havola",
   "contentLibrary.fieldFile": "Fayl",
@@ -6075,6 +6083,7 @@ const uz: Dict = {
   "contentLibrary.typeVideo": "Video",
   "contentLibrary.typeAudio": "Audio",
   "contentLibrary.typeFile": "Fayl",
+  "contentLibrary.typeText": "Yozma matn",
 };
 
 const DICTS: Record<Lang, Dict> = { uz, ru, en };

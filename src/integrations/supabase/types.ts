@@ -1710,7 +1710,7 @@ export type Database = {
           section: string;
           title: string;
           updated_at: string;
-          url: string;
+          url: string | null;
         };
         Insert: {
           created_at?: string;
@@ -1723,7 +1723,7 @@ export type Database = {
           section: string;
           title: string;
           updated_at?: string;
-          url: string;
+          url?: string | null;
         };
         Update: {
           created_at?: string;
@@ -1736,7 +1736,7 @@ export type Database = {
           section?: string;
           title?: string;
           updated_at?: string;
-          url?: string;
+          url?: string | null;
         };
         Relationships: [
           {

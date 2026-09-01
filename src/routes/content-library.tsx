@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
+  AlignLeft,
   Building2,
   ExternalLink,
   File as FileIcon,
@@ -51,9 +52,11 @@ const ITEM_TYPE_ICON: Record<ContentLibraryItemType, typeof Link2> = {
   video: VideoIcon,
   audio: Music2,
   file: FileIcon,
+  text: AlignLeft,
 };
 
 const TYPE_OPTIONS: { value: ContentLibraryItemType; labelKey: string }[] = [
+  { value: "text", labelKey: "contentLibrary.typeText" },
   { value: "link", labelKey: "contentLibrary.typeLink" },
   { value: "document", labelKey: "contentLibrary.typeDocument" },
   { value: "image", labelKey: "contentLibrary.typeImage" },
@@ -96,22 +99,31 @@ function AddItemDialog({
     if (!itemTitle.trim()) return;
     setSaving(true);
     try {
-      let finalUrl = url.trim();
+      let finalUrl: string | null = url.trim();
       let filePath: string | null = null;
-      if (itemType !== "link") {
-        if (!file) {
-          toast.error(t("contentLibrary.noFileSelected"));
+      if (itemType === "text") {
+        if (!description.trim()) {
+          toast.error(t("contentLibrary.noTextEntered"));
           setSaving(false);
           return;
         }
-        const uploaded = await uploadFile.mutateAsync(file);
-        finalUrl = uploaded.url;
-        filePath = uploaded.path;
-      }
-      if (!finalUrl) {
-        toast.error(t("contentLibrary.noUrlOrFile"));
-        setSaving(false);
-        return;
+        finalUrl = null;
+      } else {
+        if (itemType !== "link") {
+          if (!file) {
+            toast.error(t("contentLibrary.noFileSelected"));
+            setSaving(false);
+            return;
+          }
+          const uploaded = await uploadFile.mutateAsync(file);
+          finalUrl = uploaded.url;
+          filePath = uploaded.path;
+        }
+        if (!finalUrl) {
+          toast.error(t("contentLibrary.noUrlOrFile"));
+          setSaving(false);
+          return;
+        }
       }
       await createItem.mutateAsync({
         section,
@@ -158,12 +170,15 @@ function AddItemDialog({
 
           <label className="block">
             <span className="text-sm font-medium text-muted-foreground">
-              {t("contentLibrary.fieldDescription")}
+              {itemType === "text"
+                ? t("contentLibrary.fieldText")
+                : t("contentLibrary.fieldDescription")}
             </span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={6}
+              required={itemType === "text"}
+              rows={itemType === "text" ? 10 : 6}
               className="mt-1.5 w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
             />
           </label>
@@ -191,7 +206,7 @@ function AddItemDialog({
             </div>
           </div>
 
-          {itemType === "link" ? (
+          {itemType === "text" ? null : itemType === "link" ? (
             <label className="block">
               <span className="text-sm font-medium text-muted-foreground">
                 {t("contentLibrary.fieldUrl")}
@@ -291,39 +306,55 @@ function ItemsShelf({
           {(items ?? []).map((item) => {
             const Icon = ITEM_TYPE_ICON[item.item_type as ContentLibraryItemType] ?? FileIcon;
             const isImage = item.item_type === "image";
+            const isText = item.item_type === "text";
+            const Wrapper = isText ? "div" : "a";
+            const body = (
+              <>
+                {isImage ? (
+                  <img
+                    src={item.url ?? undefined}
+                    alt={item.title}
+                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    {item.title}
+                  </span>
+                  {item.description && (
+                    <span
+                      className={cn(
+                        "mt-0.5 block whitespace-pre-wrap break-words text-xs",
+                        isText ? "text-foreground" : "text-subtle",
+                      )}
+                    >
+                      {item.description}
+                    </span>
+                  )}
+                </span>
+              </>
+            );
             return (
               <li
                 key={item.id}
                 className="flex items-start justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
               >
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Wrapper
+                  {...(isText
+                    ? {}
+                    : {
+                        href: item.url ?? undefined,
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                      })}
                   className="flex min-w-0 flex-1 items-start gap-3"
                 >
-                  {isImage ? (
-                    <img
-                      src={item.url}
-                      alt={item.title}
-                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                  )}
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-foreground">
-                      {item.title}
-                    </span>
-                    {item.description && (
-                      <span className="mt-0.5 block whitespace-pre-wrap break-words text-xs text-subtle">
-                        {item.description}
-                      </span>
-                    )}
-                  </span>
-                </a>
+                  {body}
+                </Wrapper>
                 {canEdit && (
                   <button
                     type="button"
