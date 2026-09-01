@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Eye,
   File as FileIcon,
+  FileSpreadsheet,
   FileText,
   GraduationCap,
   Image as ImageIcon,
@@ -27,11 +28,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   useContentLibraryItems,
-  useContentLibrarySettings,
   useCreateContentLibraryItem,
   useDeleteContentLibraryItem,
   useUpdateContentLibraryItem,
-  useUpdateContentLibrarySettings,
   useUploadContentLibraryFile,
   type ContentLibraryItemRow,
   type ContentLibraryItemType,
@@ -149,6 +148,49 @@ const CARD_COLOR_SWATCH: Record<CardColorName, string> = {
   amber: "bg-amber-200",
 };
 
+function ColorSwatchPicker({
+  value,
+  onChange,
+  ringOffsetClassName = "ring-offset-background",
+}: {
+  value: string | null;
+  onChange: (color: string | null) => void;
+  ringOffsetClassName?: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        aria-label={t("contentLibrary.defaultColor")}
+        title={t("contentLibrary.defaultColor")}
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border text-subtle transition-transform hover:scale-110",
+          ringOffsetClassName,
+          !value && "ring-2 ring-foreground",
+        )}
+      >
+        <span className="text-[10px]">×</span>
+      </button>
+      {CARD_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          aria-label={c}
+          onClick={() => onChange(c)}
+          className={cn(
+            "h-7 w-7 rounded-full transition-transform hover:scale-110",
+            ringOffsetClassName,
+            CARD_COLOR_SWATCH[c],
+            value === c && "ring-2 ring-foreground",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
 function AddItemDialog({
   open,
   onOpenChange,
@@ -168,6 +210,7 @@ function AddItemDialog({
   const [itemType, setItemType] = useState<ContentLibraryItemType>("link");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [color, setColor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function reset() {
@@ -176,6 +219,7 @@ function AddItemDialog({
     setItemType("link");
     setUrl("");
     setFile(null);
+    setColor(null);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -216,6 +260,7 @@ function AddItemDialog({
         itemType,
         url: finalUrl,
         filePath,
+        color,
       });
       toast.success(t("contentLibrary.added"));
       reset();
@@ -290,6 +335,15 @@ function AddItemDialog({
             </div>
           </div>
 
+          <div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("contentLibrary.fieldColor")}
+            </span>
+            <div className="mt-1.5">
+              <ColorSwatchPicker value={color} onChange={setColor} />
+            </div>
+          </div>
+
           {itemType === "text" ? null : itemType === "link" ? (
             <label className="block">
               <span className="text-sm font-medium text-muted-foreground">
@@ -353,6 +407,7 @@ function EditItemDialog({
   const [itemTitle, setItemTitle] = useState("");
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
+  const [color, setColor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const isText = item?.item_type === "text";
   const isLink = item?.item_type === "link";
@@ -362,6 +417,7 @@ function EditItemDialog({
     setItemTitle(item.title);
     setDescription(item.description ?? "");
     setUrl(item.url ?? "");
+    setColor(item.color ?? null);
   }, [open, item]);
 
   async function handleSubmit(e: FormEvent) {
@@ -379,6 +435,7 @@ function EditItemDialog({
         patch: {
           title: itemTitle.trim(),
           description: description.trim(),
+          color,
           ...(isLink ? { url: url.trim() } : {}),
         },
       });
@@ -438,6 +495,15 @@ function EditItemDialog({
                 />
               </label>
             )}
+
+            <div>
+              <span className="text-sm font-medium text-muted-foreground">
+                {t("contentLibrary.fieldColor")}
+              </span>
+              <div className="mt-1.5">
+                <ColorSwatchPicker value={color} onChange={setColor} />
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2 pt-1">
               <button
@@ -626,33 +692,11 @@ function ItemCard({
                 <p className="mb-2 text-[11px] font-medium text-subtle">
                   {t("contentLibrary.chooseColor")}
                 </p>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void setColor(null)}
-                    aria-label={t("contentLibrary.defaultColor")}
-                    title={t("contentLibrary.defaultColor")}
-                    className={cn(
-                      "flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-subtle transition-transform hover:scale-110",
-                      !chosenColor && "ring-2 ring-foreground",
-                    )}
-                  >
-                    <span className="text-[10px]">×</span>
-                  </button>
-                  {CARD_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      aria-label={c}
-                      onClick={() => void setColor(c)}
-                      className={cn(
-                        "h-6 w-6 rounded-full ring-offset-2 ring-offset-popover transition-transform hover:scale-110",
-                        CARD_COLOR_SWATCH[c],
-                        chosenColor === c && "ring-2 ring-foreground",
-                      )}
-                    />
-                  ))}
-                </div>
+                <ColorSwatchPicker
+                  value={chosenColor}
+                  onChange={(c) => void setColor(c)}
+                  ringOffsetClassName="ring-offset-popover"
+                />
               </PopoverContent>
             </Popover>
             <button
@@ -844,84 +888,342 @@ function ItemsShelf({
   );
 }
 
-function GoogleSheetsCard({
-  canEdit,
-  urlValue,
-  onSave,
-  label,
+function AddLinkDialog({
+  open,
+  onOpenChange,
+  section,
+  dialogTitle,
 }: {
-  canEdit: boolean;
-  urlValue: string;
-  onSave: (url: string) => Promise<void>;
-  label: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  section: ContentLibrarySection;
+  dialogTitle: string;
 }) {
   const { t } = useI18n();
-  const [url, setUrl] = useState(urlValue);
-  const [hydrated, setHydrated] = useState(false);
+  const createItem = useCreateContentLibraryItem();
+  const [linkTitle, setLinkTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [color, setColor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (hydrated) return;
-    setUrl(urlValue);
-    setHydrated(true);
-  }, [urlValue, hydrated]);
+  function reset() {
+    setLinkTitle("");
+    setUrl("");
+    setColor(null);
+  }
 
-  async function save() {
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!linkTitle.trim() || !url.trim()) return;
     setSaving(true);
     try {
-      await onSave(url.trim());
-      toast.success(t("contentLibrary.saved"));
+      await createItem.mutateAsync({
+        section,
+        title: linkTitle,
+        itemType: "link",
+        url: url.trim(),
+        color,
+      });
+      toast.success(t("contentLibrary.added"));
+      reset();
+      onOpenChange(false);
     } catch (err) {
-      toast.error(errorMessage(err, t("contentLibrary.saveFailed")));
+      toast.error(errorMessage(err, t("contentLibrary.addFailed")));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <SectionCard title={label} description={t("contentLibrary.sheetsDesc")}>
-      {canEdit ? (
-        <div className="flex flex-wrap gap-2">
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://docs.google.com/spreadsheets/d/..."
-            className="h-11 min-w-[240px] flex-1 rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
-          />
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("common.save")}
-          </button>
-          {urlValue && (
-            <a
-              href={urlValue}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-primary transition-colors hover:bg-accent"
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o);
+        if (!o) reset();
+      }}
+    >
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("contentLibrary.fieldTitle")}
+            </span>
+            <input
+              value={linkTitle}
+              onChange={(e) => setLinkTitle(e.target.value)}
+              placeholder={t("contentLibrary.sheetTitlePlaceholder")}
+              required
+              autoFocus
+              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("contentLibrary.fieldUrl")}
+            </span>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              required
+              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+            />
+          </label>
+
+          <div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("contentLibrary.fieldColor")}
+            </span>
+            <div className="mt-1.5">
+              <ColorSwatchPicker value={color} onChange={setColor} />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
             >
-              <ExternalLink className="h-4 w-4" />
-              {t("contentLibrary.openSheet")}
-            </a>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("contentLibrary.add")}
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LinkRow({
+  item,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  item: ContentLibraryItemRow;
+  canEdit: boolean;
+  onEdit: (item: ContentLibraryItemRow) => void;
+  onDelete: (item: ContentLibraryItemRow) => void;
+}) {
+  const { t } = useI18n();
+  const updateItem = useUpdateContentLibraryItem();
+  const [showUrl, setShowUrl] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const chosenColor = isCardColorName(item.color) ? item.color : null;
+
+  async function copyLink() {
+    if (!item.url) return;
+    try {
+      await navigator.clipboard.writeText(item.url);
+      toast.success(t("contentLibrary.linkCopied"));
+    } catch {
+      toast.error(t("contentLibrary.copyFailed"));
+    }
+  }
+
+  async function setColor(color: string | null) {
+    setColorPickerOpen(false);
+    try {
+      await updateItem.mutateAsync({
+        id: item.id,
+        section: item.section as ContentLibrarySection,
+        patch: { color },
+      });
+    } catch (err) {
+      toast.error(errorMessage(err, t("contentLibrary.updateFailed")));
+    }
+  }
+
+  return (
+    <li
+      className={cn(
+        "flex flex-col gap-2 rounded-xl border p-3.5 shadow-soft transition-shadow hover:shadow-elevated sm:flex-row sm:items-center sm:justify-between",
+        chosenColor ? CARD_COLOR_SURFACE[chosenColor] : "border-border bg-surface",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+          <FileSpreadsheet className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+          {showUrl && item.url && (
+            <p className="truncate font-mono text-[11px] text-muted-foreground">{item.url}</p>
           )}
         </div>
-      ) : urlValue ? (
-        <a
-          href={urlValue}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-accent"
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-1">
+        {item.url && (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {t("inbox.open")}
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowUrl((v) => !v)}
+          aria-label={t("contentLibrary.viewLink")}
+          className={cn(
+            "rounded-lg p-1.5 transition-colors hover:bg-accent hover:text-foreground",
+            showUrl ? "text-foreground" : "text-subtle",
+          )}
         >
-          <ExternalLink className="h-4 w-4" />
-          {t("contentLibrary.openSheet")}
-        </a>
+          <Eye className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => void copyLink()}
+          aria-label={t("contentLibrary.copyLink")}
+          className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+        {canEdit && (
+          <>
+            <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t("contentLibrary.chooseColor")}
+                  className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-2">
+                <p className="mb-2 text-[11px] font-medium text-subtle">
+                  {t("contentLibrary.chooseColor")}
+                </p>
+                <ColorSwatchPicker
+                  value={chosenColor}
+                  onChange={(c) => void setColor(c)}
+                  ringOffsetClassName="ring-offset-popover"
+                />
+              </PopoverContent>
+            </Popover>
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              aria-label={t("contentLibrary.editItem")}
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(item)}
+              aria-label={t("contentLibrary.deleteConfirmTitle")}
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function LinksShelf({
+  section,
+  title,
+  description,
+  canEdit,
+}: {
+  section: ContentLibrarySection;
+  title: string;
+  description: string;
+  canEdit: boolean;
+}) {
+  const { t } = useI18n();
+  const { data: items, isLoading } = useContentLibraryItems(section);
+  const deleteItem = useDeleteContentLibraryItem();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editItem, setEditItem] = useState<ContentLibraryItemRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ContentLibraryItemRow | null>(null);
+
+  async function confirmRemove() {
+    if (!deleteTarget) return;
+    try {
+      await deleteItem.mutateAsync(deleteTarget.id);
+      toast.success(t("contentLibrary.deleted"));
+    } catch (err) {
+      toast.error(errorMessage(err, t("contentLibrary.deleteFailed")));
+    } finally {
+      setDeleteTarget(null);
+    }
+  }
+
+  return (
+    <SectionCard
+      title={title}
+      description={description}
+      actions={
+        canEdit ? (
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-subtle transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("contentLibrary.add")}
+          </button>
+        ) : undefined
+      }
+    >
+      {isLoading ? (
+        <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />
+      ) : (items ?? []).length === 0 ? (
+        <p className="py-6 text-center text-sm text-subtle">{t("contentLibrary.noSheetYet")}</p>
       ) : (
-        <p className="text-sm text-subtle">{t("contentLibrary.noSheetYet")}</p>
+        <ul className="space-y-2">
+          {(items ?? []).map((item) => (
+            <LinkRow
+              key={item.id}
+              item={item}
+              canEdit={canEdit}
+              onEdit={setEditItem}
+              onDelete={setDeleteTarget}
+            />
+          ))}
+        </ul>
       )}
+      <AddLinkDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        section={section}
+        dialogTitle={title}
+      />
+      <EditItemDialog
+        open={!!editItem}
+        onOpenChange={(o) => !o && setEditItem(null)}
+        item={editItem}
+      />
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={t("contentLibrary.deleteConfirmTitle")}
+        description={t("contentLibrary.deleteConfirmDesc")}
+        onConfirm={() => void confirmRemove()}
+      />
     </SectionCard>
   );
 }
@@ -931,8 +1233,6 @@ function ContentLibraryPage() {
   const { user } = useAuth();
   const canEdit = user?.role === "super_admin";
   const [tab, setTab] = useState<"about" | "training">("about");
-  const { data: settings } = useContentLibrarySettings();
-  const updateSettings = useUpdateContentLibrarySettings();
 
   return (
     <>
@@ -969,11 +1269,11 @@ function ContentLibraryPage() {
 
       {tab === "about" ? (
         <div className="space-y-6">
-          <GoogleSheetsCard
+          <LinksShelf
+            section="about_sheets"
+            title={t("contentLibrary.aboutSheetsLabel")}
+            description={t("contentLibrary.sheetsDesc")}
             canEdit={canEdit}
-            urlValue={settings?.about_google_sheets_url ?? ""}
-            onSave={(url) => updateSettings.mutateAsync({ aboutGoogleSheetsUrl: url })}
-            label={t("contentLibrary.aboutSheetsLabel")}
           />
           <ItemsShelf
             section="about_general"
@@ -991,11 +1291,11 @@ function ContentLibraryPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <GoogleSheetsCard
+          <LinksShelf
+            section="training_sheets"
+            title={t("contentLibrary.trainingSheetsLabel")}
+            description={t("contentLibrary.sheetsDesc")}
             canEdit={canEdit}
-            urlValue={settings?.training_google_sheets_url ?? ""}
-            onSave={(url) => updateSettings.mutateAsync({ trainingGoogleSheetsUrl: url })}
-            label={t("contentLibrary.trainingSheetsLabel")}
           />
           <ItemsShelf
             section="training"

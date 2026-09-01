@@ -6065,7 +6065,12 @@ export function useUploadHrChatAttachment() {
 /* ------------------------------------------------------------------ */
 
 export type ContentLibrarySection =
-  "about_general" | "about_org_structure" | "about_regulation" | "training";
+  | "about_general"
+  | "about_org_structure"
+  | "about_regulation"
+  | "training"
+  | "about_sheets"
+  | "training_sheets";
 
 export type ContentLibraryItemType =
   "link" | "file" | "image" | "video" | "audio" | "document" | "text";
@@ -6100,6 +6105,7 @@ export function useCreateContentLibraryItem() {
       itemType: ContentLibraryItemType;
       url: string | null;
       filePath?: string | null;
+      color?: string | null;
     }) => {
       const { error } = await supabase.from("content_library_items").insert({
         organization_id: user!.organizationId!,
@@ -6109,6 +6115,7 @@ export function useCreateContentLibraryItem() {
         item_type: input.itemType,
         url: input.url,
         file_path: input.filePath ?? null,
+        color: input.color ?? null,
         created_by: user!.id,
       });
       if (error) throw error;
