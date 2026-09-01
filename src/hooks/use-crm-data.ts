@@ -6130,7 +6130,7 @@ export function useUpdateContentLibraryItem() {
     }: {
       id: string;
       section: ContentLibrarySection;
-      patch: { title?: string; description?: string; url?: string };
+      patch: { title?: string; description?: string; url?: string; color?: string | null };
     }) => {
       const { error } = await supabase.from("content_library_items").update(patch).eq("id", id);
       if (error) throw error;
@@ -6215,6 +6215,107 @@ export function useUpdateContentLibrarySettings() {
     },
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: ["content_library_settings", user?.organizationId] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Org structure chart -- a connected hierarchy of role nodes (parent_id */
+/* self-reference) rendered as a real org chart in the content library, */
+/* instead of a generic document shelf. Deleting a node detaches (not   */
+/* cascades) its children, since parent_id uses ON DELETE SET NULL.     */
+/* ------------------------------------------------------------------ */
+
+export type OrgStructureNodeRow = Tables["org_structure_nodes"]["Row"];
+
+export function useOrgStructureNodes() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["org_structure_nodes", user?.organizationId],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<OrgStructureNodeRow[]> => {
+      const { data, error } = await supabase
+        .from("org_structure_nodes")
+        .select("*")
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateOrgStructureNode() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      parentId: string | null;
+      title: string;
+      subtitle?: string;
+      responsibilities?: string;
+      position?: number;
+    }): Promise<OrgStructureNodeRow> => {
+      const { data, error } = await supabase
+        .from("org_structure_nodes")
+        .insert({
+          organization_id: user!.organizationId!,
+          parent_id: input.parentId,
+          title: input.title.trim(),
+          subtitle: input.subtitle?.trim() ?? "",
+          responsibilities: input.responsibilities?.trim() ?? "",
+          position: input.position ?? 0,
+          created_by: user!.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["org_structure_nodes", user?.organizationId] }),
+  });
+}
+
+export function useUpdateOrgStructureNode() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: {
+        parentId?: string | null;
+        title?: string;
+        subtitle?: string;
+        responsibilities?: string;
+      };
+    }) => {
+      const { parentId, ...rest } = patch;
+      const { error } = await supabase
+        .from("org_structure_nodes")
+        .update({
+          ...rest,
+          ...(parentId !== undefined ? { parent_id: parentId } : {}),
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["org_structure_nodes", user?.organizationId] }),
+  });
+}
+
+export function useDeleteOrgStructureNode() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("org_structure_nodes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["org_structure_nodes", user?.organizationId] }),
   });
 }
 

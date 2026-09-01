@@ -1700,6 +1700,7 @@ export type Database = {
       };
       content_library_items: {
         Row: {
+          color: string | null;
           created_at: string;
           created_by: string | null;
           description: string;
@@ -1713,6 +1714,7 @@ export type Database = {
           url: string | null;
         };
         Insert: {
+          color?: string | null;
           created_at?: string;
           created_by?: string | null;
           description?: string;
@@ -1726,6 +1728,7 @@ export type Database = {
           url?: string | null;
         };
         Update: {
+          color?: string | null;
           created_at?: string;
           created_by?: string | null;
           description?: string;
@@ -2388,6 +2391,67 @@ export type Database = {
           trial_ends_at?: string | null;
         };
         Relationships: [];
+      };
+      org_structure_nodes: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          organization_id: string;
+          parent_id: string | null;
+          position: number;
+          responsibilities: string;
+          subtitle: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          organization_id?: string;
+          parent_id?: string | null;
+          position?: number;
+          responsibilities?: string;
+          subtitle?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          organization_id?: string;
+          parent_id?: string | null;
+          position?: number;
+          responsibilities?: string;
+          subtitle?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "org_structure_nodes_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "org_structure_nodes_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "org_structure_nodes_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "org_structure_nodes";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       pipeline_stages: {
         Row: {

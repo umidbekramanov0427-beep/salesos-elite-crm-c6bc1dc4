@@ -295,3 +295,71 @@
   transform-origin: 50px 50px;
   animation: logo-loader-bloom 1.8s ease-in-out infinite;
 }
+
+/* Hujjat va Darsliklar -> Tashkiliy tuzilma: a pure-CSS connected org
+   chart (parent/child role boxes joined by drawn lines), replacing a
+   plain document list for this one shelf. Classic ul/li pseudo-element
+   technique -- no charting library needed for a hierarchy this shallow. */
+.org-chart-tree,
+.org-chart-tree ul {
+  display: flex;
+  justify-content: center;
+  padding-top: 28px;
+  position: relative;
+}
+
+.org-chart-tree li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  list-style: none;
+  position: relative;
+  padding: 28px 14px 0 14px;
+}
+
+.org-chart-tree li::before,
+.org-chart-tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 28px;
+  border-top: 2px solid var(--color-border);
+}
+
+.org-chart-tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--color-border);
+}
+
+.org-chart-tree li:only-child {
+  padding-top: 0;
+}
+.org-chart-tree li:only-child::before,
+.org-chart-tree li:only-child::after {
+  display: none;
+}
+
+.org-chart-tree li:first-child::before,
+.org-chart-tree li:last-child::after {
+  border: 0 none;
+}
+.org-chart-tree li:last-child::before {
+  border-right: 2px solid var(--color-border);
+  border-radius: 0 10px 0 0;
+}
+.org-chart-tree li:first-child::after {
+  border-radius: 10px 0 0 0;
+}
+
+.org-chart-tree ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 2px solid var(--color-border);
+  width: 0;
+  height: 28px;
+}
