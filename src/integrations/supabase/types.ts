@@ -2694,6 +2694,45 @@ export type Database = {
           },
         ];
       };
+      rollout_plan_phase_colors: {
+        Row: {
+          color: string;
+          organization_id: string;
+          phase: string;
+          plan_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          color: string;
+          organization_id?: string;
+          phase: string;
+          plan_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          color?: string;
+          organization_id?: string;
+          phase?: string;
+          plan_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rollout_plan_phase_colors_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rollout_plan_phase_colors_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "rollout_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       role_permissions: {
         Row: {
           action: string;

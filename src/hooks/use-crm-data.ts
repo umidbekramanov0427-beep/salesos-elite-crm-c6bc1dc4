@@ -6340,3 +6340,56 @@ export function useDeleteRolloutPlanTask() {
       void qc.invalidateQueries({ queryKey: ["rollout_plan_tasks", vars.planId] }),
   });
 }
+
+// Lets a super_admin pick a background color per phase name so a 7-phase
+// plan reads at a glance instead of a wall of identical rows. One row per
+// (plan, phase) -- never duplicated onto every task -- so every task
+// sharing a phase name always shows the same color.
+export type RolloutPlanPhaseColor = Tables["rollout_plan_phase_colors"]["Row"]["color"];
+
+export function useRolloutPlanPhaseColors(planId: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["rollout_plan_phase_colors", planId],
+    enabled: !!planId && !!user?.organizationId,
+    queryFn: async (): Promise<Record<string, string>> => {
+      const { data, error } = await supabase
+        .from("rollout_plan_phase_colors")
+        .select("phase, color")
+        .eq("plan_id", planId!);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const row of data ?? []) map[row.phase] = row.color;
+      return map;
+    },
+  });
+}
+
+export function useSetRolloutPlanPhaseColor() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({
+      planId,
+      phase,
+      color,
+    }: {
+      planId: string;
+      phase: string;
+      color: string;
+    }) => {
+      const { error } = await supabase.from("rollout_plan_phase_colors").upsert(
+        {
+          plan_id: planId,
+          phase,
+          color,
+          organization_id: user!.organizationId!,
+        },
+        { onConflict: "plan_id,phase" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) =>
+      void qc.invalidateQueries({ queryKey: ["rollout_plan_phase_colors", vars.planId] }),
+  });
+}

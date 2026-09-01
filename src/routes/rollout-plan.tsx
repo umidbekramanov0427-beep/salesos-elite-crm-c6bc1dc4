@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ChevronDown, Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import {
   CartesianGrid,
   Legend,
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -31,8 +32,10 @@ import {
   useCreateRolloutPlanTask,
   useDeleteRolloutPlan,
   useDeleteRolloutPlanTask,
+  useRolloutPlanPhaseColors,
   useRolloutPlanTasks,
   useRolloutPlans,
+  useSetRolloutPlanPhaseColor,
   useSetRolloutPlanTaskDone,
   useUpdateRolloutPlanTask,
   type RolloutPlanRow,
@@ -353,11 +356,239 @@ const WEIGHT_TONE: Record<RolloutPlanTaskWeight, "neutral" | "warning" | "danger
   heavy: "danger",
 };
 
-function TaskChecklistRow({ task, planId }: { task: RolloutPlanTaskRow; planId: string }) {
+// A fixed categorical palette for phase backgrounds -- kept separate from
+// the app's success/warning/danger tones, which are reserved for status
+// coloring on this same page (see the status <select> below).
+const PHASE_COLORS = [
+  "slate",
+  "blue",
+  "purple",
+  "pink",
+  "orange",
+  "teal",
+  "indigo",
+  "cyan",
+] as const;
+type PhaseColorName = (typeof PHASE_COLORS)[number];
+
+const PHASE_COLOR_CLASS: Record<PhaseColorName, string> = {
+  slate: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+  blue: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  purple: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  pink: "bg-pink-500/15 text-pink-600 dark:text-pink-400",
+  orange: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+  teal: "bg-teal-500/15 text-teal-600 dark:text-teal-400",
+  indigo: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+  cyan: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
+};
+
+const PHASE_SWATCH_CLASS: Record<PhaseColorName, string> = {
+  slate: "bg-slate-500",
+  blue: "bg-blue-500",
+  purple: "bg-purple-500",
+  pink: "bg-pink-500",
+  orange: "bg-orange-500",
+  teal: "bg-teal-500",
+  indigo: "bg-indigo-500",
+  cyan: "bg-cyan-500",
+};
+
+function isPhaseColorName(value: string | undefined): value is PhaseColorName {
+  return !!value && (PHASE_COLORS as readonly string[]).includes(value);
+}
+
+function PhaseBadge({
+  phase,
+  color,
+  onSetColor,
+}: {
+  phase: string;
+  color?: string | undefined;
+  onSetColor: (color: PhaseColorName) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const tone = isPhaseColorName(color)
+    ? PHASE_COLOR_CLASS[color]
+    : "bg-accent text-muted-foreground";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={t("rolloutPlan.choosePhaseColor")}
+          className={cn(
+            "inline-flex max-w-[200px] items-center rounded-lg px-2 py-1 text-left text-xs font-semibold transition-opacity hover:opacity-80",
+            tone,
+          )}
+        >
+          <span className="truncate">{phase}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-2">
+        <p className="mb-2 text-[11px] font-medium text-subtle">
+          {t("rolloutPlan.choosePhaseColor")}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {PHASE_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={c}
+              onClick={() => {
+                onSetColor(c);
+                setOpen(false);
+              }}
+              className={cn(
+                "h-6 w-6 rounded-full ring-offset-2 ring-offset-popover transition-transform hover:scale-110",
+                PHASE_SWATCH_CLASS[c],
+                color === c && "ring-2 ring-foreground",
+              )}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function EditTaskDialog({
+  task,
+  planId,
+  open,
+  onOpenChange,
+}: {
+  task: RolloutPlanTaskRow;
+  planId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const updateTask = useUpdateRolloutPlanTask();
+  const [dayNumber, setDayNumber] = useState(task.day_number);
+  const [phase, setPhase] = useState(task.phase);
+  const [taskText, setTaskText] = useState(task.task);
+  const [weight, setWeight] = useState<RolloutPlanTaskWeight>(task.weight as RolloutPlanTaskWeight);
+  const [note, setNote] = useState(task.note ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setDayNumber(task.day_number);
+    setPhase(task.phase);
+    setTaskText(task.task);
+    setWeight(task.weight as RolloutPlanTaskWeight);
+    setNote(task.note ?? "");
+  }, [open, task]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!phase.trim() || !taskText.trim()) return;
+    setSaving(true);
+    try {
+      await updateTask.mutateAsync({
+        id: task.id,
+        planId,
+        patch: {
+          day_number: dayNumber,
+          phase: phase.trim(),
+          task: taskText.trim(),
+          weight,
+          note: note.trim(),
+        },
+      });
+      toast.success(t("rolloutPlan.taskUpdated"));
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.updateFailed")));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("rolloutPlan.editTask")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[80px_1fr_140px]">
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("rolloutPlan.fieldDay")}</Label>
+              <Input
+                type="number"
+                min={1}
+                value={dayNumber}
+                onChange={(e) => setDayNumber(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("rolloutPlan.fieldPhase")}</Label>
+              <Input value={phase} onChange={(e) => setPhase(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("rolloutPlan.fieldWeight")}</Label>
+              <select
+                value={weight}
+                onChange={(e) => setWeight(e.target.value as RolloutPlanTaskWeight)}
+                className="h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+              >
+                {WEIGHT_ORDER.map((w) => (
+                  <option key={w} value={w}>
+                    {t(`rolloutPlan.weight${w[0]!.toUpperCase()}${w.slice(1)}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t("rolloutPlan.fieldTask")}</Label>
+            <textarea
+              value={taskText}
+              onChange={(e) => setTaskText(e.target.value)}
+              rows={3}
+              required
+              className="w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t("rolloutPlan.fieldNote")}</Label>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TaskChecklistRow({
+  task,
+  planId,
+  phaseColor,
+  onSetPhaseColor,
+}: {
+  task: RolloutPlanTaskRow;
+  planId: string;
+  phaseColor?: string | undefined;
+  onSetPhaseColor: (phase: string, color: PhaseColorName) => void;
+}) {
   const { t } = useI18n();
   const setDone = useSetRolloutPlanTaskDone();
   const updateTask = useUpdateRolloutPlanTask();
   const deleteTask = useDeleteRolloutPlanTask();
+  const [editOpen, setEditOpen] = useState(false);
   const isDone = task.status === "done";
 
   async function toggleDone() {
@@ -414,7 +645,13 @@ function TaskChecklistRow({ task, planId }: { task: RolloutPlanTaskRow; planId: 
         </button>
       </td>
       <td className="px-3 py-3 text-center text-sm font-semibold text-subtle">{task.day_number}</td>
-      <td className="px-3 py-3 text-sm text-muted-foreground">{task.phase}</td>
+      <td className="px-3 py-3 text-sm">
+        <PhaseBadge
+          phase={task.phase}
+          color={phaseColor}
+          onSetColor={(color) => onSetPhaseColor(task.phase, color)}
+        />
+      </td>
       <td className="min-w-[180px] px-3 py-3 text-sm text-foreground">
         <span className={cn(isDone && "text-muted-foreground line-through")}>{task.task}</span>
       </td>
@@ -430,9 +667,11 @@ function TaskChecklistRow({ task, planId }: { task: RolloutPlanTaskRow; planId: 
           value={task.status}
           onChange={(e) => void changeStatus(e.target.value as RolloutPlanTaskStatus)}
           className={cn(
-            "h-8 rounded-lg border border-border bg-accent px-2 text-xs font-semibold outline-none focus:border-primary/40",
-            task.status === "done" && "text-success",
-            task.status === "in_progress" && "text-warning-foreground",
+            "h-8 rounded-lg border px-2 text-xs font-semibold outline-none focus:border-primary/40",
+            task.status === "done" && "border-transparent bg-mint text-mint-foreground",
+            task.status === "in_progress" &&
+              "border-transparent bg-warning/25 text-warning-foreground",
+            task.status === "not_done" && "border-transparent bg-destructive/15 text-destructive",
           )}
         >
           {STATUS_ORDER.map((s) => (
@@ -448,15 +687,26 @@ function TaskChecklistRow({ task, planId }: { task: RolloutPlanTaskRow; planId: 
         <NoteCell task={task} planId={planId} />
       </td>
       <td className="px-3 py-3">
-        <button
-          type="button"
-          onClick={() => void remove()}
-          aria-label={t("rolloutPlan.deleteTask")}
-          className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            aria-label={t("rolloutPlan.editTask")}
+            className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void remove()}
+            aria-label={t("rolloutPlan.deleteTask")}
+            className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </td>
+      <EditTaskDialog task={task} planId={planId} open={editOpen} onOpenChange={setEditOpen} />
     </tr>
   );
 }
@@ -564,7 +814,17 @@ function ProgressChart({ tasks, startDate }: { tasks: RolloutPlanTaskRow[]; star
 function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
   const { t } = useI18n();
   const { data: tasks, isLoading } = useRolloutPlanTasks(plan.id);
+  const { data: phaseColors } = useRolloutPlanPhaseColors(plan.id);
+  const setPhaseColor = useSetRolloutPlanPhaseColor();
   const rows = tasks ?? [];
+
+  async function handleSetPhaseColor(phase: string, color: PhaseColorName) {
+    try {
+      await setPhaseColor.mutateAsync({ planId: plan.id, phase, color });
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.updateFailed")));
+    }
+  }
 
   const totalDays = rows.length ? Math.max(...rows.map((r) => r.day_number)) : 0;
   const elapsedDays = Math.max(
@@ -634,7 +894,13 @@ function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
               </thead>
               <tbody>
                 {rows.map((task) => (
-                  <TaskChecklistRow key={task.id} task={task} planId={plan.id} />
+                  <TaskChecklistRow
+                    key={task.id}
+                    task={task}
+                    planId={plan.id}
+                    phaseColor={phaseColors?.[task.phase]}
+                    onSetPhaseColor={handleSetPhaseColor}
+                  />
                 ))}
               </tbody>
             </table>

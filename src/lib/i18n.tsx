@@ -2033,6 +2033,9 @@ const en: Dict = {
   "rolloutPlan.updateFailed": "Couldn't update the task.",
   "rolloutPlan.deleted": "Deleted.",
   "rolloutPlan.deleteFailed": "Couldn't delete.",
+  "rolloutPlan.editTask": "Edit task",
+  "rolloutPlan.taskUpdated": "Task updated.",
+  "rolloutPlan.choosePhaseColor": "Choose a color for this phase",
 };
 
 const ru: Dict = {
@@ -4047,6 +4050,9 @@ const ru: Dict = {
   "rolloutPlan.updateFailed": "Не удалось обновить задачу.",
   "rolloutPlan.deleted": "Удалено.",
   "rolloutPlan.deleteFailed": "Не удалось удалить.",
+  "rolloutPlan.editTask": "Изменить задачу",
+  "rolloutPlan.taskUpdated": "Задача обновлена.",
+  "rolloutPlan.choosePhaseColor": "Выберите цвет для этого этапа",
 };
 
 const uz: Dict = {
@@ -6098,6 +6104,9 @@ const uz: Dict = {
   "rolloutPlan.updateFailed": "Vazifani yangilab bo'lmadi.",
   "rolloutPlan.deleted": "O'chirildi.",
   "rolloutPlan.deleteFailed": "O'chirib bo'lmadi.",
+  "rolloutPlan.editTask": "Vazifani tahrirlash",
+  "rolloutPlan.taskUpdated": "Vazifa yangilandi.",
+  "rolloutPlan.choosePhaseColor": "Shu bosqich uchun rang tanlang",
 };
 
 const DICTS: Record<Lang, Dict> = { uz, ru, en };
