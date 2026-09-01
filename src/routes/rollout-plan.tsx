@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import {
   CartesianGrid,
   Legend,
@@ -606,10 +606,6 @@ function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
         </div>
       </SectionCard>
 
-      <SectionCard title={t("rolloutPlan.chartTitle")}>
-        <ProgressChart tasks={rows} startDate={plan.start_date} />
-      </SectionCard>
-
       <SectionCard title={t("rolloutPlan.addTask")}>
         <AddTaskForm planId={plan.id} nextDay={nextDay} existingTasks={rows} />
       </SectionCard>
@@ -645,6 +641,67 @@ function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
           </div>
         )}
       </SectionCard>
+
+      <SectionCard title={t("rolloutPlan.chartTitle")}>
+        <ProgressChart tasks={rows} startDate={plan.start_date} />
+      </SectionCard>
+    </div>
+  );
+}
+
+function PlanSection({
+  plan,
+  defaultExpanded,
+}: {
+  plan: RolloutPlanRow;
+  defaultExpanded: boolean;
+}) {
+  const { t } = useI18n();
+  const deletePlan = useDeleteRolloutPlan();
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function removePlan() {
+    try {
+      await deletePlan.mutateAsync(plan.id);
+      toast.success(t("rolloutPlan.deleted"));
+    } catch (err) {
+      toast.error(errorMessage(err, t("rolloutPlan.deleteFailed")));
+    } finally {
+      setConfirmDelete(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-2 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+        >
+          <ChevronDown className={cn("h-4 w-4 transition-transform", !expanded && "-rotate-90")} />
+          {plan.name}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          aria-label={t("rolloutPlan.deletePlan")}
+          className="rounded-lg p-2 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {expanded && <PlanDetail plan={plan} />}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={t("rolloutPlan.deletePlanConfirmTitle")}
+        description={t("rolloutPlan.deletePlanConfirmDesc")}
+        onConfirm={() => void removePlan()}
+      />
     </div>
   );
 }
@@ -652,29 +709,8 @@ function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
 function RolloutPlanContent() {
   const { t } = useI18n();
   const { data: plans, isLoading } = useRolloutPlans();
-  const deletePlan = useDeleteRolloutPlan();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedId && plans && plans.length > 0) setSelectedId(plans[0]!.id);
-  }, [plans, selectedId]);
-
-  const selectedPlan = (plans ?? []).find((p) => p.id === selectedId) ?? null;
-
-  async function removePlan() {
-    if (!confirmDeleteId) return;
-    try {
-      await deletePlan.mutateAsync(confirmDeleteId);
-      toast.success(t("rolloutPlan.deleted"));
-      if (selectedId === confirmDeleteId) setSelectedId(null);
-    } catch (err) {
-      toast.error(errorMessage(err, t("rolloutPlan.deleteFailed")));
-    } finally {
-      setConfirmDeleteId(null);
-    }
-  }
+  const [lastCreatedId, setLastCreatedId] = useState<string | null>(null);
 
   return (
     <>
@@ -701,47 +737,17 @@ function RolloutPlanContent() {
           <p className="py-10 text-center text-sm text-subtle">{t("rolloutPlan.noPlans")}</p>
         </SectionCard>
       ) : (
-        <>
-          <div className="mb-6 flex flex-wrap items-center gap-2">
-            {(plans ?? []).map((p) => (
-              <div key={p.id} className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(p.id)}
-                  className={cn(
-                    "rounded-xl px-4 py-2 text-sm font-semibold transition-colors",
-                    selectedId === p.id
-                      ? "bg-foreground text-background"
-                      : "border border-border bg-background text-muted-foreground hover:bg-accent",
-                  )}
-                >
-                  {p.name}
-                </button>
-                {selectedId === p.id && (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDeleteId(p.id)}
-                    aria-label={t("rolloutPlan.deletePlan")}
-                    className="ml-1 rounded-lg p-2 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {selectedPlan && <PlanDetail plan={selectedPlan} />}
-        </>
+        <div className="space-y-8">
+          {(plans ?? []).map((p, i) => (
+            <PlanSection key={p.id} plan={p} defaultExpanded={i === 0 || p.id === lastCreatedId} />
+          ))}
+        </div>
       )}
 
-      <CreatePlanDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={setSelectedId} />
-
-      <ConfirmDialog
-        open={!!confirmDeleteId}
-        onOpenChange={(v) => !v && setConfirmDeleteId(null)}
-        title={t("rolloutPlan.deletePlanConfirmTitle")}
-        description={t("rolloutPlan.deletePlanConfirmDesc")}
-        onConfirm={() => void removePlan()}
+      <CreatePlanDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={setLastCreatedId}
       />
     </>
   );
