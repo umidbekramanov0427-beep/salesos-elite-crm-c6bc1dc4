@@ -163,7 +163,7 @@ function AddItemDialog({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
+              rows={6}
               className="mt-1.5 w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
             />
           </label>
@@ -290,26 +290,37 @@ function ItemsShelf({
         <ul className="space-y-2">
           {(items ?? []).map((item) => {
             const Icon = ITEM_TYPE_ICON[item.item_type as ContentLibraryItemType] ?? FileIcon;
+            const isImage = item.item_type === "image";
             return (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                className="flex items-start justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
               >
                 <a
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex min-w-0 flex-1 items-center gap-3"
+                  className="flex min-w-0 flex-1 items-start gap-3"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Icon className="h-4 w-4" />
-                  </span>
+                  {isImage ? (
+                    <img
+                      src={item.url}
+                      alt={item.title}
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-foreground">
                       {item.title}
                     </span>
                     {item.description && (
-                      <span className="block truncate text-xs text-subtle">{item.description}</span>
+                      <span className="mt-0.5 block whitespace-pre-wrap break-words text-xs text-subtle">
+                        {item.description}
+                      </span>
                     )}
                   </span>
                 </a>
