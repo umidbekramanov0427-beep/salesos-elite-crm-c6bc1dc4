@@ -58,7 +58,6 @@ function CompaniesPage() {
   }, [companies, query, dateFilter]);
 
   const enterpriseCount = companies.filter((c) => c.revenue >= 50_000_000).length;
-  const openValue = companies.reduce((s, c) => s + c.openValue, 0);
   const avgContacts = companies.length
     ? (companies.reduce((s, c) => s + c.contacts, 0) / companies.length).toFixed(1)
     : "0";
@@ -81,8 +80,6 @@ function CompaniesPage() {
                 City: c.city,
                 Owner: c.owner,
                 Contacts: c.contacts,
-                Deals: c.deals,
-                OpenValue: c.openValue,
               }))}
             />
             <NewCompanyDialog
@@ -96,7 +93,7 @@ function CompaniesPage() {
         }
       />
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label={t("companies.count")}
           value={String(companies.length)}
@@ -108,11 +105,6 @@ function CompaniesPage() {
           label={t("companies.enterpriseAccounts")}
           value={String(enterpriseCount)}
           info={t("companies.enterpriseAccountsInfo")}
-        />
-        <StatCard
-          label={t("companies.openValue")}
-          value={currency(openValue)}
-          info={t("companies.openValueInfo")}
         />
         <StatCard
           label={t("companies.avgContacts")}
@@ -156,8 +148,6 @@ function CompaniesPage() {
                       t("companies.colRevenue"),
                       t("companies.colOwner"),
                       t("companies.colContacts"),
-                      t("companies.colDeals"),
-                      t("companies.colOpenValue"),
                     ].map((h) => (
                       <th key={h} className="px-6 py-3 font-medium">
                         {h}
@@ -191,10 +181,6 @@ function CompaniesPage() {
                       <td className="px-6 py-4">
                         <Pill>{c.contacts}</Pill>
                       </td>
-                      <td className="px-6 py-4">
-                        <Pill tone="info">{c.deals}</Pill>
-                      </td>
-                      <td className="px-6 py-4 font-medium">{currency(c.openValue)}</td>
                     </tr>
                   ))}
                 </tbody>

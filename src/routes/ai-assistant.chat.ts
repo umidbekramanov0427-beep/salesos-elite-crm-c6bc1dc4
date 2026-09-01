@@ -36,7 +36,6 @@ type LeadSnap = {
   expected_revenue: number;
   owner_id: string | null;
 };
-type DealSnap = { stage_id: string | null; status: string; value: number; owner_id: string | null };
 type TaskSnap = { status: string; due_date: string | null; assignee_id: string | null };
 type StageRow = { id: string; name: string; is_won: boolean; is_lost: boolean };
 
@@ -99,24 +98,18 @@ async function loadDataSnapshot(
   const stageById = new Map((stages ?? []).map((s: StageRow) => [s.id, s]));
 
   let leads: LeadSnap[];
-  let deals: DealSnap[];
   let tasks: TaskSnap[];
 
   if (asOf) {
-    [leads, deals, tasks] = await Promise.all([
+    [leads, tasks] = await Promise.all([
       reconstructAsOf<LeadSnap>(orgId, "leads", asOf),
-      reconstructAsOf<DealSnap>(orgId, "deals", asOf),
       reconstructAsOf<TaskSnap>(orgId, "tasks", asOf),
     ]);
   } else {
-    const [leadsRes, dealsRes, tasksRes] = await Promise.all([
+    const [leadsRes, tasksRes] = await Promise.all([
       supabaseAdmin
         .from("leads")
         .select("stage_id, temperature, expected_revenue, owner_id")
-        .eq("organization_id", orgId),
-      supabaseAdmin
-        .from("deals")
-        .select("stage_id, status, value, owner_id")
         .eq("organization_id", orgId),
       supabaseAdmin
         .from("tasks")
@@ -124,40 +117,30 @@ async function loadDataSnapshot(
         .eq("organization_id", orgId),
     ]);
     leads = leadsRes.data ?? [];
-    deals = dealsRes.data ?? [];
     tasks = tasksRes.data ?? [];
   }
 
   if (ownerIds) {
     const owners = new Set(ownerIds);
     leads = leads.filter((l) => l.owner_id && owners.has(l.owner_id));
-    deals = deals.filter((d) => d.owner_id && owners.has(d.owner_id));
     tasks = tasks.filter((t) => t.assignee_id && owners.has(t.assignee_id));
   }
 
   const leadCountByStage = new Map<string, number>();
   let leadRevenue = 0;
+  let leadsWon = 0;
+  let leadsLost = 0;
+  let leadRevenueWon = 0;
   for (const l of leads) {
-    const stageName = (l.stage_id && stageById.get(l.stage_id)?.name) || "No stage";
+    const stage = l.stage_id ? stageById.get(l.stage_id) : null;
+    const stageName = stage?.name || "No stage";
     leadCountByStage.set(stageName, (leadCountByStage.get(stageName) ?? 0) + 1);
     leadRevenue += l.expected_revenue ?? 0;
-  }
-
-  let dealsWon = 0;
-  let dealsLost = 0;
-  let dealsOpen = 0;
-  let dealValueOpen = 0;
-  let dealValueWon = 0;
-  for (const d of deals) {
-    const stage = d.stage_id ? stageById.get(d.stage_id) : null;
-    if (stage?.is_won || d.status === "won") {
-      dealsWon++;
-      dealValueWon += d.value ?? 0;
-    } else if (stage?.is_lost || d.status === "lost") {
-      dealsLost++;
-    } else {
-      dealsOpen++;
-      dealValueOpen += d.value ?? 0;
+    if (stage?.is_won) {
+      leadsWon++;
+      leadRevenueWon += l.expected_revenue ?? 0;
+    } else if (stage?.is_lost) {
+      leadsLost++;
     }
   }
 
@@ -182,7 +165,7 @@ async function loadDataSnapshot(
       [...leadCountByStage.entries()].map(([name, count]) => `${name} (${count})`).join(", ") ||
       "none"
     }`,
-    `- Deals: ${dealsOpen} open (value ${dealValueOpen.toLocaleString("en-US")}), ${dealsWon} won (value ${dealValueWon.toLocaleString("en-US")}), ${dealsLost} lost`,
+    `- Won/lost: ${leadsWon} won (value ${leadRevenueWon.toLocaleString("en-US")}), ${leadsLost} lost`,
     `- Tasks: ${tasksOpen} open (${tasksOverdue} overdue), ${tasksDone} done`,
   ];
   return lines.join("\n");
@@ -607,14 +590,13 @@ export const Route = createFileRoute("/ai-assistant/chat")({
 - /crm/leads/$leadId — a single lead's full workspace: info, timeline, notes, tasks, AmoCRM link, call history, AI analysis
 - /crm/contacts — Contacts
 - /crm/companies — Companies
-- /crm/deals — Deals
 - /crm-stages — Permissions matrix: which roles can do what
 - /funnels — Funnels: stage conversion analysis per funnel, plus (inside a funnel) a Kanban/list/gallery lead board synced from AmoCRM
 - /tasks — Important Tasks: company-wide task board
 - /lead-tasks — Lead Tasks: every open task grouped by its lead
 - /audio-analytics — Audio Analytics: call volume, connection rate, AI call summaries
 - /attendance — Attendance & Quotas: clock in/out, call logs, daily/monthly pacing
-- /inbox — Inbox: notifications and mentions
+- /inbox — Inbox: notifications and mentions, plus (super_admin/platform_owner only) an Alerts tab for AI-flagged risk signals
 - /analytics — Analytics: revenue trend and forecasting reports
 - /ai-assistant — this AI Assistant's own full-page chat
 - /integrations — Integrations: connect AmoCRM, Telegram bot, Google Docs/Forms, etc.

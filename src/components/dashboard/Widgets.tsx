@@ -8,7 +8,6 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
   useCrmLeads,
-  useDealsView,
   useMarkNotificationRead,
   useNotificationsView,
   useRecentActivity,
@@ -326,7 +325,6 @@ export function AiInsightsWidget({
   const { t } = useI18n();
   const { format } = useCurrency();
   const { rows: allLeads } = useCrmLeads();
-  const { rows: deals } = useDealsView();
   const top = useTopPerformers(1, funnel, dateRange)[0];
   const leads = useMemo(
     () => (funnel ? allLeads.filter((l) => l.funnel === funnel) : allLeads),
@@ -359,16 +357,6 @@ export function AiInsightsWidget({
         body: t("widget.insightHotBody"),
       });
     }
-    const openDeals = deals.filter((d) => d.status === "open");
-    if (openDeals.length) {
-      const weighted = openDeals.reduce((s, d) => s + (d.value * d.probability) / 100, 0);
-      out.push({
-        id: "pipeline",
-        tone: "info",
-        title: t("widget.insightPipelineTitle", { value: format(weighted) }),
-        body: t("widget.insightPipelineBody", { count: openDeals.length }),
-      });
-    }
     if (out.length === 0) {
       out.push({
         id: "empty",
@@ -378,7 +366,7 @@ export function AiInsightsWidget({
       });
     }
     return out;
-  }, [leads, deals, top, t, format]);
+  }, [leads, top, t, format]);
 
   const insightTone = {
     danger: "bg-destructive/10 text-destructive",
