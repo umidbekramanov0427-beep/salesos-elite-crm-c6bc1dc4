@@ -32,6 +32,17 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+// Supabase's PostgrestError is a plain object, not an Error instance, so
+// `err instanceof Error ? err.message : fallback` always fell through to the
+// generic fallback for a real DB error (e.g. a constraint violation) --
+// masking exactly the detail someone would need to diagnose it.
+function errorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err && typeof err.message === "string") {
+    return err.message || fallback;
+  }
+  return fallback;
+}
+
 export const Route = createFileRoute("/content-library")({
   head: () => ({
     meta: [
@@ -137,7 +148,7 @@ function AddItemDialog({
       reset();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("contentLibrary.addFailed"));
+      toast.error(errorMessage(err, t("contentLibrary.addFailed")));
     } finally {
       setSaving(false);
     }
@@ -276,7 +287,7 @@ function ItemsShelf({
       await deleteItem.mutateAsync(id);
       toast.success(t("contentLibrary.deleted"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("contentLibrary.deleteFailed"));
+      toast.error(errorMessage(err, t("contentLibrary.deleteFailed")));
     }
   }
 
@@ -408,7 +419,7 @@ function GoogleSheetsCard({
       await onSave(url.trim());
       toast.success(t("contentLibrary.saved"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("contentLibrary.saveFailed"));
+      toast.error(errorMessage(err, t("contentLibrary.saveFailed")));
     } finally {
       setSaving(false);
     }
