@@ -334,6 +334,14 @@ function QuestionsCard() {
     }
   }
 
+  async function remove(id: string) {
+    try {
+      await deleteQuestion.mutateAsync(id);
+    } catch (err) {
+      toast.error(errorMessage(err, "Savolni o'chirib bo'lmadi."));
+    }
+  }
+
   return (
     <SectionCard
       title="Savollar"
@@ -370,7 +378,7 @@ function QuestionsCard() {
             isLast={i === list.length - 1}
             onMoveUp={() => i > 0 && void swap(q, list[i - 1]!)}
             onMoveDown={() => i < list.length - 1 && void swap(q, list[i + 1]!)}
-            onDelete={() => void deleteQuestion.mutateAsync(q.id)}
+            onDelete={() => void remove(q.id)}
           />
         ))}
         {list.length === 0 && (
