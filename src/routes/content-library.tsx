@@ -12,19 +12,23 @@ import {
   Link2,
   Loader2,
   Music2,
+  Pencil,
   Plus,
   Trash2,
   Video as VideoIcon,
 } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   useContentLibraryItems,
   useContentLibrarySettings,
   useCreateContentLibraryItem,
   useDeleteContentLibraryItem,
+  useUpdateContentLibraryItem,
   useUpdateContentLibrarySettings,
   useUploadContentLibraryFile,
+  type ContentLibraryItemRow,
   type ContentLibraryItemType,
   type ContentLibrarySection,
 } from "@/hooks/use-crm-data";
@@ -75,6 +79,22 @@ const TYPE_OPTIONS: { value: ContentLibraryItemType; labelKey: string }[] = [
   { value: "audio", labelKey: "contentLibrary.typeAudio" },
   { value: "file", labelKey: "contentLibrary.typeFile" },
 ];
+
+const TYPE_LABEL_KEY: Record<ContentLibraryItemType, string> = Object.fromEntries(
+  TYPE_OPTIONS.map((o) => [o.value, o.labelKey]),
+) as Record<ContentLibraryItemType, string>;
+
+// A distinct hue per content type so a shelf of mixed links/docs/media
+// reads at a glance instead of every card wearing the same primary tint.
+const ITEM_TYPE_TONE: Record<ContentLibraryItemType, string> = {
+  text: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+  link: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  document: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  image: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  video: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  audio: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  file: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
+};
 
 function AddItemDialog({
   open,
@@ -266,6 +286,130 @@ function AddItemDialog({
   );
 }
 
+function EditItemDialog({
+  open,
+  onOpenChange,
+  item,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  item: ContentLibraryItemRow | null;
+}) {
+  const { t } = useI18n();
+  const updateItem = useUpdateContentLibraryItem();
+  const [itemTitle, setItemTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const isText = item?.item_type === "text";
+  const isLink = item?.item_type === "link";
+
+  useEffect(() => {
+    if (!open || !item) return;
+    setItemTitle(item.title);
+    setDescription(item.description ?? "");
+    setUrl(item.url ?? "");
+  }, [open, item]);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!item || !itemTitle.trim()) return;
+    if (isText && !description.trim()) {
+      toast.error(t("contentLibrary.noTextEntered"));
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateItem.mutateAsync({
+        id: item.id,
+        section: item.section as ContentLibrarySection,
+        patch: {
+          title: itemTitle.trim(),
+          description: description.trim(),
+          ...(isLink ? { url: url.trim() } : {}),
+        },
+      });
+      toast.success(t("contentLibrary.updated"));
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(errorMessage(err, t("contentLibrary.updateFailed")));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("contentLibrary.editItem")}</DialogTitle>
+        </DialogHeader>
+        {item && (
+          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-muted-foreground">
+                {t("contentLibrary.fieldTitle")}
+              </span>
+              <input
+                value={itemTitle}
+                onChange={(e) => setItemTitle(e.target.value)}
+                required
+                className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-muted-foreground">
+                {isText ? t("contentLibrary.fieldText") : t("contentLibrary.fieldDescription")}
+              </span>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required={isText}
+                rows={isText ? 10 : 6}
+                className="mt-1.5 w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
+              />
+            </label>
+
+            {isLink && (
+              <label className="block">
+                <span className="text-sm font-medium text-muted-foreground">
+                  {t("contentLibrary.fieldUrl")}
+                </span>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+                />
+              </label>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("common.save")}
+              </button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ItemsShelf({
   section,
   title,
@@ -281,13 +425,18 @@ function ItemsShelf({
   const { data: items, isLoading } = useContentLibraryItems(section);
   const deleteItem = useDeleteContentLibraryItem();
   const [addOpen, setAddOpen] = useState(false);
+  const [editItem, setEditItem] = useState<ContentLibraryItemRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ContentLibraryItemRow | null>(null);
 
-  async function remove(id: string) {
+  async function confirmRemove() {
+    if (!deleteTarget) return;
     try {
-      await deleteItem.mutateAsync(id);
+      await deleteItem.mutateAsync(deleteTarget.id);
       toast.success(t("contentLibrary.deleted"));
     } catch (err) {
       toast.error(errorMessage(err, t("contentLibrary.deleteFailed")));
+    } finally {
+      setDeleteTarget(null);
     }
   }
 
@@ -313,63 +462,64 @@ function ItemsShelf({
       ) : (items ?? []).length === 0 ? (
         <p className="py-6 text-center text-sm text-subtle">{t("contentLibrary.empty")}</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {(items ?? []).map((item) => {
-            const Icon = ITEM_TYPE_ICON[item.item_type as ContentLibraryItemType] ?? FileIcon;
-            const isImage = item.item_type === "image";
-            const isText = item.item_type === "text";
-            const Wrapper = isText ? "div" : "a";
-            const body = (
-              <>
-                {isImage ? (
-                  <img
-                    src={item.url ?? undefined}
-                    alt={item.title}
-                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                  />
-                ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                )}
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-foreground">
-                    {item.title}
-                  </span>
-                  {item.description && (
-                    <span
-                      className={cn(
-                        "mt-0.5 block whitespace-pre-wrap break-words text-xs",
-                        isText ? "text-foreground" : "text-subtle",
-                      )}
-                    >
-                      {item.description}
-                    </span>
-                  )}
-                </span>
-              </>
-            );
+            const itemType = item.item_type as ContentLibraryItemType;
+            const Icon = ITEM_TYPE_ICON[itemType] ?? FileIcon;
+            const isImage = itemType === "image";
+            const isText = itemType === "text";
+            const tone = ITEM_TYPE_TONE[itemType] ?? ITEM_TYPE_TONE.file;
+
             return (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-soft transition-shadow hover:shadow-elevated"
               >
-                <Wrapper
-                  {...(isText
-                    ? {}
-                    : {
-                        href: item.url ?? undefined,
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                      })}
-                  className="flex min-w-0 flex-1 items-start gap-3"
-                >
-                  {body}
-                </Wrapper>
-                <div className="flex shrink-0 items-center gap-1">
-                  {!isText && (
+                <div className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                      tone,
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+                    <span
+                      className={cn(
+                        "mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        tone,
+                      )}
+                    >
+                      {t(TYPE_LABEL_KEY[itemType])}
+                    </span>
+                  </div>
+                </div>
+
+                {isImage && item.url && (
+                  <img
+                    src={item.url}
+                    alt={item.title}
+                    className="h-36 w-full rounded-xl object-cover"
+                  />
+                )}
+
+                {item.description && (
+                  <p
+                    className={cn(
+                      "whitespace-pre-wrap break-words text-sm leading-relaxed",
+                      isText ? "font-serif text-foreground" : "text-subtle",
+                    )}
+                  >
+                    {item.description}
+                  </p>
+                )}
+
+                <div className="mt-auto flex items-center gap-1.5 border-t border-border pt-3">
+                  {!isText && item.url && (
                     <a
-                      href={item.url ?? undefined}
+                      href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent"
@@ -379,14 +529,24 @@ function ItemsShelf({
                     </a>
                   )}
                   {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => void remove(item.id)}
-                      className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={t("contentLibrary.deleted")}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditItem(item)}
+                        aria-label={t("contentLibrary.editItem")}
+                        className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        aria-label={t("contentLibrary.deleteConfirmTitle")}
+                        className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </li>
@@ -399,6 +559,18 @@ function ItemsShelf({
         onOpenChange={setAddOpen}
         section={section}
         dialogTitle={title}
+      />
+      <EditItemDialog
+        open={!!editItem}
+        onOpenChange={(o) => !o && setEditItem(null)}
+        item={editItem}
+      />
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={t("contentLibrary.deleteConfirmTitle")}
+        description={t("contentLibrary.deleteConfirmDesc")}
+        onConfirm={() => void confirmRemove()}
       />
     </SectionCard>
   );
