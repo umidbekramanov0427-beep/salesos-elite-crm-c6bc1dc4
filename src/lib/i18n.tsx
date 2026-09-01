@@ -2022,6 +2022,13 @@ const en: Dict = {
   "rolloutPlan.planCreated": "Plan created.",
   "rolloutPlan.createPlanFailed": "Couldn't create the plan.",
   "rolloutPlan.taskAdded": "Task added.",
+  "rolloutPlan.tasksAdded": "{count} tasks added.",
+  "rolloutPlan.tasksAddedPartial": "{added} added, {failed} failed.",
+  "rolloutPlan.addTasksCount": "Add {count} tasks",
+  "rolloutPlan.fieldTaskPastePlaceholder":
+    "Paste multiple lines to add them all as separate tasks, in order",
+  "rolloutPlan.fieldTaskPasteHint":
+    "Tip: copy a column of tasks straight from your spreadsheet and paste it here — each line becomes its own task, in the same order.",
   "rolloutPlan.addTaskFailed": "Couldn't add the task.",
   "rolloutPlan.updateFailed": "Couldn't update the task.",
   "rolloutPlan.deleted": "Deleted.",
@@ -4029,6 +4036,13 @@ const ru: Dict = {
   "rolloutPlan.planCreated": "План создан.",
   "rolloutPlan.createPlanFailed": "Не удалось создать план.",
   "rolloutPlan.taskAdded": "Задача добавлена.",
+  "rolloutPlan.tasksAdded": "Добавлено задач: {count}.",
+  "rolloutPlan.tasksAddedPartial": "Добавлено {added}, не удалось {failed}.",
+  "rolloutPlan.addTasksCount": "Добавить {count} задач",
+  "rolloutPlan.fieldTaskPastePlaceholder":
+    "Вставьте несколько строк, чтобы добавить их все как отдельные задачи, по порядку",
+  "rolloutPlan.fieldTaskPasteHint":
+    "Совет: скопируйте столбец задач прямо из таблицы и вставьте сюда — каждая строка станет отдельной задачей, в том же порядке.",
   "rolloutPlan.addTaskFailed": "Не удалось добавить задачу.",
   "rolloutPlan.updateFailed": "Не удалось обновить задачу.",
   "rolloutPlan.deleted": "Удалено.",
@@ -6073,6 +6087,13 @@ const uz: Dict = {
   "rolloutPlan.planCreated": "Reja yaratildi.",
   "rolloutPlan.createPlanFailed": "Rejani yaratib bo'lmadi.",
   "rolloutPlan.taskAdded": "Vazifa qo'shildi.",
+  "rolloutPlan.tasksAdded": "{count} ta vazifa qo'shildi.",
+  "rolloutPlan.tasksAddedPartial": "{added} tasi qo'shildi, {failed} tasi qo'shilmadi.",
+  "rolloutPlan.addTasksCount": "{count} ta vazifa qo'shish",
+  "rolloutPlan.fieldTaskPastePlaceholder":
+    "Bir nechta qatorni joylashtirsangiz, har biri alohida vazifa bo'lib, tartib bilan qo'shiladi",
+  "rolloutPlan.fieldTaskPasteHint":
+    "Maslahat: Google Sheets'dagi vazifalar ustunini to'g'ridan-to'g'ri nusxalab shu yerga joylashtiring — har bir qator xuddi shu tartibda alohida vazifa bo'lib qo'shiladi.",
   "rolloutPlan.addTaskFailed": "Vazifani qo'shib bo'lmadi.",
   "rolloutPlan.updateFailed": "Vazifani yangilab bo'lmadi.",
   "rolloutPlan.deleted": "O'chirildi.",

@@ -170,80 +170,134 @@ function CreatePlanDialog({
   );
 }
 
-function AddTaskForm({ planId, nextDay }: { planId: string; nextDay: number }) {
+// Splits a pasted block into non-empty lines. Google Sheets copies a
+// single-column selection as one line per cell, so pasting a whole
+// "Vazifa" column straight from the sheet here lands as one task per
+// line, in the same order -- no more re-typing every row one at a time.
+function splitTaskLines(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function AddTaskForm({
+  planId,
+  nextDay,
+  existingTasks,
+}: {
+  planId: string;
+  nextDay: number;
+  existingTasks: RolloutPlanTaskRow[];
+}) {
   const { t } = useI18n();
   const createTask = useCreateRolloutPlanTask();
   const [dayNumber, setDayNumber] = useState(nextDay);
   const [phase, setPhase] = useState("");
-  const [task, setTask] = useState("");
+  const [taskText, setTaskText] = useState("");
   const [weight, setWeight] = useState<RolloutPlanTaskWeight>("medium");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => setDayNumber(nextDay), [nextDay]);
 
+  const lines = useMemo(() => splitTaskLines(taskText), [taskText]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!phase.trim() || !task.trim()) return;
-    try {
-      await createTask.mutateAsync({ planId, dayNumber, phase, task, weight });
-      toast.success(t("rolloutPlan.taskAdded"));
-      setTask("");
-    } catch (err) {
-      toast.error(errorMessage(err, t("rolloutPlan.addTaskFailed")));
+    if (!phase.trim() || lines.length === 0) return;
+    setBusy(true);
+    const basePosition =
+      Math.max(
+        0,
+        ...existingTasks.filter((r) => r.day_number === dayNumber).map((r) => r.position),
+      ) + 1;
+    const results = await Promise.allSettled(
+      lines.map((line, i) =>
+        createTask.mutateAsync({
+          planId,
+          dayNumber,
+          phase,
+          task: line,
+          weight,
+          position: basePosition + i,
+        }),
+      ),
+    );
+    setBusy(false);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed === 0) {
+      toast.success(t("rolloutPlan.tasksAdded", { count: String(lines.length) }));
+      setTaskText("");
+    } else if (failed < results.length) {
+      toast.error(
+        t("rolloutPlan.tasksAddedPartial", {
+          added: String(results.length - failed),
+          failed: String(failed),
+        }),
+      );
+      setTaskText("");
+    } else {
+      toast.error(t("rolloutPlan.addTaskFailed"));
     }
   }
 
   return (
-    <form
-      onSubmit={(e) => void submit(e)}
-      className="grid grid-cols-1 gap-3 sm:grid-cols-[80px_1fr_1fr_140px_auto] sm:items-end"
-    >
-      <div className="space-y-1.5">
-        <Label className="text-xs">{t("rolloutPlan.fieldDay")}</Label>
-        <Input
-          type="number"
-          min={1}
-          value={dayNumber}
-          onChange={(e) => setDayNumber(Math.max(1, Number(e.target.value) || 1))}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">{t("rolloutPlan.fieldPhase")}</Label>
-        <Input
-          value={phase}
-          onChange={(e) => setPhase(e.target.value)}
-          placeholder={t("rolloutPlan.fieldPhasePlaceholder")}
-          required
-        />
+    <form onSubmit={(e) => void submit(e)} className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[80px_1fr_140px]">
+        <div className="space-y-1.5">
+          <Label className="text-xs">{t("rolloutPlan.fieldDay")}</Label>
+          <Input
+            type="number"
+            min={1}
+            value={dayNumber}
+            onChange={(e) => setDayNumber(Math.max(1, Number(e.target.value) || 1))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">{t("rolloutPlan.fieldPhase")}</Label>
+          <Input
+            value={phase}
+            onChange={(e) => setPhase(e.target.value)}
+            placeholder={t("rolloutPlan.fieldPhasePlaceholder")}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">{t("rolloutPlan.fieldWeight")}</Label>
+          <select
+            value={weight}
+            onChange={(e) => setWeight(e.target.value as RolloutPlanTaskWeight)}
+            className="h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+          >
+            {WEIGHT_ORDER.map((w) => (
+              <option key={w} value={w}>
+                {t(`rolloutPlan.weight${w[0]!.toUpperCase()}${w.slice(1)}`)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs">{t("rolloutPlan.fieldTask")}</Label>
-        <Input value={task} onChange={(e) => setTask(e.target.value)} required />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">{t("rolloutPlan.fieldWeight")}</Label>
-        <select
-          value={weight}
-          onChange={(e) => setWeight(e.target.value as RolloutPlanTaskWeight)}
-          className="h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
-        >
-          {WEIGHT_ORDER.map((w) => (
-            <option key={w} value={w}>
-              {t(`rolloutPlan.weight${w[0]!.toUpperCase()}${w.slice(1)}`)}
-            </option>
-          ))}
-        </select>
+        <textarea
+          value={taskText}
+          onChange={(e) => setTaskText(e.target.value)}
+          placeholder={t("rolloutPlan.fieldTaskPastePlaceholder")}
+          rows={4}
+          required
+          className="w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
+        />
+        <p className="text-xs text-subtle">{t("rolloutPlan.fieldTaskPasteHint")}</p>
       </div>
       <button
         type="submit"
-        disabled={createTask.isPending}
+        disabled={busy || lines.length === 0}
         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {createTask.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Plus className="h-4 w-4" />
-        )}
-        {t("rolloutPlan.addTask")}
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        {lines.length > 1
+          ? t("rolloutPlan.addTasksCount", { count: String(lines.length) })
+          : t("rolloutPlan.addTask")}
       </button>
     </form>
   );
@@ -557,7 +611,7 @@ function PlanDetail({ plan }: { plan: RolloutPlanRow }) {
       </SectionCard>
 
       <SectionCard title={t("rolloutPlan.addTask")}>
-        <AddTaskForm planId={plan.id} nextDay={nextDay} />
+        <AddTaskForm planId={plan.id} nextDay={nextDay} existingTasks={rows} />
       </SectionCard>
 
       <SectionCard>
