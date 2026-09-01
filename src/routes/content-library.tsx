@@ -14,6 +14,7 @@ import {
   Link2,
   Loader2,
   Music2,
+  Palette,
   Pencil,
   Plus,
   Trash2,
@@ -23,6 +24,7 @@ import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { OrgStructureChart } from "@/components/content-library/OrgStructureChart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   useContentLibraryItems,
   useContentLibrarySettings,
@@ -97,6 +99,54 @@ const ITEM_TYPE_TONE: Record<ContentLibraryItemType, string> = {
   video: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   audio: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
   file: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
+};
+
+// A super_admin can pick a background for any card, on top of its
+// automatic per-type tint above. Deliberately pastel-only (no saturated
+// or dark fills) so body text stays readable -- the point of this picker
+// is a light accent, never a dark card.
+const CARD_COLORS = [
+  "slate",
+  "blue",
+  "purple",
+  "pink",
+  "orange",
+  "teal",
+  "indigo",
+  "cyan",
+  "amber",
+] as const;
+type CardColorName = (typeof CARD_COLORS)[number];
+
+function isCardColorName(value: string | null): value is CardColorName {
+  return !!value && (CARD_COLORS as readonly string[]).includes(value);
+}
+
+const CARD_COLOR_SURFACE: Record<CardColorName, string> = {
+  slate: "border-slate-200/70 bg-slate-50/70 dark:border-slate-500/20 dark:bg-slate-500/[0.04]",
+  blue: "border-blue-200/70 bg-blue-50/70 dark:border-blue-500/20 dark:bg-blue-500/[0.04]",
+  purple:
+    "border-purple-200/70 bg-purple-50/70 dark:border-purple-500/20 dark:bg-purple-500/[0.04]",
+  pink: "border-pink-200/70 bg-pink-50/70 dark:border-pink-500/20 dark:bg-pink-500/[0.04]",
+  orange:
+    "border-orange-200/70 bg-orange-50/70 dark:border-orange-500/20 dark:bg-orange-500/[0.04]",
+  teal: "border-teal-200/70 bg-teal-50/70 dark:border-teal-500/20 dark:bg-teal-500/[0.04]",
+  indigo:
+    "border-indigo-200/70 bg-indigo-50/70 dark:border-indigo-500/20 dark:bg-indigo-500/[0.04]",
+  cyan: "border-cyan-200/70 bg-cyan-50/70 dark:border-cyan-500/20 dark:bg-cyan-500/[0.04]",
+  amber: "border-amber-200/70 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/[0.04]",
+};
+
+const CARD_COLOR_SWATCH: Record<CardColorName, string> = {
+  slate: "bg-slate-200",
+  blue: "bg-blue-200",
+  purple: "bg-purple-200",
+  pink: "bg-pink-200",
+  orange: "bg-orange-200",
+  teal: "bg-teal-200",
+  indigo: "bg-indigo-200",
+  cyan: "bg-cyan-200",
+  amber: "bg-amber-200",
 };
 
 function AddItemDialog({
@@ -425,6 +475,7 @@ function ItemCard({
   onDelete: (item: ContentLibraryItemRow) => void;
 }) {
   const { t } = useI18n();
+  const updateItem = useUpdateContentLibraryItem();
   const itemType = item.item_type as ContentLibraryItemType;
   const Icon = ITEM_TYPE_ICON[itemType] ?? FileIcon;
   const isImage = itemType === "image";
@@ -432,6 +483,14 @@ function ItemCard({
   const isLink = itemType === "link";
   const tone = ITEM_TYPE_TONE[itemType] ?? ITEM_TYPE_TONE.file;
   const [showUrl, setShowUrl] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+  const chosenColor = isCardColorName(item.color) ? item.color : null;
+  const cardSurface = chosenColor
+    ? CARD_COLOR_SURFACE[chosenColor]
+    : isText
+      ? "border-amber-200/70 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/[0.04]"
+      : "border-border bg-surface";
 
   async function copyLink() {
     if (!item.url) return;
@@ -443,13 +502,24 @@ function ItemCard({
     }
   }
 
+  async function setColor(color: string | null) {
+    setColorPickerOpen(false);
+    try {
+      await updateItem.mutateAsync({
+        id: item.id,
+        section: item.section as ContentLibrarySection,
+        patch: { color },
+      });
+    } catch (err) {
+      toast.error(errorMessage(err, t("contentLibrary.updateFailed")));
+    }
+  }
+
   return (
     <li
       className={cn(
         "group flex flex-col gap-3 rounded-2xl border p-4 shadow-soft transition-shadow hover:shadow-elevated",
-        isText
-          ? "border-amber-200/70 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/[0.04]"
-          : "border-border bg-surface",
+        cardSurface,
       )}
     >
       <div className="flex items-start gap-3">
@@ -542,6 +612,49 @@ function ItemCard({
         )}
         {canEdit && (
           <div className="ml-auto flex items-center gap-1">
+            <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t("contentLibrary.chooseColor")}
+                  className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-2">
+                <p className="mb-2 text-[11px] font-medium text-subtle">
+                  {t("contentLibrary.chooseColor")}
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void setColor(null)}
+                    aria-label={t("contentLibrary.defaultColor")}
+                    title={t("contentLibrary.defaultColor")}
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-subtle transition-transform hover:scale-110",
+                      !chosenColor && "ring-2 ring-foreground",
+                    )}
+                  >
+                    <span className="text-[10px]">×</span>
+                  </button>
+                  {CARD_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-label={c}
+                      onClick={() => void setColor(c)}
+                      className={cn(
+                        "h-6 w-6 rounded-full ring-offset-2 ring-offset-popover transition-transform hover:scale-110",
+                        CARD_COLOR_SWATCH[c],
+                        chosenColor === c && "ring-2 ring-foreground",
+                      )}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
             <button
               type="button"
               onClick={() => onEdit(item)}

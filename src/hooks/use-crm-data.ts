@@ -6130,7 +6130,7 @@ export function useUpdateContentLibraryItem() {
     }: {
       id: string;
       section: ContentLibrarySection;
-      patch: { title?: string; description?: string; url?: string };
+      patch: { title?: string; description?: string; url?: string; color?: string | null };
     }) => {
       const { error } = await supabase.from("content_library_items").update(patch).eq("id", id);
       if (error) throw error;

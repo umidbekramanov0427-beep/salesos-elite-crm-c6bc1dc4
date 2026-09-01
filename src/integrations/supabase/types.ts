@@ -1700,6 +1700,7 @@ export type Database = {
       };
       content_library_items: {
         Row: {
+          color: string | null;
           created_at: string;
           created_by: string | null;
           description: string;
@@ -1713,6 +1714,7 @@ export type Database = {
           url: string | null;
         };
         Insert: {
+          color?: string | null;
           created_at?: string;
           created_by?: string | null;
           description?: string;
@@ -1726,6 +1728,7 @@ export type Database = {
           url?: string | null;
         };
         Update: {
+          color?: string | null;
           created_at?: string;
           created_by?: string | null;
           description?: string;

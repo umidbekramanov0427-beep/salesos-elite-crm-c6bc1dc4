@@ -1970,6 +1970,8 @@ const en: Dict = {
   "contentLibrary.copyLink": "Copy link",
   "contentLibrary.linkCopied": "Link copied.",
   "contentLibrary.copyFailed": "Couldn't copy the link.",
+  "contentLibrary.chooseColor": "Choose a card color",
+  "contentLibrary.defaultColor": "Default",
 
   "orgChart.addRole": "Add role",
   "orgChart.addChild": "Add subordinate role",
@@ -4016,6 +4018,8 @@ const ru: Dict = {
   "contentLibrary.copyLink": "Скопировать ссылку",
   "contentLibrary.linkCopied": "Ссылка скопирована.",
   "contentLibrary.copyFailed": "Не удалось скопировать ссылку.",
+  "contentLibrary.chooseColor": "Выберите цвет карточки",
+  "contentLibrary.defaultColor": "По умолчанию",
 
   "orgChart.addRole": "Добавить должность",
   "orgChart.addChild": "Добавить подчинённую должность",
@@ -6097,6 +6101,8 @@ const uz: Dict = {
   "contentLibrary.copyLink": "Havolani nusxalash",
   "contentLibrary.linkCopied": "Havola nusxalandi.",
   "contentLibrary.copyFailed": "Havolani nusxalab bo'lmadi.",
+  "contentLibrary.chooseColor": "Kartochka rangini tanlang",
+  "contentLibrary.defaultColor": "Standart",
 
   "orgChart.addRole": "Lavozim qo'shish",
   "orgChart.addChild": "Bo'ysunuvchi lavozim qo'shish",
