@@ -1,3 +1,7 @@
+// Deploy marker: bump this on every server-side fix so a stale build is
+// easy to rule out from the response headers alone (see x-app-build below).
+const APP_BUILD_MARKER = "amocrm-per-org-credentials-2";
+
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
@@ -49,7 +53,14 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      const headers = new Headers(normalized.headers);
+      headers.set("x-app-build", APP_BUILD_MARKER);
+      return new Response(normalized.body, {
+        status: normalized.status,
+        statusText: normalized.statusText,
+        headers,
+      });
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
