@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Plug, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Plug, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { useI18n } from "@/lib/i18n";
@@ -12,6 +12,7 @@ import {
   useIntegrationSetting,
   usePermission,
   usePipelineStagesRaw,
+  useSetAmoCrmCredentials,
   useTriggerAmoCrmSync,
 } from "@/hooks/use-crm-data";
 import {
@@ -275,6 +276,90 @@ const DEFAULTS: Installed[] = [
   { id: "whatsapp", active: false, addedAt: new Date().toISOString(), lastSync: null },
 ];
 
+// AmoCRM's private integrations are created inside one specific account and
+// can't be installed from a different one -- a platform running several
+// companies, each on their own AmoCRM account, needs to store each org's own
+// client_id/secret. Most orgs never touch this (the platform-wide default
+// keeps working), so it's collapsed behind a toggle instead of always shown.
+function AmoCrmCredentialsForm({ currentClientId }: { currentClientId?: string | undefined }) {
+  const { t } = useI18n();
+  const setCredentials = useSetAmoCrmCredentials();
+  const [open, setOpen] = useState(false);
+  const [clientId, setClientId] = useState(currentClientId ?? "");
+  const [clientSecret, setClientSecret] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!clientId.trim() || !clientSecret.trim()) return;
+    setSaving(true);
+    try {
+      await setCredentials.mutateAsync({ clientId, clientSecret });
+      toast.success(t("amocrm.credentialsSaved"));
+      setClientSecret("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("amocrm.credentialsSaveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-subtle transition-colors hover:text-foreground"
+      >
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
+        {t("amocrm.ownIntegrationToggle")}
+      </button>
+      {open && (
+        <div className="mt-3 space-y-3">
+          <p className="max-w-xl text-xs text-subtle">{t("amocrm.ownIntegrationDesc")}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("amocrm.fieldClientId")}
+              </span>
+              <input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder={t("amocrm.fieldClientIdPlaceholder")}
+                className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("amocrm.fieldClientSecret")}
+              </span>
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder={
+                  currentClientId
+                    ? t("amocrm.fieldClientSecretSaved")
+                    : t("amocrm.fieldClientSecret")
+                }
+                className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving || !clientId.trim() || !clientSecret.trim()}
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {t("common.save")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AmoCrmCard() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -298,6 +383,7 @@ function AmoCrmCard() {
       subdomain?: string;
       last_synced_at?: string;
       lead_count?: number;
+      client_id?: string;
     } | null) ?? {};
 
   const amoStages = (stages ?? []).filter((s) => s.amocrm_status_id != null);
@@ -396,6 +482,8 @@ function AmoCrmCard() {
               </button>
             )}
           </div>
+
+          {isAdmin && !connected && <AmoCrmCredentialsForm currentClientId={config.client_id} />}
 
           {connected && (
             <div className="grid gap-4 sm:grid-cols-3">

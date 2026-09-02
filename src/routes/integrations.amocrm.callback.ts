@@ -22,7 +22,7 @@ export const Route = createFileRoute("/integrations/amocrm/callback")({
         }
 
         try {
-          const tokens = await exchangeCodeForTokens(code, referer);
+          const tokens = await exchangeCodeForTokens(code, referer, organizationId);
           const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
           const { error: connError } = await supabaseAdmin.from("amocrm_connection").upsert({

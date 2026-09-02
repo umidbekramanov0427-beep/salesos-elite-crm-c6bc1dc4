@@ -4497,6 +4497,42 @@ export function useGenerateDailyReportNow() {
   });
 }
 
+// A private AmoCRM integration is created inside one specific account and
+// can't be installed from a different one -- a platform with several
+// companies, each running its own AmoCRM account, needs one client_id/secret
+// pair per organization. Read-modify-write (not a blind upsert) so this
+// never clobbers subdomain/last_synced_at/lead_count, which the OAuth
+// callback and sync routes write into the same config column.
+export function useSetAmoCrmCredentials() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { clientId: string; clientSecret: string }) => {
+      const { data: existing, error: fetchError } = await supabase
+        .from("integration_settings")
+        .select("config")
+        .eq("organization_id", user!.organizationId!)
+        .eq("key", "amocrm")
+        .maybeSingle();
+      if (fetchError) throw new Error(fetchError.message);
+      const currentConfig = (existing?.config as Record<string, unknown> | null) ?? {};
+      const { error } = await supabase
+        .from("integration_settings")
+        .update({
+          config: {
+            ...currentConfig,
+            client_id: input.clientId.trim(),
+            client_secret: input.clientSecret.trim(),
+          },
+        })
+        .eq("organization_id", user!.organizationId!)
+        .eq("key", "amocrm");
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] }),
+  });
+}
+
 export function useSetTelegramBotUsername() {
   const qc = useQueryClient();
   const { user } = useAuth();

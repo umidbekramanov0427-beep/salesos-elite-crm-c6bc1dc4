@@ -1378,6 +1378,15 @@ const en: Dict = {
 
   "amocrm.desc": "One-way lead sync — AmoCRM to SalesOS",
   "amocrm.settingsTitle": "AmoCRM settings",
+  "amocrm.ownIntegrationToggle": "Using your own AmoCRM integration?",
+  "amocrm.ownIntegrationDesc":
+    "Only needed if this company registered its own private integration in its AmoCRM account (a separate account from other companies on this platform). Leave blank to use the platform's default integration.",
+  "amocrm.fieldClientId": "AmoCRM Client ID",
+  "amocrm.fieldClientIdPlaceholder": "e.g. 2b1b3a58-1573-438a-a88e-0fd2390b48eb",
+  "amocrm.fieldClientSecret": "AmoCRM Secret key",
+  "amocrm.fieldClientSecretSaved": "•••••• (already saved)",
+  "amocrm.credentialsSaved": "AmoCRM credentials saved.",
+  "amocrm.credentialsSaveFailed": "Couldn't save the credentials.",
   "amocrm.statPipelines": "Pipelines",
   "amocrm.statStages": "Stages",
   "amocrm.statLeads": "Leads",
@@ -3422,6 +3431,15 @@ const ru: Dict = {
 
   "amocrm.desc": "Односторонняя синхронизация лидов — AmoCRM в SalesOS",
   "amocrm.settingsTitle": "Настройки AmoCRM",
+  "amocrm.ownIntegrationToggle": "Используете свою интеграцию AmoCRM?",
+  "amocrm.ownIntegrationDesc":
+    "Нужно только если эта компания создала свою собственную приватную интеграцию в своём аккаунте AmoCRM (отдельном от других компаний на платформе). Оставьте пустым, чтобы использовать интеграцию платформы по умолчанию.",
+  "amocrm.fieldClientId": "AmoCRM Client ID",
+  "amocrm.fieldClientIdPlaceholder": "напр. 2b1b3a58-1573-438a-a88e-0fd2390b48eb",
+  "amocrm.fieldClientSecret": "Секретный ключ AmoCRM",
+  "amocrm.fieldClientSecretSaved": "•••••• (уже сохранён)",
+  "amocrm.credentialsSaved": "Данные AmoCRM сохранены.",
+  "amocrm.credentialsSaveFailed": "Не удалось сохранить данные.",
   "amocrm.statPipelines": "Воронки",
   "amocrm.statStages": "Этапы",
   "amocrm.statLeads": "Лиды",
@@ -5495,6 +5513,15 @@ const uz: Dict = {
 
   "amocrm.desc": "Bir tomonlama lid sinxronizatsiyasi — AmoCRM'dan SalesOS'ga",
   "amocrm.settingsTitle": "AmoCRM sozlamalari",
+  "amocrm.ownIntegrationToggle": "O'zingizning AmoCRM integratsiyangizdan foydalanyapsizmi?",
+  "amocrm.ownIntegrationDesc":
+    "Faqat shu kompaniya o'z AmoCRM hisobida (platformadagi boshqa kompaniyalardan alohida) o'zining shaxsiy integratsiyasini yaratgan bo'lsa kerak bo'ladi. Bo'sh qoldirilsa, platformaning standart integratsiyasi ishlatiladi.",
+  "amocrm.fieldClientId": "AmoCRM Client ID",
+  "amocrm.fieldClientIdPlaceholder": "masalan: 2b1b3a58-1573-438a-a88e-0fd2390b48eb",
+  "amocrm.fieldClientSecret": "AmoCRM maxfiy kaliti",
+  "amocrm.fieldClientSecretSaved": "•••••• (allaqachon saqlangan)",
+  "amocrm.credentialsSaved": "AmoCRM ma'lumotlari saqlandi.",
+  "amocrm.credentialsSaveFailed": "Ma'lumotlarni saqlab bo'lmadi.",
   "amocrm.statPipelines": "Voronkalar",
   "amocrm.statStages": "Bosqichlar",
   "amocrm.statLeads": "Lidlar",
