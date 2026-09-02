@@ -19,9 +19,10 @@ export const Route = createFileRoute("/integrations/amocrm/connect")({
 
         const state = `${admin.organizationId}.${crypto.randomUUID()}`;
         try {
+          const authorizeUrl = await buildAuthorizeUrl(state, admin.organizationId);
           return new Response(null, {
             status: 302,
-            headers: { location: buildAuthorizeUrl(state) },
+            headers: { location: authorizeUrl },
           });
         } catch (err) {
           const message = err instanceof Error ? err.message : "AmoCRM is not configured.";

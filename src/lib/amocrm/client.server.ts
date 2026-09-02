@@ -34,12 +34,32 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export function getAmoClientId(): string {
-  return requireEnv("AMOCRM_CLIENT_ID");
-}
-
 export function getAmoRedirectUri(): string {
   return requireEnv("AMOCRM_REDIRECT_URI");
+}
+
+// AmoCRM private integrations are created inside one specific account and
+// can't be installed from a different one, so each company that registers
+// its own integration needs its own client_id/client_secret. Most orgs never
+// set these (integration_settings.config stays {}), so they fall back to the
+// single platform-wide AMOCRM_CLIENT_ID/AMOCRM_CLIENT_SECRET env vars --
+// the fallback is only evaluated when actually needed, so a deployment with
+// no global default configured still works for orgs that set their own.
+async function getAmoAppCredentials(
+  organizationId: string,
+): Promise<{ clientId: string; clientSecret: string }> {
+  const { data, error } = await supabaseAdmin
+    .from("integration_settings")
+    .select("config")
+    .eq("organization_id", organizationId)
+    .eq("key", "amocrm")
+    .maybeSingle();
+  if (error) throw error;
+  const config = (data?.config as { client_id?: string; client_secret?: string } | null) ?? {};
+  return {
+    clientId: config.client_id?.trim() || requireEnv("AMOCRM_CLIENT_ID"),
+    clientSecret: config.client_secret?.trim() || requireEnv("AMOCRM_CLIENT_SECRET"),
+  };
 }
 
 /**
@@ -49,8 +69,9 @@ export function getAmoRedirectUri(): string {
  * it encodes the same client_id/redirect_uri and is guaranteed correct for
  * your account's region (amocrm.ru vs amocrm.com vs kommo.com).
  */
-export function buildAuthorizeUrl(state: string): string {
-  const params = new URLSearchParams({ client_id: getAmoClientId(), state });
+export async function buildAuthorizeUrl(state: string, organizationId: string): Promise<string> {
+  const { clientId } = await getAmoAppCredentials(organizationId);
+  const params = new URLSearchParams({ client_id: clientId, state });
   return `https://www.amocrm.ru/oauth?${params.toString()}`;
 }
 
@@ -68,10 +89,15 @@ async function tokenRequest(subdomain: string, body: Record<string, string>) {
 }
 
 /** Exchanges the one-time authorization code AmoCRM sends to the callback for real tokens. */
-export async function exchangeCodeForTokens(code: string, subdomain: string) {
+export async function exchangeCodeForTokens(
+  code: string,
+  subdomain: string,
+  organizationId: string,
+) {
+  const { clientId, clientSecret } = await getAmoAppCredentials(organizationId);
   const tokens = await tokenRequest(subdomain, {
-    client_id: getAmoClientId(),
-    client_secret: requireEnv("AMOCRM_CLIENT_SECRET"),
+    client_id: clientId,
+    client_secret: clientSecret,
     grant_type: "authorization_code",
     code,
     redirect_uri: getAmoRedirectUri(),
@@ -85,9 +111,10 @@ export async function exchangeCodeForTokens(code: string, subdomain: string) {
 // up the refreshed access_token too, without needing every call site to be
 // re-threaded through a new object each time a refresh happens.
 async function refreshTokens(conn: AmoConnection) {
+  const { clientId, clientSecret } = await getAmoAppCredentials(conn.organization_id);
   const tokens = await tokenRequest(conn.subdomain, {
-    client_id: getAmoClientId(),
-    client_secret: requireEnv("AMOCRM_CLIENT_SECRET"),
+    client_id: clientId,
+    client_secret: clientSecret,
     grant_type: "refresh_token",
     refresh_token: conn.refresh_token,
     redirect_uri: getAmoRedirectUri(),
