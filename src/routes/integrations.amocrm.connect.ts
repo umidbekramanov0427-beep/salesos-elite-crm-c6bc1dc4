@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { buildAuthorizeUrl } from "@/lib/amocrm/client.server";
+import { buildAuthorizeUrl, debugAmoAppCredentials } from "@/lib/amocrm/client.server";
 import { getUserIdFromToken, requireSuperAdminForUser } from "@/lib/auth.server";
 
 // A plain browser navigation (the "Connect" link) can't carry an
@@ -12,10 +12,26 @@ export const Route = createFileRoute("/integrations/amocrm/connect")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const token = new URL(request.url).searchParams.get("token");
+        const url = new URL(request.url);
+        const token = url.searchParams.get("token");
         const userId = token ? await getUserIdFromToken(token) : null;
         const admin = userId ? await requireSuperAdminForUser(userId) : null;
         if (!admin) return new Response("Unauthorized", { status: 401 });
+
+        if (url.searchParams.get("debug") === "1") {
+          try {
+            const info = await debugAmoAppCredentials(admin.organizationId);
+            return new Response(JSON.stringify(info, null, 2), {
+              headers: { "content-type": "application/json; charset=utf-8" },
+            });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Unknown error";
+            return new Response(JSON.stringify({ error: message }, null, 2), {
+              status: 500,
+              headers: { "content-type": "application/json; charset=utf-8" },
+            });
+          }
+        }
 
         const state = `${admin.organizationId}.${crypto.randomUUID()}`;
         try {
