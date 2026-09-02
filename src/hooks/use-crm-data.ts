@@ -4500,9 +4500,13 @@ export function useGenerateDailyReportNow() {
 // A private AmoCRM integration is created inside one specific account and
 // can't be installed from a different one -- a platform with several
 // companies, each running its own AmoCRM account, needs one client_id/secret
-// pair per organization. Read-modify-write (not a blind upsert) so this
-// never clobbers subdomain/last_synced_at/lead_count, which the OAuth
-// callback and sync routes write into the same config column.
+// pair per organization. Read-modify-write, then upsert (not a blind
+// update): a company setting this up before ever connecting AmoCRM has no
+// integration_settings row yet, and a plain .update() silently matches zero
+// rows in that case -- it "succeeds" without persisting anything. The
+// read+merge still avoids clobbering subdomain/last_synced_at/lead_count,
+// which the OAuth callback and sync routes write into the same config
+// column, for orgs that already have a row.
 export function useSetAmoCrmCredentials() {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -4516,17 +4520,18 @@ export function useSetAmoCrmCredentials() {
         .maybeSingle();
       if (fetchError) throw new Error(fetchError.message);
       const currentConfig = (existing?.config as Record<string, unknown> | null) ?? {};
-      const { error } = await supabase
-        .from("integration_settings")
-        .update({
+      const { error } = await supabase.from("integration_settings").upsert(
+        {
+          organization_id: user!.organizationId!,
+          key: "amocrm",
           config: {
             ...currentConfig,
             client_id: input.clientId.trim(),
             client_secret: input.clientSecret.trim(),
           },
-        })
-        .eq("organization_id", user!.organizationId!)
-        .eq("key", "amocrm");
+        },
+        { onConflict: "organization_id,key" },
+      );
       if (error) throw new Error(error.message);
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["integration_settings", "amocrm"] }),
