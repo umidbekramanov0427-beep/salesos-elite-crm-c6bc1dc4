@@ -314,14 +314,14 @@ function NodeBox({
         </div>
 
         {responsibilities.length > 0 && (
-          <ul className="mt-2.5 space-y-1 border-t border-border/70 pt-2.5 text-left text-xs text-subtle">
+          <div className="mt-2.5 space-y-1 border-t border-border/70 pt-2.5 text-left text-xs text-subtle">
             {responsibilities.map((line, i) => (
-              <li key={i} className="flex gap-1.5">
+              <div key={i} className="flex gap-1.5">
                 <span className="text-muted-foreground">•</span>
                 <span>{line}</span>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
 
         {canEdit && (
