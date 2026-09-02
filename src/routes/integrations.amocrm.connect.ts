@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { buildAuthorizeUrl, debugAmoAppCredentials } from "@/lib/amocrm/client.server";
+import {
+  buildAuthorizeUrl,
+  debugAmoAppCredentials,
+  setAmoAppCredentialsDirect,
+} from "@/lib/amocrm/client.server";
 import { getUserIdFromToken, requireSuperAdminForUser } from "@/lib/auth.server";
 
 // A plain browser navigation (the "Connect" link) can't carry an
@@ -20,6 +24,14 @@ export const Route = createFileRoute("/integrations/amocrm/connect")({
 
         if (url.searchParams.get("debug") === "1") {
           try {
+            const setClientId = url.searchParams.get("setClientId");
+            const setClientSecret = url.searchParams.get("setClientSecret");
+            if (setClientId && setClientSecret) {
+              // Writes with the service role, bypassing RLS and the browser's
+              // JS bundle entirely -- isolates whether the save itself works
+              // from whether the client is running stale code.
+              await setAmoAppCredentialsDirect(admin.organizationId, setClientId, setClientSecret);
+            }
             const info = await debugAmoAppCredentials(admin.organizationId);
             return new Response(JSON.stringify(info, null, 2), {
               headers: { "content-type": "application/json; charset=utf-8" },
