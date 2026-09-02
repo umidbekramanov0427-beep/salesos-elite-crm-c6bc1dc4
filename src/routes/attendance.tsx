@@ -1,19 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
+  Award,
   Bell,
   CheckCircle2,
   Clock,
+  Coins,
   Loader2,
+  Megaphone,
   Phone,
   PhoneOff,
   PlayCircle,
+  Plus,
   Sparkles,
   StopCircle,
   Target,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
+import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -23,10 +37,19 @@ import {
   useAttendanceView,
   useClockIn,
   useClockOut,
+  useCreateFine,
+  useCreateFineType,
   useCreateNotification,
+  useDeleteFine,
+  useDeleteFineType,
+  useFinesMatrix,
+  useFineTypes,
+  useKpiView,
   useLogCall,
   useMyOpenSession,
   useNormativesView,
+  usePublishFines,
+  type FineTypeRow,
   type NormativeRow,
 } from "@/hooks/use-crm-data";
 
@@ -43,6 +66,57 @@ export const Route = createFileRoute("/attendance")({
   }),
   component: AttendanceAndNormativesPage,
 });
+
+const FINE_COLORS = [
+  "slate",
+  "blue",
+  "purple",
+  "pink",
+  "orange",
+  "teal",
+  "indigo",
+  "cyan",
+  "amber",
+  "rose",
+] as const;
+type FineColorName = (typeof FINE_COLORS)[number];
+
+function isFineColorName(value: string): value is FineColorName {
+  return (FINE_COLORS as readonly string[]).includes(value);
+}
+
+const FINE_COLOR_BADGE: Record<FineColorName, string> = {
+  slate: "border-slate-500/20 bg-slate-500/10 text-slate-600 dark:text-slate-400",
+  blue: "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  purple: "border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400",
+  pink: "border-pink-500/20 bg-pink-500/10 text-pink-600 dark:text-pink-400",
+  orange: "border-orange-500/20 bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  teal: "border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400",
+  indigo: "border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  cyan: "border-cyan-500/20 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+  amber: "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  rose: "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+};
+
+const FINE_COLOR_HEADER: Record<FineColorName, string> = {
+  slate: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+  blue: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  purple: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
+  pink: "bg-pink-500/10 text-pink-700 dark:text-pink-300",
+  orange: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
+  teal: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+  indigo: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+  cyan: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+  amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  rose: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+};
+
+function fineBadgeClass(color: string): string {
+  return FINE_COLOR_BADGE[isFineColorName(color) ? color : "slate"];
+}
+function fineHeaderClass(color: string): string {
+  return FINE_COLOR_HEADER[isFineColorName(color) ? color : "slate"];
+}
 
 function formatTime(iso: string | null): string {
   if (!iso) return "—";
@@ -543,15 +617,598 @@ function NormativesSection() {
   );
 }
 
+function NewFineTypeDialog({ position }: { position: number }) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const createType = useCreateFineType();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [color, setColor] = useState<FineColorName>("slate");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try {
+      await createType.mutateAsync({
+        organization_id: user!.organizationId!,
+        name: name.trim(),
+        description: description.trim() || null,
+        color,
+        position,
+      });
+      setOpen(false);
+      setName("");
+      setDescription("");
+      setColor("slate");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("fines.saveFailed"));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-3.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent"
+        >
+          <Plus className="h-4 w-4" /> {t("fines.newType")}
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("fines.newType")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldName")}
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              required
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldDescription")}
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder={t("fines.fieldDescriptionPlaceholder")}
+              className="mt-1.5 w-full resize-none rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldColor")}
+            </label>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {FINE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={cn(
+                    "h-7 w-7 rounded-full transition-transform hover:scale-110",
+                    fineBadgeClass(c),
+                    color === c && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              type="submit"
+              disabled={createType.isPending || !name.trim()}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {createType.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddFineDialog({
+  fineTypes,
+  roster,
+}: {
+  fineTypes: FineTypeRow[];
+  roster: { profileId: string; name: string }[];
+}) {
+  const { t } = useI18n();
+  const createFine = useCreateFine();
+  const [open, setOpen] = useState(false);
+  const [profileId, setProfileId] = useState("");
+  const [fineTypeId, setFineTypeId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const amt = Number(amount);
+    if (!profileId || !fineTypeId || !amt || amt <= 0) return;
+    try {
+      await createFine.mutateAsync({
+        profileId,
+        fineTypeId,
+        amount: amt,
+        occurredOn,
+        reason: reason.trim() || undefined,
+      });
+      toast.success(t("fines.added"));
+      setOpen(false);
+      setAmount("");
+      setReason("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("fines.saveFailed"));
+    }
+  }
+
+  if (fineTypes.length === 0) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> {t("fines.addFine")}
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("fines.addFine")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldEmployee")}
+            </label>
+            <select
+              value={profileId}
+              onChange={(e) => setProfileId(e.target.value)}
+              required
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+            >
+              <option value="" disabled>
+                —
+              </option>
+              {roster.map((r) => (
+                <option key={r.profileId} value={r.profileId}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldType")}
+            </label>
+            <select
+              value={fineTypeId}
+              onChange={(e) => setFineTypeId(e.target.value)}
+              required
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+            >
+              <option value="" disabled>
+                —
+              </option>
+              {fineTypes.map((ft) => (
+                <option key={ft.id} value={ft.id}>
+                  {ft.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                {t("fines.fieldAmount")}
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+                className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                {t("fines.fieldDate")}
+              </label>
+              <input
+                type="date"
+                value={occurredOn}
+                onChange={(e) => setOccurredOn(e.target.value)}
+                required
+                className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldReason")}
+            </label>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
+            />
+          </div>
+          <DialogFooter>
+            <button
+              type="submit"
+              disabled={createFine.isPending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {createFine.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function todayRange(): DateFilterValue {
+  const now = new Date();
+  const from = new Date(now);
+  from.setHours(0, 0, 0, 0);
+  const to = new Date(now);
+  to.setHours(23, 59, 59, 999);
+  return { from, to, label: "" };
+}
+
+function JarimalarSection() {
+  const { t } = useI18n();
+  const { format } = useCurrency();
+  const { user } = useAuth();
+  const canManage =
+    user?.role === "super_admin" || user?.role === "rop" || user?.role === "platform_owner";
+  const [range, setRange] = useState<DateFilterValue>(() => ({
+    ...todayRange(),
+    label: t("lb.presetToday"),
+  }));
+  const { rows, fineTypes, isLoading } = useFinesMatrix(range);
+  const deleteType = useDeleteFineType();
+  const publish = usePublishFines();
+
+  async function onDeleteType(id: string) {
+    try {
+      await deleteType.mutateAsync(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("fines.saveFailed"));
+    }
+  }
+
+  async function onPublish() {
+    try {
+      await publish.mutateAsync({
+        from: range.from ? range.from.toISOString() : null,
+        to: range.to ? range.to.toISOString() : null,
+        label: range.label,
+      });
+      toast.success(t("fines.published"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("fines.publishFailed"));
+    }
+  }
+
+  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
+
+  return (
+    <section className="surface-card p-6 sm:p-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600">
+            <Coins className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{t("fines.title")}</h2>
+            <p className="text-xs text-subtle">{t("fines.desc")}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangeFilter value={range} onChange={setRange} />
+          {canManage && <NewFineTypeDialog position={fineTypes.length} />}
+          {canManage && <AddFineDialog fineTypes={fineTypes} roster={rows} />}
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => void onPublish()}
+              disabled={publish.isPending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-3.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent disabled:opacity-60"
+            >
+              {publish.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Megaphone className="h-4 w-4" />
+              )}
+              {t("fines.publish")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        </div>
+      )}
+
+      {!isLoading && fineTypes.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">{t("fines.noTypes")}</p>
+      ) : (
+        <div className="-m-6 overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
+                <th className="px-6 py-3 font-medium">{t("fines.colEmployee")}</th>
+                {fineTypes.map((ft) => (
+                  <th key={ft.id} className="px-4 py-3 text-center font-medium">
+                    <div
+                      className={cn(
+                        "group relative mx-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1",
+                        fineHeaderClass(ft.color),
+                      )}
+                    >
+                      {ft.name}
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => void onDeleteType(ft.id)}
+                          className="opacity-0 transition-opacity group-hover:opacity-100"
+                          title={t("common.delete")}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </th>
+                ))}
+                <th className="px-6 py-3 text-right font-medium">{t("fines.colTotal")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r.profileId}
+                  className="border-b border-border last:border-0 transition-colors hover:bg-surface"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
+                        {r.initials}
+                      </span>
+                      <p className="font-medium text-foreground">{r.name}</p>
+                    </div>
+                  </td>
+                  {fineTypes.map((ft) => {
+                    const amt = r.amountsByType[ft.id] ?? 0;
+                    return (
+                      <td key={ft.id} className="px-4 py-4 text-center">
+                        {amt > 0 ? (
+                          <span
+                            className={cn(
+                              "inline-flex rounded-lg border px-2.5 py-1 text-xs font-semibold tabular-nums",
+                              fineBadgeClass(ft.color),
+                            )}
+                          >
+                            {format(amt)}
+                          </span>
+                        ) : (
+                          <span className="text-subtle">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="px-6 py-4 text-right font-bold tabular-nums text-foreground">
+                    {format(r.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-border">
+                  <td className="px-6 py-3 text-sm font-bold text-foreground">
+                    {t("fines.colGrandTotal")}
+                  </td>
+                  <td colSpan={fineTypes.length} />
+                  <td className="px-6 py-3 text-right text-sm font-bold tabular-nums text-foreground">
+                    {format(grandTotal)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+          {!isLoading && rows.length === 0 && (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {t("normatives.noEmployees")}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function KpiSection() {
+  const { t } = useI18n();
+  const { format } = useCurrency();
+  const [range, setRange] = useState<DateFilterValue>(() => ({
+    ...todayRange(),
+    label: t("lb.presetToday"),
+  }));
+  const { rows, isLoading } = useKpiView(range);
+
+  const best = useMemo(() => {
+    const pick = <T,>(key: (r: (typeof rows)[number]) => number): string | null => {
+      if (rows.length === 0) return null;
+      const top = [...rows].sort((a, b) => key(b) - key(a))[0];
+      return top && key(top) > 0 ? top.name : null;
+    };
+    return {
+      conversion: pick((r) => r.conversionPct),
+      sales: pick((r) => r.salesCount),
+      calls: pick((r) => r.callsMade),
+      meetings: pick((r) => r.meetingsCount),
+    };
+  }, [rows]);
+
+  return (
+    <section className="surface-card p-6 sm:p-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            <Award className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{t("kpi.title")}</h2>
+            <p className="text-xs text-subtle">{t("kpi.desc")}</p>
+          </div>
+        </div>
+        <DateRangeFilter value={range} onChange={setRange} />
+      </div>
+
+      {isLoading && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        </div>
+      )}
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-4">
+        <StatCard label={t("kpi.bestConversion")} value={best.conversion ?? "—"} tone="mint" />
+        <StatCard label={t("kpi.bestSales")} value={best.sales ?? "—"} />
+        <StatCard label={t("kpi.bestCalls")} value={best.calls ?? "—"} />
+        <StatCard label={t("kpi.bestMeetings")} value={best.meetings ?? "—"} />
+      </div>
+
+      <SectionCard title={t("kpi.roster")} description={t("kpi.rosterDesc")}>
+        <div className="-m-6 overflow-x-auto">
+          <table className="w-full min-w-[1000px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle">
+                <th className="px-6 py-3 font-medium">{t("fines.colEmployee")}</th>
+                <th className="px-4 py-3 text-center font-medium">{t("kpi.colConversion")}</th>
+                <th className="px-4 py-3 text-center font-medium">{t("kpi.colSales")}</th>
+                <th className="px-4 py-3 text-center font-medium">{t("kpi.colRevenue")}</th>
+                <th className="px-4 py-3 text-center font-medium">{t("kpi.colCalls")}</th>
+                <th className="px-4 py-3 text-center font-medium">{t("kpi.colCallTime")}</th>
+                <th className="px-4 py-3 text-center font-medium">{t("kpi.colMeetings")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...rows]
+                .sort((a, b) => b.revenue - a.revenue)
+                .map((r) => (
+                  <tr
+                    key={r.profileId}
+                    className="border-b border-border last:border-0 transition-colors hover:bg-surface"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint text-xs font-semibold text-mint-foreground">
+                          {r.initials}
+                        </span>
+                        <p className="font-medium text-foreground">{r.name}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-center font-semibold tabular-nums">
+                      {r.conversionPct}%
+                    </td>
+                    <td className="px-4 py-4 text-center font-semibold tabular-nums">
+                      {r.salesCount}
+                    </td>
+                    <td className="px-4 py-4 text-center tabular-nums text-muted-foreground">
+                      {format(r.revenue)}
+                    </td>
+                    <td className="px-4 py-4 text-center tabular-nums text-muted-foreground">
+                      {r.callsMade} ({r.callsConnected})
+                    </td>
+                    <td className="px-4 py-4 text-center tabular-nums text-muted-foreground">
+                      {r.totalCallMinutes} {t("attendance.minutesShort")}
+                    </td>
+                    <td className="px-4 py-4 text-center font-semibold tabular-nums">
+                      {r.meetingsCount}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+          {!isLoading && rows.length === 0 && (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {t("normatives.noEmployees")}
+            </p>
+          )}
+        </div>
+      </SectionCard>
+    </section>
+  );
+}
+
+type AttTab = "davomat" | "normativ" | "jarimalar" | "kpi";
+
+const ATT_TABS: { key: AttTab; icon: typeof Clock; labelKey: string; iconColor: string }[] = [
+  { key: "davomat", icon: Clock, labelKey: "attendance.tabDavomat", iconColor: "text-teal-500" },
+  { key: "normativ", icon: Target, labelKey: "attendance.tabNormativ", iconColor: "text-rose-500" },
+  {
+    key: "jarimalar",
+    icon: Coins,
+    labelKey: "attendance.tabJarimalar",
+    iconColor: "text-amber-500",
+  },
+  { key: "kpi", icon: Award, labelKey: "attendance.tabKpi", iconColor: "text-violet-500" },
+];
+
 function AttendanceAndNormativesPage() {
   const { t } = useI18n();
+  const [tab, setTab] = useState<AttTab>("davomat");
   return (
     <>
       <PageHeader title={t("attendance.title")} description={t("attendance.desc")} />
-      <div className="space-y-8">
-        <AttendanceSection />
-        <NormativesSection />
+
+      <div className="mb-6 inline-flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
+        {ATT_TABS.map((tb) => (
+          <button
+            key={tb.key}
+            type="button"
+            onClick={() => setTab(tb.key)}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-xl bg-surface px-3.5 py-2 text-sm font-semibold ring-1 ring-transparent transition-colors",
+              tab === tb.key
+                ? "bg-primary/10 text-primary ring-primary/50"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <tb.icon className={cn("h-4 w-4", tb.iconColor)} />
+            {t(tb.labelKey)}
+          </button>
+        ))}
       </div>
+
+      {tab === "davomat" && <AttendanceSection />}
+      {tab === "normativ" && <NormativesSection />}
+      {tab === "jarimalar" && <JarimalarSection />}
+      {tab === "kpi" && <KpiSection />}
     </>
   );
 }

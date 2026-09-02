@@ -4440,6 +4440,210 @@ export function useNormativesView() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Jarimalar (fines) — admin-managed fine types (per org) + the actual  */
+/* fine records, normally written by the daily AI cron but also        */
+/* addable by hand. Same roster-scoping rule as Normativ (super_admin  */
+/* sees everyone, a ROP sees their team, a rep sees their team too so   */
+/* they can see where they stand).                                     */
+/* ------------------------------------------------------------------ */
+
+export type FineTypeRow = Tables["fine_types"]["Row"];
+const fineTypesResource = makeResource("fine_types", ["fine_types"]);
+export const useFineTypes = (opts?: Parameters<typeof fineTypesResource.useList>[0]) =>
+  fineTypesResource.useList({ orderBy: "position", ...opts });
+export const useCreateFineType = fineTypesResource.useCreate;
+export const useUpdateFineType = fineTypesResource.useUpdate;
+export const useDeleteFineType = fineTypesResource.useRemove;
+
+export type FineRow = Tables["fines"]["Row"];
+
+function toDateOnly(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function useRosterScope() {
+  const { user } = useAuth();
+  const { data: profiles, isLoading } = useProfilesRaw();
+  const roster = useMemo(() => {
+    return (profiles ?? []).filter((p) => {
+      if (p.role === "super_admin" || p.role === "platform_owner") return false;
+      if (!user || user.role === "super_admin" || user.role === "platform_owner") return true;
+      if (user.role === "rop") return p.manager_id === user.id;
+      return p.manager_id === user.managerId;
+    });
+  }, [profiles, user]);
+  return { roster, isLoading };
+}
+
+export function useFinesInRange(range: { from: Date | null; to: Date | null }) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["fines", user?.organizationId, range.from?.getTime(), range.to?.getTime()],
+    enabled: !!user?.organizationId,
+    queryFn: async (): Promise<FineRow[]> => {
+      let query = supabase.from("fines").select("*").eq("organization_id", user!.organizationId!);
+      if (range.from) query = query.gte("occurred_on", toDateOnly(range.from));
+      if (range.to) query = query.lte("occurred_on", toDateOnly(range.to));
+      const { data, error } = await query;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCreateFine() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      fineTypeId: string;
+      profileId: string;
+      amount: number;
+      occurredOn: string;
+      reason?: string | undefined;
+    }) => {
+      const { error } = await supabase.from("fines").insert({
+        organization_id: user!.organizationId!,
+        fine_type_id: input.fineTypeId,
+        profile_id: input.profileId,
+        amount: input.amount,
+        occurred_on: input.occurredOn,
+        reason: input.reason ?? null,
+        source: "manual",
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["fines"] }),
+  });
+}
+
+export function useDeleteFine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("fines").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["fines"] }),
+  });
+}
+
+export type FinesMatrixRow = {
+  profileId: string;
+  name: string;
+  initials: string;
+  amountsByType: Record<string, number>;
+  total: number;
+};
+
+export function useFinesMatrix(range: { from: Date | null; to: Date | null }) {
+  const { roster, isLoading: rosterLoading } = useRosterScope();
+  const { data: fineTypes, isLoading: typesLoading } = useFineTypes();
+  const { data: fines, isLoading: finesLoading } = useFinesInRange(range);
+
+  const rows = useMemo<FinesMatrixRow[]>(() => {
+    return roster.map((p): FinesMatrixRow => {
+      const mine = (fines ?? []).filter((f) => f.profile_id === p.id);
+      const amountsByType: Record<string, number> = {};
+      for (const f of mine) {
+        amountsByType[f.fine_type_id] = (amountsByType[f.fine_type_id] ?? 0) + Number(f.amount);
+      }
+      return {
+        profileId: p.id,
+        name: profileName(p),
+        initials: initialsOf(p.full_name || p.email),
+        amountsByType,
+        total: mine.reduce((s, f) => s + Number(f.amount), 0),
+      };
+    });
+  }, [roster, fines]);
+
+  return {
+    rows,
+    fineTypes: fineTypes ?? [],
+    isLoading: rosterLoading || typesLoading || finesLoading,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* KPI lar — per-rep performance readout for the selected period: what */
+/* each rep is doing well (conversion, sales, calls, meetings), used   */
+/* for monthly pay/bonus review so it's computed deterministically     */
+/* from the same synced data every other page uses, not guessed by AI. */
+/* ------------------------------------------------------------------ */
+
+export type KpiRow = {
+  profileId: string;
+  name: string;
+  initials: string;
+  callsMade: number;
+  callsConnected: number;
+  totalCallMinutes: number;
+  totalLeads: number;
+  salesCount: number;
+  revenue: number;
+  conversionPct: number;
+  meetingsCount: number;
+};
+
+const MEETING_TAG_HINTS = ["uchrashuv", "ofis", "meeting"];
+
+function isInRange(iso: string | null, range: { from: Date | null; to: Date | null }): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (range.from && t < range.from.getTime()) return false;
+  if (range.to && t > range.to.getTime()) return false;
+  return true;
+}
+
+export function useKpiView(range: { from: Date | null; to: Date | null }) {
+  const { roster, isLoading: rosterLoading } = useRosterScope();
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const { data: stages, isLoading: stagesLoading } = usePipelineStagesRaw();
+  const { data: calls, isLoading: callsLoading } = useCallLogsRaw();
+
+  const rows = useMemo<KpiRow[]>(() => {
+    const stagesById = byId(stages);
+    return roster.map((p): KpiRow => {
+      const myLeads = (leads ?? []).filter(
+        (l) => l.owner_id === p.id && isInRange(l.updated_at, range),
+      );
+      const won = myLeads.filter((l) => {
+        const stage = l.stage_id ? stagesById.get(l.stage_id) : undefined;
+        return stage?.is_won ?? false;
+      });
+      const meetingsCount = myLeads.filter((l) =>
+        (l.tags ?? []).some((tag) =>
+          MEETING_TAG_HINTS.some((hint) => tag.toLowerCase().includes(hint)),
+        ),
+      ).length;
+      const myCalls = (calls ?? []).filter(
+        (c) => c.profile_id === p.id && isInRange(c.created_at, range),
+      );
+      return {
+        profileId: p.id,
+        name: profileName(p),
+        initials: initialsOf(p.full_name || p.email),
+        callsMade: myCalls.length,
+        callsConnected: myCalls.filter((c) => c.connected).length,
+        totalCallMinutes: Math.round(myCalls.reduce((s, c) => s + c.duration_seconds, 0) / 60),
+        totalLeads: myLeads.length,
+        salesCount: won.length,
+        revenue: won.reduce((s, l) => s + Number(l.expected_revenue), 0),
+        conversionPct:
+          myLeads.length > 0 ? Math.round((won.length / myLeads.length) * 1000) / 10 : 0,
+        meetingsCount,
+      };
+    });
+  }, [roster, leads, stages, calls, range]);
+
+  return {
+    rows,
+    isLoading: rosterLoading || leadsLoading || stagesLoading || callsLoading,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Telegram "hisobotchi_bot" — link-code flow + daily report send.     */
 /* ------------------------------------------------------------------ */
 
@@ -4475,6 +4679,20 @@ export function useSendTestReport() {
       const res = await authedFetch("/telegram/send-test", { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to send");
+      return json;
+    },
+  });
+}
+
+export function usePublishFines() {
+  return useMutation({
+    mutationFn: async (range: { from: string | null; to: string | null; label: string }) => {
+      const res = await authedFetch("/fines/publish", {
+        method: "POST",
+        body: JSON.stringify(range),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to publish");
       return json;
     },
   });

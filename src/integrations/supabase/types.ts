@@ -718,6 +718,122 @@ export type Database = {
           },
         ];
       };
+      fine_types: {
+        Row: {
+          color: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          name: string;
+          organization_id: string;
+          position: number;
+        };
+        Insert: {
+          color?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          organization_id: string;
+          position?: number;
+        };
+        Update: {
+          color?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          organization_id?: string;
+          position?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fine_types_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      fines: {
+        Row: {
+          amocrm_call_id: string | null;
+          amount: number;
+          created_at: string;
+          created_by: string | null;
+          fine_type_id: string;
+          id: string;
+          occurred_on: string;
+          organization_id: string;
+          profile_id: string;
+          reason: string | null;
+          source: string;
+        };
+        Insert: {
+          amocrm_call_id?: string | null;
+          amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          fine_type_id: string;
+          id?: string;
+          occurred_on?: string;
+          organization_id: string;
+          profile_id: string;
+          reason?: string | null;
+          source?: string;
+        };
+        Update: {
+          amocrm_call_id?: string | null;
+          amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          fine_type_id?: string;
+          id?: string;
+          occurred_on?: string;
+          organization_id?: string;
+          profile_id?: string;
+          reason?: string | null;
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fines_amocrm_call_id_fkey";
+            columns: ["amocrm_call_id"];
+            isOneToOne: false;
+            referencedRelation: "amocrm_calls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_fine_type_id_fkey";
+            columns: ["fine_type_id"];
+            isOneToOne: false;
+            referencedRelation: "fine_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       service_lines: {
         Row: {
           aliases: string[];
