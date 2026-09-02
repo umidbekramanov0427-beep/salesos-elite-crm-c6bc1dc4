@@ -96,6 +96,41 @@ export async function debugAmoAppCredentials(organizationId: string): Promise<{
 }
 
 /**
+ * Writes an org's client_id/client_secret with the service role, bypassing
+ * RLS and any client-side code path entirely. Temporary debugging aid
+ * alongside debugAmoAppCredentials — safe to remove once the per-org
+ * credentials save (useSetAmoCrmCredentials) is confirmed working from the
+ * browser everywhere.
+ */
+export async function setAmoAppCredentialsDirect(
+  organizationId: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<void> {
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from("integration_settings")
+    .select("config")
+    .eq("organization_id", organizationId)
+    .eq("key", "amocrm")
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  const currentConfig = (existing?.config as Record<string, unknown> | null) ?? {};
+  const { error } = await supabaseAdmin.from("integration_settings").upsert(
+    {
+      organization_id: organizationId,
+      key: "amocrm",
+      config: {
+        ...currentConfig,
+        client_id: clientId.trim(),
+        client_secret: clientSecret.trim(),
+      },
+    },
+    { onConflict: "organization_id,key" },
+  );
+  if (error) throw error;
+}
+
+/**
  * The URL an admin is sent to in order to grant SalesOS access to their
  * AmoCRM account. If this doesn't land correctly, use the "link for setting
  * up the integration" shown on the integration's page in AmoCRM instead —
