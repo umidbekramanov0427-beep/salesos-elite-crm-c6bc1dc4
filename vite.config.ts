@@ -1,17 +1,69 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import tsConfigPaths from "vite-tsconfig-paths";
+import viteReact from "@vitejs/plugin-react";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
-export default defineConfig({
-  plugins: [mcpPlugin()],
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
-  },
+// Standalone Vite config (no Lovable sandbox dependency). Equivalent to what
+// @lovable.dev/vite-tanstack-config wired up for us, minus the sandbox-only
+// bits (dev proxy to lovable.app, HMR gate, sandbox error diagnostics) that
+// only ever activated inside Lovable's own dev/build environment anyway.
+export default defineConfig(async ({ mode, command }) => {
+  const plugins: PluginOption[] = [
+    tailwindcss(),
+    tsConfigPaths({ projects: ["./tsconfig.json"] }),
+    mcpPlugin(),
+    tanstackStart({
+      importProtection: {
+        behavior: "error",
+        client: { files: ["**/server/**"], specifiers: ["server-only"] },
+      },
+      // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
+      server: { entry: "server" },
+    }),
+    viteReact(),
+  ];
+
+  if (command === "build") {
+    const { nitro } = await import("nitro/vite");
+    plugins.push(
+      nitro({
+        preset: "cloudflare-module",
+        output: { dir: "dist", serverDir: "dist/server", publicDir: "dist/client" },
+        cloudflare: { nodeCompat: true, deployConfig: true },
+      }),
+    );
+  }
+
+  // Vite already exposes VITE_*-prefixed vars via import.meta.env automatically;
+  // loadEnv here only ensures .env is read the same way in every environment.
+  loadEnv(mode, process.cwd(), "VITE_");
+
+  return {
+    css: { transformer: "lightningcss" as const },
+    resolve: {
+      alias: { "@": `${process.cwd()}/src` },
+      dedupe: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/query-core",
+      ],
+    },
+    optimizeDeps: {
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+      ],
+      ignoreOutdatedRequests: true,
+    },
+    server: { host: "::" as const, port: 8080 },
+    plugins,
+  };
 });
