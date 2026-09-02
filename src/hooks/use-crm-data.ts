@@ -1490,6 +1490,7 @@ export type AudioCallView = {
   aiSummary: string | null;
   nextStep: string | null;
   amocrmTaskId: number | null;
+  aiNoteId: number | null;
   amocrmId: number | null;
   score: number | null;
   mood: string | null;
@@ -1609,6 +1610,7 @@ export function useAudioAnalyticsView(
           aiSummary: c.ai_summary,
           nextStep: c.next_step,
           amocrmTaskId: c.amocrm_task_id,
+          aiNoteId: c.ai_note_id,
           amocrmId: lead?.amocrmId ?? null,
           score: c.score,
           mood: c.mood,

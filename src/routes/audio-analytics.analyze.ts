@@ -820,7 +820,13 @@ export async function analyzeCallById(
       if (!repAlreadyWroteNote) {
         const noteLines = [`🤖 AI xulosa: ${result.summary}`];
         if (result.nextStep) noteLines.push(`Kelishuv/keyingi qadam: ${result.nextStep}`);
-        await createAmoNote(organizationId, leadAmoId, noteLines.join("\n"));
+        const noteId = await createAmoNote(organizationId, leadAmoId, noteLines.join("\n"));
+        if (noteId) {
+          await supabaseAdmin
+            .from("amocrm_calls")
+            .update({ ai_note_id: noteId, ai_note_created_at: new Date().toISOString() })
+            .eq("id", call.id);
+        }
       }
     } catch {
       // A note failing to write must never fail the whole analysis --

@@ -166,6 +166,8 @@ export type Database = {
       };
       amocrm_calls: {
         Row: {
+          ai_note_created_at: string | null;
+          ai_note_id: number | null;
           ai_summary: string | null;
           amocrm_lead_entity_id: number | null;
           amocrm_note_id: number | null;
@@ -194,6 +196,8 @@ export type Database = {
           transcript: string | null;
         };
         Insert: {
+          ai_note_created_at?: string | null;
+          ai_note_id?: number | null;
           ai_summary?: string | null;
           amocrm_lead_entity_id?: number | null;
           amocrm_note_id?: number | null;
@@ -222,6 +226,8 @@ export type Database = {
           transcript?: string | null;
         };
         Update: {
+          ai_note_created_at?: string | null;
+          ai_note_id?: number | null;
           ai_summary?: string | null;
           amocrm_lead_entity_id?: number | null;
           amocrm_note_id?: number | null;
@@ -280,7 +286,6 @@ export type Database = {
           connected_by: string | null;
           enabled_pipeline_ids: number[] | null;
           enabled_user_ids: number[] | null;
-          id: boolean;
           initial_sync_page: number | null;
           last_sync_error: string | null;
           last_synced_at: string | null;
@@ -297,7 +302,6 @@ export type Database = {
           connected_by?: string | null;
           enabled_pipeline_ids?: number[] | null;
           enabled_user_ids?: number[] | null;
-          id?: boolean;
           initial_sync_page?: number | null;
           last_sync_error?: string | null;
           last_synced_at?: string | null;
@@ -314,7 +318,6 @@ export type Database = {
           connected_by?: string | null;
           enabled_pipeline_ids?: number[] | null;
           enabled_user_ids?: number[] | null;
-          id?: boolean;
           initial_sync_page?: number | null;
           last_sync_error?: string | null;
           last_synced_at?: string | null;
