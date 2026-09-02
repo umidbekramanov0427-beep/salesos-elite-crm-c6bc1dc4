@@ -481,6 +481,20 @@ function AmoCrmCard() {
                 <Plug className="h-4 w-4" /> {t("amocrm.connect")}
               </button>
             )}
+            {isAdmin && !connected && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const { data } = await supabase.auth.getSession();
+                  const token = data.session?.access_token;
+                  if (!token) return;
+                  window.location.href = `/integrations/amocrm/connect?token=${encodeURIComponent(token)}&debug=1`;
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent"
+              >
+                Diagnostika
+              </button>
+            )}
           </div>
 
           {isAdmin && !connected && <AmoCrmCredentialsForm currentClientId={config.client_id} />}

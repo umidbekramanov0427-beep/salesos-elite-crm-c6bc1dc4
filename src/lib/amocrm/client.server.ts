@@ -63,6 +63,39 @@ async function getAmoAppCredentials(
 }
 
 /**
+ * Diagnostic readout of exactly which client_id source /amocrm/connect
+ * resolved for an org, without performing the OAuth redirect. Temporary
+ * debugging aid for the per-org credentials rollout — safe to remove once
+ * that's confirmed stable everywhere.
+ */
+export async function debugAmoAppCredentials(organizationId: string): Promise<{
+  organizationId: string;
+  rowFound: boolean;
+  configClientIdPreview: string | null;
+  resolvedSource: "organization" | "env-fallback";
+  resolvedClientIdPreview: string;
+}> {
+  const { data, error } = await supabaseAdmin
+    .from("integration_settings")
+    .select("config")
+    .eq("organization_id", organizationId)
+    .eq("key", "amocrm")
+    .maybeSingle();
+  if (error) throw error;
+  const config = (data?.config as { client_id?: string } | null) ?? {};
+  const orgClientId = config.client_id?.trim();
+  const preview = (id: string) => (id.length > 12 ? `${id.slice(0, 8)}...${id.slice(-4)}` : id);
+  const resolvedClientId = orgClientId || requireEnv("AMOCRM_CLIENT_ID");
+  return {
+    organizationId,
+    rowFound: !!data,
+    configClientIdPreview: orgClientId ? preview(orgClientId) : null,
+    resolvedSource: orgClientId ? "organization" : "env-fallback",
+    resolvedClientIdPreview: preview(resolvedClientId),
+  };
+}
+
+/**
  * The URL an admin is sent to in order to grant SalesOS access to their
  * AmoCRM account. If this doesn't land correctly, use the "link for setting
  * up the integration" shown on the integration's page in AmoCRM instead —
