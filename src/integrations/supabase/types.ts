@@ -731,6 +731,7 @@ export type Database = {
           name: string;
           organization_id: string;
           position: number;
+          target_positions: string[] | null;
         };
         Insert: {
           color?: string;
@@ -741,6 +742,7 @@ export type Database = {
           name: string;
           organization_id: string;
           position?: number;
+          target_positions?: string[] | null;
         };
         Update: {
           color?: string;
@@ -751,6 +753,7 @@ export type Database = {
           name?: string;
           organization_id?: string;
           position?: number;
+          target_positions?: string[] | null;
         };
         Relationships: [
           {

@@ -1,21 +1,39 @@
 // Called on a schedule (see the accompanying pg_cron migration, 21:00
 // Tashkent daily) -- same shared-secret pattern as
-// audio-analytics.analyze-pending.ts. For every org that has configured at
-// least one fine type with a default_amount, looks at that day's analyzed
-// AmoCRM calls per rep and asks the AI which configured fine types the
-// evidence in those calls clearly supports. The AI only ever decides
-// *whether* a fine type applies -- the amount charged is always the type's
-// own admin-configured default_amount, never a number the model invents.
+// audio-analytics.analyze-pending.ts.
+//
+// This checks each org's *configured* fine types against real CRM state --
+// not an AI reading of call transcripts. The seeded "CRM bilan ishlash
+// bo'yicha jarimalar reglamenti" (see 20260903020000_...) is entirely about
+// lead/task/stage hygiene (an unworked new lead, an overdue task, a Lost
+// lead with no reason, an unanswered incoming call), none of which an LLM
+// judging a call transcript could ever answer reliably -- these are exact,
+// checkable facts in the database, so they're computed deterministically
+// here instead. Matched by the fine type's exact `name` against a fixed set
+// of known rule keys below; a fine type whose name doesn't match any known
+// rule is left alone (not computed, no guessing).
+//
+// Every check reads is_won/is_lost (already admin-overridable per org on
+// the "CRM natija bosqichlari" settings tab) and each pipeline's own stage
+// `position` ordering -- never a hardcoded stage name -- so this keeps
+// working correctly no matter how a given company's AmoCRM pipeline is
+// actually named or laid out.
+//
+// NOT automated yet (left for manual entry via "Jarima qo'shish"):
+//   - "Sotuvdan keyin o'tkazilmagan lid" / "So'rovsiz lid olish" -- need a
+//     precise definition of the org's own "sotuv etapi" and an ownership-
+//     change audit trail to check against.
+//   - "Noto'g'ri lid holati" -- too general to check mechanically without a
+//     concrete per-stage rule.
+//   - "CRM ga kiritilmagan tashrif" -- a visitor never entered into the CRM
+//     is by definition invisible to it; needs an external record (e.g. a
+//     reception log) to cross-check against, which nothing here provides.
+//   - The "noto'g'ri sabab" (wrong reason, vs. simply missing) nuance of
+//     the LOST rule -- only the "no reason at all" half is checked here.
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing environment variable: ${name}`);
-  return value;
-}
-
-function tashkentTodayBounds(): { dateStr: string; startIso: string; endIso: string } {
+function tashkentToday(): { dateStr: string; startIso: string; endIso: string } {
   const now = new Date();
   const tashkentNow = new Date(now.getTime() + 5 * 60 * 60 * 1000);
   const dateStr = tashkentNow.toISOString().slice(0, 10);
@@ -24,87 +42,269 @@ function tashkentTodayBounds(): { dateStr: string; startIso: string; endIso: str
   return { dateStr, startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
-type CallDigestRow = {
+type FineTypeRow = {
   id: string;
-  ai_summary: string | null;
-  score: number | null;
-  mood: string | null;
-  analysis: unknown;
-  leads: { owner_id: string | null } | null;
+  name: string;
+  default_amount: number | null;
+  target_positions: string[] | null;
 };
 
-type FineTypeForPrompt = { id: string; name: string; description: string | null };
-type ProposedFine = { profile_n: number; fine_type_n: number; reason: string };
+type LeadRow = {
+  id: string;
+  owner_id: string | null;
+  stage_id: string | null;
+  loss_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
-async function askAiForFines(
-  fineTypes: FineTypeForPrompt[],
-  roster: { n: number; profileId: string; name: string; digest: string }[],
-): Promise<ProposedFine[]> {
-  const apiKey = requireEnv("GEMINI_API_KEY");
-  const typesBlock = fineTypes
-    .map((t, i) => `${i + 1}. ${t.name}${t.description ? ` — ${t.description}` : ""}`)
-    .join("\n");
-  const rosterBlock = roster.map((r) => `Sotuvchi ${r.n} (${r.name}):\n${r.digest}`).join("\n\n");
+type StageRow = {
+  id: string;
+  pipeline_name: string | null;
+  position: number;
+  is_won: boolean;
+  is_lost: boolean;
+  counts_as_won_override: boolean | null;
+  counts_as_lost_override: boolean | null;
+};
 
-  const systemPrompt = `Siz sotuv bo'limi nazoratchisisiz. Quyida jarima turlari ro'yxati va har bir sotuvchining bugungi qo'ng'iroqlari tahlili berilgan. Faqat aniq va shubhasiz dalil bo'lgan hollardagina jarima tayinlang — gumon yoki noaniq holatlarda hech narsa yozmang. Har bir taklif uchun aniq sababni ko'rsating.
+function isFinalStage(s: StageRow): boolean {
+  return (s.counts_as_won_override ?? s.is_won) || (s.counts_as_lost_override ?? s.is_lost);
+}
+function isLostStage(s: StageRow): boolean {
+  return s.counts_as_lost_override ?? s.is_lost;
+}
 
-Jarima turlari:
-${typesBlock}
+async function insertIfNew(
+  organizationId: string,
+  fineTypeId: string,
+  profileId: string,
+  dateStr: string,
+  amount: number,
+  reason: string,
+): Promise<boolean> {
+  const { data: existing } = await supabaseAdmin
+    .from("fines")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("profile_id", profileId)
+    .eq("fine_type_id", fineTypeId)
+    .eq("occurred_on", dateStr)
+    .eq("source", "ai")
+    .maybeSingle();
+  if (existing) return false;
+  const { error } = await supabaseAdmin.from("fines").insert({
+    organization_id: organizationId,
+    profile_id: profileId,
+    fine_type_id: fineTypeId,
+    amount,
+    occurred_on: dateStr,
+    reason,
+    source: "ai",
+  });
+  return !error;
+}
 
-Faqat quyidagi JSON formatida javob bering: {"fines": [{"profile_n": <raqam>, "fine_type_n": <raqam>, "reason": "<qisqa asos>"}]}. Agar hech qanday jarima asoslanmagan bo'lsa, {"fines": []} qaytaring.`;
+async function checkUnworkedNewLeads(
+  organizationId: string,
+  fineType: FineTypeRow,
+  dateStr: string,
+  startIso: string,
+  endIso: string,
+  eligibleProfileIds: Set<string> | null,
+): Promise<number> {
+  const { data: leads } = await supabaseAdmin
+    .from("leads")
+    .select("id, owner_id, stage_id, loss_reason, created_at, updated_at")
+    .eq("organization_id", organizationId)
+    .gte("created_at", startIso)
+    .lte("created_at", endIso)
+    .returns<LeadRow[]>();
+  if (!leads || leads.length === 0) return 0;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: rosterBlock }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
-      }),
-    },
-  );
-  if (!res.ok) throw new Error(`Gemini error (${res.status}): ${await res.text()}`);
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const content = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "{}";
-  try {
-    const parsed = JSON.parse(content) as { fines?: Partial<ProposedFine>[] };
-    return (parsed.fines ?? []).filter(
-      (f): f is ProposedFine =>
-        typeof f.profile_n === "number" && typeof f.fine_type_n === "number",
-    );
-  } catch {
-    return [];
+  const { data: stages } = await supabaseAdmin
+    .from("pipeline_stages")
+    .select(
+      "id, pipeline_name, position, is_won, is_lost, counts_as_won_override, counts_as_lost_override",
+    )
+    .eq("organization_id", organizationId)
+    .returns<StageRow[]>();
+  const stagesById = new Map((stages ?? []).map((s) => [s.id, s]));
+
+  // The "new lead" stage of a pipeline is whichever non-final stage sorts
+  // first -- not a hardcoded name, so this still works whatever this org
+  // called their own first stage in AmoCRM.
+  const firstStageByPipeline = new Map<string, number>();
+  for (const s of stages ?? []) {
+    if (isFinalStage(s)) continue;
+    const key = s.pipeline_name ?? "";
+    const cur = firstStageByPipeline.get(key);
+    if (cur == null || s.position < cur) firstStageByPipeline.set(key, s.position);
   }
+
+  let created = 0;
+  for (const lead of leads) {
+    if (!lead.owner_id || !lead.stage_id) continue;
+    if (eligibleProfileIds && !eligibleProfileIds.has(lead.owner_id)) continue;
+    const stage = stagesById.get(lead.stage_id);
+    if (!stage) continue;
+    const firstPos = firstStageByPipeline.get(stage.pipeline_name ?? "");
+    if (firstPos == null || stage.position !== firstPos) continue;
+    // Untouched: never moved/edited since creation.
+    if (lead.updated_at !== lead.created_at) continue;
+    const ok = await insertIfNew(
+      organizationId,
+      fineType.id,
+      lead.owner_id,
+      dateStr,
+      fineType.default_amount ?? 0,
+      "Yangi lid etapida kun oxirigacha ishlanmay qoldi.",
+    );
+    if (ok) created++;
+  }
+  return created;
 }
 
-function buildDigest(calls: CallDigestRow[]): string {
-  return calls
-    .map((c, i) => {
-      const analysis = (c.analysis ?? {}) as {
-        warnings?: string[];
-        risks?: string[];
-        serviceStandards?: { name: string; violated: boolean; evidence: string }[];
-      };
-      const violations = (analysis.serviceStandards ?? [])
-        .filter((s) => s.violated)
-        .map((s) => `${s.name} (${s.evidence})`);
-      const lines = [
-        `Qo'ng'iroq ${i + 1}${c.score != null ? `, ball: ${c.score}` : ""}${c.mood ? `, kayfiyat: ${c.mood}` : ""}`,
-        c.ai_summary ? `Xulosa: ${c.ai_summary}` : null,
-        (analysis.warnings ?? []).length
-          ? `Ogohlantirishlar: ${analysis.warnings!.join("; ")}`
-          : null,
-        (analysis.risks ?? []).length ? `Xavflar: ${analysis.risks!.join("; ")}` : null,
-        violations.length ? `Standart buzilishlari: ${violations.join("; ")}` : null,
-      ].filter(Boolean);
-      return lines.join("\n");
-    })
-    .join("\n\n");
+async function checkOverdueTasks(
+  organizationId: string,
+  fineType: FineTypeRow,
+  dateStr: string,
+  endIso: string,
+  eligibleProfileIds: Set<string> | null,
+): Promise<number> {
+  const { data: tasks } = await supabaseAdmin
+    .from("tasks")
+    .select("id, assignee_id, due_date, status")
+    .eq("organization_id", organizationId)
+    .lte("due_date", endIso)
+    .neq("status", "Done")
+    .returns<{ id: string; assignee_id: string | null; due_date: string | null }[]>();
+  if (!tasks || tasks.length === 0) return 0;
+
+  let created = 0;
+  for (const t of tasks) {
+    if (!t.assignee_id) continue;
+    if (eligibleProfileIds && !eligibleProfileIds.has(t.assignee_id)) continue;
+    const ok = await insertIfNew(
+      organizationId,
+      fineType.id,
+      t.assignee_id,
+      dateStr,
+      fineType.default_amount ?? 0,
+      "Muddati o'tgan, bajarilmagan vazifa.",
+    );
+    if (ok) created++;
+  }
+  return created;
 }
+
+async function checkLostWithoutReason(
+  organizationId: string,
+  fineType: FineTypeRow,
+  dateStr: string,
+  startIso: string,
+  endIso: string,
+  eligibleProfileIds: Set<string> | null,
+): Promise<number> {
+  const { data: leads } = await supabaseAdmin
+    .from("leads")
+    .select("id, owner_id, stage_id, loss_reason, created_at, updated_at")
+    .eq("organization_id", organizationId)
+    .gte("updated_at", startIso)
+    .lte("updated_at", endIso)
+    .returns<LeadRow[]>();
+  if (!leads || leads.length === 0) return 0;
+
+  const { data: stages } = await supabaseAdmin
+    .from("pipeline_stages")
+    .select("id, position, is_won, is_lost, counts_as_won_override, counts_as_lost_override")
+    .eq("organization_id", organizationId)
+    .returns<StageRow[]>();
+  const lostStageIds = new Set((stages ?? []).filter(isLostStage).map((s) => s.id));
+
+  let created = 0;
+  for (const lead of leads) {
+    if (!lead.owner_id || !lead.stage_id) continue;
+    if (eligibleProfileIds && !eligibleProfileIds.has(lead.owner_id)) continue;
+    if (!lostStageIds.has(lead.stage_id)) continue;
+    if (lead.loss_reason && lead.loss_reason.trim()) continue;
+    const ok = await insertIfNew(
+      organizationId,
+      fineType.id,
+      lead.owner_id,
+      dateStr,
+      fineType.default_amount ?? 0,
+      "Lid LOST etapiga sababsiz o'tkazildi.",
+    );
+    if (ok) created++;
+  }
+  return created;
+}
+
+async function checkUnansweredIncomingCalls(
+  organizationId: string,
+  fineType: FineTypeRow,
+  dateStr: string,
+  startIso: string,
+  endIso: string,
+  eligibleProfileIds: Set<string> | null,
+): Promise<number> {
+  const { data: calls } = await supabaseAdmin
+    .from("amocrm_calls")
+    .select("id, lead_id, connected, direction")
+    .eq("organization_id", organizationId)
+    .eq("direction", "in")
+    .eq("connected", false)
+    .gte("occurred_at", startIso)
+    .lte("occurred_at", endIso)
+    .returns<{ id: string; lead_id: string | null }[]>();
+  if (!calls || calls.length === 0) return 0;
+
+  const leadIds = [...new Set(calls.map((c) => c.lead_id).filter((x): x is string => !!x))];
+  if (leadIds.length === 0) return 0;
+  const { data: leads } = await supabaseAdmin
+    .from("leads")
+    .select("id, owner_id")
+    .in("id", leadIds)
+    .returns<{ id: string; owner_id: string | null }[]>();
+  const ownerByLead = new Map((leads ?? []).map((l) => [l.id, l.owner_id]));
+
+  let created = 0;
+  for (const call of calls) {
+    const ownerId = call.lead_id ? ownerByLead.get(call.lead_id) : null;
+    if (!ownerId) continue;
+    if (eligibleProfileIds && !eligibleProfileIds.has(ownerId)) continue;
+    const ok = await insertIfNew(
+      organizationId,
+      fineType.id,
+      ownerId,
+      dateStr,
+      fineType.default_amount ?? 0,
+      "Kiruvchi qo'ng'iroqqa javob berilmadi.",
+    );
+    if (ok) created++;
+  }
+  return created;
+}
+
+const RULE_CHECKS: Record<
+  string,
+  (
+    organizationId: string,
+    fineType: FineTypeRow,
+    dateStr: string,
+    startIso: string,
+    endIso: string,
+    eligibleProfileIds: Set<string> | null,
+  ) => Promise<number>
+> = {
+  "Ishlanmagan yangi lid": (org, ft, d, s, e, elig) =>
+    checkUnworkedNewLeads(org, ft, d, s, e, elig),
+  "Bajarilmagan zadacha": (org, ft, d, _s, e, elig) => checkOverdueTasks(org, ft, d, e, elig),
+  "Noto'g'ri LOST": (org, ft, d, s, e, elig) => checkLostWithoutReason(org, ft, d, s, e, elig),
+  "Javobsiz kiruvchi aloqa": (org, ft, d, s, e, elig) =>
+    checkUnansweredIncomingCalls(org, ft, d, s, e, elig),
+};
 
 export const Route = createFileRoute("/fines/compute")({
   server: {
@@ -116,95 +316,46 @@ export const Route = createFileRoute("/fines/compute")({
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { dateStr, startIso, endIso } = tashkentTodayBounds();
+        const { dateStr, startIso, endIso } = tashkentToday();
 
-        const { data: fineTypeOrgs } = await supabaseAdmin
+        const { data: fineTypes } = await supabaseAdmin
           .from("fine_types")
-          .select("organization_id")
-          .not("default_amount", "is", null);
-        const organizationIds = [...new Set((fineTypeOrgs ?? []).map((r) => r.organization_id))];
+          .select("id, organization_id, name, default_amount, target_positions")
+          .not("default_amount", "is", null)
+          .returns<(FineTypeRow & { organization_id: string })[]>();
 
-        let orgsProcessed = 0;
+        let typesChecked = 0;
         let finesCreated = 0;
 
-        for (const organizationId of organizationIds) {
+        for (const fineType of fineTypes ?? []) {
+          const check = RULE_CHECKS[fineType.name];
+          if (!check) continue;
           try {
-            const { data: fineTypes } = await supabaseAdmin
-              .from("fine_types")
-              .select("id, name, description, default_amount")
-              .eq("organization_id", organizationId)
-              .not("default_amount", "is", null);
-            if (!fineTypes || fineTypes.length === 0) continue;
-
-            const { data: calls } = await supabaseAdmin
-              .from("amocrm_calls")
-              .select("id, ai_summary, score, mood, analysis, leads:lead_id(owner_id)")
-              .eq("organization_id", organizationId)
-              .not("analyzed_at", "is", null)
-              .gte("occurred_at", startIso)
-              .lte("occurred_at", endIso)
-              .returns<CallDigestRow[]>();
-            if (!calls || calls.length === 0) continue;
-
-            const byProfile = new Map<string, CallDigestRow[]>();
-            for (const c of calls) {
-              const ownerId = c.leads?.owner_id;
-              if (!ownerId) continue;
-              byProfile.set(ownerId, [...(byProfile.get(ownerId) ?? []), c]);
+            let eligibleProfileIds: Set<string> | null = null;
+            if (fineType.target_positions && fineType.target_positions.length > 0) {
+              const { data: profiles } = await supabaseAdmin
+                .from("profiles")
+                .select("id, position")
+                .eq("organization_id", fineType.organization_id)
+                .in("position", fineType.target_positions);
+              eligibleProfileIds = new Set((profiles ?? []).map((p) => p.id));
             }
-            if (byProfile.size === 0) continue;
-
-            const { data: profiles } = await supabaseAdmin
-              .from("profiles")
-              .select("id, full_name, email")
-              .in("id", [...byProfile.keys()]);
-            const profileName = new Map(
-              (profiles ?? []).map((p) => [p.id, p.full_name || p.email || "—"]),
+            const created = await check(
+              fineType.organization_id,
+              fineType,
+              dateStr,
+              startIso,
+              endIso,
+              eligibleProfileIds,
             );
-
-            const roster = [...byProfile.entries()].map(([profileId, calls], i) => ({
-              n: i + 1,
-              profileId,
-              name: profileName.get(profileId) ?? "—",
-              digest: buildDigest(calls),
-            }));
-
-            const proposals = await askAiForFines(fineTypes, roster);
-            orgsProcessed++;
-
-            for (const p of proposals) {
-              const rep = roster.find((r) => r.n === p.profile_n);
-              const fineType = fineTypes[p.fine_type_n - 1];
-              if (!rep || !fineType || fineType.default_amount == null) continue;
-
-              const { data: existing } = await supabaseAdmin
-                .from("fines")
-                .select("id")
-                .eq("organization_id", organizationId)
-                .eq("profile_id", rep.profileId)
-                .eq("fine_type_id", fineType.id)
-                .eq("occurred_on", dateStr)
-                .eq("source", "ai")
-                .maybeSingle();
-              if (existing) continue;
-
-              const { error } = await supabaseAdmin.from("fines").insert({
-                organization_id: organizationId,
-                profile_id: rep.profileId,
-                fine_type_id: fineType.id,
-                amount: fineType.default_amount,
-                occurred_on: dateStr,
-                reason: p.reason || null,
-                source: "ai",
-              });
-              if (!error) finesCreated++;
-            }
+            finesCreated += created;
+            typesChecked++;
           } catch (err) {
-            console.error(`[fines.compute] org ${organizationId} failed:`, err);
+            console.error(`[fines.compute] fine_type ${fineType.id} failed:`, err);
           }
         }
 
-        return Response.json({ orgsProcessed, finesCreated });
+        return Response.json({ typesChecked, finesCreated });
       },
     },
   },
