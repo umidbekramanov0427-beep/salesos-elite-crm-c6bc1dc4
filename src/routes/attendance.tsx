@@ -624,6 +624,7 @@ function NewFineTypeDialog({ position }: { position: number }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [defaultAmount, setDefaultAmount] = useState("");
   const [color, setColor] = useState<FineColorName>("slate");
 
   async function submit(e: FormEvent) {
@@ -634,12 +635,14 @@ function NewFineTypeDialog({ position }: { position: number }) {
         organization_id: user!.organizationId!,
         name: name.trim(),
         description: description.trim() || null,
+        default_amount: defaultAmount ? Number(defaultAmount) : null,
         color,
         position,
       });
       setOpen(false);
       setName("");
       setDescription("");
+      setDefaultAmount("");
       setColor("slate");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("fines.saveFailed"));
@@ -683,6 +686,20 @@ function NewFineTypeDialog({ position }: { position: number }) {
               rows={2}
               placeholder={t("fines.fieldDescriptionPlaceholder")}
               className="mt-1.5 w-full resize-none rounded-xl border border-border bg-accent px-3 py-2 text-sm outline-none focus:border-primary/40"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {t("fines.fieldDefaultAmount")}
+            </label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={defaultAmount}
+              onChange={(e) => setDefaultAmount(e.target.value)}
+              placeholder={t("fines.fieldDefaultAmountPlaceholder")}
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-accent px-3 text-sm outline-none focus:border-primary/40"
             />
           </div>
           <div>
