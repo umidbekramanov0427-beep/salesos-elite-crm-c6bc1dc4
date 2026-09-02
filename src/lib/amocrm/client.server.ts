@@ -1448,10 +1448,23 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
         initial_sync_page: null,
       })
       .eq("organization_id", organizationId);
+    // Read-modify-write: config also carries this org's own AmoCRM
+    // client_id/client_secret (per-org credentials) -- a blind
+    // `.update({ config: {...} })` here would wipe them out on every sync
+    // cycle (this ran every 5 minutes via the sync cron).
+    const { data: existingSyncSettings } = await supabaseAdmin
+      .from("integration_settings")
+      .select("config")
+      .eq("organization_id", organizationId)
+      .eq("key", "amocrm")
+      .maybeSingle();
+    const currentSyncConfig =
+      (existingSyncSettings?.config as Record<string, unknown> | null) ?? {};
     await supabaseAdmin
       .from("integration_settings")
       .update({
         config: {
+          ...currentSyncConfig,
           subdomain: conn.subdomain,
           last_synced_at: new Date().toISOString(),
           lead_count: totalSynced,
