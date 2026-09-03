@@ -200,6 +200,13 @@ async function refreshTokens(conn: AmoConnection) {
   conn.access_token = tokens.access_token;
   conn.refresh_token = tokens.refresh_token;
   conn.token_expires_at = expiresAt;
+  // Tokens refresh roughly once a day -- piggyback the webhook (re)
+  // subscription here so an org connected before this feature shipped gets
+  // covered without needing to disconnect/reconnect. Fire-and-forget: never
+  // let a webhook API hiccup delay or fail the token refresh itself.
+  subscribeAmoWebhooksInternal(conn).catch((err: unknown) => {
+    console.error("AmoCRM webhook subscribe failed", err);
+  });
   return conn;
 }
 
@@ -460,6 +467,56 @@ async function amoWriteFetch(
     throw new Error(`AmoCRM API error (${res.status}) on ${path}: ${text}`);
   }
   return await parseAmoResponse(res, path);
+}
+
+// Confirmed against AmoCRM's own webhooks-api reference (POST /api/v4/
+// webhooks "settings" values). Scoped to what this platform actually acts
+// on: leads (incl. their notes -- calls sync as call-type notes -- and
+// status/owner changes) and tasks. Contacts/companies/customers/talks/
+// messages are intentionally left out -- nothing here parses those events,
+// and lead sync already pulls a lead's linked contact/company data as part
+// of syncing the lead itself.
+const AMO_WEBHOOK_SETTINGS = [
+  "add_lead",
+  "update_lead",
+  "delete_lead",
+  "restore_lead",
+  "status_lead",
+  "responsible_lead",
+  "note_lead",
+  "add_task",
+  "update_task",
+  "delete_task",
+  "responsible_task",
+];
+
+// Shared by subscribeAmoWebhooks (fresh connect) and refreshTokens (so
+// already-connected orgs, whose tokens refresh roughly once a day, get
+// subscribed too without needing to reconnect). Takes an already-valid
+// connection so callers already holding one don't force a second DB
+// round-trip through getConnection/ensureValidToken.
+async function subscribeAmoWebhooksInternal(conn: AmoConnection): Promise<void> {
+  const destination = `${new URL(getAmoRedirectUri()).origin}/integrations/amocrm/webhook?org=${conn.organization_id}`;
+  await amoWriteFetch(conn, "/api/v4/webhooks", "POST", {
+    destination,
+    settings: AMO_WEBHOOK_SETTINGS,
+  });
+}
+
+/**
+ * Registers our webhook endpoint with AmoCRM's subscription API (POST
+ * /api/v4/webhooks) so lead/note/task changes push to us in near real time
+ * instead of only being caught by the periodic sync. If a webhook already
+ * exists for this exact destination, AmoCRM just updates its settings --
+ * safe to call again on every (re)connect. Requires admin rights on the
+ * AmoCRM account; best-effort by design (see callers) since the periodic
+ * sync still works without this.
+ */
+export async function subscribeAmoWebhooks(organizationId: string): Promise<void> {
+  const conn = await getConnection(organizationId);
+  if (!conn) return;
+  const validConn = await ensureValidToken(conn);
+  await subscribeAmoWebhooksInternal(validConn);
 }
 
 /**
