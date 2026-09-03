@@ -17,6 +17,7 @@ from app.routers import (
     errors,
     fines,
     hr,
+    misc,
     platform,
     telegram,
     telegram_hr,
@@ -34,6 +35,7 @@ app.include_router(fines.router)
 app.include_router(daily_report_settings.router)
 app.include_router(audio_analytics.router)
 app.include_router(ai_assistant.router)
+app.include_router(misc.router)
 
 
 @app.get("/health")

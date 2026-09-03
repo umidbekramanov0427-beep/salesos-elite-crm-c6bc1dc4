@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str | None = None
     telegram_hr_bot_token: str | None = None
 
+    vapid_subject: str | None = None
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+
     cron_secret: str | None = None
 
 

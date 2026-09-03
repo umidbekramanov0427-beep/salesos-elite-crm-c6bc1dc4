@@ -78,12 +78,14 @@ enough to the original to diff against it.
 | `src/routes/audio-analytics.analyze.ts` | `app/audio_analytics.py` + `app/routers/audio_analytics.py` | the route handler is a thin wrapper in the router file; all the transcription/rubric/Gemini-scoring logic is in `app/audio_analytics.py` (`analyze_call_by_id`), same split as the original's route-vs-exported-function |
 | `src/routes/audio-analytics.analyze-pending.ts` | `app/routers/audio_analytics.py` | cron sweep, analyzed concurrently via `asyncio.gather` (`Promise.allSettled` in the original) |
 | `src/routes/ai-assistant.chat.ts` | `app/routers/ai_assistant.py` | AI assistant chat + the 5 function-calling tools (search_leads, get_funnel_stats, create_my_task, add_lead_note, update_lead_stage); no AmoCRM dependency |
+| `src/routes/notifications.send-push.ts` | `app/routers/misc.py` | uses `pywebpush` (Python VAPID web-push library) in place of the original's `web-push` npm package |
+| `src/routes/sitemap[.]xml.ts` | `app/routers/misc.py` | |
 
 Verified after each addition: `py_compile` on every file, a real
 `pip install -r requirements.txt`, and `from app.main import app` booting
 with dummy env vars, confirming every new route actually registers.
 
-## Not started -- every other backend route (11 of 39)
+## Not started -- only the AmoCRM sync engine remains (9 of 39 routes + the rest of client.server.ts)
 
 Grouped by subsystem, in the rough order they're worth porting next (most
 self-contained / highest value first). File sizes are the original
@@ -134,10 +136,23 @@ All ported -- see the Done table above.
 All ported -- see the Done table above.
 
 ### Misc
-- `src/routes/notifications.send-push.ts`
-- `src/routes/mcp.ts` -- Model Context Protocol server (exposes CRM data/actions to external AI clients)
-- `src/routes/sitemap[.]xml.ts`
-- `src/lib/google-sheets.server.ts` -- Google Sheets export
+- ~~`src/routes/notifications.send-push.ts`~~ ✅ ported (`app/routers/misc.py`, using `pywebpush` in place of the original's `web-push` npm package)
+- ~~`src/routes/sitemap[.]xml.ts`~~ ✅ ported (`app/routers/misc.py`)
+- ~~`src/lib/google-sheets.server.ts`~~ ✅ ported (`app/google_sheets.py`, see the Done table above)
+- `src/routes/mcp.ts` -- **deliberately not ported, and not really portable as "a route"**: this file is an
+  auto-generated, ~15-line wrapper around Lovable's own `@lovable.dev/mcp-js`
+  framework (`createTanStackMcpHandler`), which handles the actual Model
+  Context Protocol transport (JSON-RPC, SSE), OAuth-protected-resource
+  metadata, and per-tool-call auth context (`ToolContext.getUserId()`) --
+  none of that is hand-written business logic sitting in this codebase to
+  translate; it's a framework/hosting decision. The 4 tools it exposes
+  (`src/lib/mcp/tools/list-leads.ts`, `get-lead.ts`, `pipeline-summary.ts`,
+  `leaderboard.ts`, plus the shared `org-scope.ts` auth helper) are each
+  just a small, ordinary org-scoped Supabase query -- straightforward to
+  port as plain Python functions -- but wiring them up as actual MCP tools
+  again requires picking a Python MCP server framework first (e.g. the
+  official `modelcontextprotocol/python-sdk`), which is a decision for
+  whoever continues this port, not something to guess at here.
 
 ### Data layer shared by nearly everything above
 - `src/hooks/use-crm-data.ts` (~6,900 lines) -- this is technically a
@@ -214,5 +229,5 @@ uvicorn app.main:app --reload
 ```
 
 `GET /health` should return `{"status": "ok"}`. See the Done table above
-for the 33 real ported endpoints and what each does; every one matches its
+for the 35 real ported endpoints and what each does; every one matches its
 original TypeScript route's request/response shape.
