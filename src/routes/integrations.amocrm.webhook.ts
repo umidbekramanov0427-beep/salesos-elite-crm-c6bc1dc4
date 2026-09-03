@@ -1,9 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getConnection, upsertSingleAmoLead } from "@/lib/amocrm/client.server";
+import { getConnection, syncLeadsFromAmo, upsertSingleAmoLead } from "@/lib/amocrm/client.server";
 
 // AmoCRM posts form-encoded fields like leads[add][0][id], leads[update][0][name] ...
 const FIELD_PATTERN =
   /^leads\[(?:add|update)\]\[(\d+)\]\[(id|name|price|status_id|responsible_user_id|pipeline_id)\]$/;
+
+// AmoCRM's classic webhook only tells us about lead field changes (this
+// endpoint's org routing comes from a caller-supplied ?org= query param, not
+// from anything AmoCRM signs), so a stranger who guesses an organization_id
+// could otherwise post fake lead data into another company's account. Every
+// webhook payload carries account[subdomain] -- reject anything that
+// doesn't match the org's own connected AmoCRM account before touching data.
+function verifiesConnectedAccount(form: FormData, subdomain: string): boolean {
+  const posted = form.get("account[subdomain]");
+  return typeof posted === "string" && posted.toLowerCase() === subdomain.toLowerCase();
+}
+
+// Calls and tasks (and any lead field the classic webhook doesn't itemize)
+// aren't in the payload at all -- the webhook is really just a "something
+// changed" ping. Piggyback a full incremental resync (leads+calls+tasks,
+// same as the 5-minute cron and the manual "Sync now" button) so those catch
+// up immediately too, instead of waiting for the next cron tick. Throttled
+// to avoid hammering the AmoCRM API when a busy account fires many webhooks
+// back-to-back -- syncLeadsFromAmo also has its own overlap guard.
+const QUICK_RESYNC_MIN_GAP_MS = 30_000;
 
 export const Route = createFileRoute("/integrations/amocrm/webhook")({
   server: {
@@ -20,6 +40,13 @@ export const Route = createFileRoute("/integrations/amocrm/webhook")({
           if (!conn) return new Response("ok", { status: 200 });
 
           const form = await request.formData();
+          if (!verifiesConnectedAccount(form, conn.subdomain)) {
+            console.error(
+              `AmoCRM webhook: account mismatch for org ${organizationId} (expected ${conn.subdomain})`,
+            );
+            return new Response("ok", { status: 200 });
+          }
+
           type Entry = {
             id?: string;
             name?: string;
@@ -51,6 +78,15 @@ export const Route = createFileRoute("/integrations/amocrm/webhook")({
               entry.responsible_user_id ? Number(entry.responsible_user_id) : null,
               entry.pipeline_id ? Number(entry.pipeline_id) : null,
             );
+          }
+
+          const sinceLastSync = conn.last_synced_at
+            ? Date.now() - new Date(conn.last_synced_at).getTime()
+            : Infinity;
+          if (sinceLastSync > QUICK_RESYNC_MIN_GAP_MS) {
+            await syncLeadsFromAmo(organizationId).catch((err: unknown) => {
+              console.error("AmoCRM webhook: quick resync failed", err);
+            });
           }
         } catch (err) {
           console.error("AmoCRM webhook error", err);
