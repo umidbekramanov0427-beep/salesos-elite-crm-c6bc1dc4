@@ -31,7 +31,7 @@ const en: Dict = {
   "nav./inbox": "Inbox",
   "nav./crm-stages": "CRM Stages",
   "nav./audio-analytics": "Audio Analytics",
-  "nav./attendance": "Attendance & Quotas",
+  "nav./attendance": "Oversight",
   "nav./history": "History",
   "nav./normatives": "Normatives",
   "nav./integrations": "Integrations",
@@ -1863,8 +1863,6 @@ const en: Dict = {
   "userMenu.users": "Users",
   "userMenu.logout": "Log out",
 
-  "attendance.title": "Attendance & Quotas",
-  "attendance.desc": "Clock in/out and call activity, plus quota pacing — per employee, per day.",
   "attendance.myStatus": "My status",
   "attendance.sessionActive": "Clocked in",
   "attendance.notStartedYet": "Not clocked in yet",
@@ -2137,7 +2135,7 @@ const ru: Dict = {
   "nav./inbox": "Входящие",
   "nav./crm-stages": "Этапы CRM",
   "nav./audio-analytics": "Аудио-аналитика",
-  "nav./attendance": "Посещаемость и нормативы",
+  "nav./attendance": "Контроль",
   "nav./history": "История",
   "nav./normatives": "Нормативы",
   "nav./integrations": "Интеграции",
@@ -3965,9 +3963,6 @@ const ru: Dict = {
   "userMenu.users": "Пользователи",
   "userMenu.logout": "Выйти",
 
-  "attendance.title": "Посещаемость и нормативы",
-  "attendance.desc":
-    "Учёт рабочего времени и звонков, плюс темп выполнения нормативов — по каждому сотруднику.",
   "attendance.myStatus": "Мой статус",
   "attendance.sessionActive": "На смене",
   "attendance.notStartedYet": "Смена не начата",
@@ -4239,7 +4234,7 @@ const uz: Dict = {
   "nav./inbox": "Xabarlar",
   "nav./crm-stages": "CRM bosqichlari",
   "nav./audio-analytics": "Audio tahlil",
-  "nav./attendance": "Davomat va Normativ",
+  "nav./attendance": "Nazorat",
   "nav./history": "Tarix",
   "nav./normatives": "Normativlar",
   "nav./integrations": "Integratsiyalar",
@@ -6099,9 +6094,6 @@ const uz: Dict = {
   "userMenu.users": "Foydalanuvchilar",
   "userMenu.logout": "Chiqish",
 
-  "attendance.title": "Davomat va Normativ",
-  "attendance.desc":
-    "Ish vaqti va qo‘ng‘iroqlar hisobi, shu bilan birga normativ bajarilish sur'ati — har bir xodim bo‘yicha.",
   "attendance.myStatus": "Mening holatim",
   "attendance.sessionActive": "Ish vaqtida",
   "attendance.notStartedYet": "Ish hali boshlanmagan",
