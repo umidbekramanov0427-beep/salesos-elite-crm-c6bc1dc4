@@ -43,8 +43,17 @@ enough to the original to diff against it.
 | Original | Port | Notes |
 |---|---|---|
 | `src/integrations/supabase/client.server.ts` | `app/db.py` | service-role client |
-| `src/lib/auth.server.ts` | `app/auth.py` | token verification + super_admin/org-member checks |
+| `src/lib/auth.server.ts` | `app/auth.py` | token verification + super_admin/org-member checks; also added `require_cron_secret_dep` here, factoring out the identical `x-cron-secret` check every cron route repeated inline in the original -- not a new authorization rule, just deduplicated |
+| `src/lib/google-sheets.server.ts` | `app/google_sheets.py` | uses `pyjwt` for RS256 signing instead of hand-rolled Web Crypto (the original's approach exists only because it targets Cloudflare Workers, which Python has no equivalent constraint for) |
+| `src/lib/daily-report-builder.server.ts` | `app/daily_report_builder.py` | `build_full_daily_report` + `build_personal_daily_report`, including the Gemini narrative pass. The original's ~10 independent `Promise.all` selects run sequentially here (supabase-py's sync client) -- functionally identical, just not parallelized; see the module's own docstring |
+| `src/lib/telegram-report.server.ts` | `app/telegram_report.py` | all of it: `send_telegram_message`, the HR-bot senders (photo/document/audio/location), `rehost_hr_telegram_file`, `send_daily_report_for_org`, `send_daily_report_to_linked_managers` |
 | `src/routes/errors.log.ts` | `app/routers/errors.py` | simplest route, ported as the worked example |
+| `src/routes/telegram.send-test.ts` | `app/routers/telegram.py` | |
+| `src/routes/telegram.send-daily-report.ts` | `app/routers/telegram.py` | cron entry point |
+
+Verified after each addition: `py_compile` on every file, a real
+`pip install -r requirements.txt`, and `from app.main import app` booting
+with dummy env vars, confirming every new route actually registers.
 
 ## Not started -- every other backend route (36 of 39)
 
@@ -79,15 +88,16 @@ TypeScript, as a rough effort signal.
 - `src/routes/ai-assistant.chat.ts` -- AI assistant chat endpoint (loads a data snapshot, calls Gemini)
 - `src/routes/fines.compute.ts` -- daily deterministic CRM-hygiene fines engine (see its own extensive header comment on why it's deterministic, not AI-judged)
 - `src/routes/fines.publish.ts` -- Telegram broadcast of a fines summary
-- `src/routes/daily-report-settings.preview.ts`, `.generate-now.ts` and `src/lib/daily-report-builder.server.ts` -- the daily report generator (aggregates + AI narrative)
+- `src/routes/daily-report-settings.preview.ts`, `.generate-now.ts` -- both are thin wrappers around the now-ported `app/daily_report_builder.py` / `app/telegram_report.py` (see `sendDailyReportForOrg` for `.generate-now.ts`'s "Hisobotni hoziroq yaratish" button) -- should be quick
 
 ### Telegram
-- `src/routes/telegram.webhook.ts` -- main bot (business-profile onboarding conversation, report bot linking)
+- ~~`src/lib/daily-report-builder.server.ts`~~ ✅ ported (`app/daily_report_builder.py`)
+- ~~`src/lib/telegram-report.server.ts`~~ ✅ ported (`app/telegram_report.py`)
+- ~~`src/routes/telegram.send-test.ts`~~ ✅ ported
+- ~~`src/routes/telegram.send-daily-report.ts`~~ ✅ ported
+- `src/routes/telegram.webhook.ts` -- main bot (business-profile onboarding conversation, report bot linking) -- by far the largest remaining piece of this subsystem, a stateful multi-turn conversation handler
 - `src/routes/telegram.hr-webhook.ts` -- separate HR candidate-chat bot
-- `src/routes/telegram.link.ts`
-- `src/routes/telegram.send-daily-report.ts` -- cron entry point
-- `src/routes/telegram.send-test.ts`
-- `src/lib/telegram-report.server.ts` -- shared `sendTelegramMessage` helper
+- `src/routes/telegram.link.ts` -- chat-linking code exchange
 
 ### Admin / platform (multi-tenant org management)
 - `src/routes/admin.create-employee.ts`, `.delete-employee.ts`, `.set-employee-password.ts`
@@ -135,23 +145,34 @@ Port the TypeScript route's checks line-for-line; don't invent new ones.
 
 ## Suggested order for continuing this port
 
-1. Finish `app/auth.py` parity (there are a couple more TS auth helpers not
-   yet ported, e.g. `getAmoRedirectUri`-style small utilities scattered in
-   `client.server.ts` -- port them alongside whichever router needs them
-   first, not preemptively).
-2. Telegram (`telegram.send-test.ts` first -- smallest, no business logic,
-   good second worked example after `errors.log.ts`).
+1. ~~Telegram warm-up (`telegram.send-test.ts` first)~~ ✅ done -- along with
+   it, `daily-report-builder.server.ts` and `telegram-report.server.ts` (both
+   dependencies of that one route) got ported too, since porting the route
+   without them isn't meaningful. `daily-report-settings.preview.ts` /
+   `.generate-now.ts` are now easy follow-ups -- thin wrappers around code
+   that already exists in `app/`.
+2. `telegram.link.ts` next (small, no business logic), then
+   `telegram.webhook.ts` and `telegram.hr-webhook.ts` (the two stateful
+   conversation bots -- the largest remaining pieces of this subsystem).
 3. Admin/platform CRUD routes -- mostly straightforward `supabaseAdmin`
    insert/update/delete calls with a role check, low risk.
-4. AI/audio analysis -- port `daily-report-builder.server.ts` before
-   `audio-analytics.analyze.ts`; the latter is the more complex one and
-   reuses patterns from the former.
+4. Remaining AI/audio analysis -- `fines.compute.ts` (self-contained,
+   deterministic, no shared dependencies) before `audio-analytics.analyze.ts`
+   (the most complex route in this whole group, and a dependency of
+   `audio-analytics.analyze-pending.ts`).
 5. AmoCRM last, and slowest -- budget real time to re-read every inline
    comment in `client.server.ts` before changing behavior, and validate
    against a real (or scratch) AmoCRM-connected org before considering any
    piece of it done. This module has burned the most hours of any in the
    project's history; a rushed port here is where regressions are most
    likely.
+
+General note learned while doing the Telegram batch: **port a route's
+dependencies together with the route**, not route-by-route in isolation --
+`telegram.send-test.ts` alone is trivial, but it's meaningless without
+`daily-report-builder.server.ts` behind it. Follow the actual `import`
+graph of each `src/routes/*.ts` file, not just the route list above, when
+deciding what "porting this route" actually requires.
 
 ## Running what exists so far
 
