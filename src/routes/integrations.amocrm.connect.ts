@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   buildAuthorizeUrl,
   debugAmoAppCredentials,
+  debugAmoCallNotes,
   setAmoAppCredentialsDirect,
 } from "@/lib/amocrm/client.server";
 import { getUserIdFromToken, requireSuperAdminForUser } from "@/lib/auth.server";
@@ -32,7 +33,10 @@ export const Route = createFileRoute("/integrations/amocrm/connect")({
               // from whether the client is running stale code.
               await setAmoAppCredentialsDirect(admin.organizationId, setClientId, setClientSecret);
             }
-            const info = await debugAmoAppCredentials(admin.organizationId);
+            const info =
+              url.searchParams.get("calls") === "1"
+                ? await debugAmoCallNotes(admin.organizationId)
+                : await debugAmoAppCredentials(admin.organizationId);
             return new Response(JSON.stringify(info, null, 2), {
               headers: { "content-type": "application/json; charset=utf-8" },
             });

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { PageHeader, SectionCard, Pill } from "@/components/layout/Primitives";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminBackLink } from "@/components/admin/AdminBackLink";
+import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { cn, describeError } from "@/lib/utils";
@@ -46,6 +47,30 @@ function ConnectionHeader() {
   const disconnect = useDisconnectAmoCrm();
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [callsDebug, setCallsDebug] = useState<string | null>(null);
+  const [callsDebugLoading, setCallsDebugLoading] = useState(false);
+
+  // Temporary diagnostic: "0 calls" can mean the sync is broken, or that
+  // this AmoCRM account's telephony genuinely never posts call_in/call_out
+  // notes -- hits AmoCRM directly to tell the two apart instead of guessing.
+  async function runCallsDebug() {
+    setCallsDebugLoading(true);
+    setCallsDebug(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch(
+        `/integrations/amocrm/connect?token=${encodeURIComponent(token)}&debug=1&calls=1`,
+      );
+      const text = await res.text();
+      setCallsDebug(text);
+    } catch (err) {
+      setCallsDebug(describeError(err, "Unknown error"));
+    } finally {
+      setCallsDebugLoading(false);
+    }
+  }
 
   const webhookUrl =
     typeof window !== "undefined" && status && user?.organizationId
@@ -97,6 +122,19 @@ function ConnectionHeader() {
             </button>
             <button
               type="button"
+              onClick={() => void runCallsDebug()}
+              disabled={callsDebugLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent disabled:opacity-60"
+            >
+              {callsDebugLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Diagnostika (qo'ng'iroqlar)
+            </button>
+            <button
+              type="button"
               onClick={() => setConfirmingDisconnect(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
             >
@@ -105,6 +143,11 @@ function ConnectionHeader() {
             </button>
           </div>
         </div>
+        {callsDebug && (
+          <pre className="mt-4 max-h-96 overflow-auto rounded-xl border border-border bg-surface p-3 text-[11px] leading-relaxed text-foreground">
+            {callsDebug}
+          </pre>
+        )}
       </SectionCard>
 
       <SectionCard

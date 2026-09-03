@@ -96,6 +96,68 @@ export async function debugAmoAppCredentials(organizationId: string): Promise<{
 }
 
 /**
+ * Diagnoses "0 calls synced" for an org: hits AmoCRM directly for (a) any
+ * notes at all and (b) call_in/call_out notes specifically, so it's
+ * possible to tell apart "the notes API itself is inaccessible" (a
+ * permission/scope problem) from "notes exist but none are call-type" (this
+ * AmoCRM account's telephony isn't posting classic call notes at all) from
+ * "genuinely no notes yet". Temporary debugging aid — safe to remove once
+ * the calls-not-syncing case for a given org is root-caused.
+ */
+export async function debugAmoCallNotes(organizationId: string): Promise<{
+  organizationId: string;
+  connected: boolean;
+  subdomain?: string;
+  anyNotesCount?: number;
+  anyNotesSample?: unknown;
+  callNotesCount?: number;
+  callNotesSample?: unknown;
+  storedAmocrmCallsCount?: number;
+  error?: string;
+}> {
+  const conn = await getConnection(organizationId);
+  if (!conn) return { organizationId, connected: false };
+
+  const { count: storedAmocrmCallsCount } = await supabaseAdmin
+    .from("amocrm_calls")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId);
+
+  try {
+    const validConn = await ensureValidToken(conn);
+    const [anyNotesRaw, callNotesRaw] = await Promise.all([
+      amoFetch(validConn, "/api/v4/leads/notes?limit=5&order[created_at]=desc"),
+      amoFetch(
+        validConn,
+        "/api/v4/leads/notes?filter[note_type][]=call_in&filter[note_type][]=call_out&limit=5&order[created_at]=desc",
+      ),
+    ]);
+    const anyList =
+      (anyNotesRaw as { _embedded?: { notes?: unknown[] } } | null)?._embedded?.notes ?? [];
+    const callList =
+      (callNotesRaw as { _embedded?: { notes?: unknown[] } } | null)?._embedded?.notes ?? [];
+    return {
+      organizationId,
+      connected: true,
+      subdomain: conn.subdomain,
+      anyNotesCount: anyList.length,
+      anyNotesSample: anyList.slice(0, 2),
+      callNotesCount: callList.length,
+      callNotesSample: callList.slice(0, 2),
+      storedAmocrmCallsCount: storedAmocrmCallsCount ?? 0,
+    };
+  } catch (err) {
+    return {
+      organizationId,
+      connected: true,
+      subdomain: conn.subdomain,
+      storedAmocrmCallsCount: storedAmocrmCallsCount ?? 0,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
  * Writes an org's client_id/client_secret with the service role, bypassing
  * RLS and any client-side code path entirely. Temporary debugging aid
  * alongside debugAmoAppCredentials — safe to remove once the per-org
