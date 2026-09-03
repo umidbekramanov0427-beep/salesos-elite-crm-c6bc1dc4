@@ -70,28 +70,47 @@ enough to the original to diff against it.
 | `src/routes/platform.delete-organization.ts` | `app/routers/platform.py` | |
 | `src/lib/organization-admin-credentials.server.ts` | `app/organization_admin_credentials.py` | called from `admin.set-employee-password` and `platform.create-organization`/`.update-user` |
 | `src/lib/auth.server.ts`'s `requirePlatformOwner` | `app/auth.py` (`require_platform_owner`) | added alongside the platform.* batch, since every platform route needs it |
+| `src/routes/fines.compute.ts` | `app/routers/fines.py` | daily deterministic CRM-hygiene fines engine |
+| `src/routes/fines.publish.ts` | `app/routers/fines.py` | |
+| `src/routes/daily-report-settings.preview.ts` | `app/routers/daily_report_settings.py` | thin wrapper around `build_full_daily_report` |
+| `src/routes/daily-report-settings.generate-now.ts` | `app/routers/daily_report_settings.py` | thin wrapper around `send_daily_report_for_org` |
+| **partial** `src/lib/amocrm/client.server.ts` | `app/amocrm_client.py` | **only the "client core"** -- OAuth token lifecycle, per-org credential resolution, the low-level amoFetch/amoWriteFetch HTTP layer, webhook subscription, and `create_amo_task`/`create_amo_note`/`has_human_note_since`. Ported now (out of the "AmoCRM last" order below) because `audio-analytics.analyze.ts` hard-depends on those three write/read helpers -- see that module's own docstring for exactly what of the ~2,100-line original is and isn't here. The bidirectional sync engine (`syncLeadsFromAmo` and everything it calls) is **not** ported -- still in "Not started" below, unchanged priority (last, most carefully) |
+| `src/routes/audio-analytics.analyze.ts` | `app/audio_analytics.py` + `app/routers/audio_analytics.py` | the route handler is a thin wrapper in the router file; all the transcription/rubric/Gemini-scoring logic is in `app/audio_analytics.py` (`analyze_call_by_id`), same split as the original's route-vs-exported-function |
+| `src/routes/audio-analytics.analyze-pending.ts` | `app/routers/audio_analytics.py` | cron sweep, analyzed concurrently via `asyncio.gather` (`Promise.allSettled` in the original) |
+| `src/routes/ai-assistant.chat.ts` | `app/routers/ai_assistant.py` | AI assistant chat + the 5 function-calling tools (search_leads, get_funnel_stats, create_my_task, add_lead_note, update_lead_stage); no AmoCRM dependency |
 
 Verified after each addition: `py_compile` on every file, a real
 `pip install -r requirements.txt`, and `from app.main import app` booting
 with dummy env vars, confirming every new route actually registers.
 
-## Not started -- every other backend route (18 of 39)
+## Not started -- every other backend route (11 of 39)
 
 Grouped by subsystem, in the rough order they're worth porting next (most
 self-contained / highest value first). File sizes are the original
 TypeScript, as a rough effort signal.
 
-### AmoCRM integration (the largest, most fought-over subsystem this project has -- port last, most carefully)
-- `src/lib/amocrm/client.server.ts` (~2,100 lines) -- OAuth token exchange/
-  refresh, per-org credential resolution, leads/contacts/companies/pipeline/
-  calls/tasks sync, webhook subscription, all the `createAmoTask`/
-  `createAmoNote`/`hasHumanNoteSince` helpers. This is the one module worth
-  the most care: it has been the source of most of this project's hardest
-  bugs this year (stale composite-key migrations, blind config overwrites
-  that silently wiped per-org credentials, pagination bugs that dropped
-  entire sync batches on one bad page). Read its inline comments carefully
-  before touching it -- almost every non-obvious line documents a real bug
-  that was fixed there.
+### AmoCRM integration -- the sync engine (the largest, most fought-over subsystem this project has -- port last, most carefully)
+The "client core" (OAuth tokens, `amoFetch`/`amoWriteFetch`, webhook
+subscribe, `createAmoTask`/`createAmoNote`/`hasHumanNoteSince`) is already
+ported -- see `app/amocrm_client.py` in the Done table above. What's left
+is the bidirectional **sync engine** built on top of it, still entirely in
+the original TypeScript:
+- `src/lib/amocrm/client.server.ts`'s `syncLeadsFromAmo` and everything it
+  calls (~900 more lines): `syncPipelineStages`, `syncUserMapping` (incl.
+  auto-provisioning `sotuv_menejeri` accounts), `fetchCallNotes`/
+  `syncCallsFromAmo`, `syncTasksFromAmo`, `backfillOrphanedCallLeads`,
+  `fetchOpenTaskStats`, `resolveStageId`/`resolveOwnerId`/
+  `upsertSingleAmoLead`, `fetchAmoCatalog`, `saveAmoImportSettings`,
+  `disconnectAmoCrm`, plus the OAuth authorize-URL/code-exchange helpers
+  (`buildAuthorizeUrl`, `exchangeCodeForTokens`) and the three debug
+  helpers (`debugAmoAppCredentials`, `debugAmoCallNotes`,
+  `setAmoAppCredentialsDirect`). This is the one module worth the most
+  care: it has been the source of most of this project's hardest bugs this
+  year (stale composite-key migrations, blind config overwrites that
+  silently wiped per-org credentials, pagination bugs that dropped entire
+  sync batches on one bad page). Read its inline comments carefully before
+  touching it -- almost every non-obvious line documents a real bug that
+  was fixed there.
 - `src/routes/integrations.amocrm.connect.ts` -- OAuth authorize redirect + debug endpoints
 - `src/routes/integrations.amocrm.callback.ts` -- OAuth callback, stores tokens
 - `src/routes/integrations.amocrm.sync.ts` -- manual "sync now" trigger
@@ -102,37 +121,17 @@ TypeScript, as a rough effort signal.
 - `src/routes/admin.amocrm-import-settings.ts`
 - `src/routes/dashboard.amocrm-tasks.ts`
 
-### AI / audio analysis
-- `src/routes/audio-analytics.analyze.ts` -- Gemini call-transcript analysis, structured scoring, auto AmoCRM note/task creation
-- `src/routes/audio-analytics.analyze-pending.ts` -- cron sweep for unanalyzed calls
-- `src/routes/ai-assistant.chat.ts` -- AI assistant chat endpoint (loads a data snapshot, calls Gemini)
-- `src/routes/fines.compute.ts` -- daily deterministic CRM-hygiene fines engine (see its own extensive header comment on why it's deterministic, not AI-judged)
-- `src/routes/fines.publish.ts` -- Telegram broadcast of a fines summary
-- `src/routes/daily-report-settings.preview.ts`, `.generate-now.ts` -- both are thin wrappers around the now-ported `app/daily_report_builder.py` / `app/telegram_report.py` (see `sendDailyReportForOrg` for `.generate-now.ts`'s "Hisobotni hoziroq yaratish" button) -- should be quick
-
-### Telegram
-- ~~`src/lib/daily-report-builder.server.ts`~~ ✅ ported (`app/daily_report_builder.py`)
-- ~~`src/lib/telegram-report.server.ts`~~ ✅ ported (`app/telegram_report.py`)
-- ~~`src/routes/telegram.send-test.ts`~~ ✅ ported
-- ~~`src/routes/telegram.send-daily-report.ts`~~ ✅ ported
-- `src/routes/telegram.webhook.ts` -- main bot (business-profile onboarding conversation, report bot linking) -- by far the largest remaining piece of this subsystem, a stateful multi-turn conversation handler
-- `src/routes/telegram.hr-webhook.ts` -- separate HR candidate-chat bot
-- `src/routes/telegram.link.ts` -- chat-linking code exchange
-
 ### Admin / platform (multi-tenant org management)
-- `src/routes/admin.create-employee.ts`, `.delete-employee.ts`, `.set-employee-password.ts`
-- `src/routes/admin.security-ban.ts`, `.security-users.ts`
-- `src/routes/admin.ai-agents.update.ts`
-- `src/routes/platform.create-organization.ts` -- creates org + first Super Admin + ROP
-- `src/routes/platform.add-employee.ts`, `.delete-user.ts`, `.update-user.ts`
-- `src/routes/platform.company-directory.ts`
-- `src/routes/platform.deactivate-expired-trials.ts`
-- `src/routes/platform.delete-organization.ts`
-- `src/lib/organization-admin-credentials.server.ts` -- keeps org owner-login passwords in sync across 3 places
+All ported -- see the Done table above.
 
 ### HR (candidate hiring pipeline)
-- `src/routes/hr.delete-candidate.ts`
-- `src/routes/hr.send-message.ts`
+All ported -- see the Done table above.
+
+### Telegram
+All ported -- see the Done table above.
+
+### AI / audio analysis
+All ported -- see the Done table above.
 
 ### Misc
 - `src/routes/notifications.send-push.ts`
@@ -165,34 +164,43 @@ Port the TypeScript route's checks line-for-line; don't invent new ones.
 
 ## Suggested order for continuing this port
 
-1. ~~Telegram warm-up (`telegram.send-test.ts` first)~~ ✅ done -- along with
-   it, `daily-report-builder.server.ts` and `telegram-report.server.ts` (both
-   dependencies of that one route) got ported too, since porting the route
-   without them isn't meaningful. `daily-report-settings.preview.ts` /
-   `.generate-now.ts` are now easy follow-ups -- thin wrappers around code
-   that already exists in `app/`.
-2. `telegram.link.ts` next (small, no business logic), then
-   `telegram.webhook.ts` and `telegram.hr-webhook.ts` (the two stateful
-   conversation bots -- the largest remaining pieces of this subsystem).
-3. Admin/platform CRUD routes -- mostly straightforward `supabaseAdmin`
-   insert/update/delete calls with a role check, low risk.
-4. Remaining AI/audio analysis -- `fines.compute.ts` (self-contained,
-   deterministic, no shared dependencies) before `audio-analytics.analyze.ts`
-   (the most complex route in this whole group, and a dependency of
-   `audio-analytics.analyze-pending.ts`).
-5. AmoCRM last, and slowest -- budget real time to re-read every inline
-   comment in `client.server.ts` before changing behavior, and validate
-   against a real (or scratch) AmoCRM-connected org before considering any
-   piece of it done. This module has burned the most hours of any in the
-   project's history; a rushed port here is where regressions are most
-   likely.
+Everything except the AmoCRM sync engine is now done -- see the Done table
+above. What's left is entirely that one subsystem:
 
-General note learned while doing the Telegram batch: **port a route's
+1. Start with `resolveStageId`/`resolveOwnerId`/`upsertSingleAmoLead` and
+   `fetchAmoCatalog`/`saveAmoImportSettings`/`disconnectAmoCrm` -- these are
+   comparatively small and self-contained, and a good way to get familiar
+   with the rest of the module's conventions (dedup-by-key upserts,
+   `describeError`, chunked writes) before the big one.
+2. Then `syncPipelineStages` and `syncUserMapping` (incl. the
+   `sotuv_menejeri` auto-provisioning logic -- note `amocrm_client.py`
+   already has the shared `SOTUV_MENEJERI_DEFAULT_PASSWORD` convention
+   documented, mirror it rather than re-deriving it) -- both are
+   dependencies of the big one next.
+3. `syncLeadsFromAmo` itself (~470 lines) -- the core of the whole module.
+   Budget real time to re-read every inline comment in `client.server.ts`
+   before changing behavior: almost every non-obvious line there documents
+   a real production bug that was fixed (stale composite-key migrations,
+   blind config overwrites that silently wiped per-org credentials,
+   pagination bugs that dropped entire sync batches on one bad page).
+4. `syncCallsFromAmo`, `backfillOrphanedCallLeads`, `fetchOpenTaskStats`,
+   `syncTasksFromAmo`.
+5. The 9 route files last, once their business logic exists to call:
+   `integrations.amocrm.connect/callback/sync/sync-all/webhook.ts`,
+   `admin.amocrm-catalog/-disconnect/-import-settings.ts`,
+   `dashboard.amocrm-tasks.ts`. Validate against a real (or scratch)
+   AmoCRM-connected org before considering any piece of this done -- this
+   module has burned the most hours of any in the project's history, and a
+   rushed port here is where regressions are most likely.
+
+General note learned while doing the earlier batches: **port a route's
 dependencies together with the route**, not route-by-route in isolation --
-`telegram.send-test.ts` alone is trivial, but it's meaningless without
-`daily-report-builder.server.ts` behind it. Follow the actual `import`
-graph of each `src/routes/*.ts` file, not just the route list above, when
-deciding what "porting this route" actually requires.
+`telegram.send-test.ts` alone was trivial, but meaningless without
+`daily-report-builder.server.ts` behind it; `audio-analytics.analyze.ts`
+needed the AmoCRM "client core" (`app/amocrm_client.py`) ported alongside
+it out of the normal subsystem order for the same reason. Follow the
+actual `import` graph of each `src/routes/*.ts` file, not just the route
+list above, when deciding what "porting this route" actually requires.
 
 ## Running what exists so far
 
@@ -205,6 +213,6 @@ cp .env.example .env   # fill in real values -- see the main repo's
 uvicorn app.main:app --reload
 ```
 
-`GET /health` should return `{"status": "ok"}`. `POST /errors/log` is the
-one real ported endpoint so far -- same request/response shape as the
-original `POST /errors/log` in the TypeScript app.
+`GET /health` should return `{"status": "ok"}`. See the Done table above
+for the 33 real ported endpoints and what each does; every one matches its
+original TypeScript route's request/response shape.
