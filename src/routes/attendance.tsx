@@ -131,9 +131,22 @@ const statusTone: Record<NormativeRow["status"], "success" | "warning" | "danger
 
 function MyStatusCard() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const { session, isLoading } = useMyOpenSession();
+  const { rows: attRows } = useAttendanceView();
   const clockIn = useClockIn();
   const clockOut = useClockOut();
+
+  // The platform detects "started work" itself the moment a rep's first
+  // AmoCRM call of the day comes in -- same signal useAttendanceView's
+  // roster already uses -- so this card doesn't wait for anyone to press
+  // "Ishni boshlash". The manual button stays only as a fallback for a day
+  // with zero AmoCRM calls yet.
+  const autoClockIn = !session
+    ? (attRows.find((r) => r.profileId === user?.id)?.clockIn ?? null)
+    : null;
+  const started = !!session || !!autoClockIn;
+  const displayClockIn = session?.clock_in ?? autoClockIn;
 
   async function onClockIn() {
     try {
@@ -161,18 +174,21 @@ function MyStatusCard() {
           <span
             className={cn(
               "flex h-11 w-11 items-center justify-center rounded-xl",
-              session ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
+              started ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
             )}
           >
-            {session ? <CheckCircle2 className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
+            {started ? <CheckCircle2 className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
           </span>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              {session ? t("attendance.sessionActive") : t("attendance.notStartedYet")}
+              {started ? t("attendance.sessionActive") : t("attendance.notStartedYet")}
             </p>
-            {session && (
+            {started && displayClockIn && (
               <p className="text-xs text-subtle">
-                {t("attendance.clockIn")}: {formatTime(session.clock_in)}
+                {t("attendance.clockIn")}: {formatTime(displayClockIn)}
+                {!session && (
+                  <span className="ml-1.5 text-primary">· {t("attendance.autoDetected")}</span>
+                )}
               </p>
             )}
           </div>
@@ -190,6 +206,11 @@ function MyStatusCard() {
             )}
             {t("attendance.clockOutAction")}
           </button>
+        ) : autoClockIn ? (
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            {t("attendance.autoTracked")}
+          </span>
         ) : (
           <button
             onClick={onClockIn}
