@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { exchangeCodeForTokens } from "@/lib/amocrm/client.server";
+import { exchangeCodeForTokens, subscribeAmoWebhooks } from "@/lib/amocrm/client.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const Route = createFileRoute("/integrations/amocrm/callback")({
@@ -59,6 +59,16 @@ export const Route = createFileRoute("/integrations/amocrm/callback")({
             .eq("organization_id", organizationId)
             .eq("key", "amocrm");
           if (settingsError) throw settingsError;
+
+          // Best-effort: registers our endpoint with AmoCRM's own webhook
+          // subscription API so lead/note/task changes push to us in near
+          // real time. Never block the connection on this -- the periodic
+          // sync (and the classic-webhook fallback) still work without it.
+          try {
+            await subscribeAmoWebhooks(organizationId);
+          } catch (err) {
+            console.error("AmoCRM webhook subscribe failed", err);
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : "Unknown error";
           return new Response(`AmoCRM connection failed: ${message}`, { status: 500 });
