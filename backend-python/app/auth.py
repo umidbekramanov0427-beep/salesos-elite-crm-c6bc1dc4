@@ -86,6 +86,19 @@ async def require_super_admin(authorization: str | None) -> AuthedAdmin | None:
     return await require_super_admin_for_user(user_id) if user_id else None
 
 
+async def require_platform_owner(authorization: str | None) -> str | None:
+    """Port of requirePlatformOwner -- returns just the user id (not an
+    AuthedAdmin: a platform owner isn't scoped to one organization)."""
+    user_id = await get_request_user_id(authorization)
+    if not user_id:
+        return None
+    admin = get_supabase_admin()
+    row = (
+        admin.table("profiles").select("role").eq("id", user_id).maybe_single().execute().data
+    )
+    return user_id if row and row.get("role") == "platform_owner" else None
+
+
 # --- FastAPI dependency wrappers -------------------------------------------
 # Use these directly as route dependencies, e.g.:
 #   @router.post("/errors/log")

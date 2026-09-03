@@ -9,12 +9,16 @@ here versus still only existing in the original TypeScript app.
 
 from fastapi import FastAPI
 
-from app.routers import errors, telegram
+from app.routers import admin, errors, hr, platform, telegram, telegram_hr
 
 app = FastAPI(title="SalesOS Elite CRM API (Python port)")
 
 app.include_router(errors.router)
 app.include_router(telegram.router)
+app.include_router(telegram_hr.router)
+app.include_router(hr.router)
+app.include_router(admin.router)
+app.include_router(platform.router)
 
 
 @app.get("/health")

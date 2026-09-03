@@ -50,12 +50,32 @@ enough to the original to diff against it.
 | `src/routes/errors.log.ts` | `app/routers/errors.py` | simplest route, ported as the worked example |
 | `src/routes/telegram.send-test.ts` | `app/routers/telegram.py` | |
 | `src/routes/telegram.send-daily-report.ts` | `app/routers/telegram.py` | cron entry point |
+| `src/routes/telegram.link.ts` | `app/routers/telegram.py` | chat-linking code exchange |
+| `src/routes/telegram.webhook.ts` | `app/routers/telegram.py` | main bot: business-profile onboarding conversation + report-bot linking |
+| `src/routes/telegram.hr-webhook.ts` | `app/routers/telegram_hr.py` | separate HR candidate-chat bot |
+| `src/routes/hr.delete-candidate.ts` | `app/routers/hr.py` | |
+| `src/routes/hr.send-message.ts` | `app/routers/hr.py` | |
+| `src/routes/admin.create-employee.ts` | `app/routers/admin.py` | includes the org's password-policy check |
+| `src/routes/admin.delete-employee.ts` | `app/routers/admin.py` | |
+| `src/routes/admin.set-employee-password.ts` | `app/routers/admin.py` | syncs `organization_admin_credentials` when the target is a super_admin |
+| `src/routes/admin.security-ban.ts` | `app/routers/admin.py` | uses `ban_duration` (no per-session revoke exists in the Admin API) |
+| `src/routes/admin.security-users.ts` | `app/routers/admin.py` | only place `last_sign_in_at`/`banned_until` are exposed, org-scoped |
+| `src/routes/admin.ai-agents.update.ts` | `app/routers/admin.py` | service-role write, sidesteps the client-side RLS issue the original worked around |
+| `src/routes/platform.create-organization.ts` | `app/routers/platform.py` | multi-step create with rollback-on-failure (deletes the org/admin-user if a later step fails) |
+| `src/routes/platform.add-employee.ts` | `app/routers/platform.py` | |
+| `src/routes/platform.delete-user.ts` | `app/routers/platform.py` | |
+| `src/routes/platform.update-user.ts` | `app/routers/platform.py` | |
+| `src/routes/platform.company-directory.ts` | `app/routers/platform.py` | |
+| `src/routes/platform.deactivate-expired-trials.ts` | `app/routers/platform.py` | |
+| `src/routes/platform.delete-organization.ts` | `app/routers/platform.py` | |
+| `src/lib/organization-admin-credentials.server.ts` | `app/organization_admin_credentials.py` | called from `admin.set-employee-password` and `platform.create-organization`/`.update-user` |
+| `src/lib/auth.server.ts`'s `requirePlatformOwner` | `app/auth.py` (`require_platform_owner`) | added alongside the platform.* batch, since every platform route needs it |
 
 Verified after each addition: `py_compile` on every file, a real
 `pip install -r requirements.txt`, and `from app.main import app` booting
 with dummy env vars, confirming every new route actually registers.
 
-## Not started -- every other backend route (36 of 39)
+## Not started -- every other backend route (18 of 39)
 
 Grouped by subsystem, in the rough order they're worth porting next (most
 self-contained / highest value first). File sizes are the original
