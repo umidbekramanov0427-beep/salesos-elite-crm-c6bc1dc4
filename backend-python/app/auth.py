@@ -9,6 +9,8 @@ project (no user migration needed).
 
 from __future__ import annotations
 
+import os
+
 from fastapi import Header, HTTPException
 
 from app.db import get_supabase_admin
@@ -112,3 +114,14 @@ async def optional_user_id_dep(
     authorization: str | None = Header(default=None),
 ) -> str | None:
     return await get_request_user_id(authorization)
+
+
+async def require_cron_secret_dep(x_cron_secret: str | None = Header(default=None)) -> None:
+    """Shared by every cron-triggered route (fines.compute.ts,
+    audio-analytics.analyze-pending.ts, integrations.amocrm.sync-all.ts,
+    telegram.send-daily-report.ts in the original -- each repeated this
+    exact check inline; factored out here since a Python port has no reason
+    to keep the duplication)."""
+    expected = os.environ.get("CRON_SECRET")
+    if not expected or x_cron_secret != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
