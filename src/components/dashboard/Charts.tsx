@@ -21,6 +21,7 @@ import { SectionCard } from "@/components/layout/Primitives";
 import { currency } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import {
+  useCallPickupByHour,
   useConversionQualityWeekly,
   useDealFlowWeekly,
   useFunnelFlow,
@@ -669,6 +670,85 @@ export function ConversionQualityChart({ funnel }: { funnel: string | null }) {
           </div>
           <p className="mt-2 text-xs text-subtle">{t("dash.card.conversionQualityHint")}</p>
         </>
+      )}
+    </SectionCard>
+  );
+}
+
+function hourLabel(h: number): string {
+  return `${String(h % 24).padStart(2, "0")}:00`;
+}
+
+// Shared by Boshqaruv paneli and Lid tahlili -- shows what hour of the day
+// customers actually pick up the phone, so reps know the most effective
+// window to be calling in instead of guessing.
+export function CallPickupByHourChart({
+  dateRange,
+}: {
+  dateRange?: { from: Date | null; to: Date | null };
+}) {
+  const { t } = useI18n();
+  const { rows, bestHour, isLoading } = useCallPickupByHour(dateRange ?? null);
+  const totalLabel = t("callPickup.total");
+  const connectedLabel = t("callPickup.connected");
+  const data = rows.map((r) => ({
+    hour: hourLabel(r.hour),
+    [totalLabel]: r.total,
+    [connectedLabel]: r.connected,
+  }));
+  const hasData = rows.some((r) => r.total > 0);
+
+  return (
+    <SectionCard
+      title={t("callPickup.title")}
+      description={t("callPickup.desc")}
+      info={t("callPickup.info")}
+    >
+      {!isLoading && bestHour && bestHour.total > 0 && (
+        <div className="mb-4 inline-flex items-center gap-2 rounded-xl bg-success/10 px-3 py-1.5 text-sm font-semibold text-success">
+          {t("callPickup.bestWindow")}: {hourLabel(bestHour.hour)}–{hourLabel(bestHour.hour + 1)}
+          <span className="text-xs font-normal text-success/80">({bestHour.rate}%)</span>
+        </div>
+      )}
+      {!isLoading && !hasData ? (
+        <p className="py-10 text-center text-sm text-subtle">{t("audio.chart.noData")}</p>
+      ) : (
+        <div className="h-[280px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ left: -14, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis
+                dataKey="hour"
+                tickLine={false}
+                axisLine={false}
+                fontSize={10}
+                stroke="var(--color-subtle)"
+                interval={1}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                fontSize={11}
+                stroke="var(--color-subtle)"
+                allowDecimals={false}
+              />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-accent)" }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar
+                dataKey={totalLabel}
+                fill="var(--color-mint-border)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={22}
+              />
+              <Bar
+                dataKey={connectedLabel}
+                fill="var(--color-primary)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={22}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       )}
     </SectionCard>
   );

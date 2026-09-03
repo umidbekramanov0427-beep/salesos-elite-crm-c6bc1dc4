@@ -1,5 +1,14 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  LayoutDashboard,
+  ListChecks,
+  PhoneCall,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Workflow,
+} from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/layout/Primitives";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { DashboardFilterRow, DashboardKpiCards } from "@/components/dashboard/DailyReport";
@@ -11,6 +20,7 @@ import {
   AiInsightsWidget,
 } from "@/components/dashboard/Widgets";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { useFunnelNames, useProfilesRaw, useVisibleOwnerIds } from "@/hooks/use-crm-data";
 import type { DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
@@ -40,6 +50,36 @@ const DealFlowChart = lazy(() =>
 const ConversionQualityChart = lazy(() =>
   import("@/components/dashboard/Charts").then((m) => ({ default: m.ConversionQualityChart })),
 );
+const CallPickupByHourChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.CallPickupByHourChart })),
+);
+
+type DashTab = "overview" | "revenue" | "losses" | "conversion" | "calls" | "activity" | "ai";
+
+const DASH_TABS: {
+  key: DashTab;
+  icon: typeof LayoutDashboard;
+  labelKey: string;
+  iconColor: string;
+}[] = [
+  {
+    key: "overview",
+    icon: LayoutDashboard,
+    labelKey: "dash.tabOverview",
+    iconColor: "text-blue-500",
+  },
+  { key: "revenue", icon: TrendingUp, labelKey: "dash.tabRevenue", iconColor: "text-emerald-500" },
+  { key: "losses", icon: TrendingDown, labelKey: "dash.tabLosses", iconColor: "text-rose-500" },
+  {
+    key: "conversion",
+    icon: Workflow,
+    labelKey: "dash.tabConversion",
+    iconColor: "text-amber-500",
+  },
+  { key: "calls", icon: PhoneCall, labelKey: "dash.tabCalls", iconColor: "text-teal-500" },
+  { key: "activity", icon: ListChecks, labelKey: "dash.tabActivity", iconColor: "text-orange-500" },
+  { key: "ai", icon: Sparkles, labelKey: "dash.tabAi", iconColor: "text-violet-500" },
+];
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (
@@ -128,10 +168,30 @@ function Dashboard() {
   }, [profiles, teamId, visibleOwnerIds]);
 
   const dateRange = { from: dateFilter.from, to: dateFilter.to };
+  const [tab, setTab] = useState<DashTab>("overview");
 
   return (
     <>
       <PageHeader title={t("dash.title")} description={t("dash.desc")} />
+
+      <div className="mb-6 inline-flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
+        {DASH_TABS.map((tb) => (
+          <button
+            key={tb.key}
+            type="button"
+            onClick={() => setTab(tb.key)}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-xl bg-surface px-3.5 py-2 text-sm font-semibold ring-1 ring-transparent transition-colors",
+              tab === tb.key
+                ? "bg-primary/10 text-primary ring-primary/50"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <tb.icon className={cn("h-4 w-4", tb.iconColor)} />
+            {t(tb.labelKey)}
+          </button>
+        ))}
+      </div>
 
       <div className="mt-6">
         <SectionCard title={t("lb.filters")}>
@@ -153,59 +213,81 @@ function Dashboard() {
         </SectionCard>
       </div>
 
-      <div className="mt-6">
-        <DashboardKpiCards funnel={funnel} />
-      </div>
+      {tab === "overview" && (
+        <>
+          <div className="mt-6">
+            <DashboardKpiCards funnel={funnel} />
+          </div>
+          <div className="mt-6 space-y-6">
+            <Suspense fallback={<ChartSkeleton />}>
+              <RevenueChart />
+            </Suspense>
+            <Suspense fallback={<ChartSkeleton height={180} />}>
+              <PipelineChart funnel={funnel} />
+            </Suspense>
+            <Suspense fallback={<ChartSkeleton height={220} />}>
+              <SalesFunnel funnel={funnel} />
+            </Suspense>
+          </div>
+        </>
+      )}
 
-      <div className="mt-6 space-y-6">
-        <Suspense fallback={<ChartSkeleton />}>
-          <RevenueChart />
-        </Suspense>
-        <Suspense fallback={<ChartSkeleton height={180} />}>
-          <PipelineChart funnel={funnel} />
-        </Suspense>
-        <Suspense fallback={<ChartSkeleton height={220} />}>
-          <SalesFunnel funnel={funnel} />
-        </Suspense>
-      </div>
+      {tab === "revenue" && (
+        <div className="mt-6 space-y-6">
+          <Suspense fallback={<ChartSkeleton />}>
+            <MonthlyRevenueTrendChart funnel={funnel} />
+          </Suspense>
+          <Suspense fallback={<ChartSkeleton />}>
+            <RevenueByOwnerChart funnel={funnel} dateRange={dateRange} />
+          </Suspense>
+        </div>
+      )}
 
-      <div className="mt-6 space-y-6">
-        <Suspense fallback={<ChartSkeleton />}>
-          <MonthlyRevenueTrendChart funnel={funnel} />
-        </Suspense>
-        <Suspense fallback={<ChartSkeleton />}>
-          <RevenueByOwnerChart funnel={funnel} dateRange={dateRange} />
-        </Suspense>
-      </div>
+      {tab === "losses" && (
+        <div className="mt-6">
+          <Suspense fallback={<ChartSkeleton />}>
+            <LostReasonsChart funnel={funnel} dateRange={dateRange} />
+          </Suspense>
+        </div>
+      )}
 
-      <div className="mt-6">
-        <Suspense fallback={<ChartSkeleton />}>
-          <LostReasonsChart funnel={funnel} dateRange={dateRange} />
-        </Suspense>
-      </div>
+      {tab === "conversion" && (
+        <div className="mt-6 space-y-6">
+          <Suspense fallback={<ChartSkeleton height={320} />}>
+            <DealFlowChart funnel={funnel} />
+          </Suspense>
+          <Suspense fallback={<ChartSkeleton height={340} />}>
+            <ConversionQualityChart funnel={funnel} />
+          </Suspense>
+        </div>
+      )}
 
-      <div className="mt-6 space-y-6">
-        <Suspense fallback={<ChartSkeleton height={320} />}>
-          <DealFlowChart funnel={funnel} />
-        </Suspense>
-        <Suspense fallback={<ChartSkeleton height={340} />}>
-          <ConversionQualityChart funnel={funnel} />
-        </Suspense>
-      </div>
+      {tab === "calls" && (
+        <div className="mt-6">
+          <Suspense fallback={<ChartSkeleton />}>
+            <CallPickupByHourChart dateRange={dateRange} />
+          </Suspense>
+        </div>
+      )}
 
-      <div className="mt-6 space-y-6">
-        <LeadTasksWidget funnel={funnel} />
-      </div>
+      {tab === "activity" && (
+        <>
+          <div className="mt-6 space-y-6">
+            <LeadTasksWidget funnel={funnel} />
+          </div>
+          <div className="mt-6 space-y-6">
+            <InboxWidget />
+            <ActivityWidget funnel={funnel} />
+            <AudioPreviewWidget funnel={funnel} />
+          </div>
+        </>
+      )}
 
-      <div className="mt-6 space-y-6">
-        <InboxWidget />
-        <ActivityWidget funnel={funnel} />
-        <AudioPreviewWidget funnel={funnel} />
-      </div>
-
-      <div className="mt-6">
-        <AiInsightsWidget funnel={funnel} dateRange={dateRange} />
-      </div>
+      {tab === "ai" && (
+        <div className="mt-6">
+          <AiInsightsWidget funnel={funnel} dateRange={dateRange} />
+        </div>
+      )}
 
       <QuickActions />
     </>
