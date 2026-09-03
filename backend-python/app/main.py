@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from app.routers import (
     admin,
     ai_assistant,
+    amocrm,
     audio_analytics,
     daily_report_settings,
     errors,
@@ -36,6 +37,7 @@ app.include_router(daily_report_settings.router)
 app.include_router(audio_analytics.router)
 app.include_router(ai_assistant.router)
 app.include_router(misc.router)
+app.include_router(amocrm.router)
 
 
 @app.get("/health")

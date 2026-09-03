@@ -9,11 +9,13 @@ files are frontend pages, both talking to the same Supabase Postgres
 database through `supabaseAdmin` (service-role, RLS-bypassing) or the
 browser Supabase client (anon key, RLS-enforced).
 
-This folder is the start of a port of the **backend** (the `.ts` server
-routes and the `src/lib/*.server.ts` / `src/lib/amocrm/*` business logic
-they call) to Python/FastAPI, requested so a different developer can take
-the project over. It reuses the exact same Supabase project (same schema,
-same RLS policies, same data) -- nothing in the database changes.
+This folder is a port of the **backend** (the `.ts` server routes and the
+`src/lib/*.server.ts` / `src/lib/amocrm/*` business logic they call) to
+Python/FastAPI, requested so a different developer can take the project
+over. Every backend route is ported (see "Done" below) except `mcp.ts`,
+which isn't really portable as a route at all -- see "Not started". It
+reuses the exact same Supabase project (same schema, same RLS policies,
+same data) -- nothing in the database changes.
 
 **The frontend (all `.tsx` files, ~50 pages) is not part of this port and
 does not need to be.** React/TypeScript only runs in a browser; there is no
@@ -74,7 +76,17 @@ enough to the original to diff against it.
 | `src/routes/fines.publish.ts` | `app/routers/fines.py` | |
 | `src/routes/daily-report-settings.preview.ts` | `app/routers/daily_report_settings.py` | thin wrapper around `build_full_daily_report` |
 | `src/routes/daily-report-settings.generate-now.ts` | `app/routers/daily_report_settings.py` | thin wrapper around `send_daily_report_for_org` |
-| **partial** `src/lib/amocrm/client.server.ts` | `app/amocrm_client.py` | **only the "client core"** -- OAuth token lifecycle, per-org credential resolution, the low-level amoFetch/amoWriteFetch HTTP layer, webhook subscription, and `create_amo_task`/`create_amo_note`/`has_human_note_since`. Ported now (out of the "AmoCRM last" order below) because `audio-analytics.analyze.ts` hard-depends on those three write/read helpers -- see that module's own docstring for exactly what of the ~2,100-line original is and isn't here. The bidirectional sync engine (`syncLeadsFromAmo` and everything it calls) is **not** ported -- still in "Not started" below, unchanged priority (last, most carefully) |
+| `src/lib/amocrm/client.server.ts` (client core) | `app/amocrm_client.py` | OAuth token lifecycle, per-org credential resolution, the low-level `amoFetch`/`amoWriteFetch` HTTP layer (with the original's rate-limit/5xx retry logic), webhook subscription, the debug helpers (`debugAmoAppCredentials`, `debugAmoCallNotes`, `setAmoAppCredentialsDirect`), `buildAuthorizeUrl`/`exchangeCodeForTokens`, and `createAmoTask`/`createAmoNote`/`hasHumanNoteSince` |
+| `src/lib/amocrm/client.server.ts` (sync engine) | `app/amocrm_sync.py` | everything else: `syncLeadsFromAmo` (the core, ~470 lines), `syncPipelineStages`, `syncUserMapping` (incl. `sotuv_menejeri` auto-provisioning), `syncCallsFromAmo`, `backfillOrphanedCallLeads`, `fetchOpenTaskStats`, `syncTasksFromAmo`, `resolveStageId`/`resolveOwnerId`/`upsertSingleAmoLead`, `fetchAmoCatalog`, `saveAmoImportSettings`, `disconnectAmoCrm`. This is the module the original's own comments call out as the project's hardest-won code (stale composite-key migrations, blind config overwrites that silently wiped per-org credentials, pagination bugs that dropped entire sync batches on one bad page) -- every one of those original inline comments is preserved in the Python docstrings/comments here for the same reason they existed in the first place |
+| `src/routes/integrations.amocrm.connect.ts` | `app/routers/amocrm.py` | OAuth authorize redirect + the 3 debug query-param branches |
+| `src/routes/integrations.amocrm.callback.ts` | `app/routers/amocrm.py` | OAuth callback, stores tokens, read-modify-writes `integration_settings.config` |
+| `src/routes/integrations.amocrm.sync.ts` | `app/routers/amocrm.py` | manual "sync now" trigger, always resolves to a JSON body even on an infra-level failure |
+| `src/routes/integrations.amocrm.sync-all.ts` | `app/routers/amocrm.py` | cron entry point, syncs every connected org one at a time |
+| `src/routes/integrations.amocrm.webhook.ts` | `app/routers/amocrm.py` | inbound AmoCRM webhook, incl. the `account[subdomain]` anti-spoofing check and throttled quick-resync |
+| `src/routes/admin.amocrm-catalog.ts` | `app/routers/amocrm.py` | |
+| `src/routes/admin.amocrm-disconnect.ts` | `app/routers/amocrm.py` | |
+| `src/routes/admin.amocrm-import-settings.ts` | `app/routers/amocrm.py` | |
+| `src/routes/dashboard.amocrm-tasks.ts` | `app/routers/amocrm.py` | |
 | `src/routes/audio-analytics.analyze.ts` | `app/audio_analytics.py` + `app/routers/audio_analytics.py` | the route handler is a thin wrapper in the router file; all the transcription/rubric/Gemini-scoring logic is in `app/audio_analytics.py` (`analyze_call_by_id`), same split as the original's route-vs-exported-function |
 | `src/routes/audio-analytics.analyze-pending.ts` | `app/routers/audio_analytics.py` | cron sweep, analyzed concurrently via `asyncio.gather` (`Promise.allSettled` in the original) |
 | `src/routes/ai-assistant.chat.ts` | `app/routers/ai_assistant.py` | AI assistant chat + the 5 function-calling tools (search_leads, get_funnel_stats, create_my_task, add_lead_note, update_lead_stage); no AmoCRM dependency |
@@ -85,60 +97,11 @@ Verified after each addition: `py_compile` on every file, a real
 `pip install -r requirements.txt`, and `from app.main import app` booting
 with dummy env vars, confirming every new route actually registers.
 
-## Not started -- only the AmoCRM sync engine remains (9 of 39 routes + the rest of client.server.ts)
+## Not started -- everything is ported except one route that isn't really portable as "a route"
 
-Grouped by subsystem, in the rough order they're worth porting next (most
-self-contained / highest value first). File sizes are the original
-TypeScript, as a rough effort signal.
+Every backend route from the original TypeScript app now has a Python
+equivalent, **except** `src/routes/mcp.ts`:
 
-### AmoCRM integration -- the sync engine (the largest, most fought-over subsystem this project has -- port last, most carefully)
-The "client core" (OAuth tokens, `amoFetch`/`amoWriteFetch`, webhook
-subscribe, `createAmoTask`/`createAmoNote`/`hasHumanNoteSince`) is already
-ported -- see `app/amocrm_client.py` in the Done table above. What's left
-is the bidirectional **sync engine** built on top of it, still entirely in
-the original TypeScript:
-- `src/lib/amocrm/client.server.ts`'s `syncLeadsFromAmo` and everything it
-  calls (~900 more lines): `syncPipelineStages`, `syncUserMapping` (incl.
-  auto-provisioning `sotuv_menejeri` accounts), `fetchCallNotes`/
-  `syncCallsFromAmo`, `syncTasksFromAmo`, `backfillOrphanedCallLeads`,
-  `fetchOpenTaskStats`, `resolveStageId`/`resolveOwnerId`/
-  `upsertSingleAmoLead`, `fetchAmoCatalog`, `saveAmoImportSettings`,
-  `disconnectAmoCrm`, plus the OAuth authorize-URL/code-exchange helpers
-  (`buildAuthorizeUrl`, `exchangeCodeForTokens`) and the three debug
-  helpers (`debugAmoAppCredentials`, `debugAmoCallNotes`,
-  `setAmoAppCredentialsDirect`). This is the one module worth the most
-  care: it has been the source of most of this project's hardest bugs this
-  year (stale composite-key migrations, blind config overwrites that
-  silently wiped per-org credentials, pagination bugs that dropped entire
-  sync batches on one bad page). Read its inline comments carefully before
-  touching it -- almost every non-obvious line documents a real bug that
-  was fixed there.
-- `src/routes/integrations.amocrm.connect.ts` -- OAuth authorize redirect + debug endpoints
-- `src/routes/integrations.amocrm.callback.ts` -- OAuth callback, stores tokens
-- `src/routes/integrations.amocrm.sync.ts` -- manual "sync now" trigger
-- `src/routes/integrations.amocrm.sync-all.ts` -- cron entry point (all orgs)
-- `src/routes/integrations.amocrm.webhook.ts` -- inbound AmoCRM webhook handler
-- `src/routes/admin.amocrm-catalog.ts`
-- `src/routes/admin.amocrm-disconnect.ts`
-- `src/routes/admin.amocrm-import-settings.ts`
-- `src/routes/dashboard.amocrm-tasks.ts`
-
-### Admin / platform (multi-tenant org management)
-All ported -- see the Done table above.
-
-### HR (candidate hiring pipeline)
-All ported -- see the Done table above.
-
-### Telegram
-All ported -- see the Done table above.
-
-### AI / audio analysis
-All ported -- see the Done table above.
-
-### Misc
-- ~~`src/routes/notifications.send-push.ts`~~ ✅ ported (`app/routers/misc.py`, using `pywebpush` in place of the original's `web-push` npm package)
-- ~~`src/routes/sitemap[.]xml.ts`~~ ✅ ported (`app/routers/misc.py`)
-- ~~`src/lib/google-sheets.server.ts`~~ ✅ ported (`app/google_sheets.py`, see the Done table above)
 - `src/routes/mcp.ts` -- **deliberately not ported, and not really portable as "a route"**: this file is an
   auto-generated, ~15-line wrapper around Lovable's own `@lovable.dev/mcp-js`
   framework (`createTanStackMcpHandler`), which handles the actual Model
@@ -177,47 +140,44 @@ checks (most routes use the service-role client specifically to bypass
 RLS, then re-check role/org manually -- see `app/auth.py`'s docstring).
 Port the TypeScript route's checks line-for-line; don't invent new ones.
 
-## Suggested order for continuing this port
+## Continuing from here
 
-Everything except the AmoCRM sync engine is now done -- see the Done table
-above. What's left is entirely that one subsystem:
+The backend port itself is complete. What's left for whoever picks this
+up:
 
-1. Start with `resolveStageId`/`resolveOwnerId`/`upsertSingleAmoLead` and
-   `fetchAmoCatalog`/`saveAmoImportSettings`/`disconnectAmoCrm` -- these are
-   comparatively small and self-contained, and a good way to get familiar
-   with the rest of the module's conventions (dedup-by-key upserts,
-   `describeError`, chunked writes) before the big one.
-2. Then `syncPipelineStages` and `syncUserMapping` (incl. the
-   `sotuv_menejeri` auto-provisioning logic -- note `amocrm_client.py`
-   already has the shared `SOTUV_MENEJERI_DEFAULT_PASSWORD` convention
-   documented, mirror it rather than re-deriving it) -- both are
-   dependencies of the big one next.
-3. `syncLeadsFromAmo` itself (~470 lines) -- the core of the whole module.
-   Budget real time to re-read every inline comment in `client.server.ts`
-   before changing behavior: almost every non-obvious line there documents
-   a real production bug that was fixed (stale composite-key migrations,
-   blind config overwrites that silently wiped per-org credentials,
-   pagination bugs that dropped entire sync batches on one bad page).
-4. `syncCallsFromAmo`, `backfillOrphanedCallLeads`, `fetchOpenTaskStats`,
-   `syncTasksFromAmo`.
-5. The 9 route files last, once their business logic exists to call:
-   `integrations.amocrm.connect/callback/sync/sync-all/webhook.ts`,
-   `admin.amocrm-catalog/-disconnect/-import-settings.ts`,
-   `dashboard.amocrm-tasks.ts`. Validate against a real (or scratch)
-   AmoCRM-connected org before considering any piece of this done -- this
-   module has burned the most hours of any in the project's history, and a
-   rushed port here is where regressions are most likely.
+1. **Validate the AmoCRM sync engine against a real (or scratch)
+   AmoCRM-connected org before trusting it in production.** This port
+   (`app/amocrm_sync.py` + `app/amocrm_client.py` + `app/routers/amocrm.py`)
+   was written by reading the original `client.server.ts` end to end and
+   translating it function-by-function, preserving every inline comment's
+   reasoning, but it has **not** been run against a live AmoCRM account
+   from this environment (no credentials available here). This is the
+   single highest-risk area of the whole port -- the original's own header
+   comment calls it the source of most of this project's hardest bugs, and
+   a rushed, unvalidated Python rewrite of it is exactly the kind of thing
+   that comment warns about. Connect a test org, run a full sync, and
+   compare its `leads`/`amocrm_calls`/`tasks`/`pipeline_stages` output
+   against what the TypeScript version produces for the same account
+   before switching any real traffic over.
+2. **`src/routes/mcp.ts`**, if the new backend should also expose MCP tools
+   -- pick a Python MCP SDK first (see the section above), then port the 4
+   small query functions behind it.
+3. **The frontend** (`src/routes/*.tsx`, ~50 pages) -- out of scope for
+   this port entirely; see "What this is" at the top of this file for why.
+4. **`src/hooks/use-crm-data.ts`** -- only relevant if a future decision is
+   made to move the browser off direct Supabase access onto this backend
+   too; see the section above.
 
-General note learned while doing the earlier batches: **port a route's
-dependencies together with the route**, not route-by-route in isolation --
-`telegram.send-test.ts` alone was trivial, but meaningless without
-`daily-report-builder.server.ts` behind it; `audio-analytics.analyze.ts`
-needed the AmoCRM "client core" (`app/amocrm_client.py`) ported alongside
-it out of the normal subsystem order for the same reason. Follow the
-actual `import` graph of each `src/routes/*.ts` file, not just the route
-list above, when deciding what "porting this route" actually requires.
+General note from doing this port in batches: **a route's dependencies
+were always ported together with the route**, not route-by-route in
+isolation -- `telegram.send-test.ts` alone was trivial, but meaningless
+without `daily-report-builder.server.ts` behind it; `audio-analytics.
+analyze.ts` needed the AmoCRM "client core" ported alongside it, ahead of
+the rest of that subsystem, for the same reason. Follow the actual
+`import` graph of a `.ts` file, not a subsystem grouping, when figuring
+out what porting anything new here actually requires.
 
-## Running what exists so far
+## Running what exists
 
 ```bash
 cd backend-python
@@ -229,5 +189,5 @@ uvicorn app.main:app --reload
 ```
 
 `GET /health` should return `{"status": "ok"}`. See the Done table above
-for the 35 real ported endpoints and what each does; every one matches its
+for all 44 real ported endpoints and what each does; every one matches its
 original TypeScript route's request/response shape.
