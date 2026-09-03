@@ -4305,43 +4305,96 @@ export function useAttendanceView(
   const profiles = useProfilesRaw();
   const liveSessions = useWorkSessionsRaw();
   const liveCalls = useCallLogsRaw();
+  const liveLeads = useLeadsRaw();
+  const liveAmoCalls = useAmoCrmCallsRaw();
   const sessions = overrides?.sessions ?? liveSessions.data;
   const calls = overrides?.calls ?? liveCalls.data;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- asOf?.getTime() is the stable key
   const refDate = useMemo(() => asOf ?? new Date(), [asOf?.getTime()]);
+  const today = isSameDay(new Date().toISOString(), refDate);
+
+  const ownerIdByLeadId = useMemo(
+    () => new Map((liveLeads.data ?? []).map((l) => [l.id, l.owner_id])),
+    [liveLeads.data],
+  );
 
   const rows = useMemo<AttendanceRow[]>(() => {
     return (profiles.data ?? []).map((p): AttendanceRow => {
       const mySessions = (sessions ?? []).filter(
         (s) => s.profile_id === p.id && isSameDay(s.clock_in, refDate),
       );
-      const latest = mySessions[0] ?? null;
-      const sessionMinutes = mySessions.reduce((sum, s) => {
-        const end = s.clock_out ? new Date(s.clock_out).getTime() : Date.now();
-        return sum + Math.max(0, (end - new Date(s.clock_in).getTime()) / 60000);
-      }, 0);
-      const myCalls = (calls ?? []).filter(
+      const manualClockIn = mySessions[0]?.clock_in ?? null;
+      const manualClockOut = mySessions[0]?.clock_out ?? null;
+
+      // A rep rarely presses "Ishni boshlash" -- the real signal that they've
+      // arrived and started working is their first AmoCRM call of the day.
+      // Take whichever of manual clock-in / first call happened earliest, so
+      // the manual button still counts when someone actually uses it.
+      const myAmoCalls = (liveAmoCalls.data ?? [])
+        .filter((c) => {
+          const ownerId = c.lead_id ? ownerIdByLeadId.get(c.lead_id) : null;
+          return ownerId === p.id && isSameDay(c.occurred_at, refDate);
+        })
+        .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+      const firstAmoCallAt = myAmoCalls[0]?.occurred_at ?? null;
+      const lastAmoCallAt = myAmoCalls.length
+        ? myAmoCalls[myAmoCalls.length - 1]!.occurred_at
+        : null;
+
+      const clockInCandidates = [manualClockIn, firstAmoCallAt].filter(
+        (v): v is string => v != null,
+      );
+      const clockIn = clockInCandidates.length
+        ? clockInCandidates.reduce((earliest, v) =>
+            new Date(v).getTime() < new Date(earliest).getTime() ? v : earliest,
+          )
+        : null;
+      // No manual clock-out yet: on a past day, the last call of the day is
+      // the best guess for when they stopped; today, the workday is still
+      // ongoing so session length is measured up to now instead.
+      const clockOut = manualClockOut ?? (today ? null : lastAmoCallAt);
+
+      const sessionMinutes = clockIn
+        ? Math.max(
+            0,
+            ((clockOut ? new Date(clockOut).getTime() : Date.now()) - new Date(clockIn).getTime()) /
+              60000,
+          )
+        : 0;
+
+      const myManualCalls = (calls ?? []).filter(
         (c) => c.profile_id === p.id && isSameDay(c.created_at, refDate),
       );
+      const callsMade = myManualCalls.length + myAmoCalls.length;
+      const callsConnected =
+        myManualCalls.filter((c) => c.connected).length +
+        myAmoCalls.filter((c) => c.connected).length;
+      const totalCallMinutes = Math.round(
+        (myManualCalls.reduce((s, c) => s + c.duration_seconds, 0) +
+          myAmoCalls.reduce((s, c) => s + c.duration_seconds, 0)) /
+          60,
+      );
+
       return {
         profileId: p.id,
         managerId: p.manager_id,
         name: profileName(p),
         initials: initialsOf(p.full_name || p.email),
         position: p.position,
-        clockIn: latest?.clock_in ?? null,
-        clockOut: latest?.clock_out ?? null,
+        clockIn,
+        clockOut,
         sessionMinutes: Math.round(sessionMinutes),
-        callsMade: myCalls.length,
-        callsConnected: myCalls.filter((c) => c.connected).length,
-        totalCallMinutes: Math.round(myCalls.reduce((s, c) => s + c.duration_seconds, 0) / 60),
+        callsMade,
+        callsConnected,
+        totalCallMinutes,
       };
     });
-  }, [profiles.data, sessions, calls, refDate]);
+  }, [profiles.data, sessions, calls, liveAmoCalls.data, ownerIdByLeadId, refDate, today]);
 
   return {
     rows,
-    isLoading: profiles.isLoading || liveSessions.isLoading || liveCalls.isLoading,
+    isLoading:
+      profiles.isLoading || liveSessions.isLoading || liveCalls.isLoading || liveLeads.isLoading,
   };
 }
 
