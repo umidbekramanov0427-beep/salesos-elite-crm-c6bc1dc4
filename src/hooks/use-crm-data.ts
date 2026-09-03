@@ -4298,6 +4298,40 @@ export type AttendanceRow = {
   totalCallMinutes: number;
 };
 
+// A call gap wider than this ends a continuous work stretch -- "Ish vaqti"
+// means time actually spent working AmoCRM (calling), not the raw span from
+// first call to last, which would count a long lunch/meeting gap as "work".
+const AMO_CONTINUOUS_WORK_GAP_MS = 60 * 60 * 1000;
+
+// Sums the duration of continuous call-activity stretches for one rep's day
+// (calls must already be sorted ascending by occurred_at). A stretch keeps
+// extending across calls less than the gap threshold apart; a bigger gap
+// starts a new stretch. On today's date, a stretch still within the gap
+// threshold of now is extended to now (they're still actively on a call
+// streak), so "Ish vaqti" keeps counting up live during the day.
+function continuousAmoWorkMinutes(calls: AmoCrmCallRow[], isToday: boolean): number {
+  if (calls.length === 0) return 0;
+  let total = 0;
+  let segStart = new Date(calls[0]!.occurred_at).getTime();
+  let segEnd = segStart + calls[0]!.duration_seconds * 1000;
+  for (let i = 1; i < calls.length; i++) {
+    const start = new Date(calls[i]!.occurred_at).getTime();
+    const end = start + calls[i]!.duration_seconds * 1000;
+    if (start - segEnd > AMO_CONTINUOUS_WORK_GAP_MS) {
+      total += segEnd - segStart;
+      segStart = start;
+      segEnd = end;
+    } else {
+      segEnd = Math.max(segEnd, end);
+    }
+  }
+  if (isToday && Date.now() - segEnd <= AMO_CONTINUOUS_WORK_GAP_MS) {
+    segEnd = Date.now();
+  }
+  total += segEnd - segStart;
+  return total / 60000;
+}
+
 export function useAttendanceView(
   asOf?: Date | null,
   overrides?: { sessions?: WorkSessionRow[] | undefined; calls?: CallLogRow[] | undefined },
@@ -4354,13 +4388,22 @@ export function useAttendanceView(
       // ongoing so session length is measured up to now instead.
       const clockOut = manualClockOut ?? (today ? null : lastAmoCallAt);
 
-      const sessionMinutes = clockIn
-        ? Math.max(
-            0,
-            ((clockOut ? new Date(clockOut).getTime() : Date.now()) - new Date(clockIn).getTime()) /
-              60000,
-          )
-        : 0;
+      // "Ish vaqti" is about AmoCRM call activity, not office arrival --
+      // once there's any call data for the day, it wins over the manual
+      // clock session entirely (continuous stretches, gaps excluded). The
+      // manual clock-in/out span is only a fallback for a day with no
+      // AmoCRM calls at all.
+      const sessionMinutes =
+        myAmoCalls.length > 0
+          ? continuousAmoWorkMinutes(myAmoCalls, today)
+          : clockIn
+            ? Math.max(
+                0,
+                ((clockOut ? new Date(clockOut).getTime() : Date.now()) -
+                  new Date(clockIn).getTime()) /
+                  60000,
+              )
+            : 0;
 
       const myManualCalls = (calls ?? []).filter(
         (c) => c.profile_id === p.id && isSameDay(c.created_at, refDate),
@@ -4396,6 +4439,60 @@ export function useAttendanceView(
     isLoading:
       profiles.isLoading || liveSessions.isLoading || liveCalls.isLoading || liveLeads.isLoading,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Call pickup by hour — when do customers actually answer, and what    */
+/* hour range is most effective for reps to be calling in. Shared by    */
+/* Lid tahlili and Boshqaruv paneli (CallPickupByHourCard).             */
+/* ------------------------------------------------------------------ */
+
+export type HourPickupRow = {
+  hour: number; // 0-23, local time
+  total: number;
+  connected: number;
+  rate: number; // 0-100, percent of `total` that connected
+};
+
+// A single connected call at 3am shouldn't win "best hour" over 40 calls at
+// 60% during the day -- require some minimum volume before an hour is
+// eligible, falling back to whatever volume exists if the whole day is thin.
+const BEST_HOUR_MIN_SAMPLE = 3;
+
+export function useCallPickupByHour(range: { from: Date | null; to: Date | null } | null) {
+  const { data: calls, isLoading: callsLoading } = useAmoCrmCallsSince(range);
+  const { data: leads, isLoading: leadsLoading } = useLeadsRaw();
+  const visibleOwnerIds = useVisibleOwnerIds();
+
+  const ownerIdByLeadId = useMemo(
+    () => new Map((leads ?? []).map((l) => [l.id, l.owner_id])),
+    [leads],
+  );
+
+  const rows = useMemo<HourPickupRow[]>(() => {
+    const buckets = Array.from({ length: 24 }, (_, hour) => ({ hour, total: 0, connected: 0 }));
+    for (const c of calls ?? []) {
+      const ownerId = c.lead_id ? ownerIdByLeadId.get(c.lead_id) : null;
+      if (visibleOwnerIds && (!ownerId || !visibleOwnerIds.has(ownerId))) continue;
+      const bucket = buckets[new Date(c.occurred_at).getHours()]!;
+      bucket.total += 1;
+      if (c.connected) bucket.connected += 1;
+    }
+    return buckets.map((b) => ({
+      ...b,
+      rate: b.total > 0 ? Math.round((b.connected / b.total) * 1000) / 10 : 0,
+    }));
+  }, [calls, ownerIdByLeadId, visibleOwnerIds]);
+
+  const bestHour = useMemo(() => {
+    const withVolume = rows.filter((r) => r.total > 0);
+    if (withVolume.length === 0) return null;
+    const eligible = withVolume.filter((r) => r.total >= BEST_HOUR_MIN_SAMPLE);
+    const pool = eligible.length > 0 ? eligible : withVolume;
+    return pool.reduce((best, r) => (r.rate > best.rate ? r : best), pool[0]!);
+  }, [rows]);
+
+  return { rows, bestHour, isLoading: callsLoading || leadsLoading };
 }
 
 /* ------------------------------------------------------------------ */

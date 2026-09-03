@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { lazy, Suspense, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
   Bar,
   BarChart,
@@ -73,6 +73,10 @@ import { useCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/PermissionGate";
+
+const CallPickupByHourChart = lazy(() =>
+  import("@/components/dashboard/Charts").then((m) => ({ default: m.CallPickupByHourChart })),
+);
 
 export const Route = createFileRoute("/lead-analytics")({
   head: () => ({
@@ -2253,6 +2257,12 @@ function LeadAnalytics() {
           t={t}
         />
       )}
+
+      <div className="mt-6">
+        <Suspense fallback={null}>
+          <CallPickupByHourChart dateRange={{ from: since, to: until }} />
+        </Suspense>
+      </div>
 
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">

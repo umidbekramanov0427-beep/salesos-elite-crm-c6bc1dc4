@@ -447,6 +447,13 @@ const en: Dict = {
 
   "dash.title": "Dashboard",
   "dash.desc": "The operating center of your revenue team.",
+  "dash.tabOverview": "Overview",
+  "dash.tabRevenue": "Revenue",
+  "dash.tabLosses": "Losses",
+  "dash.tabConversion": "Conversion",
+  "dash.tabCalls": "Calls",
+  "dash.tabActivity": "Activity",
+  "dash.tabAi": "AI insights",
   "dailyReport.title": "Daily Report",
   "dailyReport.desc": "Every manager's real numbers: revenue, conversion, KPI and plan.",
   "dash.greetingMorning": "Good morning",
@@ -506,6 +513,13 @@ const en: Dict = {
   "dash.card.revenueByOwner": "Revenue by rep",
   "dash.card.revenueByOwnerDesc": "Won-lead revenue per owner, top 6",
   "dash.card.revenueByOwnerInfo": "Which reps are generating the most closed revenue, top 6.",
+  "callPickup.title": "Call pickup by hour",
+  "callPickup.desc": "When customers actually answer, and reps' most effective calling window",
+  "callPickup.info":
+    "Total calls vs. connected calls per hour of day, based on AmoCRM call activity.",
+  "callPickup.bestWindow": "Best window",
+  "callPickup.total": "Total calls",
+  "callPickup.connected": "Connected",
   "dash.card.lostReasons": "Lost reasons",
   "dash.card.lostReasonsDesc": "Why lost-stage leads in this funnel didn't close",
   "dash.card.lostReasonsInfo":
@@ -2550,6 +2564,13 @@ const ru: Dict = {
 
   "dash.title": "Дашборд",
   "dash.desc": "Операционный центр вашей команды продаж.",
+  "dash.tabOverview": "Обзор",
+  "dash.tabRevenue": "Выручка",
+  "dash.tabLosses": "Потери",
+  "dash.tabConversion": "Конверсия",
+  "dash.tabCalls": "Звонки",
+  "dash.tabActivity": "Активность",
+  "dash.tabAi": "AI аналитика",
   "dailyReport.title": "Дневной отчёт",
   "dailyReport.desc": "Реальные показатели каждого менеджера: доход, конверсия, KPI и план.",
   "dash.greetingMorning": "Доброе утро",
@@ -2609,6 +2630,12 @@ const ru: Dict = {
   "dash.card.revenueByOwnerDesc": "Выручка по выигранным лидам, топ-6 менеджеров",
   "dash.card.revenueByOwnerInfo":
     "Кто из менеджеров приносит больше всего закрытой выручки, топ-6.",
+  "callPickup.title": "Ответы клиентов по часам",
+  "callPickup.desc": "Когда клиенты чаще берут трубку и самое эффективное время для звонков",
+  "callPickup.info": "Всего звонков и отвеченных звонков по часам дня, по данным AmoCRM.",
+  "callPickup.bestWindow": "Лучшее время",
+  "callPickup.total": "Всего звонков",
+  "callPickup.connected": "Отвечено",
   "dash.card.lostReasons": "Причины отказа",
   "dash.card.lostReasonsDesc": "Почему лиды этой воронки не закрылись",
   "dash.card.lostReasonsInfo":
@@ -4656,6 +4683,13 @@ const uz: Dict = {
 
   "dash.title": "Boshqaruv paneli",
   "dash.desc": "Sotuv jamoangizning boshqaruv markazi.",
+  "dash.tabOverview": "Umumiy",
+  "dash.tabRevenue": "Daromad",
+  "dash.tabLosses": "Yo'qotishlar",
+  "dash.tabConversion": "Konversiya",
+  "dash.tabCalls": "Qo'ng'iroqlar",
+  "dash.tabActivity": "Faoliyat",
+  "dash.tabAi": "AI tahlil",
   "dailyReport.title": "Kunlik hisobot",
   "dailyReport.desc":
     "Har bir menejerning haqiqiy ko'rsatkichlari: tushum, konversiya, KPI va reja.",
@@ -4720,6 +4754,14 @@ const uz: Dict = {
   "dash.card.revenueByOwnerDesc": "Yutilgan lidlar bo'yicha tushum, TOP-6 menejer",
   "dash.card.revenueByOwnerInfo":
     "Qaysi menejerlar eng ko'p yopilgan tushum keltirayotgani, TOP-6.",
+  "callPickup.title": "Soatlar bo'yicha telefon ko'tarish",
+  "callPickup.desc":
+    "Mijozlar odatda qaysi soatlarda telefonni ko'tarishadi va menejerlar uchun eng samarali qo'ng'iroq vaqti",
+  "callPickup.info":
+    "Kun davomidagi har bir soat uchun jami qo'ng'iroqlar va ko'tarilgan (ulangan) qo'ng'iroqlar, AmoCRM ma'lumotlari asosida.",
+  "callPickup.bestWindow": "Eng samarali vaqt",
+  "callPickup.total": "Jami qo'ng'iroqlar",
+  "callPickup.connected": "Ko'tarilgan",
   "dash.card.lostReasons": "Yo'qotish sabablari",
   "dash.card.lostReasonsDesc": "Shu voronkadagi yo'qotilgan lidlar nima uchun yopilmagan",
   "dash.card.lostReasonsInfo":
