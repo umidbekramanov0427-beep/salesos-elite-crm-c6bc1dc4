@@ -58,6 +58,8 @@ import { Route as DailyReportSettingsPreviewRouteImport } from './routes/daily-r
 import { Route as DailyReportSettingsSectionsRouteImport } from './routes/daily-report-settings.sections'
 import { Route as DashboardAmocrmTasksRouteImport } from './routes/dashboard.amocrm-tasks'
 import { Route as ErrorsLogRouteImport } from './routes/errors.log'
+import { Route as FinesComputeRouteImport } from './routes/fines.compute'
+import { Route as FinesPublishRouteImport } from './routes/fines.publish'
 import { Route as HrCandidateIdRouteImport } from './routes/hr.$candidateId'
 import { Route as HrDeleteCandidateRouteImport } from './routes/hr.delete-candidate'
 import { Route as HrSendMessageRouteImport } from './routes/hr.send-message'
@@ -348,6 +350,16 @@ const ErrorsLogRoute = ErrorsLogRouteImport.update({
   path: '/errors/log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinesComputeRoute = FinesComputeRouteImport.update({
+  id: '/fines/compute',
+  path: '/fines/compute',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinesPublishRoute = FinesPublishRouteImport.update({
+  id: '/fines/publish',
+  path: '/fines/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HrCandidateIdRoute = HrCandidateIdRouteImport.update({
   id: '/$candidateId',
   path: '/$candidateId',
@@ -584,6 +596,8 @@ export interface FileRoutesByFullPath {
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/fines/compute': typeof FinesComputeRoute
+  '/fines/publish': typeof FinesPublishRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
   '/hr/delete-candidate': typeof HrDeleteCandidateRoute
   '/hr/send-message': typeof HrSendMessageRoute
@@ -670,6 +684,8 @@ export interface FileRoutesByTo {
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/fines/compute': typeof FinesComputeRoute
+  '/fines/publish': typeof FinesPublishRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
   '/hr/delete-candidate': typeof HrDeleteCandidateRoute
   '/hr/send-message': typeof HrSendMessageRoute
@@ -757,6 +773,8 @@ export interface FileRoutesById {
   '/daily-report-settings/sections': typeof DailyReportSettingsSectionsRoute
   '/dashboard/amocrm-tasks': typeof DashboardAmocrmTasksRoute
   '/errors/log': typeof ErrorsLogRoute
+  '/fines/compute': typeof FinesComputeRoute
+  '/fines/publish': typeof FinesPublishRoute
   '/hr/$candidateId': typeof HrCandidateIdRoute
   '/hr/delete-candidate': typeof HrDeleteCandidateRoute
   '/hr/send-message': typeof HrSendMessageRoute
@@ -845,6 +863,8 @@ export interface FileRouteTypes {
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/fines/compute'
+    | '/fines/publish'
     | '/hr/$candidateId'
     | '/hr/delete-candidate'
     | '/hr/send-message'
@@ -931,6 +951,8 @@ export interface FileRouteTypes {
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/fines/compute'
+    | '/fines/publish'
     | '/hr/$candidateId'
     | '/hr/delete-candidate'
     | '/hr/send-message'
@@ -1017,6 +1039,8 @@ export interface FileRouteTypes {
     | '/daily-report-settings/sections'
     | '/dashboard/amocrm-tasks'
     | '/errors/log'
+    | '/fines/compute'
+    | '/fines/publish'
     | '/hr/$candidateId'
     | '/hr/delete-candidate'
     | '/hr/send-message'
@@ -1082,6 +1106,8 @@ export interface RootRouteChildren {
   CrmCompaniesRoute: typeof CrmCompaniesRoute
   CrmContactsRoute: typeof CrmContactsRoute
   ErrorsLogRoute: typeof ErrorsLogRoute
+  FinesComputeRoute: typeof FinesComputeRoute
+  FinesPublishRoute: typeof FinesPublishRoute
   NotificationsSendPushRoute: typeof NotificationsSendPushRoute
   PlatformActivityRoute: typeof PlatformActivityRoute
   PlatformAddEmployeeRoute: typeof PlatformAddEmployeeRoute
@@ -1452,6 +1478,20 @@ declare module '@tanstack/react-router' {
       path: '/errors/log'
       fullPath: '/errors/log'
       preLoaderRoute: typeof ErrorsLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fines/compute': {
+      id: '/fines/compute'
+      path: '/fines/compute'
+      fullPath: '/fines/compute'
+      preLoaderRoute: typeof FinesComputeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fines/publish': {
+      id: '/fines/publish'
+      path: '/fines/publish'
+      fullPath: '/fines/publish'
+      preLoaderRoute: typeof FinesPublishRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hr/$candidateId': {
@@ -1870,6 +1910,8 @@ const rootRouteChildren: RootRouteChildren = {
   CrmCompaniesRoute: CrmCompaniesRoute,
   CrmContactsRoute: CrmContactsRoute,
   ErrorsLogRoute: ErrorsLogRoute,
+  FinesComputeRoute: FinesComputeRoute,
+  FinesPublishRoute: FinesPublishRoute,
   NotificationsSendPushRoute: NotificationsSendPushRoute,
   PlatformActivityRoute: PlatformActivityRoute,
   PlatformAddEmployeeRoute: PlatformAddEmployeeRoute,

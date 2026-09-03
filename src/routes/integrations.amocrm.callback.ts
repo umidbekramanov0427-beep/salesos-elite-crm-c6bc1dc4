@@ -36,9 +36,26 @@ export const Route = createFileRoute("/integrations/amocrm/callback")({
           });
           if (connError) throw connError;
 
+          // Read-modify-write, not a blind overwrite: config also carries
+          // this org's own client_id/client_secret (per-org AmoCRM
+          // credentials), which a plain `.update({ config: {...} })` here
+          // would silently wipe.
+          const { data: existingSettings, error: fetchSettingsError } = await supabaseAdmin
+            .from("integration_settings")
+            .select("config")
+            .eq("organization_id", organizationId)
+            .eq("key", "amocrm")
+            .maybeSingle();
+          if (fetchSettingsError) throw fetchSettingsError;
+          const currentSettingsConfig =
+            (existingSettings?.config as Record<string, unknown> | null) ?? {};
+
           const { error: settingsError } = await supabaseAdmin
             .from("integration_settings")
-            .update({ enabled: true, config: { subdomain: referer } })
+            .update({
+              enabled: true,
+              config: { ...currentSettingsConfig, subdomain: referer },
+            })
             .eq("organization_id", organizationId)
             .eq("key", "amocrm");
           if (settingsError) throw settingsError;

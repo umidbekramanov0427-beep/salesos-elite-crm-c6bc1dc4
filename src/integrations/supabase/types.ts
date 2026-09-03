@@ -166,6 +166,8 @@ export type Database = {
       };
       amocrm_calls: {
         Row: {
+          ai_note_created_at: string | null;
+          ai_note_id: number | null;
           ai_summary: string | null;
           amocrm_lead_entity_id: number | null;
           amocrm_note_id: number | null;
@@ -194,6 +196,8 @@ export type Database = {
           transcript: string | null;
         };
         Insert: {
+          ai_note_created_at?: string | null;
+          ai_note_id?: number | null;
           ai_summary?: string | null;
           amocrm_lead_entity_id?: number | null;
           amocrm_note_id?: number | null;
@@ -222,6 +226,8 @@ export type Database = {
           transcript?: string | null;
         };
         Update: {
+          ai_note_created_at?: string | null;
+          ai_note_id?: number | null;
           ai_summary?: string | null;
           amocrm_lead_entity_id?: number | null;
           amocrm_note_id?: number | null;
@@ -280,7 +286,6 @@ export type Database = {
           connected_by: string | null;
           enabled_pipeline_ids: number[] | null;
           enabled_user_ids: number[] | null;
-          id: boolean;
           initial_sync_page: number | null;
           last_sync_error: string | null;
           last_synced_at: string | null;
@@ -297,7 +302,6 @@ export type Database = {
           connected_by?: string | null;
           enabled_pipeline_ids?: number[] | null;
           enabled_user_ids?: number[] | null;
-          id?: boolean;
           initial_sync_page?: number | null;
           last_sync_error?: string | null;
           last_synced_at?: string | null;
@@ -314,7 +318,6 @@ export type Database = {
           connected_by?: string | null;
           enabled_pipeline_ids?: number[] | null;
           enabled_user_ids?: number[] | null;
-          id?: boolean;
           initial_sync_page?: number | null;
           last_sync_error?: string | null;
           last_synced_at?: string | null;
@@ -714,6 +717,128 @@ export type Database = {
             columns: ["stage_id"];
             isOneToOne: false;
             referencedRelation: "call_stages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      fine_types: {
+        Row: {
+          color: string;
+          created_at: string;
+          default_amount: number | null;
+          description: string | null;
+          id: string;
+          name: string;
+          organization_id: string;
+          position: number;
+          target_positions: string[] | null;
+        };
+        Insert: {
+          color?: string;
+          created_at?: string;
+          default_amount?: number | null;
+          description?: string | null;
+          id?: string;
+          name: string;
+          organization_id: string;
+          position?: number;
+          target_positions?: string[] | null;
+        };
+        Update: {
+          color?: string;
+          created_at?: string;
+          default_amount?: number | null;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          organization_id?: string;
+          position?: number;
+          target_positions?: string[] | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fine_types_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      fines: {
+        Row: {
+          amocrm_call_id: string | null;
+          amount: number;
+          created_at: string;
+          created_by: string | null;
+          fine_type_id: string;
+          id: string;
+          occurred_on: string;
+          organization_id: string;
+          profile_id: string;
+          reason: string | null;
+          source: string;
+        };
+        Insert: {
+          amocrm_call_id?: string | null;
+          amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          fine_type_id: string;
+          id?: string;
+          occurred_on?: string;
+          organization_id: string;
+          profile_id: string;
+          reason?: string | null;
+          source?: string;
+        };
+        Update: {
+          amocrm_call_id?: string | null;
+          amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          fine_type_id?: string;
+          id?: string;
+          occurred_on?: string;
+          organization_id?: string;
+          profile_id?: string;
+          reason?: string | null;
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fines_amocrm_call_id_fkey";
+            columns: ["amocrm_call_id"];
+            isOneToOne: false;
+            referencedRelation: "amocrm_calls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_fine_type_id_fkey";
+            columns: ["fine_type_id"];
+            isOneToOne: false;
+            referencedRelation: "fine_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fines_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];

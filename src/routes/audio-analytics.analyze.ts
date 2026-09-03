@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestUserId } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { createAmoTask } from "@/lib/amocrm/client.server";
+import { createAmoNote, createAmoTask, hasHumanNoteSince } from "@/lib/amocrm/client.server";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -622,7 +622,7 @@ export async function analyzeCallById(
   const { data: call } = await supabaseAdmin
     .from("amocrm_calls")
     .select(
-      "id, lead_id, recording_url, source, amocrm_task_id, leads:lead_id(amocrm_id, owner_id)",
+      "id, lead_id, recording_url, source, amocrm_task_id, occurred_at, leads:lead_id(amocrm_id, owner_id)",
     )
     .eq("id", callId)
     .eq("organization_id", organizationId)
@@ -756,40 +756,81 @@ export async function analyzeCallById(
   }
 
   // Hand the AI-suggested next step to the responsible manager as a
-  // reminder inside AmoCRM — best-effort: a failure here shouldn't
-  // undo the analysis that's already saved. Skipped for manually
-  // uploaded calls (no AmoCRM lead to attach a task to) and never
-  // duplicated on re-analysis.
+  // reminder inside AmoCRM, and log the AI's own summary as a note --
+  // but only as a backstop for whatever the rep didn't already do
+  // themselves. Best-effort throughout: a failure here shouldn't undo
+  // the analysis that's already saved. Skipped for manually uploaded
+  // calls (no AmoCRM lead to attach anything to).
   let taskWarning: string | null = null;
   const leadAmoId = call.leads?.amocrm_id ?? null;
+  const callStartedAt = call.occurred_at ? new Date(call.occurred_at) : null;
+
   if (result.nextStep && call.source === "amocrm" && leadAmoId && !call.amocrm_task_id) {
     try {
-      let responsibleAmoUserId: number | null = null;
-      if (call.leads?.owner_id) {
-        const { data: owner } = await supabaseAdmin
-          .from("profiles")
-          .select("amocrm_user_id")
-          .eq("id", call.leads.owner_id)
+      // A task the rep created themselves (in AmoCRM directly) syncs down
+      // into public.tasks within 5 minutes -- if one already exists for
+      // this lead since the call started, the rep is already on it and
+      // the AI doesn't need to add its own.
+      let repAlreadyCreatedTask = false;
+      if (call.lead_id && callStartedAt) {
+        const { data: existingTask } = await supabaseAdmin
+          .from("tasks")
+          .select("id")
+          .eq("lead_id", call.lead_id)
+          .gte("created_at", callStartedAt.toISOString())
+          .limit(1)
           .maybeSingle();
-        responsibleAmoUserId = owner?.amocrm_user_id ?? null;
+        repAlreadyCreatedTask = !!existingTask;
       }
-      const completeTill = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-      const taskId = await createAmoTask(
-        organizationId,
-        leadAmoId,
-        result.nextStep,
-        completeTill,
-        responsibleAmoUserId,
-      );
-      if (taskId) {
-        await supabaseAdmin
-          .from("amocrm_calls")
-          .update({ amocrm_task_id: taskId, task_created_at: new Date().toISOString() })
-          .eq("id", call.id);
+      if (!repAlreadyCreatedTask) {
+        let responsibleAmoUserId: number | null = null;
+        if (call.leads?.owner_id) {
+          const { data: owner } = await supabaseAdmin
+            .from("profiles")
+            .select("amocrm_user_id")
+            .eq("id", call.leads.owner_id)
+            .maybeSingle();
+          responsibleAmoUserId = owner?.amocrm_user_id ?? null;
+        }
+        const completeTill = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+        const taskId = await createAmoTask(
+          organizationId,
+          leadAmoId,
+          result.nextStep,
+          completeTill,
+          responsibleAmoUserId,
+        );
+        if (taskId) {
+          await supabaseAdmin
+            .from("amocrm_calls")
+            .update({ amocrm_task_id: taskId, task_created_at: new Date().toISOString() })
+            .eq("id", call.id);
+        }
       }
     } catch (taskErr) {
       taskWarning =
         taskErr instanceof Error ? taskErr.message : "AmoCRM'da vazifa yaratib bo'lmadi.";
+    }
+  }
+
+  if (leadAmoId && call.source === "amocrm" && callStartedAt) {
+    try {
+      const sinceUnix = Math.floor(callStartedAt.getTime() / 1000);
+      const repAlreadyWroteNote = await hasHumanNoteSince(organizationId, leadAmoId, sinceUnix);
+      if (!repAlreadyWroteNote) {
+        const noteLines = [`🤖 AI xulosa: ${result.summary}`];
+        if (result.nextStep) noteLines.push(`Kelishuv/keyingi qadam: ${result.nextStep}`);
+        const noteId = await createAmoNote(organizationId, leadAmoId, noteLines.join("\n"));
+        if (noteId) {
+          await supabaseAdmin
+            .from("amocrm_calls")
+            .update({ ai_note_id: noteId, ai_note_created_at: new Date().toISOString() })
+            .eq("id", call.id);
+        }
+      }
+    } catch {
+      // A note failing to write must never fail the whole analysis --
+      // the task warning above already surfaces AmoCRM write problems.
     }
   }
 

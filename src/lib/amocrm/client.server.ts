@@ -492,6 +492,56 @@ export async function createAmoTask(
   return json._embedded?.tasks?.[0]?.id ?? null;
 }
 
+/**
+ * Adds a plain text note to an AmoCRM lead — used to log the AI's summary
+ * of a call directly on the lead when the rep didn't already write one up
+ * themselves (see hasHumanNoteSince).
+ */
+export async function createAmoNote(
+  organizationId: string,
+  leadAmoId: number,
+  text: string,
+): Promise<number | null> {
+  const conn = await getConnection(organizationId);
+  if (!conn) throw new Error("AmoCRM ulanmagan.");
+  const validConn = await ensureValidToken(conn);
+  const payload = [{ note_type: "common", params: { text } }];
+  const json = (await amoWriteFetch(
+    validConn,
+    `/api/v4/leads/${leadAmoId}/notes`,
+    "POST",
+    payload,
+  )) as { _embedded?: { notes?: { id: number }[] } };
+  return json._embedded?.notes?.[0]?.id ?? null;
+}
+
+/**
+ * Whether a lead already has a manually-written ("common") note created
+ * after the given moment — used to decide whether the AI should still log
+ * its own summary, or the rep already did that themselves during/after the
+ * call. Any fetch failure is treated as "no human note found" (fails open
+ * toward the AI writing its own note, never silently skipping it).
+ */
+export async function hasHumanNoteSince(
+  organizationId: string,
+  leadAmoId: number,
+  sinceUnixSeconds: number,
+): Promise<boolean> {
+  const conn = await getConnection(organizationId);
+  if (!conn) return false;
+  try {
+    const validConn = await ensureValidToken(conn);
+    const json = (await amoFetch(
+      validConn,
+      `/api/v4/leads/${leadAmoId}/notes?filter[note_type][]=common&order[created_at]=desc&limit=10`,
+    )) as { _embedded?: { notes?: { created_at: number }[] } };
+    const notes = json._embedded?.notes ?? [];
+    return notes.some((n) => n.created_at >= sinceUnixSeconds);
+  } catch {
+    return false;
+  }
+}
+
 type AmoLead = {
   id: number;
   name: string | null;
@@ -1448,10 +1498,23 @@ export async function syncLeadsFromAmo(organizationId: string): Promise<SyncResu
         initial_sync_page: null,
       })
       .eq("organization_id", organizationId);
+    // Read-modify-write: config also carries this org's own AmoCRM
+    // client_id/client_secret (per-org credentials) -- a blind
+    // `.update({ config: {...} })` here would wipe them out on every sync
+    // cycle (this ran every 5 minutes via the sync cron).
+    const { data: existingSyncSettings } = await supabaseAdmin
+      .from("integration_settings")
+      .select("config")
+      .eq("organization_id", organizationId)
+      .eq("key", "amocrm")
+      .maybeSingle();
+    const currentSyncConfig =
+      (existingSyncSettings?.config as Record<string, unknown> | null) ?? {};
     await supabaseAdmin
       .from("integration_settings")
       .update({
         config: {
+          ...currentSyncConfig,
           subdomain: conn.subdomain,
           last_synced_at: new Date().toISOString(),
           lead_count: totalSynced,

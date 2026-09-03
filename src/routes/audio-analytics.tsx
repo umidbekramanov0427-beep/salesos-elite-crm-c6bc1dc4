@@ -679,16 +679,26 @@ function CallTableRow({ call, lang }: { call: AudioCallView; lang: Lang }) {
                 </div>
               )}
 
-              {call.nextStep && (
+              {(call.nextStep || call.amocrmTaskId || call.aiNoteId) && (
                 <div className="rounded-lg border border-mint/30 bg-mint/10 p-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-mint-foreground">
-                    {t("audio.nextStep")}
-                  </p>
-                  <p className="mt-1 text-sm text-foreground">{call.nextStep}</p>
+                  {call.nextStep && (
+                    <>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-mint-foreground">
+                        {t("audio.nextStep")}
+                      </p>
+                      <p className="mt-1 text-sm text-foreground">{call.nextStep}</p>
+                    </>
+                  )}
                   {call.amocrmTaskId && (
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <CheckCircle2 className="h-3.5 w-3.5 text-mint-foreground" />
                       {t("audio.taskCreated")}
+                    </p>
+                  )}
+                  {call.aiNoteId && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-mint-foreground" />
+                      {t("audio.noteCreated")}
                     </p>
                   )}
                 </div>
