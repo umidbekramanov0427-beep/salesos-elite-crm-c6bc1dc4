@@ -6299,7 +6299,7 @@ const uz: Dict = {
   "contentLibrary.typeFile": "Fayl",
   "contentLibrary.typeText": "Yozma matn",
 
-  "nav./rollout-plan": "Amalga oshirish rejasi",
+  "nav./rollout-plan": "Vazifalar",
   "rolloutPlan.title": "Amalga oshirish rejasi",
   "rolloutPlan.desc": "Bosqichma-bosqich checklist va bajarilish grafigi.",
   "rolloutPlan.newPlan": "Yangi reja",
