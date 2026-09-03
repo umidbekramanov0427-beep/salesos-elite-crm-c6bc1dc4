@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
+import { SectionCard, StatCard, Pill } from "@/components/layout/Primitives";
 import { DateRangeFilter, type DateFilterValue } from "@/components/leaderboard/DateRangeFilter";
 import {
   Dialog,
@@ -1201,8 +1201,6 @@ function AttendanceAndNormativesPage() {
   const [tab, setTab] = useState<AttTab>("davomat");
   return (
     <>
-      <PageHeader title={t("attendance.title")} description={t("attendance.desc")} />
-
       <div className="mb-6 inline-flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
         {ATT_TABS.map((tb) => (
           <button
