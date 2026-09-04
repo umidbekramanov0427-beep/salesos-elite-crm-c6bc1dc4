@@ -8,6 +8,7 @@ here versus still only existing in the original TypeScript app.
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
     admin,
@@ -25,6 +26,20 @@ from app.routers import (
 )
 
 app = FastAPI(title="SalesOS Elite CRM API (Python port)")
+
+# The frontend is a separate origin from this API (unlike the original
+# TypeScript app, where frontend and backend were the same Cloudflare
+# Worker) -- every protected route here authenticates via a Supabase JWT
+# in the `Authorization: Bearer` header, never a cookie, so there is no
+# cookie/CSRF surface a permissive CORS policy would expose. Wide open by
+# origin is deliberate and safe under that model.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(errors.router)
 app.include_router(telegram.router)
