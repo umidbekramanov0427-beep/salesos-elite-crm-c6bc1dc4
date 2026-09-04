@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDate, formatFollowUp, initialsOf, timeAgo } from "@/lib/utils";
 
@@ -522,11 +523,7 @@ export function useDailyReportPreview() {
     enabled: !!user?.organizationId,
     staleTime: 2 * 60 * 1000,
     queryFn: async (): Promise<{ text: string; override: boolean }> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/daily-report-settings/preview", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await apiFetch("/daily-report-settings/preview");
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Hisobot namunasini yuklab bo'lmadi");
       return json;
@@ -3215,14 +3212,8 @@ export function useCreateEmployee() {
       password: string;
       full_name: string;
     }): Promise<{ id: string }> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/create-employee", {
+      const res = await apiFetch("/admin/create-employee", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -3239,14 +3230,8 @@ export function useDeleteEmployee() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/delete-employee", {
+      const res = await apiFetch("/admin/delete-employee", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({ id }),
       });
       const json = await res.json();
@@ -3261,14 +3246,8 @@ export function useDeleteEmployee() {
 export function useSetEmployeePassword() {
   return useMutation({
     mutationFn: async (input: { id: string; password: string }): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/set-employee-password", {
+      const res = await apiFetch("/admin/set-employee-password", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -3299,11 +3278,7 @@ export function useCompanyDirectory() {
   return useQuery({
     queryKey: ["company_directory"],
     queryFn: async (): Promise<CompanyDirectory> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/platform/company-directory", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await apiFetch("/platform/company-directory");
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Kompaniyalar ro'yxatini yuklab bo'lmadi");
       return json;
@@ -3342,14 +3317,8 @@ export function useCreateOrganization() {
       plan?: string | undefined;
       trial_days?: number | undefined;
     }): Promise<{ organizationId: string }> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/platform/create-organization", {
+      const res = await apiFetch("/platform/create-organization", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -3381,12 +3350,7 @@ export function useDeactivateExpiredTrials() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      await fetch("/platform/deactivate-expired-trials", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      await apiFetch("/platform/deactivate-expired-trials", { method: "POST" });
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["organizations"] }),
   });
@@ -3397,14 +3361,8 @@ export function useDeleteUserAsOwner() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/platform/delete-user", {
+      const res = await apiFetch("/platform/delete-user", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({ id }),
       });
       const json = await res.json();
@@ -3424,14 +3382,8 @@ export function useUpdateUserAsOwner() {
       role?: "super_admin" | "rop" | "sotuv_menejeri";
       password?: string;
     }): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/platform/update-user", {
+      const res = await apiFetch("/platform/update-user", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -3452,14 +3404,8 @@ export function useAddOrgEmployee() {
       full_name: string;
       role: "super_admin" | "rop" | "sotuv_menejeri";
     }): Promise<{ id: string }> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/platform/add-employee", {
+      const res = await apiFetch("/platform/add-employee", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -3475,14 +3421,8 @@ export function useDeleteOrganization() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/platform/delete-organization", {
+      const res = await apiFetch("/platform/delete-organization", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({ id }),
       });
       const json = await res.json();
@@ -3585,8 +3525,6 @@ export function useAiAssistantChat() {
       messages: { role: "user" | "assistant"; content: string }[];
       asOf?: Date | null;
     }): Promise<string> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
       // fetch() has no default timeout -- if the server hangs (or the
       // connection stalls) this call would otherwise wait forever with no
       // error, leaving the chat's "thinking" state on screen indefinitely.
@@ -3596,12 +3534,8 @@ export function useAiAssistantChat() {
       const timer = setTimeout(() => controller.abort(), 115_000);
       let res: Response;
       try {
-        res = await fetch("/ai-assistant/chat", {
+        res = await apiFetch("/ai-assistant/chat", {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
           body: JSON.stringify({
             messages: input.messages,
             asOf: input.asOf ? input.asOf.toISOString() : null,
@@ -3730,14 +3664,8 @@ export function useAnalyzeCall() {
       talkRatio: number | null;
       analysis: CallAnalysis | null;
     }> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/audio-analytics/analyze", {
+      const res = await apiFetch("/audio-analytics/analyze", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({ callId }),
       });
       const json = await res.json();
@@ -3869,12 +3797,8 @@ export async function notifyTaskAssigned(assigneeId: string, taskTitle: string):
   // assignee has no push subscription (or push isn't configured at all),
   // the server route just reports 0 sent, nothing to handle here.
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) return;
-    await fetch("/notifications/send-push", {
+    await apiFetch("/notifications/send-push", {
       method: "POST",
-      headers: { "content-type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         assigneeId,
         title: taskTitle,
@@ -4034,11 +3958,7 @@ export function useSecurityUsers() {
     enabled:
       !!user?.organizationId && (user.role === "super_admin" || user.role === "platform_owner"),
     queryFn: async (): Promise<SecurityUserStatus[]> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/security-users", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await apiFetch("/admin/security-users");
       const json = (await res.json()) as { users?: SecurityUserStatus[]; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Could not load login activity.");
       return json.users ?? [];
@@ -4051,14 +3971,8 @@ export function useToggleUserBan() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/security-ban", {
+      const res = await apiFetch("/admin/security-ban", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({ userId, ban }),
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
@@ -4799,24 +4713,11 @@ export function useKpiView(range: { from: Date | null; to: Date | null }) {
 /* Telegram "hisobotchi_bot" — link-code flow + daily report send.     */
 /* ------------------------------------------------------------------ */
 
-async function authedFetch(path: string, init?: RequestInit) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
-  return fetch(path, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  });
-}
-
 export function useLinkTelegram() {
   const { refreshProfile } = useAuth();
   return useMutation({
     mutationFn: async (): Promise<{ code: string; botUsername: string | null }> => {
-      const res = await authedFetch("/telegram/link", { method: "POST" });
+      const res = await apiFetch("/telegram/link", { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to generate a link code");
       return json;
@@ -4828,7 +4729,7 @@ export function useLinkTelegram() {
 export function useSendTestReport() {
   return useMutation({
     mutationFn: async () => {
-      const res = await authedFetch("/telegram/send-test", { method: "POST" });
+      const res = await apiFetch("/telegram/send-test", { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to send");
       return json;
@@ -4839,7 +4740,7 @@ export function useSendTestReport() {
 export function usePublishFines() {
   return useMutation({
     mutationFn: async (range: { from: string | null; to: string | null; label: string }) => {
-      const res = await authedFetch("/fines/publish", {
+      const res = await apiFetch("/fines/publish", {
         method: "POST",
         body: JSON.stringify(range),
       });
@@ -4855,7 +4756,7 @@ export function useGenerateDailyReportNow() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (): Promise<{ sent: number; failed: number }> => {
-      const res = await authedFetch("/daily-report-settings/generate-now", { method: "POST" });
+      const res = await apiFetch("/daily-report-settings/generate-now", { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Hisobotni yaratib bo'lmadi.");
       return json;
@@ -5022,14 +4923,8 @@ export function useUpdateAiAgent() {
       // super_admin's own-org write with "violates row-level security
       // policy" across two policy-shape fixes, so this sidesteps that
       // mystery entirely rather than depending on it being solved.
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/admin/ai-agents/update", {
+      const res = await apiFetch("/admin/ai-agents/update", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(patch),
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -6410,14 +6305,8 @@ export function useSendHrCandidateMessage() {
       locationLat?: number;
       locationLng?: number;
     }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/hr/send-message", {
+      const res = await apiFetch("/hr/send-message", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -6433,14 +6322,8 @@ export function useDeleteHrCandidate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { candidateId: string; reason: string }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch("/hr/delete-candidate", {
+      const res = await apiFetch("/hr/delete-candidate", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
